@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Pre-commit: fast feedback on the projects that are set up.
+# Aggregated via the root scripts, which skip projects without a package.json.
+npm run lint
+npm run typecheck

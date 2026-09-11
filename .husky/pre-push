@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+# Pre-push: full verification before sharing changes.
+# Aggregated via the root scripts, which skip projects without a package.json.
+npm run lint
+npm run typecheck
+npm run test
+npm run build
