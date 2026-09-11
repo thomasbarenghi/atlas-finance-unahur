@@ -11,7 +11,7 @@ Atlass Fin helps you organize and understand the money you enter yourself: accou
 ```
 atlas-finance-unahur/
 ├── api/      # NestJS REST API (PostgreSQL/Supabase, TypeORM, JWT)
-├── client/   # Next.js 16 web app + Capacitor (iOS/Android)
+├── client/   # Next.js 16 web app + Capacitor (Android)
 ├── docs/     # functional and technical documentation
 └── README.md
 ```
@@ -20,7 +20,7 @@ atlas-finance-unahur/
 
 | Layer | Technologies |
 | :--- | :--- |
-| Client | Next.js 16 (App Router) · TypeScript · Tailwind CSS · shadcn/ui · Recharts · TanStack Query · React Hook Form + Zod · @gravity-ui/icons · Capacitor |
+| Client | Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · shadcn/ui · Outfit + Nunito · Recharts · TanStack Query · React Hook Form + Zod · lucide-react · Capacitor 8 (Android) |
 | API | NestJS (modular monolith) · TypeScript · PostgreSQL (Supabase) · TypeORM · JWT (HttpOnly cookie + Bearer) · class-validator · argon2 · Swagger |
 
 ## Documentation
@@ -36,6 +36,7 @@ This repo is built with AI agents in mind. Each project ships its own `AGENTS.md
 - [`client/AGENTS.md`](client/AGENTS.md) and [`api/AGENTS.md`](api/AGENTS.md) — start here.
 - `.agents/skills/quality-rules/SKILL.md` — code-quality and architecture standards.
 - `.agents/skills/test-quality/SKILL.md` — testing standards.
+- `.agents/skills/push-ready/SKILL.md` — global pre-commit/pre-push readiness checklist.
 
 Skills are written in English; functional documentation is in Spanish.
 
@@ -43,9 +44,9 @@ Skills are written in English; functional documentation is in Spanish.
 
 ### Prerequisites
 
-- Node.js 20+ and npm
+- Node.js 20+ and npm (Node 22+ for Capacitor/Android)
 - PostgreSQL 15+ (local, or a Supabase project)
-- Optional: Xcode / Android Studio for native builds
+- Optional: Android Studio + Android SDK + JDK 21 for native Android builds
 
 ### API
 
@@ -62,10 +63,16 @@ npm run start:dev             # http://localhost:3001/api  (Swagger at /api/docs
 
 ```bash
 cd client
-cp .env.example .env.local    # set NEXT_PUBLIC_API_URL=http://localhost:3001/api
 npm install
 npm run dev                   # http://localhost:3000
+
+# Android (Capacitor)
+npm run android:list          # list AVDs / connected devices
+npm run android:build         # web build + cap sync + debug APK
+npm run android               # build + install + launch on a device/emulator
 ```
+
+> When API integration lands, point the client at it with `NEXT_PUBLIC_API_URL=http://localhost:3001/api` in `.env.local` (create the file; `.env*` is git-ignored).
 
 ### Demo credentials
 
@@ -89,7 +96,7 @@ demo@atlassfin.app / Demo1234!
 ## Testing
 
 ```bash
-# Client (Vitest + React Testing Library + MSW + Playwright)
+# Client (Vitest + React Testing Library + MSW + Playwright) — setup pending
 cd client && npm run test && npm run test:e2e
 
 # API (Jest + Supertest)
@@ -99,7 +106,8 @@ cd api && npm run test && npm run test:e2e
 ## Conventions
 
 - Code, filenames, and API contracts in **English**; user-facing copy in **Spanish**.
-- Named exports only; logic in hooks/services; generic components composed by specific ones.
+- Named exports only; **arrow functions** for components/hooks/utils; logic in hooks/services; generic components composed by specific ones.
+- Formatting is enforced with Prettier; the pre-push hook runs `format:check`, `lint`, `typecheck`, `test`, and `build`.
 - See the `quality-rules` and `test-quality` skills in each project before contributing.
 
 ## License

@@ -116,7 +116,7 @@ describe("Amount", () => {
 
 ```tsx
 // lib/test/render.tsx (test-only helper)
-export function renderWithProviders(ui: ReactElement) {
+export const renderWithProviders = (ui: ReactElement) => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }

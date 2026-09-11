@@ -8,6 +8,8 @@
   },
   "scripts": {
     "prepare": "husky",
+    "format": "sh scripts/run-in-projects.sh format",
+    "format:check": "sh scripts/run-in-projects.sh format:check",
     "lint": "sh scripts/run-in-projects.sh lint",
     "typecheck": "sh scripts/run-in-projects.sh typecheck",
     "test": "sh scripts/run-in-projects.sh test",

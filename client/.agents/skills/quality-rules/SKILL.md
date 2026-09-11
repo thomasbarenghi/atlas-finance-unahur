@@ -110,7 +110,7 @@ import { DataTable } from "@/components/common/data-table";
 import { Amount } from "@/components/common/amount";
 import type { AccountsTableProps } from "./accounts-table.types";
 
-export function AccountsTable({ accounts, onArchive }: AccountsTableProps) {
+export const AccountsTable = ({ accounts, onArchive }: AccountsTableProps) => {
   return (
     <DataTable
       data={accounts}
@@ -138,7 +138,7 @@ Promotion criterion: used by ≥ 2 features **and** its API mentions no domain c
 
 ```ts
 // components/common/amount/hooks/use-amount-color.ts
-export function useAmountColor(kind: "income" | "expense" | "transfer") {
+export const useAmountColor = (kind: "income" | "expense" | "transfer") => {
   return kind === "income" ? "text-success" : kind === "expense" ? "text-destructive" : "text-muted-foreground";
 }
 ```
@@ -147,7 +147,7 @@ export function useAmountColor(kind: "income" | "expense" | "transfer") {
 
 ```tsx
 // BEFORE — component owns state, math, formatting, and tone (violates SoC/SRP)
-export function TransactionAmount({ tx }: { tx: Transaction }) {
+export const TransactionAmount = ({ tx }: { tx: Transaction }) => {
   const signed = (tx.type === "expense" ? -1 : 1) * tx.amount;
   const tone = tx.type === "income" ? "text-success" : tx.type === "expense" ? "text-destructive" : "text-muted";
   return <span className={tone}>{formatCurrency(signed, tx.currency)}</span>;
@@ -155,14 +155,14 @@ export function TransactionAmount({ tx }: { tx: Transaction }) {
 
 // AFTER — logic in a hook, formatting in lib, component renders
 // hooks/use-transaction-amount.ts
-export function useTransactionAmount(tx: Transaction) {
+export const useTransactionAmount = (tx: Transaction) => {
   const value = formatCurrency((tx.type === "expense" ? -1 : 1) * tx.amount, tx.currency);
   const tone = tx.type === "income" ? "text-success" : tx.type === "expense" ? "text-destructive" : "text-muted";
   return { value, tone };
 }
 
 // index.tsx
-export function TransactionAmount({ tx }: TransactionAmountProps) {
+export const TransactionAmount = ({ tx }: TransactionAmountProps) => {
   const { value, tone } = useTransactionAmount(tx);
   return <span className={tone}>{value}</span>;
 }
@@ -195,6 +195,7 @@ app/ (routes) → components/ (presentation) → hooks/ + lib/query (state/data)
 ## 7. Exports and code conventions
 
 - **Named exports are mandatory.** `export default` is forbidden in components, hooks, utils, and services (framework exceptions in §Exceptions).
+- **Arrow functions are mandatory.** Declare components, hooks, utils, services, and callbacks as `const foo = () => {}`. Do not use `function` declarations or function expressions. Generated `components/ui/**` is exempt (see §Exceptions).
 - Type props with an exported `interface <Component>Props`; use `readonly` where applicable.
 - Model variants with **discriminated unions**, not multiple booleans:
 
@@ -218,8 +219,8 @@ app/ (routes) → components/ (presentation) → hooks/ + lib/query (state/data)
 Tooling:
 
 - TypeScript `strict`, `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns`.
-- ESLint: `import/no-default-export` (with framework overrides), `no-restricted-imports`/boundaries (no deep imports into component internals, no inverted deps), `react-hooks/rules-of-hooks`, `react-hooks/exhaustive-deps`, `@typescript-eslint/no-explicit-any`.
-- Prettier; Husky + lint-staged (`lint`, `typecheck` on pre-commit); CI runs `lint`, `typecheck`, `test`, `build`.
+- ESLint: `import/no-default-export` (with framework overrides), `no-restricted-imports`/boundaries (no deep imports into component internals, no inverted deps), `react-hooks/rules-of-hooks`, `react-hooks/exhaustive-deps`, `@typescript-eslint/no-explicit-any`, `prefer-arrow/prefer-arrow-functions`, plus `eslint-config-prettier` to disable formatting rules.
+- Prettier with the project config; `npm run format:check` runs on **pre-push** (Husky) so unformatted files never reach the remote. `npm run format` writes the changes. CI runs `lint`, `typecheck`, `test`, `build`.
 
 A task is done when:
 
@@ -227,6 +228,7 @@ A task is done when:
 - [ ] No avoidable duplication (DRY on the 3rd repetition).
 - [ ] Components live in their folder with `index.tsx`, `*.types.ts`, `*.utils.ts`/`hooks/` as needed.
 - [ ] Named exports (no `export default`, except §Exceptions).
+- [ ] Arrow functions everywhere (except generated `components/ui/**`).
 - [ ] Generics are reused; specifics compose them.
 - [ ] Strict typing, no `any`.
 - [ ] Relevant tests added/updated and green (see `test-quality` skill).
@@ -238,5 +240,5 @@ A task is done when:
 - **Next.js requires `export default`** in special App Router files — the only exception:
   `app/**/page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, `global-error.tsx`, `not-found.tsx`, `template.tsx`, `default.tsx`, and `route.ts` (Route Handlers). This project does not use Route Handlers (static export/Capacitor).
 - **Config files** (`next.config.ts`, `tailwind.config.ts`, `capacitor.config.ts`) follow their tool's required format.
-- **`components/ui/`** keeps shadcn's convention (one file per component, named exports); the folder-with-`index.tsx` rule applies to owned components (`common/`, `features/`).
-- **Generated code** (shadcn CLI, OpenAPI-derived types) is not hand-edited and is exempt; regenerate it.
+- **`components/ui/`** keeps shadcn's convention (generated `function` declarations, one file per component, named exports); the arrow-function rule and the folder-with-`index.tsx` rule do NOT apply here (Prettier still formats these files). The folder-with-`index.tsx` rule applies to owned components (`common/`, `features/`).
+- **Generated code** (shadcn CLI, OpenAPI-derived types) is not hand-edited and is exempt; regenerate it. The shadcn registry ships a bare `cn` import; `tsconfig.json` aliases `cn` → `@/lib/utils` so generated files stay untouched (define `cn` with `clsx` + `tailwind-merge`).
