@@ -17,6 +17,7 @@ Atlass Fin backend: a **NestJS monolith** exposing a REST API for the web/native
 ## Skills (load before coding)
 
 - `.agents/skills/quality-rules/SKILL.md` — layering, use-case services, DTOs, ownership, transactions, errors, DRY/SRP. **Mandatory before creating/refactoring modules, services, or DTOs.**
+- `.agents/skills/orchestrator-domain-architecture/SKILL.md` — domain organization and Controller → Orchestrator → primary services → repositories; primary services never call each other. **Mandatory before implementing or refactoring a composite use case.**
 - `.agents/skills/test-quality/SKILL.md` — unit/integration/e2e standards (Jest + Supertest, test DB, provider mocks). **Mandatory before writing tests.**
 
 ## Commands
@@ -48,6 +49,7 @@ Run `lint`, `typecheck`, `test`, and `build` before considering a task done. CI 
 9. **Secrets only in env**; never log passwords, tokens, full prompts, or sensitive financial data (NFR-SEG-007/008).
 10. **Named exports** (NestJS convention); no `export default`.
 11. **No real financial data** in the seed; demo user `demo@atlassfin.app` / `Demo1234!`.
+12. **Orchestrate across domains.** A primary service never calls another service; coordination belongs to an orchestrator (see the `orchestrator-domain-architecture` skill).
 
 ## Layout
 
