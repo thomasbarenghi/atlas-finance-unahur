@@ -4,9 +4,9 @@ Guidance for AI agents working in `client/`. Read this first, then load the rele
 
 ## Project
 
-Atlass Fin web app: a personal-finance client (accounts, transactions, budgets, assets, goals, reports) with rich analytics and an integrated AI assistant. It is a **pure REST client** of the NestJS API in `../api/`. The same code is packaged for iOS/Android with Capacitor.
+Atlass Fin web app: a personal-finance client (accounts, transactions, budgets, assets, goals, reports) with rich analytics and an integrated AI assistant. It is a **pure REST client** of the NestJS API in `../api/`. The same code is packaged for **Android** with Capacitor (iOS pending).
 
-**Stack:** Next.js 16 (App Router) · TypeScript strict · Tailwind CSS · shadcn/ui · Recharts · TanStack Query · React Hook Form + Zod · @gravity-ui/icons · Capacitor.
+**Stack:** Next.js 16 (App Router) · TypeScript strict · Tailwind CSS 4 · shadcn/ui (preset radix-maia: green, radius large) · Outfit (headings) + Nunito (body) · Recharts · TanStack Query · React Hook Form + Zod · lucide-react · Capacitor 8 (Android).
 
 ## Source of truth (READMEs / docs)
 
@@ -24,21 +24,25 @@ Atlass Fin web app: a personal-finance client (accounts, transactions, budgets, 
 ```bash
 npm run dev            # dev server
 npm run build          # static export → out/ (output: "export")
-npm run lint
+npm run lint           # ESLint
+npm run lint:fix
 npm run typecheck
-npm run test           # Vitest
-npm run test:e2e       # Playwright
-npx cap sync           # sync web build into native projects
-npx cap open ios       # or: npx cap open android
+npm run format         # Prettier (write)
+npm run format:check   # Prettier (check; runs on pre-push)
+npm run test           # Vitest (pending setup)
+npm run test:e2e       # Playwright (pending setup)
+npm run android:list   # list AVDs / adb devices
+npm run android:build  # web build + cap sync + debug APK
+npm run android        # build + pick device + install + launch
 ```
 
-Run `lint`, `typecheck`, and `build` before considering a task done. CI runs all four.
+Run `format:check`, `lint`, `typecheck`, and `build` before considering a task done (the pre-push hook does this).
 
 ## Hard rules (must follow)
 
 1. **Client-only / static-exportable.** No Server Components data fetching, Server Actions, Route Handlers, `middleware.ts`, `cookies()`, or `headers()` in the data flow. Pages under `(app)` are client components. This keeps the build Capacitor-ready.
 2. **Logic in hooks, not in render.** Components compose; hooks/utils hold logic.
-3. **Named exports only**, except Next.js special files (`page.tsx`, `layout.tsx`, etc.) — see the quality skill.
+3. **Named exports and arrow functions only**, except Next.js special files (`page.tsx`, `layout.tsx`, etc.) — see the quality skill.
 4. **No direct `fetch` in components.** Data goes through `lib/query/*`; HTTP through `lib/api/client.ts`.
 5. **`lib/` is portable.** It must not import `next/*` or components, so it can be reused on native.
 6. **Match the backend contract.** JSON is `camelCase`; dates `YYYY-MM-DD`; timestamps ISO 8601 UTC; decimals are `number`. Types in `lib/api/types.ts` mirror `../docs/backend.md` §7.13–§7.18.
@@ -55,9 +59,11 @@ client/
 │   ├── ui/              # shadcn primitives (generated; do not hand-edit)
 │   ├── common/          # reusable domain-agnostic components
 │   └── features/<f>/    # domain components composing common
-├── lib/                 # api, query, format, validation (portable)
 ├── hooks/               # shared hooks
+├── lib/                 # api, query, format, validation (portable)
 ├── providers/           # Query, Theme, Auth
+├── scripts/android.sh   # Android build/run helper
+├── android/             # Capacitor Android project (generated)
 └── capacitor.config.ts
 ```
 

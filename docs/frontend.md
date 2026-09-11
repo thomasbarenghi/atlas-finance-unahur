@@ -1,7 +1,7 @@
 # Atlass Fin — Documento Técnico del Frontend
 
 > **Audiencia:** agentes de IA que implementarán el frontend.
-> **Stack:** Next.js 16 (App Router) · TypeScript (strict) · Tailwind CSS · shadcn/ui · Recharts · TanStack Query · React Hook Form + Zod · Capacitor (iOS/Android).
+> **Stack:** Next.js 16 (App Router) · TypeScript (strict) · Tailwind CSS 4 · shadcn/ui · Outfit (títulos) + Nunito (cuerpo) · Recharts · TanStack Query · React Hook Form + Zod · lucide-react · Capacitor 8 (Android; iOS pendiente).
 > **Backend:** consume una API REST NestJS (ver `backend.md`). La URL base se inyecta por variable de entorno.
 > **Referencia funcional:** `FRD_Gestor_Financiero_v0.1.docx.md`. Todo requisito citado (FR-*, HU-*, CAL-*, NFR-*) corresponde a ese documento.
 
@@ -35,17 +35,18 @@
 | :--- | :--- | :--- |
 | Framework | Next.js (App Router) | 16.x |
 | Lenguaje | TypeScript | 5.x, `strict: true` |
-| UI | shadcn/ui + Tailwind CSS | Tailwind 3.x / 4.x según init de shadcn |
+| UI | shadcn/ui + Tailwind CSS | Tailwind 4.x |
+| Tipografía | Outfit (títulos) + Nunito (cuerpo) | `next/font/google` |
 | Estilos | CSS variables + `cn()` | — |
-| Gráficos | Recharts (base del componente `Chart` de shadcn) | 2.x |
+| Gráficos | Recharts (base del componente `Chart` de shadcn) | 3.x |
 | Estado servidor | TanStack Query | 5.x |
 | Formularios | React Hook Form + Zod | RHF 7.x, Zod 3.x |
 | Validación | Zod (compartida conceptualmente con el back) | 3.x |
 | Auth | JWT: cookie `HttpOnly` (web) o `Authorization: Bearer` (nativo) | — |
 | HTTP | `fetch` nativo dentro de un cliente tipado | — |
-| Móvil | Capacitor (iOS/Android) | 6.x |
-| Iconos | @gravity-ui/icons | — |
-| Fechas | `date-fns` (compatible con DatePicker de shadcn) | 3.x |
+| Móvil | Capacitor (Android; iOS pendiente) | 8.x |
+| Iconos | lucide-react (los genera shadcn) | — |
+| Fechas | `date-fns` (compatible con DatePicker de shadcn) | 4.x |
 | Temas | `next-themes` (claro / oscuro / sistema) | 0.4.x |
 
 **Principios rectores:**
@@ -292,10 +293,9 @@ client/
 │   └── auth-provider.tsx
 ├── capacitor.config.ts             # config de Capacitor (appId, webDir: out)
 ├── android/                        # proyecto Android (generado por Capacitor)
-├── ios/                            # proyecto iOS (generado por Capacitor)
+├── ios/                            # proyecto iOS (pendiente; aún no generado)
 ├── next.config.ts                  # output: "export", images: unoptimized
-├── tailwind.config.ts
-├── components.json                # config de shadcn
+├── components.json                # config de shadcn (preset radix-maia)
 ├── tsconfig.json
 ├── package.json
 └── .env.local                     # NEXT_PUBLIC_API_URL, etc. (no versionar)
@@ -316,21 +316,24 @@ client/
 ### 6.1 Instalación
 
 ```bash
-npx create-next-app@latest client --typescript --tailwind --eslint --app --src-dir=false --import-alias "@/*"
+npx create-next-app@latest client --typescript --tailwind --eslint --app --no-src-dir --import-alias "@/*"
 cd client
-npx shadcn@latest init          # elegir: style new-york, base color neutral, CSS variables = yes
-npx shadcn@latest add button card input label form select dialog alert alert-dialog
+# Preset propio: radix-maia, green, radius large, Outfit (títulos) + Nunito (cuerpo) (ver components.json)
+npx shadcn@latest init --preset b1ZONO4zw --base radix --template next
+npx shadcn@latest add button card input label select dialog alert alert-dialog
 npx shadcn@latest add dropdown-menu table badge tabs sheet progress skeleton
-npx shadcn@latest add scroll-area textarea switch radio-group date-picker chart sonner tooltip separator
+npx shadcn@latest add scroll-area textarea switch radio-group calendar popover chart sonner tooltip separator
 npx shadcn@latest add breadcrumb avatar
 ```
 
-> **Iconos**: shadcn genera componentes con `lucide-react` por defecto; se reemplazan por `@gravity-ui/icons`. Instalar con `npm i @gravity-ui/icons` y sustituir los imports `from "lucide-react"` por el ícono equivalente. Importar por nombre (p. ej. `import { ArrowRight } from "@gravity-ui/icons"`), o preferir la ruta por ícono (`import ArrowRight from "@gravity-ui/icons/ArrowRight"`) para mejor tree-shaking. Los SVGs no traen color ni tamaño fijos: controlar con `className` (`h-4 w-4`) y `currentColor`, igual que hacen los componentes de shadcn. No mezclar ambas librerías.
+> **Iconos**: el preset usa `lucide-react`; no mezclar con otra librería. Los SVGs no traen color ni tamaño fijos: controlar con `className` (`size-4`) y `currentColor`, igual que los componentes de shadcn.
+
+> **Notas del registro actual**: el componente `form` (RHF) ya no existe en el registro (`form.json` viene vacío), así que el wrapper clásico se agregó a mano en `components/ui/form.tsx`. No existe `date-picker`: se compone con `calendar` + `popover`. El registro emite `import { cn } from "cn"` (un paquete npm ajeno); `tsconfig.json` aliasa `cn` → `@/lib/utils` (implementado con `clsx` + `tailwind-merge`) para no editar archivos generados.
 
 ### 6.2 Theming (FR-AUT-006, NFR-CAL-002)
 
-- Se conservan las CSS variables en `globals.css` (`--background`, `--foreground`, `--primary`, etc.) en `.light` y `.dark`.
-- `next-themes` aplica la clase `dark` en `<html>` con `attribute="class"`, `defaultTheme="system"`, `enableSystem`.
+- Se conservan las CSS variables en `globals.css` (`--background`, `--foreground`, `--primary`, etc.) en `:root` y `.dark`.
+- `next-themes` aplica la clase `dark` en `<html>` con `attribute="class"`, `defaultTheme="system"`, `enableSystem` (`providers/theme-provider.tsx`).
 - **Regla**: nunca usar colores hardcodeados; siempre `bg-background`, `text-foreground`, `border-border`, `bg-muted`, etc., o tokens `primary/destructive/success/warning`.
 - Se agregan tokens semánticos propios: `--success`, `--warning`, `--destructive` para estados financieros (positivo/negativo/advertencia), usados por `Badge` y `Progress`.
 
@@ -451,7 +454,7 @@ export interface AssistantStreamMeta { conversationId: string; period?: { from: 
 // providers/query-provider.tsx
 "use client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-export function QueryProvider({ children }) {
+export const QueryProvider = ({ children }) => {
   const [qc] = useState(() => new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1 } } }));
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }
@@ -535,17 +538,19 @@ export async function* postAssistantStream(
 
 ```ts
 // lib/format.ts
-export const formatCurrency = (value: number, currency: string, locale?: string) =>
-  new Intl.NumberFormat(locale ?? navigator.language, { style: "currency", currency }).format(value);
+const DEFAULT_LOCALE = "es-AR";
 
-export const formatDate = (iso: string, locale?: string) =>
-  new Intl.DateTimeFormat(locale ?? navigator.language, { dateStyle: "medium" }).format(new Date(iso));
+export const formatCurrency = (value: number, currency: string, locale: string = DEFAULT_LOCALE) =>
+  new Intl.NumberFormat(locale, { style: "currency", currency }).format(value);
 
-export const formatPercent = (v: number, locale?: string) =>
-  new Intl.NumberFormat(locale ?? navigator.language, { style: "percent", maximumFractionDigits: 1 }).format(v);
+export const formatDate = (iso: string, locale: string = DEFAULT_LOCALE) =>
+  new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
+
+export const formatPercent = (v: number, locale: string = DEFAULT_LOCALE) =>
+  new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 1 }).format(v);
 ```
 
-- `navigator.language` como locale por defecto (NFR-CAL-003).
+- `es-AR` como locale por defecto (no `navigator.language`, para que el export estático no dependa del cliente).
 - Moneda base del usuario desde `GET /auth/me` y cacheada en `UserPreferencesProvider`.
 - `date-fns` para cálculos de rangos del `DatePicker`; formateo siempre con `Intl`.
 
@@ -572,11 +577,12 @@ export const formatPercent = (v: number, locale?: string) =>
 
 ## 13. Convenciones de código
 
-- **Componentes**: funciones flecha, `export function`; archivos `kebab-case.tsx`. Un componente por archivo (salvo variantes pequeñas).
+- **Componentes**: siempre **funciones flecha** (`const Foo = () => {}`), nunca `function`; archivos `kebab-case.tsx`. Un componente por archivo (salvo variantes pequeñas). Excepción: `components/ui/**` generado por shadcn.
 - **Client/Server**: las páginas de `(app)` son componentes cliente; no usar Server Components, Server Actions, Route Handlers ni APIs server-only (cookies/headers) para que el build sea estático y portable a Capacitor.
 - **Tipado**: `strict`; usar `interface` para DTOs y `type` para uniones; evitar `any`.
 - **Imports**: path alias `@/`; orden: externos, internos (`@/lib`, `@/components`), relativos.
 - **Estilos**: Tailwind + `cn()`; evitar CSS inline.
+- **Formato**: Prettier (`.prettierrc.json`); `npm run format` escribe y `npm run format:check` corre en el hook **pre-push**.
 - **Consultas**: nunca llamar a la API directamente desde componentes; siempre a través de hooks en `lib/query/`.
 - **Validación**: todo formulario usa un schema Zod; mostrar errores del backend mapeados a campos cuando corresponda.
 - **Sin `console.log`** en producción; usar `sonner` (toast) para feedback de usuario.
@@ -600,13 +606,14 @@ export default nextConfig;
 ```
 
 ```bash
-npm i @capacitor/core @capacitor/cli @capacitor/ios @capacitor/android
-npx cap init "Atlass Fin" com.atlassfin.app --web-dir out
-npx cap add ios
-npx cap add android
-npm run build && npx cap sync
-npx cap open ios      # o: npx cap open android
+npm i @capacitor/core @capacitor/android && npm i -D @capacitor/cli
+# capacitor.config.ts → appId com.atlassfin.app, appName "Atlass Fin", webDir "out"
+npx cap add android                 # iOS pendiente: npx cap add ios
+npm run build && npx cap sync android
+npm run android                     # build web + sync + instala/lanza (scripts/android.sh)
 ```
+
+> Requisitos Android: **Node 22+** (lo exige Capacitor 8), **JDK 21** (`.sdkmanrc`) y Android SDK. El helper `scripts/android.sh` los configura y ofrece `--list`, build de APK y `--run` (emulador/dispositivo).
 
 - `webDir` apunta a `out/` (salida del `output: "export"`).
 - `capacitor.config.ts` define `appId`, `appName`, `webDir` y `server` (URL para live-reload en desarrollo).
@@ -689,10 +696,10 @@ Progresivo y validable al final de cada tanda. Cada tanda deja la app compilando
 - **Aceptación**: cumplimiento de NFR-UA/PR/CAL del §12.
 
 ### Tanda 9 — Empaquetado móvil (Capacitor)
-- Instalar Capacitor (`@capacitor/core`, `cli`, `ios`, `android`), `cap init` y `cap add ios/android`.
+- Android (hecho): `@capacitor/core`, `cli`, `android`, `capacitor.config.ts` y `cap add android`; helper `scripts/android.sh` (`npm run android`).
+- iOS (pendiente): `@capacitor/ios` + `cap add ios`.
 - `session.ts` nativo: keychain + preferences; verificar login/logout con Bearer.
 - Plugins de plataforma: export CSV vía `Filesystem` + `Share`, `StatusBar`/safe-areas.
-- `npx cap sync` y build de prueba en simulador/emulador.
-- **Aceptación**: la app corre en iOS y Android contra la API, con sesión persistente y export funcionando.
+- **Aceptación**: la app corre en Android (y luego iOS) contra la API, con sesión persistente y export funcionando.
 
 > **Nota**: las funcionalidades P2 (CSV import FR-TRX-009, recurrentes FR-TRX-010, PDF FR-REP-007) quedan fuera de la entrega inicial y se planifican aparte.
