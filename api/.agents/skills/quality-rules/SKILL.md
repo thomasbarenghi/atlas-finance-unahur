@@ -50,6 +50,7 @@ HTTP (controllers) → application (services = use cases) → persistence (TypeO
 - Services MUST NOT read `req`/`res`. Controllers extract the user with `@CurrentUser()` and pass the user id/object into the service as an argument.
 - Entities MUST NOT be returned from controllers; map to response DTOs.
 - Cross-module use goes through a module's exported service (DI), never by importing another module's entity/internal.
+- Coordination across modules belongs to an **orchestrator** (Controller → Orchestrator → primary services). A service MUST NOT call another service; see `orchestrator-domain-architecture`.
 
 ## 3. Module anatomy
 
@@ -78,6 +79,7 @@ Each feature lives in its own folder:
 - A method MUST represent a complete business operation, including validation, persistence, and mapping to a response DTO.
 - Keep private helpers small and focused; do not expose them.
 - Do not build "god services"; split by use case when responsibilities diverge.
+- When a use case combines two or more domains, implement it as an orchestrator that coordinates primary services instead of chaining service calls; see `orchestrator-domain-architecture`.
 
 ```ts
 // accounts.controller.ts — thin: routing, decorators, DTOs only
@@ -123,6 +125,7 @@ async createAccount(userId: string, dto: CreateAccountDto): Promise<AccountRespo
 - Before read/update/delete, verify the resource belongs to the user; otherwise throw `NotFound`/`Forbidden` (do not leak existence).
 - Never trust client-supplied IDs for authorization (NFR-SEG-005).
 - Respect rate limits on login, password reset, quotes, and AI (NFR-SEG-010).
+- Keep in mind that secrets shipped to the client are not secrets (web bundle / APK are inspectable): do not build a shared-token gate and treat it as authentication.
 
 ## 8. Transactions and multi-row writes
 

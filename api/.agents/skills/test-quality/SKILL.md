@@ -50,6 +50,7 @@ When adding or changing a feature:
 - **Auth:** register (duplicate email, password policy), login (invalid credentials → generic error), refresh rotation, logout revokes session, password reset one-time/expiry, `@Public()` vs guarded routes.
 - **Ownership (security-critical):** a user cannot read/update/delete another user's account, transaction, budget, asset, debt, position, goal, or conversation → `FORBIDDEN`/`NOT_FOUND` (NFR-SEG-001).
 - **Transactions:** transfer creates two atomic rows with a shared `transfer_group_id`; source = destination is rejected; failure rolls back both; transfers are excluded from income/expense consolidation (CAL-003).
+- **Orchestrators:** coordination order and combined result with mocked primary services; the orchestrator performs no direct repository/database access (see `orchestrator-domain-architecture`).
 - **Budgets:** status transitions `available → warning → exceeded`, `spent`/`available`/`consumedPct`, `DUPLICATE_BUDGET` on repeated category/period, `copy-previous`.
 - **Quotes:** staleness computed from `QUOTE_STALE_MS`; external failure keeps the last valid price and never invents one; `isStale` surfaces correctly.
 - **Assistant:** rejects when `aiEnabled=false` (`AI_DISABLED`); sends only the authenticated user's minimal pre-calculated context; conversation scoped to the user; no write operations; `insufficient` handling; provider failure → `AI_UNAVAILABLE`.
