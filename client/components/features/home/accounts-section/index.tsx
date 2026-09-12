@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
+import { SectionHeader } from "@/components/common/section-header";
 import { Button } from "@/components/ui/button";
 import type { AccountType } from "@/lib/api/types";
 import { useAccounts } from "@/lib/query/accounts";
@@ -24,34 +25,72 @@ export const AccountsSection = () => {
     [accounts],
   );
 
-  return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="font-heading text-base font-semibold">Cuentas</h2>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Nueva cuenta u objetivo"
-          onClick={() => setPickerOpen(true)}
-        >
-          <Plus />
-        </Button>
-      </div>
+  const regularAccounts = useMemo(
+    () => accounts.filter((account) => account.type !== "goal"),
+    [accounts],
+  );
+  const goalAccounts = useMemo(
+    () => accounts.filter((account) => account.type === "goal"),
+    [accounts],
+  );
 
-      <AccountsList
-        accounts={accounts}
-        sourceNameById={sourceNameById}
-        isLoading={accountsQuery.isLoading}
-      />
+  const openForm = (type: AccountType) => {
+    setPickerOpen(false);
+    setFormKey((key) => key + 1);
+    setAccountType(type);
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      <section className="flex flex-col gap-3">
+        <SectionHeader
+          title="Cuentas"
+          actions={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Nueva cuenta"
+              onClick={() => setPickerOpen(true)}
+            >
+              <Plus />
+            </Button>
+          }
+        />
+        <AccountsList
+          accounts={regularAccounts}
+          sourceNameById={sourceNameById}
+          isLoading={accountsQuery.isLoading}
+        />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <SectionHeader
+          title="Metas"
+          description="Objetivos de ahorro con fecha y monto."
+          actions={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Nueva meta"
+              onClick={() => openForm("goal")}
+            >
+              <Plus />
+            </Button>
+          }
+        />
+        <AccountsList
+          accounts={goalAccounts}
+          sourceNameById={sourceNameById}
+          isLoading={accountsQuery.isLoading}
+          emptyTitle="Todavía no tenés metas"
+          emptyDescription="Creá un objetivo de ahorro y seguí su progreso."
+        />
+      </section>
 
       <AccountTypePicker
         open={pickerOpen}
         onOpenChange={setPickerOpen}
-        onSelect={(type) => {
-          setPickerOpen(false);
-          setFormKey((key) => key + 1);
-          setAccountType(type);
-        }}
+        onSelect={openForm}
       />
       <AccountFormDialog
         key={formKey}
@@ -61,6 +100,6 @@ export const AccountsSection = () => {
         }}
         initialType={accountType ?? undefined}
       />
-    </section>
+    </div>
   );
 };

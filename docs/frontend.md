@@ -95,7 +95,7 @@
     ├── /transactions         # listado + alta/edición (SC-004)
     ├── /budgets              # control por categoría/período (SC-005)
     ├── /reports              # resumen, export, print (SC-008)
-    ├── /reports/investments  # reporte de inversiones (SC-006/008)
+    ├── /reports/investments  # reporte de patrimonio (SC-006/008)
     ├── /categories           # categorías de ingresos y gastos (SC-004)
     ├── /assistant            # chat con la IA (SC-009)
     └── /settings             # perfil, moneda, tema, privacidad, IA (SC-010)
@@ -139,10 +139,10 @@ Cada página lista: FRs cubiertos, componentes shadcn, y comportamiento esperado
 
 Vista de aterrizaje **"Tu resumen"**, un resumen real (no un tablero de análisis), con `Skeleton` mientras carga.
 
-- **Patrimonio neto** (FR-DAS-001/002): `NetWorthHero` a **ancho completo** con valor, variación vs. período anterior, mini-stats (Ingresos/Gastos/Ahorro/Tasa) y sparkline de la evolución.
-- **Accesos rápidos** (segunda sección, debajo del patrimonio): carrusel horizontal (`QuickAccess`, `overflow-x` con snap) de tarjetas compactas con las secciones que no están en el inicio (Movimientos, Presupuestos, Reportes).
-- **Cuentas** (`AccountsSection`): el listado de cuentas vive acá (ya no hay página `/accounts`) e **integra cuentas y objetivos en una sola lista** (`AccountsList`): las cuentas comunes muestran ícono, nombre, `tipo · moneda`, saldo y estado; los **objetivos** (`type: "goal"`) se ordenan al final y muestran acumulado/objetivo, cuenta origen, `Progress` y `StatusBadge`. Botón `+` para crear (`AccountTypePicker` → `AccountFormDialog`) y cada fila navega al detalle (§4.3.1).
-- **Inversiones** (`InvestmentsSection`, debajo de Cuentas): agrupa **Activos**, **Mercado** (posiciones tipo BTC) y **Deudas** en una sola sección. Cada grupo es una lista de items (`AssetsList` / `PositionsList` / `DebtsList`); el `+` abre `InvestmentTypePicker` (Activo / Inversión / Deuda) y las filas permiten **editar** (menú con valuaciones o archivar/eliminar). Los formularios y el `ValuationSheet` viven acá; ya no hay página `/assets`.
+- **Patrimonio neto** (FR-DAS-001/002): `NetWorthHero` a **ancho completo** con valor, variación vs. período anterior (`TrendBadge`), mini-stats (Ingresos/Gastos/Ahorro/Tasa) y sparkline con **escala adaptativa** (min/max + padding) y **tooltip**. El patrimonio usa la **misma fórmula que Reportes y Patrimonio** (cuentas + activos + inversiones financieras − deudas).
+- **Acciones rápidas** (segunda sección, debajo del patrimonio): `QuickActions` con botones de **acción** (Registrar movimiento, Crear presupuesto, Agregar inversión) que abren sus diálogos; ya **no** duplican la navegación del sidebar.
+- **Cuentas y Metas** (`AccountsSection`): el listado vive acá (ya no hay página `/accounts`) y se **separa en dos bloques**: **Cuentas** (`AccountsList` con las cuentas comunes) y **Metas** (`AccountsList` con `type: "goal"`), cada una con su `SectionHeader` y `+`. Las metas muestran acumulado/objetivo, cuenta origen, `Progress`, `%` y **faltante** ("Faltan $X"). Botones `+` (`AccountTypePicker` → `AccountFormDialog`) y las filas de cuenta navegan al detalle (§4.3.1).
+- **Patrimonio** (`InvestmentsSection`, debajo de Metas): renombrada desde "Inversiones" porque agrupa **Activos**, **Inversiones financieras** (posiciones tipo BTC) y **Deudas**. Cada grupo es una lista de items (`AssetsList` / `PositionsList` / `DebtsList`); el `+` abre `InvestmentTypePicker` (Activo / Inversión / Deuda) y las filas permiten **editar** (menú con valuaciones o archivar/eliminar). Los formularios y el `ValuationSheet` viven acá; ya no hay página `/assets`.
 - **Selector de período/moneda** (FR-DAS-007): en el header, solo en `/dashboard` y `/reports`.
 - **Estados vacíos** (FR-DAS-008): `EmptyState` reutilizable.
 
@@ -188,28 +188,28 @@ Un **objetivo es una cuenta especial** (`type: "goal"`): un **sobre virtual** cu
 
 ### 4.6 Inversiones — SC-006 (FR-ACT-001..008)
 
-La gestión vive en el inicio (§4.2, `InvestmentsSection`); se eliminó la página `/assets` y su vista con tabs. El **reporte** vive en `/reports/investments` (§4.6.1).
+La gestión vive en el inicio (§4.2, sección **Patrimonio** / `InvestmentsSection`); se eliminó la página `/assets` y su vista con tabs. El **reporte de patrimonio** vive en `/reports/investments` (§4.6.1).
 
 - **Activos** (FR-ACT-001/003/007): CRUD con tipo (`Propiedad`, `Vehículo`, `Efectivo`, `Inversión`, `Criptoactivo`, `Otro`), nombre, moneda, valor, fecha de valuación, notas. Historial de valuaciones en `ValuationSheet` (FR-ACT-004): nueva valuación agrega, no sobrescribe. Se accede desde el menú de cada fila o al editarla.
 - **Posiciones / Mercado** (FR-ACT-005/006): instrumento/símbolo, cantidad, costo promedio, moneda. Se muestra valor actual y ganancia/pérdida cuando hay cotización (FR-ACT-006, CAL-005/006).
 - **Deudas** (FR-ACT-002/007): tipo (`Préstamo`, `Hipoteca`, `Tarjeta`, `Otra`), saldo, moneda, fecha. Vinculación a activo (FR-ACT-008, P1).
 - **Cotización desactualizada**: `StatusBadge` de advertencia con fecha real (FR-MER-005).
 
-#### 4.6.1 `/reports/investments` — Reporte de inversiones
+#### 4.6.1 `/reports/investments` — Reporte de Patrimonio
 
-Página de análisis del patrimonio, accesible con el botón **Inversiones** del header de `/reports`. Usa el `useDashboard` del período/moneda elegidos.
+Página de análisis del patrimonio ("Patrimonio", "Evolución y composición de tu patrimonio"), accesible desde la **navegación secundaria** de Reportes (`ReportsTabs`: General | Patrimonio), no desde un botón de acción. Usa el `useDashboard` del período/moneda elegidos.
 
-- **Resumen**: tiles de Activos, Inversiones, Deudas y **Neto** (activos + inversiones − deudas).
-- **Evolución de activos**: `AssetEvolutionChart` con `assetsValueByMonth` (valuación agregada por mes).
-- **Composición de activos**: `AssetCompositionChart` por tipo.
-- **Inversiones**: `InvestmentsSummary` (posiciones, resultado y cotizaciones desactualizadas).
-- **Pendiente (contrato)**: evolución del precio de cada posición y de la reducción de deuda (requieren historial en el backend; hoy solo hay valuaciones de activos).
+- **Resumen**: tiles de **Activos, Inversiones financieras, Deudas y Patrimonio neto**, cada uno con variación cuando existe (`StatTiles`).
+- **Evolución** (`TimeSeriesChart`): selector **Patrimonio | Activos | Deudas** sobre `netWorthSeries` (`{ date, value, assets, debts }`), con tooltip y **máximo/mínimo** del período. Estado vacío con menos de dos puntos.
+- **Composición del patrimonio** (`AllocationList` sobre `netWorthComposition`): Propiedades, Vehículos, Otros activos, Inversiones, Efectivo y Cuentas.
+- **Inversiones financieras** (`InvestmentsSummary`): valor actual, capital invertido y resultado; por posición muestra **cantidad y moneda original** (`0,05 BTC · US$ 3.200`) y la **conversión** a la moneda base (`≈ ARS $3.200.000`); la cotización desactualizada se identifica por posición (`WarningBadge` con antigüedad) además del resumen inferior.
+- **Pendiente (contrato)**: evolución del precio de cada posición y de la reducción de deuda (requieren historial en el backend; hoy solo hay valuaciones de activos). `debtsDeltaPct` queda en `null` hasta que exista historial.
 
 ### 4.7 Objetivos — SC-007 (FR-OBJ-001..004)
 
-Los objetivos **son cuentas de tipo `goal`** (§4.3), **integradas en la lista de Cuentas** del inicio (§4.2); se eliminó la página `/goals`, su `ComingSoon`, la entidad `Goal` separada y la sección `GoalsSection`.
+Los objetivos **son cuentas de tipo `goal`** (§4.3) y viven en el bloque **Metas** del inicio (§4.2), separado de **Cuentas**; se eliminó la página `/goals`, su `ComingSoon`, la entidad `Goal` separada y la sección `GoalsSection`.
 
-- **Fila de objetivo** (dentro de `AccountsList`): nombre, acumulado vs. monto objetivo, cuenta origen ("vive en …" abreviado), `Progress` de avance (CAL-007, mínimo visual 0%) y `StatusBadge`; abre el **detalle de la cuenta** (§4.3.1).
+- **Fila de objetivo** (dentro de `AccountsList`, bloque Metas): nombre, acumulado vs. monto objetivo, cuenta origen ("vive en …" abreviado), `Progress` de avance (CAL-007, mínimo visual 0%), `%`, faltante y `StatusBadge`; abre el **detalle de la cuenta** (§4.3.1).
 - **Estados** (FR-OBJ-004): `Pendiente`, `En curso`, `Alcanzado`, `Vencido` con `Badge` (calculados en `lib/goal-account.ts`).
 - **Crear/editar** (FR-OBJ-001/003) vía `AccountFormDialog` con `type: "goal"` desde el `+` de Cuentas. Archivar/restaurar se hace desde el detalle o el formulario.
 
@@ -217,9 +217,11 @@ Los objetivos **son cuentas de tipo `goal`** (§4.3), **integradas en la lista d
 
 Tablero **personalizable por widgets** (base que antes vivía en el inicio) + análisis del período. Selector de período/moneda en el header.
 
-- **Resumen del período** (`ReportsSummary`, siempre arriba): tira compacta con **Ingresos, Gastos, Ahorro y Tasa de ahorro**, con variación vs. período anterior en ingresos/gastos. Lo primero que se ve es "cuánto entró, cuánto salió, cuánto ahorré".
-- **Widgets** (FR-DAS-002..006, FR-REP-002/003/004/005), en orden por defecto: **patrimonio neto**, **ingresos vs. gastos**, **gastos por categoría** y **presupuesto mensual y su uso**. Se movieron **inversiones** y **composición de activos** al reporte de inversiones (§4.6.1); se eliminaron **comparación de gastos** (redundante con *ingresos vs. gastos*) y **alertas de presupuesto** (redundante con *presupuesto mensual*).
-- **Acceso al reporte de inversiones**: botón **Inversiones** en el header.
+- **Resumen del período** (`ReportsSummary`, siempre arriba): tira compacta con **Ingresos, Gastos, Ahorro y Tasa de ahorro**, con variación vs. período anterior en ingresos/gastos. Lo primero que se ve es "cuánto entró, cuánto salió, cuánto ahorré". Los cuatro KPIs aparecen **una sola vez** (el widget de patrimonio no los repite).
+- **Cambios destacados** (`HighlightsCard`): bloque compacto de insights calculados comparando el período actual con el anterior (variación de gastos, ahorro y la categoría de mayor cambio), sin IA.
+- **Widgets** (FR-DAS-002..006, FR-REP-002/003/004/005), en orden por defecto: **patrimonio neto**, **ingresos vs. gastos**, **gastos por categoría** y **presupuesto mensual y su uso**. Se movieron **inversiones** y **composición de activos** al reporte de patrimonio (§4.6.1); se eliminaron **comparación de gastos** (redundante con *ingresos vs. gastos*) y **alertas de presupuesto** (redundante con *presupuesto mensual*).
+- **Período**: el encabezado muestra el rango en lenguaje de usuario (`describePeriod`, p. ej. "Últimos 6 meses · 1 abr – 12 sep 2026"). El **widget de presupuesto** explicita que es del **mes actual** y no depende del período global ("Presupuesto de septiembre · Mes actual · no depende del período global").
+- **Navegación secundaria** (`ReportsTabs`): **General | Patrimonio**; reemplaza al botón **Inversiones** del header. El header solo conserva acciones (Widgets, Editar).
 - **Pendiente (contrato backend)**: resumen financiero como tabla (FR-REP-001), export CSV (FR-REP-006), PDF/imprimible (FR-REP-007, P2).
 
 #### 4.8.1 Widgets y personalización
@@ -369,9 +371,15 @@ npx shadcn@latest add breadcrumb avatar
 ### 6.3 Componentes financieros reutilizables
 
 - **`Amount`**: formatea monto con signo y color (`success` positivo ingreso, `destructive` gasto, `muted` transferencia). Respeta NFR-UA-005 (signo + color, no solo color).
-- **`StatTiles`**: tira horizontal de tiles compactos (`label` + valor con tono y delta opcional). La usan `ReportsSummary` y el reporte de inversiones; los textos/formatos de Ingresos/Gastos/Ahorro/Tasa se derivan de `lib/period-stats.ts` (fuente única compartida con `NetWorthHero`).
+- **`StatTiles`**: grilla **2×2 en mobile** que pasa a tira horizontal en desktop (`label` + valor con tono y delta opcional). La usan `ReportsSummary` y el reporte de patrimonio; los textos/formatos de Ingresos/Gastos/Ahorro/Tasa se derivan de `lib/period-stats.ts` (fuente única compartida con `NetWorthHero`).
 - **`PeriodCurrencyFilters`**: selector de período + moneda para mobile (`md:hidden`), compartido por `/dashboard`, `/reports` y `/reports/investments`. En desktop los mismos selectores viven en el `Header`.
-- **`NetWorthHero`**: hero de patrimonio neto con variación, mini-stats del período y sparkline.
+- **`NetWorthHero`**: hero de patrimonio neto con variación, mini-stats del período (opcionales vía `showPeriodStats`) y sparkline con escala adaptativa y tooltip.
+- **`Money`**: formatea un monto en una moneda (`formatCurrency`) con variante aproximada (`≈`) para conversiones.
+- **`TrendBadge`**: pill de variación con ícono y color por signo.
+- **`SectionCard` / `SectionHeader`**: card y encabezado de sección reutilizables (título, descripción, acciones).
+- **`AllocationList`**: lista de composición con barra, valor y porcentaje (no depende solo del color); usada por la composición del patrimonio.
+- **`WarningBadge`**: badge de advertencia con detalle en tooltip (p. ej. cotización desactualizada).
+- **`TimeSeriesChart`**: gráfico temporal genérico (áreas, tooltip, escala adaptativa y estado vacío con menos de dos puntos).
 - **`EmptyState`**: ícono, título, descripción, acción CTA (FR-DAS-008).
 - **`CategoryBadge`**: `Badge` con el color de la categoría.
 - **`StatusBadge`**: estado con ícono + texto + color (presupuesto, objetivo, cuenta y cotización); reemplaza a `BudgetStatusBadge`.
@@ -732,7 +740,7 @@ Progresivo y validable al final de cada tanda. Cada tanda deja la app compilando
 - **Aceptación**: HU-003 (FR-PRE-001..006).
 
 ### Tanda 5 — Activos, inversiones y deudas
-- Sección unificada en `/dashboard` (Activos / Mercado / Deudas), historial de valuaciones (`ValuationSheet`) y reporte en `/reports/investments`.
+- Sección unificada en `/dashboard` (Patrimonio: Activos / Inversiones financieras / Deudas), historial de valuaciones (`ValuationSheet`) y reporte de patrimonio en `/reports/investments`.
 - **Aceptación**: HU-004, HU-005 (FR-ACT-001..008, FR-MER-005).
 
 ### Tanda 6 — Objetivos y Reportes

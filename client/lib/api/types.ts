@@ -170,6 +170,23 @@ export interface Quote {
   isStale: boolean;
 }
 
+export type NetWorthCompositionKind =
+  "property" | "vehicle" | "asset" | "investment" | "cash" | "account";
+
+export interface DashboardInvestmentPosition {
+  symbol: string;
+  instrument: string;
+  quantity: number;
+  originalCurrency: string;
+  originalValue: number;
+  originalCost: number;
+  originalProfitLoss: number | null;
+  value: number;
+  profitLossPct: number | null;
+  isStale: boolean;
+  quoteDate: string | null;
+}
+
 export interface DashboardData {
   period: PeriodRange;
   currency: string;
@@ -183,9 +200,18 @@ export interface DashboardData {
     savings: number;
     savingsDeltaPct: number | null;
     assets: number;
+    assetsDeltaPct: number | null;
     debts: number;
+    debtsDeltaPct: number | null;
+    accounts: number;
+    investmentsDeltaPct: number | null;
   };
-  netWorthSeries: { date: string; value: number }[];
+  netWorthSeries: {
+    date: string;
+    value: number;
+    assets: number;
+    debts: number;
+  }[];
   assetsValueByMonth: { month: string; value: number }[];
   incomeExpenseByMonth: {
     month: string;
@@ -198,7 +224,19 @@ export interface DashboardData {
     color: string;
     value: number;
   }[];
+  categoryChanges: {
+    categoryId: string;
+    name: string;
+    current: number;
+    previous: number;
+    deltaPct: number | null;
+  }[];
   assetsComposition: { type: AssetType; value: number }[];
+  netWorthComposition: {
+    kind: NetWorthCompositionKind;
+    label: string;
+    value: number;
+  }[];
   cashflow: {
     income: { name: string; value: number }[];
     expenses: { name: string; color: string; value: number }[];
@@ -210,13 +248,7 @@ export interface DashboardData {
     profitLoss: number;
     profitLossPct: number;
     staleQuotes: number;
-    positions: {
-      symbol: string;
-      instrument: string;
-      value: number;
-      profitLossPct: number | null;
-      isStale: boolean;
-    }[];
+    positions: DashboardInvestmentPosition[];
   };
   budgetAlerts: {
     budgetId: string;

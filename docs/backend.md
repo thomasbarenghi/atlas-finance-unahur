@@ -501,7 +501,7 @@ Los objetivos se gestionan con los endpoints de **Accounts** (`type: "goal"`, §
 ### 7.9 Dashboard
 | Método | Ruta | FR |
 | :--- | :--- | :--- |
-| GET | `/dashboard?from&to&currency=` | agrega en una sola llamada: KPIs (patrimonio, ingresos, gastos, ahorro, activos, deudas), series de patrimonio, evolución del valor de activos, ingresos vs gastos por mes, gastos por categoría, composición de activos y alertas de presupuesto (FR-DAS-001..007) |
+| GET | `/dashboard?from&to&currency=` | agrega en una sola llamada: KPIs (patrimonio, ingresos, gastos, ahorro, activos, cuentas, deudas e inversiones con sus variaciones), series de patrimonio, evolución del valor de activos, ingresos vs gastos por mes, gastos por categoría, cambios por categoría vs. período anterior, composición de activos, composición del patrimonio, inversiones financieras y alertas de presupuesto (FR-DAS-001..007) |
 
 ### 7.10 Reports
 | Método | Ruta | FR |
@@ -701,13 +701,30 @@ Los objetivos se crean/editan como cuentas `type: "goal"` (ver **Accounts** arri
     "income": 900000, "incomeDeltaPct": 5.1,
     "expenses": 640000, "expensesDeltaPct": -2.0,
     "savings": 260000, "savingsDeltaPct": 12.0,
-    "assets": 102000000, "debts": 42000000
+    "assets": 102000000, "assetsDeltaPct": 1.8,
+    "debts": 42000000, "debtsDeltaPct": null,
+    "accounts": 2262000, "investmentsDeltaPct": 19.6
   },
-  "netWorthSeries": [{ "date": "2026-06-30", "value": 1000000 }],
+  "netWorthSeries": [{ "date": "2026-06-30", "value": 1000000, "assets": 103000000, "debts": 42000000 }],
   "assetsValueByMonth": [{ "month": "2026-06", "value": 97000000 }],
   "incomeExpenseByMonth": [{ "month": "2026-06", "income": 300000, "expenses": 210000 }],
   "expensesByCategory": [{ "categoryId": "uuid", "name": "Comida", "color": "#ef4444", "value": 120000 }],
+  "categoryChanges": [{ "categoryId": "uuid", "name": "Comida", "current": 120000, "previous": 202000, "deltaPct": -40.6 }],
   "assetsComposition": [{ "type": "property", "value": 90000000 }],
+  "netWorthComposition": [
+    { "kind": "property", "label": "Propiedades", "value": 90000000 },
+    { "kind": "vehicle", "label": "Vehículos", "value": 12000000 },
+    { "kind": "investment", "label": "Inversiones", "value": 5680000 },
+    { "kind": "cash", "label": "Efectivo", "value": 2262000 }
+  ],
+  "investments": {
+    "totalValue": 5680000, "totalCost": 4750000, "profitLoss": 930000, "profitLossPct": 19.6, "staleQuotes": 1,
+    "positions": [{
+      "symbol": "BTC", "instrument": "Bitcoin", "quantity": 0.05,
+      "originalCurrency": "USD", "originalValue": 3200, "originalCost": 2750, "originalProfitLoss": 450,
+      "value": 3200000, "profitLossPct": 16.4, "isStale": false, "quoteDate": "2026-09-12T12:00:00.000Z"
+    }]
+  },
   "budgetAlerts": [{ "budgetId": "uuid", "categoryName": "Comida", "consumedPct": 95, "status": "warning" }]
 }
 ```

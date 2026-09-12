@@ -9,7 +9,7 @@ import { resolvePeriod, type PeriodPreset } from "@/lib/period";
 export const PeriodProvider = ({ children }: { children: ReactNode }) => {
   const [preset, setPreset] = useState<PeriodPreset>("6m");
   const [customRange, setCustomRange] = useState<PeriodRange>(() =>
-    resolvePeriod("30d"),
+    resolvePeriod("3m"),
   );
 
   const range = useMemo(

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { SectionHeader } from "@/components/common/section-header";
 import { Button } from "@/components/ui/button";
 import { useConfirmAction } from "@/hooks/use-confirm-action";
 import type { Asset, Debt, Position } from "@/lib/api/types";
@@ -71,17 +72,20 @@ export const InvestmentsSection = () => {
 
   return (
     <section className="flex flex-col gap-5">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="font-heading text-base font-semibold">Inversiones</h2>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Nuevo activo, inversión o deuda"
-          onClick={() => setPickerOpen(true)}
-        >
-          <Plus />
-        </Button>
-      </div>
+      <SectionHeader
+        title="Patrimonio"
+        description="Activos, inversiones financieras y deudas."
+        actions={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Nuevo activo, inversión o deuda"
+            onClick={() => setPickerOpen(true)}
+          >
+            <Plus />
+          </Button>
+        }
+      />
 
       <div className="flex flex-col gap-2">
         <h3 className="text-muted-foreground text-xs font-medium">Activos</h3>
@@ -95,7 +99,9 @@ export const InvestmentsSection = () => {
       </div>
 
       <div className="flex flex-col gap-2">
-        <h3 className="text-muted-foreground text-xs font-medium">Mercado</h3>
+        <h3 className="text-muted-foreground text-xs font-medium">
+          Inversiones financieras
+        </h3>
         <PositionsList
           positions={positions}
           isLoading={positionsQuery.isLoading}

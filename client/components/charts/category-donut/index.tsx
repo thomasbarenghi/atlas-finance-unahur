@@ -1,5 +1,7 @@
+import { PieChart as PieChartIcon } from "lucide-react";
 import { Cell, Pie, PieChart } from "recharts";
 import { ChartDataTable } from "@/components/common/chart-data-table";
+import { EmptyState } from "@/components/common/empty-state";
 import {
   ChartContainer,
   ChartTooltip,
@@ -19,6 +21,16 @@ const config = {
 
 export const CategoryDonut = ({ data, currency }: CategoryDonutProps) => {
   const total = data.reduce((sum, item) => sum + item.value, 0);
+
+  if (data.length === 0 || total <= 0) {
+    return (
+      <EmptyState
+        icon={PieChartIcon}
+        title="Sin gastos en el período"
+        description="Cuando registres gastos por categoría vas a ver su distribución."
+      />
+    );
+  }
 
   return (
     <>

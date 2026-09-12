@@ -1,9 +1,14 @@
-import { TrendingDown, TrendingUp } from "lucide-react";
-import { Area, AreaChart } from "recharts";
-import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
-import { cn } from "@/lib/utils";
-import { formatCurrency, formatPercent } from "@/lib/format";
+import { Area, AreaChart, XAxis, YAxis } from "recharts";
+import { TrendBadge } from "@/components/common/trend-badge";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { buildPeriodSummaryStats } from "@/lib/period-stats";
+import { cn } from "@/lib/utils";
 
 export interface NetWorthHeroProps {
   value: number;
@@ -13,6 +18,7 @@ export interface NetWorthHeroProps {
   income: number;
   expenses: number;
   savings: number;
+  showPeriodStats?: boolean;
 }
 
 const config = {
@@ -27,10 +33,13 @@ export const NetWorthHero = ({
   income,
   expenses,
   savings,
+  showPeriodStats = true,
 }: NetWorthHeroProps) => {
-  const hasDelta = deltaPct !== null;
-  const positive = (deltaPct ?? 0) >= 0;
-  const DeltaIcon = positive ? TrendingUp : TrendingDown;
+  const values = series.map((point) => point.value);
+  const min = values.length > 0 ? Math.min(...values) : 0;
+  const max = values.length > 0 ? Math.max(...values) : 0;
+  const spread = max - min;
+  const padding = spread > 0 ? spread * 0.15 : Math.abs(max) * 0.02 || 1;
 
   return (
     <div className="from-primary/15 via-background to-background relative flex flex-col overflow-hidden rounded-3xl border bg-gradient-to-br p-6">
@@ -39,45 +48,34 @@ export const NetWorthHero = ({
         <span className="font-heading text-3xl font-semibold tracking-tight tabular-nums sm:text-4xl">
           {formatCurrency(value, currency)}
         </span>
-        {hasDelta ? (
-          <span
-            className={cn(
-              "flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-              positive
-                ? "bg-success/10 text-success"
-                : "bg-destructive/10 text-destructive",
-            )}
-          >
-            <DeltaIcon className="size-3.5" aria-hidden />
-            {positive ? "+" : ""}
-            {formatPercent((deltaPct ?? 0) / 100)} vs. período anterior
-          </span>
-        ) : null}
+        <TrendBadge deltaPct={deltaPct} label="vs. período anterior" />
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
-        {buildPeriodSummaryStats(income, expenses, savings, currency).map(
-          (stat) => (
-            <div
-              key={stat.label}
-              className="flex min-w-0 flex-col gap-0.5"
-              title={stat.hint}
-            >
-              <span className="text-muted-foreground text-xs">
-                {stat.label}
-              </span>
-              <span
-                className={cn(
-                  "font-heading text-sm font-semibold break-words tabular-nums sm:text-base",
-                  stat.tone,
-                )}
+      {showPeriodStats ? (
+        <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+          {buildPeriodSummaryStats(income, expenses, savings, currency).map(
+            (stat) => (
+              <div
+                key={stat.label}
+                className="flex min-w-0 flex-col gap-0.5"
+                title={stat.hint}
               >
-                {stat.display}
-              </span>
-            </div>
-          ),
-        )}
-      </div>
+                <span className="text-muted-foreground text-xs">
+                  {stat.label}
+                </span>
+                <span
+                  className={cn(
+                    "font-heading text-sm font-semibold break-words tabular-nums sm:text-base",
+                    stat.tone,
+                  )}
+                >
+                  {stat.display}
+                </span>
+              </div>
+            ),
+          )}
+        </div>
+      ) : null}
 
       <div className="mt-auto h-24 pt-4">
         <ChartContainer config={config} className="h-24 w-full">
@@ -97,12 +95,26 @@ export const NetWorthHero = ({
                 <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
               </linearGradient>
             </defs>
+            <XAxis dataKey="date" hide />
+            <YAxis hide domain={[min - padding, max + padding]} />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  labelFormatter={(label) => {
+                    const raw = String(label);
+                    return raw.length >= 10 ? formatDate(raw) : raw;
+                  }}
+                  formatter={(value) => formatCurrency(Number(value), currency)}
+                />
+              }
+            />
             <Area
               dataKey="value"
               type="monotone"
               stroke="var(--chart-1)"
               strokeWidth={2}
               fill="url(#netWorthHeroFill)"
+              activeDot={{ r: 4 }}
             />
           </AreaChart>
         </ChartContainer>

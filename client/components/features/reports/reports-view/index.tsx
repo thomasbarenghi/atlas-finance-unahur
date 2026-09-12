@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Check, LayoutGrid, Pencil, TrendingUp, Wallet } from "lucide-react";
+import { Check, LayoutGrid, Pencil, Wallet } from "lucide-react";
 import { CategoryDonut } from "@/components/charts/category-donut";
 import { IncomeExpenseChart } from "@/components/charts/income-expense-chart";
 import { EmptyState } from "@/components/common/empty-state";
@@ -13,7 +13,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BudgetUsage } from "@/components/features/dashboard/budget-usage";
 import { NetWorthHero } from "@/components/features/dashboard/net-worth-hero";
 import { WidgetPicker } from "@/components/features/dashboard/widget-picker";
+import { HighlightsCard } from "@/components/features/reports/highlights-card";
 import { ReportsSummary } from "@/components/features/reports/reports-summary";
+import { ReportsTabs } from "@/components/features/reports/reports-tabs";
 import { WidgetCard } from "@/components/features/reports/widget-card";
 import { useDashboardLayout } from "@/hooks/use-dashboard-layout";
 import { useDisplayCurrency } from "@/hooks/use-display-currency";
@@ -23,6 +25,8 @@ import {
   DASHBOARD_WIDGETS,
   type DashboardWidgetId,
 } from "@/lib/dashboard-widgets";
+import { formatMonthName } from "@/lib/format";
+import { describePeriod } from "@/lib/period";
 import { useDashboard } from "@/lib/query/dashboard";
 import { WidgetsBoard } from "./components/widgets-board";
 
@@ -124,6 +128,7 @@ export const ReportsView = () => {
         income={data.kpis.income}
         expenses={data.kpis.expenses}
         savings={data.kpis.savings}
+        showPeriodStats={false}
       />
     ),
     incomeExpense: (
@@ -140,7 +145,10 @@ export const ReportsView = () => {
       </WidgetCard>
     ),
     budgetUsage: (
-      <WidgetCard title="Presupuesto mensual" hint="Uso actual del mes.">
+      <WidgetCard
+        title={`Presupuesto de ${formatMonthName(budgetPeriod)}`}
+        hint="Mes actual · no depende del período global."
+      >
         <BudgetUsage period={budgetPeriod} />
       </WidgetCard>
     ),
@@ -150,15 +158,9 @@ export const ReportsView = () => {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Reportes"
-        description={`Período ${range.from} a ${range.to} · ${preset}`}
+        description={describePeriod(preset, range)}
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" aria-label="Inversiones" asChild>
-              <Link href="/reports/investments">
-                <TrendingUp />{" "}
-                <span className="hidden sm:inline">Inversiones</span>
-              </Link>
-            </Button>
             <Button
               variant="outline"
               aria-label="Widgets"
@@ -186,6 +188,8 @@ export const ReportsView = () => {
         }
       />
 
+      <ReportsTabs />
+
       <PeriodCurrencyFilters />
 
       <ReportsSummary
@@ -194,6 +198,13 @@ export const ReportsView = () => {
         savings={data.kpis.savings}
         incomeDeltaPct={data.kpis.incomeDeltaPct}
         expensesDeltaPct={data.kpis.expensesDeltaPct}
+        currency={currency}
+      />
+
+      <HighlightsCard
+        categoryChanges={data.categoryChanges}
+        expensesDeltaPct={data.kpis.expensesDeltaPct}
+        savingsDeltaPct={data.kpis.savingsDeltaPct}
         currency={currency}
       />
 

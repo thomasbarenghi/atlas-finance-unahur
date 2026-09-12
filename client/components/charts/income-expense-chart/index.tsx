@@ -1,5 +1,7 @@
+import { BarChart3 } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 import { ChartDataTable } from "@/components/common/chart-data-table";
+import { EmptyState } from "@/components/common/empty-state";
 import {
   ChartContainer,
   ChartLegend,
@@ -24,6 +26,18 @@ export const IncomeExpenseChart = ({
   data,
   currency,
 }: IncomeExpenseChartProps) => {
+  const isEmpty = data.every((row) => row.income === 0 && row.expenses === 0);
+
+  if (data.length === 0 || isEmpty) {
+    return (
+      <EmptyState
+        icon={BarChart3}
+        title="Sin movimientos en el período"
+        description="Registrá ingresos y gastos para comparar su evolución mensual."
+      />
+    );
+  }
+
   return (
     <>
       <ChartContainer config={config} className="h-64 w-full">

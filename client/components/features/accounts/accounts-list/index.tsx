@@ -28,6 +28,8 @@ export const AccountsList = ({
   accounts,
   sourceNameById,
   isLoading,
+  emptyTitle = "Todavía no tenés cuentas",
+  emptyDescription = "Cargá tu primera cuenta para empezar a registrar movimientos.",
 }: AccountsListProps) => {
   const ordered = [...accounts].sort(
     (a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type),
@@ -41,8 +43,8 @@ export const AccountsList = ({
       emptyState={
         <EmptyState
           icon={Wallet}
-          title="Todavía no tenés cuentas"
-          description="Cargá tu primera cuenta para empezar a registrar movimientos."
+          title={emptyTitle}
+          description={emptyDescription}
         />
       }
       renderItem={(account) => {
@@ -73,6 +75,14 @@ export const AccountsList = ({
                 <StatusBadge variant="goal" status={status} />
               </div>
               <Progress value={progressPct} className="h-2" />
+              <div className="text-muted-foreground flex items-center justify-between text-xs tabular-nums">
+                <span>{progressPct.toFixed(0)}%</span>
+                <span>
+                  {saved < target
+                    ? `Faltan ${formatCurrency(target - saved, account.currency)}`
+                    : "Meta cumplida"}
+                </span>
+              </div>
             </Link>
           );
         }

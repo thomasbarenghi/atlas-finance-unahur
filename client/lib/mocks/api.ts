@@ -1289,6 +1289,29 @@ export const mockApi = {
     );
     const positionsProfit = positionsValue - positionsCost;
 
+    const activeAccounts = mockState.accounts.filter(
+      (account) =>
+        account.userId === user.id &&
+        account.type !== "goal" &&
+        !account.archived,
+    );
+    const convertAccount = (account: Account): number =>
+      convertCurrency(
+        deriveAccount(account).currentBalance,
+        account.currency,
+        currency,
+      );
+    const accountsValue = activeAccounts.reduce(
+      (total, account) => total + convertAccount(account),
+      0,
+    );
+    const cashValue = activeAccounts
+      .filter((account) => account.type === "cash")
+      .reduce((total, account) => total + convertAccount(account), 0);
+    const bankValue = activeAccounts
+      .filter((account) => account.type !== "cash")
+      .reduce((total, account) => total + convertAccount(account), 0);
+
     const compositionMap = new Map<Asset["type"], number>();
     for (const asset of mockState.assets.filter(
       (item) => item.userId === user.id && !item.archived,
@@ -1353,15 +1376,90 @@ export const mockApi = {
         status: budget.status,
       }));
 
-    const seriesStart = netWorth * 0.92;
-    const netWorthSeries = months.map((month, index) => {
-      const ratio = months.length > 1 ? index / (months.length - 1) : 1;
-      const value = seriesStart + (netWorth - seriesStart) * ratio;
+    const monthAssetsByName = new Map(
+      assetsValueByMonth.map((item) => [item.month, item.value]),
+    );
+    const netWorthSeries = months.map((month) => {
       const date = new Date(`${month}-01T00:00:00`);
       date.setMonth(date.getMonth() + 1);
       date.setDate(0);
-      return { date: toIsoDate(date), value };
+      const physicalAssets = monthAssetsByName.get(month) ?? assetsValue;
+      const totalAssets = physicalAssets + positionsValue + accountsValue;
+      return {
+        date: toIsoDate(date),
+        value: totalAssets - debtsValue,
+        assets: totalAssets,
+        debts: debtsValue,
+      };
     });
+    const seriesStart = netWorthSeries[0]?.value ?? netWorth;
+    const assetsStart = netWorthSeries[0]?.assets ?? assetsValue;
+
+    const categoryTotals = (from: string, to: string): Map<string, number> => {
+      const totals = new Map<string, number>();
+      for (const transaction of mockState.transactions) {
+        if (
+          transaction.userId !== user.id ||
+          transaction.type !== "expense" ||
+          transaction.date < from ||
+          transaction.date > to ||
+          !transaction.categoryId
+        ) {
+          continue;
+        }
+        totals.set(
+          transaction.categoryId,
+          (totals.get(transaction.categoryId) ?? 0) +
+            convertCurrency(transaction.amount, transaction.currency, currency),
+        );
+      }
+      return totals;
+    };
+    const previousCategoryTotals = categoryTotals(previous.from, previous.to);
+    const categoryChanges = expensesByCategory
+      .map((currentCategory) => {
+        const previousValue =
+          previousCategoryTotals.get(currentCategory.categoryId) ?? 0;
+        return {
+          categoryId: currentCategory.categoryId,
+          name: currentCategory.name,
+          current: currentCategory.value,
+          previous: previousValue,
+          deltaPct: pctDelta(currentCategory.value, previousValue),
+        };
+      })
+      .sort(
+        (first, second) =>
+          Math.abs(second.current - second.previous) -
+          Math.abs(first.current - first.previous),
+      );
+
+    const physicalByType = new Map(
+      assetsComposition.map((item) => [item.type, item.value]),
+    );
+    const otherAssets = [...physicalByType.entries()]
+      .filter(([type]) => type !== "property" && type !== "vehicle")
+      .reduce((total, [, value]) => total + value, 0);
+    const netWorthComposition = [
+      {
+        kind: "property" as const,
+        label: "Propiedades",
+        value: physicalByType.get("property") ?? 0,
+      },
+      {
+        kind: "vehicle" as const,
+        label: "Vehículos",
+        value: physicalByType.get("vehicle") ?? 0,
+      },
+      { kind: "asset" as const, label: "Otros activos", value: otherAssets },
+      {
+        kind: "investment" as const,
+        label: "Inversiones",
+        value: positionsValue,
+      },
+      { kind: "cash" as const, label: "Efectivo", value: cashValue },
+      { kind: "account" as const, label: "Cuentas", value: bankValue },
+    ].filter((item) => item.value > 0);
 
     return {
       period: { from: query.from, to: query.to },
@@ -1376,13 +1474,23 @@ export const mockApi = {
         savings: current.savings,
         savingsDeltaPct: pctDelta(current.savings, prevFlow.savings),
         assets: assetsValue,
+        assetsDeltaPct: pctDelta(
+          assetsValue,
+          assetsStart - positionsValue - accountsValue,
+        ),
         debts: debtsValue,
+        debtsDeltaPct: null,
+        accounts: accountsValue,
+        investmentsDeltaPct:
+          positionsCost > 0 ? (positionsProfit / positionsCost) * 100 : null,
       },
       netWorthSeries,
       assetsValueByMonth,
       incomeExpenseByMonth,
       expensesByCategory,
+      categoryChanges,
       assetsComposition,
+      netWorthComposition,
       cashflow: {
         income: incomeSources,
         expenses: expensesByCategory.map(({ name, color, value }) => ({
@@ -1404,6 +1512,11 @@ export const mockApi = {
           .map((position) => ({
             symbol: position.symbol,
             instrument: position.instrument,
+            quantity: position.quantity,
+            originalCurrency: position.currency,
+            originalValue: position.currentValue ?? 0,
+            originalCost: position.costBasis,
+            originalProfitLoss: position.profitLoss,
             value: convertCurrency(
               position.currentValue ?? 0,
               position.currency,
@@ -1411,6 +1524,7 @@ export const mockApi = {
             ),
             profitLossPct: position.profitLossPct,
             isStale: position.isStale,
+            quoteDate: position.quoteDate,
           }))
           .sort((a, b) => b.value - a.value),
       },

@@ -1,29 +1,9 @@
-import Link from "next/link";
-import {
-  ArrowUpRight,
-  TrendingDown,
-  TrendingUp,
-  TriangleAlert,
-} from "lucide-react";
+import { TrendingDown, TrendingUp } from "lucide-react";
+import { Money } from "@/components/common/money";
+import { WarningBadge } from "@/components/common/warning-badge";
+import { formatCurrency, formatPercent, formatTimeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { formatCurrency, formatPercent } from "@/lib/format";
-
-export interface InvestmentPositionSummary {
-  symbol: string;
-  instrument: string;
-  value: number;
-  profitLossPct: number | null;
-  isStale: boolean;
-}
-
-export interface InvestmentsSummaryProps {
-  totalValue: number;
-  profitLoss: number;
-  profitLossPct: number;
-  staleQuotes: number;
-  positions: InvestmentPositionSummary[];
-  currency: string;
-}
+import type { InvestmentsSummaryProps } from "./investments-summary.types";
 
 const PALETTE = [
   "var(--chart-1)",
@@ -35,6 +15,7 @@ const PALETTE = [
 
 export const InvestmentsSummary = ({
   totalValue,
+  totalCost,
   profitLoss,
   profitLossPct,
   staleQuotes,
@@ -50,41 +31,51 @@ export const InvestmentsSummary = ({
 
   if (positions.length === 0) {
     return (
-      <div className="flex h-full flex-col justify-center gap-2">
-        <span className="text-muted-foreground text-sm">
-          Todavía no tenés inversiones cargadas.
-        </span>
-        <Link
-          href="/dashboard"
-          className="text-primary w-fit text-sm hover:underline"
-        >
-          Cargar una posición
-        </Link>
-      </div>
+      <p className="text-muted-foreground text-sm">
+        Todavía no tenés inversiones financieras cargadas.
+      </p>
     );
   }
 
   return (
-    <div className="flex h-full flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <span className="text-muted-foreground text-sm">Inversiones</span>
-        <span className="font-heading text-2xl font-semibold tabular-nums">
-          {formatCurrency(totalValue, currency)}
-        </span>
-        <span
-          className={cn(
-            "flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-            positive
-              ? "bg-success/10 text-success"
-              : "bg-destructive/10 text-destructive",
-          )}
-        >
-          <ProfitIcon className="size-3.5" aria-hidden />
-          {positive ? "+" : "−"}
-          {formatCurrency(Math.abs(profitLoss), currency)} ·{" "}
-          {profitLossPct >= 0 ? "+" : ""}
-          {formatPercent(profitLossPct / 100)}
-        </span>
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-muted-foreground text-xs">Valor actual</span>
+          <span className="font-heading text-xl font-semibold tabular-nums">
+            {formatCurrency(totalValue, currency)}
+          </span>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-muted-foreground text-xs">
+            Capital invertido
+          </span>
+          <span className="text-xl font-semibold tabular-nums">
+            {formatCurrency(totalCost, currency)}
+          </span>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-muted-foreground text-xs">Resultado</span>
+          <span
+            className={cn(
+              "flex items-center gap-1 text-xl font-semibold tabular-nums",
+              positive ? "text-success" : "text-destructive",
+            )}
+          >
+            <ProfitIcon className="size-4" aria-hidden />
+            {positive ? "+" : "−"}
+            {formatCurrency(Math.abs(profitLoss), currency)}
+          </span>
+          <span
+            className={cn(
+              "text-xs tabular-nums",
+              positive ? "text-success" : "text-destructive",
+            )}
+          >
+            {positive ? "+" : ""}
+            {formatPercent(profitLossPct / 100)}
+          </span>
+        </div>
       </div>
 
       <div className="flex h-3 w-full overflow-hidden rounded-full">
@@ -103,54 +94,88 @@ export const InvestmentsSummary = ({
         ))}
       </div>
 
-      <ul className="flex flex-col gap-2">
-        {positions.slice(0, 4).map((position, index) => (
-          <li
-            key={position.symbol}
-            className="flex items-center justify-between gap-2 text-sm"
-          >
-            <span className="flex items-center gap-2">
-              <span
-                className="size-2.5 rounded-full"
-                style={{
-                  backgroundColor: PALETTE[index % PALETTE.length],
-                }}
-                aria-hidden
-              />
-              <span className="font-medium">{position.symbol}</span>
-              <span className="text-muted-foreground hidden truncate sm:inline">
-                {position.instrument}
-              </span>
-              {position.isStale ? (
-                <TriangleAlert
-                  className="text-warning size-3.5"
-                  aria-label="Cotización desactualizada"
-                />
-              ) : null}
-            </span>
-            <span className="flex items-center gap-2 tabular-nums">
-              <span className="text-muted-foreground">
-                {formatCurrency(position.value, currency)}
-              </span>
-              {position.profitLossPct !== null ? (
+      <ul className="flex flex-col gap-3">
+        {positions.map((position, index) => {
+          const hasQuote = position.originalValue > 0;
+          const profitPositive = (position.originalProfitLoss ?? 0) >= 0;
+          const converted = position.originalCurrency !== currency && hasQuote;
+
+          return (
+            <li
+              key={position.symbol}
+              className="flex items-start justify-between gap-3 text-sm"
+            >
+              <span className="flex min-w-0 items-start gap-2">
                 <span
-                  className={cn(
-                    "w-14 text-right text-xs",
-                    position.profitLossPct >= 0
-                      ? "text-success"
-                      : "text-destructive",
-                  )}
-                >
-                  {position.profitLossPct >= 0 ? "+" : ""}
-                  {formatPercent(position.profitLossPct / 100)}
+                  className="mt-1 size-2.5 shrink-0 rounded-full"
+                  style={{
+                    backgroundColor: PALETTE[index % PALETTE.length],
+                  }}
+                  aria-hidden
+                />
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="flex items-center gap-2">
+                    <span className="font-medium">{position.symbol}</span>
+                    <span className="text-muted-foreground hidden truncate sm:inline">
+                      {position.instrument}
+                    </span>
+                    {position.isStale ? (
+                      <WarningBadge
+                        label="Desactualizada"
+                        detail={
+                          position.quoteDate
+                            ? `Cotización ${formatTimeAgo(position.quoteDate)}`
+                            : "Cotización desactualizada"
+                        }
+                      />
+                    ) : null}
+                  </span>
+                  <span className="text-muted-foreground flex items-center gap-1 text-xs tabular-nums">
+                    <span>
+                      {position.quantity} {position.symbol}
+                    </span>
+                    {hasQuote ? (
+                      <>
+                        <span aria-hidden>·</span>
+                        <Money
+                          value={position.originalValue}
+                          currency={position.originalCurrency}
+                        />
+                      </>
+                    ) : (
+                      <span>· sin cotización</span>
+                    )}
+                  </span>
                 </span>
-              ) : null}
-            </span>
-          </li>
-        ))}
+              </span>
+
+              <span className="flex shrink-0 flex-col items-end gap-0.5 tabular-nums">
+                {converted ? (
+                  <Money
+                    value={position.value}
+                    currency={currency}
+                    approximate
+                    className="text-muted-foreground text-xs"
+                  />
+                ) : null}
+                {position.profitLossPct !== null ? (
+                  <span
+                    className={cn(
+                      "text-xs",
+                      profitPositive ? "text-success" : "text-destructive",
+                    )}
+                  >
+                    {profitPositive ? "+" : ""}
+                    {formatPercent(position.profitLossPct / 100)}
+                  </span>
+                ) : null}
+              </span>
+            </li>
+          );
+        })}
       </ul>
 
-      <div className="mt-auto flex items-center justify-between gap-2 border-t pt-3">
+      <div className="flex items-center justify-between gap-2 border-t pt-3">
         {staleQuotes > 0 ? (
           <span className="text-warning text-xs">
             {staleQuotes} cotización{staleQuotes > 1 ? "es" : ""} desactualizada
@@ -161,12 +186,6 @@ export const InvestmentsSummary = ({
             Cotizaciones al día
           </span>
         )}
-        <Link
-          href="/dashboard"
-          className="text-primary flex items-center gap-1 text-xs hover:underline"
-        >
-          Ver inversiones <ArrowUpRight className="size-3.5" />
-        </Link>
       </div>
     </div>
   );
