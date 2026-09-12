@@ -34,6 +34,12 @@ const eslintConfig = defineConfig([
       "prefer-arrow/prefer-arrow-functions": "off",
     },
   },
+  {
+    files: ["lib/mocks/**"],
+    rules: {
+      "prefer-arrow/prefer-arrow-functions": "off",
+    },
+  },
   prettier,
 ]);
 

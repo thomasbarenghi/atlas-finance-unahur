@@ -31,8 +31,10 @@ export interface MarketConfig {
 export interface AiConfig {
   provider: string;
   apiKey: string | null;
-  model: string | null;
+  baseUrl: string;
+  model: string;
   timeoutMs: number;
+  devUserEmail: string;
 }
 
 export interface MailConfig {
@@ -113,10 +115,18 @@ export const configuration = (): AppConfig => ({
     quoteStaleMs: toNumber(process.env.QUOTE_STALE_MS, 3600000),
   },
   ai: {
-    provider: process.env.AI_PROVIDER ?? "openai",
+    provider: process.env.AI_PROVIDER ?? "deepseek",
     apiKey: process.env.AI_API_KEY || null,
-    model: process.env.AI_MODEL || null,
-    timeoutMs: toNumber(process.env.AI_TIMEOUT_MS, 15000),
+    baseUrl:
+      process.env.AI_BASE_URL ||
+      (process.env.AI_PROVIDER === "openai"
+        ? "https://api.openai.com/v1"
+        : "https://api.deepseek.com"),
+    model:
+      process.env.AI_MODEL ||
+      (process.env.AI_PROVIDER === "openai" ? "gpt-4o-mini" : "deepseek-chat"),
+    timeoutMs: toNumber(process.env.AI_TIMEOUT_MS, 30000),
+    devUserEmail: process.env.AI_DEV_USER_EMAIL || "demo@atlassfin.app",
   },
   mail: {
     host: process.env.SMTP_HOST || null,
