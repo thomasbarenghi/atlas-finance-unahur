@@ -28,7 +28,6 @@ export const BudgetDetailView = () => {
   const {
     budget,
     month,
-    categories,
     isLoading,
     transactions,
     isLoadingTransactions,
@@ -150,7 +149,6 @@ export const BudgetDetailView = () => {
         open={editOpen}
         onOpenChange={setEditOpen}
         budget={budget}
-        categories={categories}
         defaultPeriod={budget.period}
       />
       <ConfirmActionDialog

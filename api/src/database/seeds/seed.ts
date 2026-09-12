@@ -9,6 +9,7 @@ import { Valuation } from "../../assets/entities/valuation.entity";
 import { Budget } from "../../budgets/entities/budget.entity";
 import { Category } from "../../categories/entities/category.entity";
 import { Debt } from "../../debts/entities/debt.entity";
+import { ExchangeRate } from "../../fx/entities/exchange-rate.entity";
 import { Goal } from "../../goals/entities/goal.entity";
 import { Position } from "../../positions/entities/position.entity";
 import { Quote } from "../../quotes/entities/quote.entity";
@@ -68,9 +69,37 @@ const ensureSystemCategories = async (
   }
 };
 
+const EXCHANGE_RATES = [
+  { baseCurrency: "USD", quoteCurrency: "ARS", rate: 1000 },
+  { baseCurrency: "EUR", quoteCurrency: "ARS", rate: 1100 },
+  { baseCurrency: "BRL", quoteCurrency: "ARS", rate: 200 },
+  { baseCurrency: "UYU", quoteCurrency: "ARS", rate: 25 },
+];
+
+const ensureExchangeRates = async (manager: EntityManager): Promise<void> => {
+  const repo = manager.getRepository(ExchangeRate);
+  const existing = await repo.find();
+  const existingKeys = new Set(
+    existing.map((rate) => `${rate.baseCurrency}:${rate.quoteCurrency}`),
+  );
+  const missing = EXCHANGE_RATES.filter(
+    (rate) => !existingKeys.has(`${rate.baseCurrency}:${rate.quoteCurrency}`),
+  );
+  if (missing.length > 0) {
+    const today = new Date().toISOString().slice(0, 10);
+    await repo.save(
+      missing.map((rate) =>
+        repo.create({ ...rate, provider: "seed", date: today }),
+      ),
+    );
+    logger.log(`Seeded ${missing.length} exchange rates`);
+  }
+};
+
 export const runSeed = async (dataSource: DataSource): Promise<void> => {
   await dataSource.transaction(async (manager) => {
     await ensureSystemCategories(manager);
+    await ensureExchangeRates(manager);
 
     const userRepo = manager.getRepository(User);
     const existingUser = await userRepo.findOne({

@@ -10,6 +10,7 @@ const REQUIRED_KEYS = [
 
 const ALLOWED_NODE_ENVS = ["development", "production", "test"];
 const ALLOWED_SAME_SITE = ["lax", "strict", "none"];
+const ALLOWED_BOOLEANS = ["true", "false"];
 
 const assertNumeric = (env: RawEnv, key: string): void => {
   const value = env[key];
@@ -37,12 +38,14 @@ export const validateEnv = (env: RawEnv): RawEnv => {
 
   assertAllowed(env, "NODE_ENV", ALLOWED_NODE_ENVS);
   assertAllowed(env, "COOKIE_SAME_SITE", ALLOWED_SAME_SITE);
+  assertAllowed(env, "MARKET_ENABLED", ALLOWED_BOOLEANS);
   assertNumeric(env, "PORT");
   assertNumeric(env, "JWT_ACCESS_TTL");
   assertNumeric(env, "JWT_REFRESH_TTL_DAYS");
   assertNumeric(env, "BUDGET_WARNING_THRESHOLD");
   assertNumeric(env, "QUOTE_STALE_MS");
   assertNumeric(env, "MARKET_REFRESH_INTERVAL_MS");
+  assertNumeric(env, "MARKET_TIMEOUT_MS");
   assertNumeric(env, "AI_TIMEOUT_MS");
   assertNumeric(env, "RESET_TOKEN_TTL");
 

@@ -244,6 +244,7 @@ export const AssistantChat = ({
                 }}
                 placeholder="Escribí tu pregunta…"
                 rows={1}
+                maxLength={1000}
                 className="max-h-32 min-h-9 resize-none"
                 aria-label="Pregunta para el asistente"
               />

@@ -23,7 +23,6 @@ import { cn } from "@/lib/utils";
 import { PositionFormDialog } from "@/components/features/assets/position-form-dialog";
 import { PatrimonyHero } from "@/components/features/patrimony/patrimony-hero";
 import { PositionCalculationCard } from "./components/position-calculation-card";
-import { PositionEvolutionCard } from "./components/position-evolution-card";
 import { PositionMetrics } from "./components/position-metrics";
 import { usePositionDetail } from "./hooks/use-position-detail";
 
@@ -155,7 +154,6 @@ export const PositionDetailView = () => {
 
       <PositionMetrics position={position} positive={positive} />
       <PositionCalculationCard />
-      <PositionEvolutionCard />
 
       <PositionFormDialog
         key={position.id}

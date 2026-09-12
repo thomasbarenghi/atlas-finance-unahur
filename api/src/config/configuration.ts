@@ -21,8 +21,11 @@ export interface CorsConfig {
 }
 
 export interface MarketConfig {
-  apiUrl: string | null;
-  apiKey: string | null;
+  enabled: boolean;
+  cryptoUrl: string;
+  fxUrl: string;
+  vsCurrency: string;
+  timeoutMs: number;
   refreshIntervalMs: number;
   symbols: string[];
   quoteStaleMs: number;
@@ -58,6 +61,7 @@ export interface AppConfig {
   resetTokenTtl: number;
   budgetWarningThreshold: number;
   supportedCurrencies: string[];
+  defaultCurrency: string;
 }
 
 const toNumber = (value: string | undefined, fallback: number): number => {
@@ -102,8 +106,16 @@ export const configuration = (): AppConfig => ({
     native: toList(process.env.CORS_ORIGIN_NATIVE, ["capacitor://localhost"]),
   },
   market: {
-    apiUrl: process.env.MARKET_API_URL || null,
-    apiKey: process.env.MARKET_API_KEY || null,
+    enabled: toBoolean(
+      process.env.MARKET_ENABLED,
+      process.env.NODE_ENV !== "test",
+    ),
+    cryptoUrl: process.env.MARKET_API_URL || "https://api.binance.com/api/v3",
+    fxUrl:
+      process.env.FX_API_URL ||
+      "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies",
+    vsCurrency: (process.env.MARKET_VS_CURRENCY || "USD").toUpperCase(),
+    timeoutMs: toNumber(process.env.MARKET_TIMEOUT_MS, 8000),
     refreshIntervalMs: toNumber(process.env.MARKET_REFRESH_INTERVAL_MS, 300000),
     symbols: toList(process.env.MARKET_SYMBOLS, [
       "BTC",
@@ -145,4 +157,5 @@ export const configuration = (): AppConfig => ({
     "BRL",
     "UYU",
   ]),
+  defaultCurrency: process.env.DEFAULT_CURRENCY ?? "ARS",
 });

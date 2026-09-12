@@ -20,7 +20,6 @@ import {
 } from "@/lib/format";
 import { buildMonthOptions } from "@/lib/period";
 import { useBudgets } from "@/lib/query/budgets";
-import { useCategories } from "@/lib/query/categories";
 import { BudgetCard } from "@/components/features/budgets/budget-card";
 import { BudgetFormDialog } from "@/components/features/budgets/budget-form-dialog";
 import {
@@ -35,14 +34,9 @@ export const BudgetsView = () => {
   const period = monthStartFromInput(month);
 
   const budgetsQuery = useBudgets(period);
-  const categoriesQuery = useCategories();
 
   const [createOpen, setCreateOpen] = useState(false);
 
-  const categories = useMemo(
-    () => categoriesQuery.data ?? [],
-    [categoriesQuery.data],
-  );
   const budgets = useMemo(() => budgetsQuery.data ?? [], [budgetsQuery.data]);
   const sortedBudgets = useMemo(
     () => sortBudgetsBySeverity(budgets),
@@ -112,7 +106,6 @@ export const BudgetsView = () => {
       <BudgetFormDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        categories={categories}
         defaultPeriod={period}
       />
     </div>

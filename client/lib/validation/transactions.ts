@@ -1,19 +1,27 @@
 import { z } from "zod";
+import {
+  currencySchema,
+  dateSchema,
+  moneySchema,
+  notesSchema,
+  optionalIdSchema,
+} from "./common";
 
 export const transactionSchema = z
   .object({
     type: z.enum(["income", "expense", "transfer"]),
-    amount: z.coerce.number().positive("El monto debe ser mayor que cero"),
-    currency: z.string().min(3, "Elegí una moneda"),
-    date: z.string().min(1, "Elegí una fecha"),
-    accountId: z.string().min(1, "Elegí una cuenta"),
-    transferAccountId: z.string().optional(),
-    categoryId: z.string().optional(),
+    amount: moneySchema.positive("El monto debe ser mayor que cero"),
+    currency: currencySchema,
+    date: dateSchema,
+    accountId: z.string().uuid("Elegí una cuenta"),
+    transferAccountId: optionalIdSchema,
+    categoryId: optionalIdSchema,
     description: z
       .string()
+      .trim()
       .min(1, "Ingresá una descripción")
       .max(120, "Máximo 120 caracteres"),
-    notes: z.string().max(500, "Máximo 500 caracteres").optional(),
+    notes: notesSchema.optional(),
   })
   .refine(
     (data) =>

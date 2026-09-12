@@ -6,6 +6,7 @@ export interface AccountResponseDto {
   type: AccountType;
   currency: string;
   initialBalance: number;
+  currentBalance: number;
   archived: boolean;
   notes: string | null;
   createdAt: string;

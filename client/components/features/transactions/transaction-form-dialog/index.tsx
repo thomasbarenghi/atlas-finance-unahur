@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
@@ -27,6 +27,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { getErrorMessage } from "@/lib/api/errors";
 import { evaluateAmountExpression } from "@/lib/amount-expression";
+import { sortCategories } from "@/lib/categories";
 import { formatCurrency, todayIso } from "@/lib/format";
 import type { TransactionType } from "@/lib/api/types";
 import { TRANSACTION_TYPE_LABELS } from "@/lib/labels";
@@ -63,17 +64,28 @@ export const TransactionFormDialog = ({
   const isEditing = Boolean(transaction);
   const isPending = createTransaction.isPending || updateTransaction.isPending;
 
+  const activeAccounts = useMemo(
+    () => accounts.filter((account) => !account.archived),
+    [accounts],
+  );
+  const initialAccountId =
+    transaction?.accountId ?? activeAccounts[0]?.id ?? "";
+  const initialAccount = activeAccounts.find(
+    (account) => account.id === initialAccountId,
+  );
+
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
       type: transaction?.type ?? "expense",
       amount: transaction ? Math.abs(transaction.amount) : 0,
-      currency: transaction?.currency ?? user?.baseCurrency ?? "ARS",
+      currency:
+        transaction?.currency ??
+        initialAccount?.currency ??
+        user?.baseCurrency ??
+        "ARS",
       date: transaction?.date ?? todayIso(),
-      accountId:
-        transaction?.accountId ??
-        accounts.find((account) => !account.archived)?.id ??
-        "",
+      accountId: initialAccountId,
       transferAccountId: transaction?.transferAccountId ?? undefined,
       categoryId: transaction?.categoryId ?? undefined,
       description: transaction?.description ?? "",
@@ -90,16 +102,40 @@ export const TransactionFormDialog = ({
   const accountId = useWatch({ control: form.control, name: "accountId" });
   const currency = useWatch({ control: form.control, name: "currency" });
 
-  const activeAccounts = accounts.filter((account) => !account.archived);
   const selectedAccount = activeAccounts.find(
     (account) => account.id === accountId,
   );
-  const categoryOptions = categories.filter(
-    (category) => category.type === (type === "income" ? "income" : "expense"),
+  const destinationAccounts = activeAccounts.filter(
+    (account) =>
+      account.id !== accountId &&
+      (!selectedAccount || account.currency === selectedAccount.currency),
+  );
+  const categoryOptions = sortCategories(
+    categories.filter(
+      (category) =>
+        category.type === (type === "income" ? "income" : "expense"),
+    ),
   );
   const evaluated =
     evaluateAmountExpression(expression.replace(/[+−×÷]+$/, "")) ?? 0;
   const hasOperator = /[+−×÷]/.test(expression);
+
+  useEffect(() => {
+    const account = activeAccounts.find((item) => item.id === accountId);
+    if (!account) return;
+    if (form.getValues("currency") !== account.currency) {
+      form.setValue("currency", account.currency, { shouldValidate: true });
+    }
+    const destinationId = form.getValues("transferAccountId");
+    if (destinationId) {
+      const destination = activeAccounts.find(
+        (item) => item.id === destinationId,
+      );
+      if (destination && destination.currency !== account.currency) {
+        form.setValue("transferAccountId", undefined, { shouldValidate: true });
+      }
+    }
+  }, [accountId, activeAccounts, form]);
 
   const updateExpression = (next: string) => {
     setExpression(next);
@@ -239,15 +275,19 @@ export const TransactionFormDialog = ({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {activeAccounts
-                    .filter((account) => account.id !== accountId)
-                    .map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.name} · {account.currency}
-                      </SelectItem>
-                    ))}
+                  {destinationAccounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.name} · {account.currency}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {selectedAccount && destinationAccounts.length === 0 ? (
+                <p className="text-muted-foreground text-xs">
+                  Necesitás otra cuenta en {selectedAccount.currency} para
+                  transferir.
+                </p>
+              ) : null}
               <FormMessage />
             </FormItem>
           )}

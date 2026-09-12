@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useConfirmAction } from "@/hooks/use-confirm-action";
 import type { Category, CategoryType } from "@/lib/api/types";
+import { sortCategories } from "@/lib/categories";
 import { useArchiveCategory, useCategories } from "@/lib/query/categories";
 import { CategoriesList } from "@/components/features/categories/categories-list";
 import { CategoryFormDialog } from "@/components/features/categories/category-form-dialog";
@@ -34,8 +35,12 @@ export const CategoriesView = () => {
     () => categoriesQuery.data ?? [],
     [categoriesQuery.data],
   );
-  const expenses = categories.filter((category) => category.type === "expense");
-  const incomes = categories.filter((category) => category.type === "income");
+  const expenses = sortCategories(
+    categories.filter((category) => category.type === "expense"),
+  );
+  const incomes = sortCategories(
+    categories.filter((category) => category.type === "income"),
+  );
 
   const renderList = (list: Category[]) => (
     <CategoriesList

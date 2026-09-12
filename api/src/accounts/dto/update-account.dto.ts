@@ -31,5 +31,5 @@ export class UpdateAccountDto {
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  notes?: string;
+  notes?: string | null;
 }

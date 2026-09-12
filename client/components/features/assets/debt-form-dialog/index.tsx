@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { FormCurrencyField } from "@/components/common/form-currency-field";
 import { FormDateField } from "@/components/common/form-date-field";
 import { FormDialog } from "@/components/common/form-dialog";
-import { FormTextField } from "@/components/common/form-text-field";
+import { FormMoneyField } from "@/components/common/form-money-field";
 import {
   FormControl,
   FormField,
@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useAuth } from "@/hooks/use-auth";
 import { getErrorMessage } from "@/lib/api/errors";
 import type { Asset, Debt, DebtType } from "@/lib/api/types";
 import { todayIso } from "@/lib/format";
@@ -72,6 +73,7 @@ export const DebtFormDialog = ({
   debt,
   assets,
 }: DebtFormDialogProps) => {
+  const { user } = useAuth();
   const createDebt = useCreateDebt();
   const updateDebt = useUpdateDebt();
   const archiveDebt = useArchiveDebt();
@@ -87,9 +89,9 @@ export const DebtFormDialog = ({
       name: debt?.name ?? "",
       type: debt?.type ?? "loan",
       balance: debt?.balance ?? 0,
-      currency: debt?.currency ?? "ARS",
+      currency: debt?.currency ?? user?.baseCurrency ?? "ARS",
       date: debt?.date ?? todayIso(),
-      assetId: debt?.assetId ?? "none",
+      assetId: debt?.assetId ?? "",
     },
   });
 
@@ -205,14 +207,8 @@ export const DebtFormDialog = ({
       />
 
       <div className="grid grid-cols-2 gap-3">
-        <FormTextField
-          name="balance"
-          label="Saldo actual"
-          type="number"
-          step="0.01"
-          min="0"
-        />
-        <FormCurrencyField />
+        <FormMoneyField name="balance" label="Saldo actual" />
+        <FormCurrencyField fallback={user?.baseCurrency ?? "ARS"} />
       </div>
 
       <FormDateField name="date" label="Fecha de actualización" />

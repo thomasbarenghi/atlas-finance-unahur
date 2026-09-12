@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { DatePicker } from "@/components/common/date-picker";
+import { FormMoneyField } from "@/components/common/form-money-field";
 import { FormShell } from "@/components/common/form-shell";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +15,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -101,19 +101,7 @@ export const ValuationSheet = ({
             <span className="font-heading text-sm font-semibold">
               Nueva valuación
             </span>
-            <FormField
-              control={form.control}
-              name="value"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Valor</FormLabel>
-                  <FormControl>
-                    <Input type="number" step="0.01" min="0" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormMoneyField name="value" label="Valor" />
             <FormField
               control={form.control}
               name="date"

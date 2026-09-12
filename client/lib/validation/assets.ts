@@ -1,7 +1,18 @@
 import { z } from "zod";
+import {
+  currencySchema,
+  dateSchema,
+  moneySchema,
+  notesSchema,
+  optionalIdSchema,
+} from "./common";
 
 export const assetSchema = z.object({
-  name: z.string().min(1, "Ingresá un nombre"),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Ingresá un nombre")
+    .max(80, "El nombre es demasiado largo"),
   type: z.enum([
     "property",
     "vehicle",
@@ -10,35 +21,45 @@ export const assetSchema = z.object({
     "crypto",
     "other",
   ]),
-  currency: z.string().min(3, "Elegí una moneda"),
-  initialValue: z.coerce.number().positive("El valor debe ser mayor que cero"),
-  newValue: z.coerce.number().nonnegative().optional(),
-  date: z.string().min(1, "Elegí una fecha de valuación"),
-  notes: z.string().max(500, "Máximo 500 caracteres").optional(),
+  currency: currencySchema,
+  initialValue: moneySchema.min(0, "El valor no puede ser negativo"),
+  newValue: moneySchema.min(0, "El valor no puede ser negativo").optional(),
+  date: dateSchema,
+  notes: notesSchema.optional(),
 });
 
 export const valuationSchema = z.object({
-  value: z.coerce.number().positive("El valor debe ser mayor que cero"),
-  date: z.string().min(1, "Elegí una fecha"),
+  value: moneySchema.min(0, "El valor no puede ser negativo"),
+  date: dateSchema,
 });
 
 export const debtSchema = z.object({
-  name: z.string().min(1, "Ingresá un nombre"),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Ingresá un nombre")
+    .max(80, "El nombre es demasiado largo"),
   type: z.enum(["loan", "mortgage", "card", "other"]),
-  balance: z.coerce.number().positive("El saldo debe ser mayor que cero"),
-  currency: z.string().min(3, "Elegí una moneda"),
-  date: z.string().min(1, "Elegí una fecha"),
-  assetId: z.string().optional(),
+  balance: moneySchema.min(0, "El saldo no puede ser negativo"),
+  currency: currencySchema,
+  date: dateSchema,
+  assetId: optionalIdSchema,
 });
 
 export const positionSchema = z.object({
-  symbol: z.string().min(1, "Ingresá el símbolo"),
-  instrument: z.string().min(1, "Ingresá el instrumento"),
-  quantity: z.coerce.number().positive("La cantidad debe ser mayor que cero"),
-  avgCost: z.coerce
-    .number()
-    .positive("El costo promedio debe ser mayor que cero"),
-  currency: z.string().min(3, "Elegí una moneda"),
+  symbol: z
+    .string()
+    .trim()
+    .min(1, "Ingresá el símbolo")
+    .max(20, "El símbolo es demasiado largo"),
+  instrument: z
+    .string()
+    .trim()
+    .min(1, "Ingresá el instrumento")
+    .max(80, "El instrumento es demasiado largo"),
+  quantity: moneySchema.min(0, "La cantidad no puede ser negativa"),
+  avgCost: moneySchema.min(0, "El costo promedio no puede ser negativo"),
+  currency: currencySchema,
 });
 
 export type AssetFormValues = z.infer<typeof assetSchema>;

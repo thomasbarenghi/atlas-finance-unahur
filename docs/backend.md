@@ -509,6 +509,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 | Método | Ruta | FR |
 | :--- | :--- | :--- |
 | GET | `/quotes` | catálogo con precio, proveedor, fecha y bandera de antigüedad (FR-MER-001..006) |
+| POST | `/market/refresh` | dispara un refresco on-demand de cotizaciones y tipos de cambio (auth). Devuelve `MarketRefreshResult` |
 
 ### 7.8 Goals
 
@@ -701,9 +702,9 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 { "id": "uuid", "symbol": "BTC", "instrument": "Bitcoin", "quantity": 0.05,
   "avgCost": 55000, "currency": "USD", "currentPrice": 64000,
   "currentValue": 3200, "costBasis": 2750, "profitLoss": 450, "profitLossPct": 16.36,
-  "quoteDate": "ISO", "quoteProvider": "coingecko", "isStale": false }
+  "quoteDate": "ISO", "quoteProvider": "binance", "isStale": false }
 // GET /quotes → Quote[]
-{ "symbol": "BTC", "price": 64000, "currency": "USD", "provider": "coingecko",
+{ "symbol": "BTC", "price": 64000, "currency": "USD", "provider": "binance",
   "change24h": 1.8, "fetchedAt": "ISO", "isStale": false }
 ```
 - Matching posición↔cotización: por `symbol` + `currency`; valor actual = `quantity × price` (CAL-005); ganancia = `currentValue − quantity × avgCost` (CAL-006).
@@ -859,10 +860,11 @@ Centralizadas en `calculations.service.ts` para garantizar consistencia entre da
 Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones deshabilitadas (NFR-SEG-009).
 
 ### 9.1 Proveedor de mercado (actor "Proveedor de mercado")
-- **Catálogo limitado** de criptomonedas definido por el sistema (FR-MER-001).
-- `MarketSchedulerService` (`@nestjs/schedule`) refresca precios periódicamente (caché + límites de frecuencia, FR-MER-003).
-- Ante falla, mantiene el último precio válido y NO inventa uno nuevo (FR-MER-004); expone `fetched_at` para marcar antigüedad (FR-MER-005).
-- Guarda `symbol, price, currency, provider, fetched_at` (FR-MER-002) y `change_24h` si lo informa (FR-MER-006).
+- **Cripto — Binance** (`MARKET_API_URL`, sin API key ni atribución): `GET /ticker/24hr?symbols=[...]` devuelve precio y variación 24h en una sola llamada (FR-MER-001; símbolos soportados en `crypto-symbols.ts`). Cotiza contra `USDT` y se etiqueta con `MARKET_VS_CURRENCY` (default `USD`).
+- **Monedas — currency-api de Fawaz Ahmed** (`FX_API_URL`, sin API key ni atribución): base `ARS`, deriva `X:ARS` y actualiza `exchange_rates` (CAL-009). Es la fuente del pivote que usa `fx.service`.
+- `MarketSchedulerService` (`@nestjs/schedule`) refresca al arrancar y luego cada `MARKET_REFRESH_INTERVAL_MS` (default 5 min); `POST /market/refresh` permite forzarlo. Todo es configurable con `MARKET_ENABLED`, `MARKET_SYMBOLS`, `MARKET_VS_CURRENCY`, `MARKET_TIMEOUT_MS`.
+- Ante falla, mantiene el último valor válido en base y NO inventa uno nuevo (FR-MER-004); expone `fetched_at` para marcar antigüedad (FR-MER-005). Se conserva un único proveedor por par símbolo/moneda.
+- Guarda `symbol, price, currency, provider, fetched_at` (FR-MER-002) y `change_24h` si lo informa (FR-MER-006). Alcance actual: cripto y monedas; acciones/ETFs fuera de alcance.
 
 ### 9.2 Proveedor de IA (actor "Proveedor de IA")
 `assistant.service.ts` + `ai.service.ts`:
@@ -885,7 +887,7 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 - **Acceso dev del stream**: `POST /assistant/messages` está marcado `@Public()` pero resuelve el usuario así: si hay sesión válida la usa; si no, y `NODE_ENV !== "production"`, cae al usuario demo `AI_DEV_USER_EMAIL`; en producción sin sesión responde `401 UNAUTHENTICATED`. Permite probar el asistente con el cliente en modo mock sin implementar todo el auth. Los endpoints de historial siguen requiriendo JWT.
 - El cliente consume el stream en `client/lib/api/assistant-stream.ts` (mock con `NEXT_PUBLIC_USE_MOCKS`).
 
-> Estado: el API aún no expone el resto de los dominios (accounts, transactions, budgets, etc. solo tienen entidades), por lo que el asistente no es ejecutable end-to-end hasta completar auth/DB y los servicios de finanzas. La key `AI_API_KEY` va en `api/.env`.
+> Estado: los dominios de finanzas (auth, users, accounts, categories, transactions, budgets, assets/valuations, debts, positions, quotes, dashboard y reports) ya exponen sus servicios y endpoints, por lo que el asistente es ejecutable end-to-end con sesión válida. La key `AI_API_KEY` va en `api/.env`. El armado de contexto sigue leyendo repositorios directamente (ver nota anterior) y debe migrarse a un orquestador cuando se refactorice.
 
 ### 9.3 Servicio de correo (actor "Servicio de correo")
 - Envío de enlace de recuperación con token temporal. Ante falla, informa que no pudo enviarse y permite reintento (dependencia §11 FRD).
@@ -956,10 +958,14 @@ COOKIE_SAME_SITE=lax
 CORS_ORIGIN=http://localhost:3000
 CORS_ORIGIN_NATIVE=capacitor://localhost,http://localhost   # orígenes nativos de Capacitor
 
-# Mercado
-MARKET_API_URL=...
-MARKET_API_KEY=...
+# Mercado (proveedores gratis, sin API key ni atribución)
+MARKET_ENABLED=true
+MARKET_API_URL=https://api.binance.com/api/v3
+MARKET_VS_CURRENCY=USD
+FX_API_URL=https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies
+MARKET_TIMEOUT_MS=8000
 MARKET_REFRESH_INTERVAL_MS=300000
+QUOTE_STALE_MS=3600000
 
 # IA (DeepSeek por defecto; OpenAI-compatible)
 # La API key SIEMPRE vive en el servidor: nunca exponerla con NEXT_PUBLIC_* en el cliente.
@@ -1010,39 +1016,39 @@ QUOTE_STALE_MS=3600000
 
 ## 14. Plan de trabajo por tandas
 
-Cada tanda deja la API compilando (`npm run lint && npm run build`) y con migración + tests asociados. Alineado con el plan del front (`frontend.md`). El cliente avanza sobre el **mock** (§11 de ese doc) mientras la API se completa; hoy el API real es un esqueleto (auth/health/entidades + `assistant`). Estado por tanda abajo.
+Cada tanda deja la API compilando (`npm run lint && npm run build`) y con migración + tests asociados. Alineado con el plan del front (`frontend.md`). El cliente puede consumir la API real con `NEXT_PUBLIC_USE_MOCKS=false`; los dominios de finanzas ya están implementados. Estado por tanda abajo.
 
-### Tanda 0 — Setup del proyecto — ◐ Base hecha
+### Tanda 0 — Setup del proyecto — ✅ Hecho
 - Scaffold NestJS, config global (`@nestjs/config`), `ValidationPipe`, `Logger`, Swagger, prefijo `/api`, CORS, cookies.
 - TypeORM + DataSource + primeras migraciones (usuarios, sesiones, cuentas, categorías, movimientos, cotizaciones, exchange_rates).
 - `common/` (guards, decorators, filters, interceptors).
 - **Aceptación**: API levanta, migra y responde `/api/health`.
 
-### Tanda 1 — Autenticación — ◐ Parcial
+### Tanda 1 — Autenticación — ✅ Hecho
 - `auth` + `users`: register, login, refresh, logout, me; `PATCH /users/me`; `GET /currencies`; argon2; JWT strategy; cookies + `Authorization: Bearer`; throttler en login.
 - `forgot-password`/`reset-password` + `mail` service (FR-AUT-003).
 - **Aceptación**: FR-AUT-001..006, NFR-SEG-003/004/010.
 
-### Tanda 2 — Cuentas, categorías y movimientos — ⬜ Pendiente
+### Tanda 2 — Cuentas, categorías y movimientos — ✅ Hecho
 - CRUD `accounts`, `categories`, `transactions` con filtros y búsqueda.
 - Transferencias atómicas (FR-TRX-004/005) y exclusión de consolidados (CAL-003).
 - **Aceptación**: HU-001, HU-002, FR-CUE-*, FR-TRX-001..008.
 
-### Tanda 3 — Cálculos, dashboard y reportes — ⬜ Pendiente
+### Tanda 3 — Cálculos, dashboard y reportes — ✅ Hecho
 - `calculations` + `fx` (CAL-001..009), `dashboard`, `reports` (summary, by-category, net-worth, budgets, export CSV).
 - Los campos que el cliente ya consume (`kpis.accounts`, `savingsRateDeltaPp`, `categoryChanges`, `netWorthComposition`, `investments.positions` con moneda original) están en el contrato §7.7 y el mock; la API debe implementarlos.
 - **Aceptación**: FR-DAS-*, FR-REP-001..006.
 
-### Tanda 4 — Presupuestos — ⬜ Pendiente
+### Tanda 4 — Presupuestos — ✅ Hecho
 - CRUD `budgets`, cálculo de consumo y estados (FR-PRE-001..006), copiar mes anterior.
 - **Aceptación**: HU-003.
 
-### Tanda 5 — Activos, deudas, posiciones y mercado — ⬜ Pendiente
-- `assets` + `valuations` + `debts` + `positions` + `quotes`.
-- `market` (proveedor) + `market-scheduler` (caché, límites, último válido).
-- **Aceptación**: HU-004, HU-005, FR-ACT-*, FR-MER-*.
+### Tanda 5 — Activos, deudas, posiciones y mercado — ✅ Hecho
+- `assets` + `valuations` + `debts` + `positions` + `quotes` implementados con valuación vigente, vínculo deuda↔activo y bandera de antigüedad de cotización.
+- `market` (Binance para cripto + currency-api de Fawaz para monedas, sin API key ni atribución) + `market-scheduler` (`@nestjs/schedule`) con refresco al arranque, intervalo configurable y `POST /market/refresh`. Mantiene el último valor válido y `isStale` se calcula con `QUOTE_STALE_MS`.
+- **Aceptación**: HU-004, HU-005, FR-ACT-*, FR-MER-*. Alcance: cripto y monedas (acciones/ETFs fuera de alcance).
 
-### Tanda 6 — Objetivos y seed — ◐ Parcial
+### Tanda 6 — Objetivos y seed — ✅ Hecho
 - **Los objetivos son un módulo `goals`** (no un tipo de cuenta): tabla `goals` (§5.12), endpoints `/goals` (§7.8), cálculo de progreso/estado en `calculations.service` (CAL-007) y validación de la cuenta origen vía orquestador. **No suman al patrimonio neto** (son un "sobre virtual" cuyo dinero ya está en la cuenta origen). En el cliente aparecen como **Metas**, bloque y ruta propios (`/goals/detail`), distintos de **Cuentas** (`/accounts/detail`).
 - `seed` de datos de demo (incluye metas con cuenta origen).
 - **Aceptación**: FR-OBJ-001..004, FRD §12.

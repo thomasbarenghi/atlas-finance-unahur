@@ -9,7 +9,7 @@ import { DatePicker } from "@/components/common/date-picker";
 import { FormCurrencyField } from "@/components/common/form-currency-field";
 import { FormDialog } from "@/components/common/form-dialog";
 import { FormHero } from "@/components/common/form-hero";
-import { FormTextField } from "@/components/common/form-text-field";
+import { FormMoneyField } from "@/components/common/form-money-field";
 import { Button } from "@/components/ui/button";
 import {
   FormControl,
@@ -138,20 +138,8 @@ export const GoalFormDialog = ({
       </FormHero>
 
       <div className="grid grid-cols-2 gap-3">
-        <FormTextField
-          name="savedAmount"
-          label="Monto asignado"
-          type="number"
-          step="0.01"
-          min="0"
-        />
-        <FormTextField
-          name="targetAmount"
-          label="Monto objetivo"
-          type="number"
-          step="0.01"
-          min="0"
-        />
+        <FormMoneyField name="savedAmount" label="Monto asignado" />
+        <FormMoneyField name="targetAmount" label="Monto objetivo" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <FormCurrencyField fallback={user?.baseCurrency ?? "ARS"} />

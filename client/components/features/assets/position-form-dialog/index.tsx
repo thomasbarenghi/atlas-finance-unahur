@@ -6,6 +6,7 @@ import { Pencil, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { FormCurrencyField } from "@/components/common/form-currency-field";
 import { FormDialog } from "@/components/common/form-dialog";
+import { FormMoneyField } from "@/components/common/form-money-field";
 import { FormTextField } from "@/components/common/form-text-field";
 import {
   FormControl,
@@ -116,7 +117,7 @@ export const PositionFormDialog = ({
 
       <div className="grid grid-cols-2 gap-3">
         <FormTextField name="symbol" label="Símbolo" placeholder="BTC" />
-        <FormCurrencyField fallback="USD" />
+        <FormCurrencyField fallback="USD" disabled={isEditing} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -127,13 +128,7 @@ export const PositionFormDialog = ({
           step="any"
           min="0"
         />
-        <FormTextField
-          name="avgCost"
-          label="Costo promedio"
-          type="number"
-          step="0.01"
-          min="0"
-        />
+        <FormMoneyField name="avgCost" label="Costo promedio" />
       </div>
 
       {position ? (
