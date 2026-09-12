@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { useTheme } from "next-themes";
 import { Loader2, LogOut, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -27,11 +26,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
 import { getErrorMessage } from "@/lib/api/errors";
-import type { Theme } from "@/lib/api/types";
 import { useClearConversations } from "@/lib/query/assistant";
 import { useUpdateMe } from "@/lib/query/users";
 import {
@@ -39,25 +36,17 @@ import {
   type SettingsFormValues,
 } from "@/lib/validation/settings";
 
-const THEME_OPTIONS: { value: Theme; label: string }[] = [
-  { value: "light", label: "Claro" },
-  { value: "dark", label: "Oscuro" },
-  { value: "system", label: "Automático" },
-];
-
 export const SettingsForm = () => {
   const { user, signOut, isSigningOut } = useAuth();
   const router = useRouter();
   const updateMe = useUpdateMe();
   const clearConversations = useClearConversations();
-  const { setTheme } = useTheme();
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       name: user?.name ?? "",
       baseCurrency: user?.baseCurrency ?? "ARS",
-      theme: user?.theme ?? "system",
       aiEnabled: user?.aiEnabled ?? false,
     },
   });
@@ -67,7 +56,6 @@ export const SettingsForm = () => {
     form.reset({
       name: user.name,
       baseCurrency: user.baseCurrency,
-      theme: user.theme,
       aiEnabled: user.aiEnabled,
     });
   }, [user, form]);
@@ -75,7 +63,6 @@ export const SettingsForm = () => {
   const onSubmit = async (values: SettingsFormValues) => {
     try {
       await updateMe.mutateAsync(values);
-      setTheme(values.theme);
       toast.success("Preferencias guardadas");
     } catch (error) {
       toast.error(getErrorMessage(error, "No se pudieron guardar los cambios"));
@@ -121,44 +108,6 @@ export const SettingsForm = () => {
               fallback={user?.baseCurrency ?? "ARS"}
             />
             <div className="text-muted-foreground text-sm">{user?.email}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-heading">Apariencia</CardTitle>
-            <CardDescription>Elegí el tema de la aplicación.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <FormField
-              control={form.control}
-              name="theme"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <RadioGroup
-                      value={field.value}
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        setTheme(value);
-                      }}
-                      className="sm:grid-cols-3"
-                    >
-                      {THEME_OPTIONS.map((option) => (
-                        <FormLabel
-                          key={option.value}
-                          className="flex items-center gap-2 rounded-xl border p-3 font-normal"
-                        >
-                          <RadioGroupItem value={option.value} />
-                          {option.label}
-                        </FormLabel>
-                      ))}
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
           </CardContent>
         </Card>
 

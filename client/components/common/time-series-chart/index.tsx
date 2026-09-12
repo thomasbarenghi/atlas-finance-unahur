@@ -1,7 +1,7 @@
 "use client";
 
 import { LineChart } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { EmptyState } from "@/components/common/empty-state";
 import {
   ChartContainer,
@@ -10,6 +10,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import type { TimeSeriesChartProps } from "./time-series-chart.types";
+import { computeSeriesDomain } from "./time-series-chart.utils";
 
 const HEIGHT_CLASS = {
   sm: "h-40",
@@ -47,6 +48,11 @@ export const TimeSeriesChart = ({
     return accumulator;
   }, {});
 
+  const [domainMin, domainMax] = computeSeriesDomain(
+    data,
+    series.map((item) => item.dataKey),
+  );
+
   return (
     <ChartContainer
       config={config}
@@ -78,6 +84,7 @@ export const TimeSeriesChart = ({
           axisLine={false}
           minTickGap={24}
         />
+        <YAxis hide domain={[domainMin, domainMax]} />
         <ChartTooltip
           content={
             <ChartTooltipContent

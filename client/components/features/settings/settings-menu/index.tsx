@@ -2,100 +2,26 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
-import { Coins, LogOut, Moon, Sparkles } from "lucide-react";
+import { Coins, LogOut, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { IconBadge } from "@/components/common/icon-badge";
 import { ListRow } from "@/components/common/list-row";
+import { OptionSheet } from "@/components/common/option-sheet";
 import { Button } from "@/components/ui/button";
-import { ResponsiveDialogContent } from "@/components/common/responsive-dialog";
-import {
-  Dialog,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
-import { useMounted } from "@/hooks/use-mounted";
-import type { Theme } from "@/lib/api/types";
 import { useCurrencies } from "@/lib/query/reference";
 import { useUpdateMe } from "@/lib/query/users";
-import { cn } from "@/lib/utils";
-
-const THEME_OPTIONS: { value: Theme; label: string }[] = [
-  { value: "light", label: "Claro" },
-  { value: "dark", label: "Oscuro" },
-  { value: "system", label: "Automático" },
-];
-
-const THEME_LABELS: Record<Theme, string> = {
-  light: "Claro",
-  dark: "Oscuro",
-  system: "Automático",
-};
-
-interface OptionSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  options: { value: string; label: string }[];
-  value: string;
-  onSelect: (value: string) => void;
-}
-
-const OptionSheet = ({
-  open,
-  onOpenChange,
-  title,
-  options,
-  value,
-  onSelect,
-}: OptionSheetProps) => (
-  <Dialog open={open} onOpenChange={onOpenChange}>
-    <ResponsiveDialogContent>
-      <DialogHeader>
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>Elegí una opción.</DialogDescription>
-      </DialogHeader>
-      <div className="flex flex-col">
-        {options.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => {
-              onSelect(option.value);
-              onOpenChange(false);
-            }}
-            className={cn(
-              "hover:bg-muted/50 flex items-center justify-between rounded-xl px-3 py-3 text-left text-sm",
-              option.value === value && "text-primary font-medium",
-            )}
-          >
-            {option.label}
-            {option.value === value ? (
-              <span className="bg-primary size-2 rounded-full" aria-hidden />
-            ) : null}
-          </button>
-        ))}
-      </div>
-    </ResponsiveDialogContent>
-  </Dialog>
-);
 
 export const SettingsMenu = () => {
   const { user, signOut } = useAuth();
   const router = useRouter();
-  const mounted = useMounted();
-  const { theme, setTheme } = useTheme();
   const currencies = useCurrencies();
   const updateMe = useUpdateMe();
 
   const [currencyOpen, setCurrencyOpen] = useState(false);
-  const [themeOpen, setThemeOpen] = useState(false);
 
   const supported = currencies.data?.supported ?? [user?.baseCurrency ?? "ARS"];
-  const themeValue = (theme ?? "system") as Theme;
 
   const handleSignOut = async () => {
     try {
@@ -115,14 +41,6 @@ export const SettingsMenu = () => {
             label="Moneda base"
             value={user?.baseCurrency}
             onClick={() => setCurrencyOpen(true)}
-          />
-        </div>
-        <div className="border-b">
-          <ListRow
-            icon={Moon}
-            label="Tema"
-            value={mounted ? THEME_LABELS[themeValue] : undefined}
-            onClick={() => setThemeOpen(true)}
           />
         </div>
         <div className="flex items-center gap-3 px-4 py-2.5">
@@ -168,21 +86,6 @@ export const SettingsMenu = () => {
             },
           )
         }
-      />
-      <OptionSheet
-        open={themeOpen}
-        onOpenChange={setThemeOpen}
-        title="Tema"
-        options={THEME_OPTIONS}
-        value={themeValue}
-        onSelect={(value) => {
-          const next = value as Theme;
-          setTheme(next);
-          updateMe.mutate(
-            { theme: next },
-            { onError: () => toast.error("No se pudo guardar el tema") },
-          );
-        }}
       />
     </div>
   );

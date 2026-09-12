@@ -367,7 +367,9 @@ Tablas derivadas de las entidades del FRD (§10) más las necesarias para trazab
 
 ### 5.12 Objetivos (FR-OBJ-001..004)
 
-Los objetivos **ya no tienen tabla propia**: son cuentas con `type = 'goal'` (`target_amount`, `target_date`, `source_account_id` en §5.3). El monto acumulado es el `initial_balance` de la cuenta objetivo.
+Los objetivos **ya no tienen tabla propia ni módulo `goals`**: se modelan como cuentas con `type = 'goal'` (`target_amount`, `target_date`, `source_account_id` en §5.3). El monto acumulado es el `initial_balance` de la cuenta objetivo.
+
+> **Separación Cuentas vs. Metas (concepto, no tabla).** En la base una meta *es* una cuenta, pero en el producto es un **concepto distinto**: un "sobre virtual" asociado a una cuenta origen, que **no suma al patrimonio neto** (el dinero ya está contado en `source_account_id`) y que el cliente presenta en una sección y ruta propias (`/goals/detail`) separadas de las cuentas comunes (`/accounts/detail`). Reglas: (1) `type = 'goal'` no admite movimientos como cuenta común; (2) su saldo (`initial_balance`) es el monto asignado; (3) se excluye de `kpis.accounts`/patrimonio; (4) `progressPct`/`status` los calcula el cliente a partir de `target_amount`/`target_date`.
 
 ### 5.13 `ai_conversations` (FR-IA-009)
 | Columna | Tipo | Notas |
@@ -496,7 +498,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 
 ### 7.8 Goals
 
-Los objetivos se gestionan con los endpoints de **Accounts** (`type: "goal"`, §7.6/§5.3): no hay `/goals`.
+Los objetivos se gestionan con los endpoints de **Accounts** (`type: "goal"`, §7.6/§5.3): **no hay `/goals`**. Es una separación de producto, no de contrato: el cliente los consume como **Metas** (sección y detalle propios) y los endpoints `GET/POST/PATCH /accounts` devuelven `targetAmount`, `targetDate`, `sourceAccountId` para `type: "goal"`. Los `goal` **no** entran en `kpis.accounts` ni en `netWorthComposition` (no suman al patrimonio) — ver §5.12 y §7.7.
 
 ### 7.9 Dashboard
 | Método | Ruta | FR |
@@ -971,46 +973,48 @@ QUOTE_STALE_MS=3600000
 
 ## 14. Plan de trabajo por tandas
 
-Cada tanda deja la API compilando (`npm run lint && npm run build`) y con migración + tests asociados. Alineado con el plan del front (`frontend.md`).
+Cada tanda deja la API compilando (`npm run lint && npm run build`) y con migración + tests asociados. Alineado con el plan del front (`frontend.md`). El cliente avanza sobre el **mock** (§11 de ese doc) mientras la API se completa; hoy el API real es un esqueleto (auth/health/entidades + `assistant`). Estado por tanda abajo.
 
-### Tanda 0 — Setup del proyecto
+### Tanda 0 — Setup del proyecto — ◐ Base hecha
 - Scaffold NestJS, config global (`@nestjs/config`), `ValidationPipe`, `Logger`, Swagger, prefijo `/api`, CORS, cookies.
 - TypeORM + DataSource + primeras migraciones (usuarios, sesiones, cuentas, categorías, movimientos, cotizaciones, exchange_rates).
 - `common/` (guards, decorators, filters, interceptors).
 - **Aceptación**: API levanta, migra y responde `/api/health`.
 
-### Tanda 1 — Autenticación
+### Tanda 1 — Autenticación — ◐ Parcial
 - `auth` + `users`: register, login, refresh, logout, me; `PATCH /users/me`; `GET /currencies`; argon2; JWT strategy; cookies + `Authorization: Bearer`; throttler en login.
 - `forgot-password`/`reset-password` + `mail` service (FR-AUT-003).
 - **Aceptación**: FR-AUT-001..006, NFR-SEG-003/004/010.
 
-### Tanda 2 — Cuentas, categorías y movimientos
+### Tanda 2 — Cuentas, categorías y movimientos — ⬜ Pendiente
 - CRUD `accounts`, `categories`, `transactions` con filtros y búsqueda.
 - Transferencias atómicas (FR-TRX-004/005) y exclusión de consolidados (CAL-003).
 - **Aceptación**: HU-001, HU-002, FR-CUE-*, FR-TRX-001..008.
 
-### Tanda 3 — Cálculos, dashboard y reportes
+### Tanda 3 — Cálculos, dashboard y reportes — ⬜ Pendiente
 - `calculations` + `fx` (CAL-001..009), `dashboard`, `reports` (summary, by-category, net-worth, budgets, export CSV).
+- Los campos que el cliente ya consume (`kpis.accounts`, `savingsRateDeltaPp`, `categoryChanges`, `netWorthComposition`, `investments.positions` con moneda original) están en el contrato §7.7 y el mock; la API debe implementarlos.
 - **Aceptación**: FR-DAS-*, FR-REP-001..006.
 
-### Tanda 4 — Presupuestos
+### Tanda 4 — Presupuestos — ⬜ Pendiente
 - CRUD `budgets`, cálculo de consumo y estados (FR-PRE-001..006), copiar mes anterior.
 - **Aceptación**: HU-003.
 
-### Tanda 5 — Activos, deudas, posiciones y mercado
+### Tanda 5 — Activos, deudas, posiciones y mercado — ⬜ Pendiente
 - `assets` + `valuations` + `debts` + `positions` + `quotes`.
 - `market` (proveedor) + `market-scheduler` (caché, límites, último válido).
 - **Aceptación**: HU-004, HU-005, FR-ACT-*, FR-MER-*.
 
-### Tanda 6 — Objetivos y seed
-- Objetivos como cuentas `type: "goal"` (sin módulo `goals`) + `seed` de datos de demo.
+### Tanda 6 — Objetivos y seed — ◐ Parcial
+- **Los objetivos NO son un módulo `goals`**: se modelan como **cuentas `type: "goal"`** (`target_amount`/`target_date`/`source_account_id`, §5.3), con reglas propias: el saldo es el monto asignado y **no suman al patrimonio neto** (es un "sobre virtual" cuyo dinero ya está en la cuenta origen). Es una **separación de producto, no de tabla**: en el cliente aparecen como **Metas**, bloque y ruta propios (`/goals/detail`), distintos de **Cuentas** (`/accounts/detail`).
+- `seed` de datos de demo (incluye una meta).
 - **Aceptación**: FR-OBJ-001..004, FRD §12.
 
-### Tanda 7 — Asistente IA
+### Tanda 7 — Asistente IA — ◐ Parcial
 - `assistant` + `ai`: conversaciones, mensajes con stream SSE (contrato §7.16), contexto mínimo, metadatos, insuficiencia.
 - **Aceptación**: HU-006, FR-IA-001..011, NFR-SEG-011/012.
 
-### Tanda 8 — Endurecimiento
+### Tanda 8 — Endurecimiento — ⬜ Pendiente
 - Tests e2e P0, rate limiting completo, timeout en salidas externas, logging seguro, validación de host.
 - **Aceptación**: NFR-SEG-005..010, NFR-PR-003/004, NFR-CAL-004.
 

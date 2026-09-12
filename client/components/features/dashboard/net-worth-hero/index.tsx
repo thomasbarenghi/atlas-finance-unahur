@@ -6,6 +6,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { computeChartDomain } from "@/lib/chart-scale";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { buildPeriodSummaryStats } from "@/lib/period-stats";
 import { cn } from "@/lib/utils";
@@ -35,11 +36,9 @@ export const NetWorthHero = ({
   savings,
   showPeriodStats = true,
 }: NetWorthHeroProps) => {
-  const values = series.map((point) => point.value);
-  const min = values.length > 0 ? Math.min(...values) : 0;
-  const max = values.length > 0 ? Math.max(...values) : 0;
-  const spread = max - min;
-  const padding = spread > 0 ? spread * 0.15 : Math.abs(max) * 0.02 || 1;
+  const [domainMin, domainMax] = computeChartDomain(
+    series.map((point) => point.value),
+  );
 
   return (
     <div className="from-primary/15 via-background to-background relative flex flex-col overflow-hidden rounded-3xl border bg-gradient-to-br p-6">
@@ -96,7 +95,7 @@ export const NetWorthHero = ({
               </linearGradient>
             </defs>
             <XAxis dataKey="date" hide />
-            <YAxis hide domain={[min - padding, max + padding]} />
+            <YAxis hide domain={[domainMin, domainMax]} />
             <ChartTooltip
               content={
                 <ChartTooltipContent

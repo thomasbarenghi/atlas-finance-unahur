@@ -63,7 +63,7 @@ export const AccountsList = ({
 
           return (
             <Link
-              href={`/accounts/detail?id=${account.id}`}
+              href={`/goals/detail?id=${account.id}`}
               className="flex w-full flex-col gap-3 px-4 py-3 transition-colors hover:bg-muted/40 active:bg-muted/60"
             >
               <div className="flex items-center gap-3">

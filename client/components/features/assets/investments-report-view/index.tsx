@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AllocationList } from "@/components/common/allocation-list";
 import { PageHeader } from "@/components/common/page-header";
-import { PeriodCurrencyFilters } from "@/components/common/period-currency-filters";
+import { PeriodSelector } from "@/components/common/period-selector";
 import { SectionCard } from "@/components/common/section-card";
 import { StatTiles, type StatTile } from "@/components/common/stat-tiles";
 import { TimeSeriesChart } from "@/components/common/time-series-chart";
@@ -135,7 +135,7 @@ export const InvestmentsReportView = () => {
 
       <ReportsTabs />
 
-      <PeriodCurrencyFilters />
+      <PeriodSelector />
 
       <StatTiles stats={stats} />
 

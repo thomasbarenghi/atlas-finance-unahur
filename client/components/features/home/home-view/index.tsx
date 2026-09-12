@@ -1,7 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/common/page-header";
-import { PeriodCurrencyFilters } from "@/components/common/period-currency-filters";
+import { PeriodSelector } from "@/components/common/period-selector";
 import { NetWorthHero } from "@/components/features/dashboard/net-worth-hero";
 import { AccountsSection } from "@/components/features/home/accounts-section";
 import { InvestmentsSection } from "@/components/features/home/investments-section";
@@ -26,7 +26,7 @@ export const HomeView = () => {
     <div className="flex flex-col gap-6">
       <PageHeader title="Tu resumen" />
 
-      <PeriodCurrencyFilters />
+      <PeriodSelector />
 
       {dashboardQuery.isLoading || !data ? (
         <Skeleton className="h-56 w-full" />

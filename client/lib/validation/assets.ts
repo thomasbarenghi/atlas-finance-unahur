@@ -12,6 +12,7 @@ export const assetSchema = z.object({
   ]),
   currency: z.string().min(3, "Elegí una moneda"),
   initialValue: z.coerce.number().positive("El valor debe ser mayor que cero"),
+  newValue: z.coerce.number().nonnegative().optional(),
   date: z.string().min(1, "Elegí una fecha de valuación"),
   notes: z.string().max(500, "Máximo 500 caracteres").optional(),
 });

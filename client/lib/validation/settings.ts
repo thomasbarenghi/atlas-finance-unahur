@@ -6,7 +6,6 @@ export const settingsSchema = z.object({
     .min(2, "El nombre debe tener al menos 2 caracteres")
     .max(80, "El nombre no puede superar los 80 caracteres"),
   baseCurrency: z.string().min(3, "Elegí una moneda"),
-  theme: z.enum(["light", "dark", "system"]),
   aiEnabled: z.boolean(),
 });
 

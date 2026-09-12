@@ -1,23 +1,16 @@
 "use client";
 
-import { Archive, CreditCard, Pencil } from "lucide-react";
+import { CreditCard } from "lucide-react";
 import { Amount } from "@/components/common/amount";
 import { DataList } from "@/components/common/data-list";
 import { DataListItem } from "@/components/common/data-list-item";
 import { EmptyState } from "@/components/common/empty-state";
 import { IconBadge } from "@/components/common/icon-badge";
-import { RowActionsMenu } from "@/components/common/row-actions-menu";
 import { StatusBadge } from "@/components/common/status-badge";
 import { DEBT_TYPE_LABELS } from "@/lib/labels";
 import type { DebtsListProps } from "./debts-list.types";
 
-export const DebtsList = ({
-  debts,
-  assets,
-  isLoading,
-  onEdit,
-  onArchive,
-}: DebtsListProps) => {
+export const DebtsList = ({ debts, assets, isLoading }: DebtsListProps) => {
   const assetNameById = new Map(assets.map((asset) => [asset.id, asset.name]));
 
   return (
@@ -39,8 +32,7 @@ export const DebtsList = ({
           : undefined;
         return (
           <DataListItem
-            onClick={() => onEdit(debt)}
-            showChevron={false}
+            href={`/patrimony/debts/detail?id=${debt.id}`}
             leading={<IconBadge icon={CreditCard} tone="destructive" />}
             title={debt.name}
             subtitle={`${DEBT_TYPE_LABELS[debt.type]}${assetName ? ` · ${assetName}` : ""}`}
@@ -51,25 +43,6 @@ export const DebtsList = ({
                   <StatusBadge variant="account" archived />
                 ) : null}
               </span>
-            }
-            trailingAction={
-              <RowActionsMenu
-                label={debt.name}
-                actions={[
-                  {
-                    label: "Editar",
-                    icon: Pencil,
-                    onSelect: () => onEdit(debt),
-                  },
-                  {
-                    label: "Archivar",
-                    icon: Archive,
-                    variant: "destructive",
-                    hidden: debt.archived,
-                    onSelect: () => onArchive(debt),
-                  },
-                ]}
-              />
             }
           />
         );

@@ -70,4 +70,4 @@ client/
 ## Navigation behavior
 
 - Desktop (≥ `md`): fixed sidebar.
-- Mobile: bottom app-style bar with 5 items (`Home`, `Transactions`, central `+`, `Reports`, `Settings`); `Settings` is the hub for the remaining sections and preferences. Same behavior in browser and Capacitor.
+- Mobile: bottom app-style bar with 5 items (`Home`, `Transactions`, central `+`, `Reports`, `Settings`); `Settings` is the hub for the remaining sections and preferences (theme is changed from `Profile`). Same behavior in browser and Capacitor.

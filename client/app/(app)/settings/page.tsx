@@ -7,7 +7,7 @@ const SettingsPage = () => {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Ajustes"
-        description="Moneda base, tema, privacidad y sesión."
+        description="Moneda base, privacidad y sesión."
       />
       <div className="md:hidden">
         <SettingsMenu />

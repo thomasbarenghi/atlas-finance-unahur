@@ -1,21 +1,15 @@
 "use client";
 
-import { Pencil, Trash2, TrendingDown, TrendingUp } from "lucide-react";
+import { TrendingDown, TrendingUp } from "lucide-react";
 import { Amount } from "@/components/common/amount";
 import { DataList } from "@/components/common/data-list";
 import { DataListItem } from "@/components/common/data-list-item";
 import { EmptyState } from "@/components/common/empty-state";
 import { IconBadge } from "@/components/common/icon-badge";
-import { RowActionsMenu } from "@/components/common/row-actions-menu";
 import { cn } from "@/lib/utils";
 import type { PositionsListProps } from "./positions-list.types";
 
-export const PositionsList = ({
-  positions,
-  isLoading,
-  onEdit,
-  onDelete,
-}: PositionsListProps) => {
+export const PositionsList = ({ positions, isLoading }: PositionsListProps) => {
   return (
     <DataList
       data={positions}
@@ -34,8 +28,7 @@ export const PositionsList = ({
 
         return (
           <DataListItem
-            onClick={() => onEdit(position)}
-            showChevron={false}
+            href={`/patrimony/investments/detail?id=${position.id}`}
             leading={
               <IconBadge
                 icon={positive ? TrendingUp : TrendingDown}
@@ -66,24 +59,6 @@ export const PositionsList = ({
                   </span>
                 ) : null}
               </span>
-            }
-            trailingAction={
-              <RowActionsMenu
-                label={position.instrument}
-                actions={[
-                  {
-                    label: "Editar",
-                    icon: Pencil,
-                    onSelect: () => onEdit(position),
-                  },
-                  {
-                    label: "Eliminar",
-                    icon: Trash2,
-                    variant: "destructive",
-                    onSelect: () => onDelete(position),
-                  },
-                ]}
-              />
             }
           />
         );

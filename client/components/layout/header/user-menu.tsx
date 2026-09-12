@@ -47,6 +47,11 @@ export const UserMenu = () => {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
+          <Link href="/profile">
+            <UserIcon /> Perfil
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
           <Link href="/settings">
             <Settings /> Ajustes
           </Link>

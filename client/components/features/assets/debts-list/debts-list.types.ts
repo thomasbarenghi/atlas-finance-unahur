@@ -4,6 +4,4 @@ export interface DebtsListProps {
   debts: Debt[];
   assets: Asset[];
   isLoading?: boolean;
-  onEdit: (debt: Debt) => void;
-  onArchive: (debt: Debt) => void;
 }

@@ -7,7 +7,7 @@ import { CategoryDonut } from "@/components/charts/category-donut";
 import { IncomeExpenseChart } from "@/components/charts/income-expense-chart";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
-import { PeriodCurrencyFilters } from "@/components/common/period-currency-filters";
+import { PeriodSelector } from "@/components/common/period-selector";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BudgetUsage } from "@/components/features/dashboard/budget-usage";
@@ -190,7 +190,7 @@ export const ReportsView = () => {
 
       <ReportsTabs />
 
-      <PeriodCurrencyFilters />
+      <PeriodSelector />
 
       <ReportsSummary
         income={data.kpis.income}

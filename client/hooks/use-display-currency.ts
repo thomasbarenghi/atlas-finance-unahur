@@ -4,7 +4,6 @@ import { createContext, useContext } from "react";
 
 export interface DisplayCurrencyContextValue {
   currency: string;
-  setCurrency: (currency: string) => void;
 }
 
 export const DisplayCurrencyContext =

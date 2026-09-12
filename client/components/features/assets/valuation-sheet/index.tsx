@@ -27,6 +27,7 @@ import { getErrorMessage } from "@/lib/api/errors";
 import type { Asset } from "@/lib/api/types";
 import { formatCurrency, formatDate, todayIso } from "@/lib/format";
 import { useCreateValuation, useValuations } from "@/lib/query/assets";
+import { AssetIcon } from "@/components/features/assets/asset-icon";
 import {
   valuationSchema,
   type ValuationFormValues,
@@ -76,13 +77,22 @@ export const ValuationSheet = ({
         <SheetHeader>
           <SheetTitle>Historial de valuaciones</SheetTitle>
           <SheetDescription>
-            {asset
-              ? `${asset.name} · valor vigente ${formatCurrency(asset.currentValue, asset.currency)}`
-              : ""}
+            Registrá cada cambio de valor para ver la evolución.
           </SheetDescription>
         </SheetHeader>
 
         <div className="flex flex-col gap-6 px-6 pb-6">
+          {asset ? (
+            <div className="from-primary/10 to-background flex flex-col items-center gap-2 rounded-3xl border bg-gradient-to-b p-5 text-center">
+              <AssetIcon type={asset.type} className="size-14 [&_svg]:size-7" />
+              <span className="text-muted-foreground text-xs">
+                {asset.name}
+              </span>
+              <span className="font-heading text-2xl font-semibold tabular-nums">
+                {formatCurrency(asset.currentValue, asset.currency)}
+              </span>
+            </div>
+          ) : null}
           <FormShell
             form={form}
             onSubmit={onSubmit}

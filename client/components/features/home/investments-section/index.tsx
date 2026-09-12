@@ -3,14 +3,11 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Plus } from "lucide-react";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { SectionHeader } from "@/components/common/section-header";
 import { Button } from "@/components/ui/button";
-import { useConfirmAction } from "@/hooks/use-confirm-action";
-import type { Asset, Debt, Position } from "@/lib/api/types";
-import { useArchiveAsset, useAssets } from "@/lib/query/assets";
-import { useArchiveDebt, useDebts } from "@/lib/query/debts";
-import { useDeletePosition, usePositions } from "@/lib/query/positions";
+import { useAssets } from "@/lib/query/assets";
+import { useDebts } from "@/lib/query/debts";
+import { usePositions } from "@/lib/query/positions";
 import { AssetFormDialog } from "@/components/features/assets/asset-form-dialog";
 import { AssetsList } from "@/components/features/assets/assets-list";
 import { DebtFormDialog } from "@/components/features/assets/debt-form-dialog";
@@ -21,41 +18,16 @@ import {
 } from "@/components/features/assets/investment-type-picker";
 import { PositionFormDialog } from "@/components/features/assets/position-form-dialog";
 import { PositionsList } from "@/components/features/assets/positions-list";
-import { ValuationSheet } from "@/components/features/assets/valuation-sheet";
 
 export const InvestmentsSection = () => {
   const assetsQuery = useAssets();
   const positionsQuery = usePositions();
   const debtsQuery = useDebts();
-  const archiveAsset = useArchiveAsset();
-  const archiveDebt = useArchiveDebt();
-  const deletePosition = useDeletePosition();
 
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [assetDialog, setAssetDialog] = useState<{ asset?: Asset } | null>(
-    null,
-  );
-  const [valuationSheet, setValuationSheet] = useState<Asset | null>(null);
-  const [positionDialog, setPositionDialog] = useState<{
-    position?: Position;
-  } | null>(null);
-  const [debtDialog, setDebtDialog] = useState<{ debt?: Debt } | null>(null);
-
-  const archiveAssetAction = useConfirmAction<Asset>({
-    run: (asset) => archiveAsset.mutateAsync(asset.id),
-    successMessage: "Activo archivado",
-    errorMessage: "No se pudo archivar",
-  });
-  const deletePositionAction = useConfirmAction<Position>({
-    run: (position) => deletePosition.mutateAsync(position.id),
-    successMessage: "Posición eliminada",
-    errorMessage: "No se pudo eliminar",
-  });
-  const archiveDebtAction = useConfirmAction<Debt>({
-    run: (debt) => archiveDebt.mutateAsync(debt.id),
-    successMessage: "Deuda archivada",
-    errorMessage: "No se pudo archivar",
-  });
+  const [assetOpen, setAssetOpen] = useState(false);
+  const [positionOpen, setPositionOpen] = useState(false);
+  const [debtOpen, setDebtOpen] = useState(false);
 
   const assets = useMemo(() => assetsQuery.data ?? [], [assetsQuery.data]);
   const positions = useMemo(
@@ -66,9 +38,9 @@ export const InvestmentsSection = () => {
 
   const handleSelect = (type: InvestmentCreationType) => {
     setPickerOpen(false);
-    if (type === "asset") setAssetDialog({});
-    else if (type === "position") setPositionDialog({});
-    else setDebtDialog({});
+    if (type === "asset") setAssetOpen(true);
+    else if (type === "position") setPositionOpen(true);
+    else setDebtOpen(true);
   };
 
   return (
@@ -80,9 +52,7 @@ export const InvestmentsSection = () => {
           <>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/reports/investments">
-                <span className="hidden sm:inline">
-                  Ver patrimonio completo
-                </span>
+                <span className="hidden sm:inline">Ver reportes</span>
                 <ArrowUpRight />
               </Link>
             </Button>
@@ -100,13 +70,7 @@ export const InvestmentsSection = () => {
 
       <div className="flex flex-col gap-2">
         <h3 className="text-muted-foreground text-xs font-medium">Activos</h3>
-        <AssetsList
-          assets={assets}
-          isLoading={assetsQuery.isLoading}
-          onEdit={(asset) => setAssetDialog({ asset })}
-          onValuations={setValuationSheet}
-          onArchive={archiveAssetAction.request}
-        />
+        <AssetsList assets={assets} isLoading={assetsQuery.isLoading} />
       </div>
 
       <div className="flex flex-col gap-2">
@@ -116,8 +80,6 @@ export const InvestmentsSection = () => {
         <PositionsList
           positions={positions}
           isLoading={positionsQuery.isLoading}
-          onEdit={(position) => setPositionDialog({ position })}
-          onDelete={deletePositionAction.request}
         />
       </div>
 
@@ -127,8 +89,6 @@ export const InvestmentsSection = () => {
           debts={debts}
           assets={assets}
           isLoading={debtsQuery.isLoading}
-          onEdit={(debt) => setDebtDialog({ debt })}
-          onArchive={archiveDebtAction.request}
         />
       </div>
 
@@ -138,74 +98,12 @@ export const InvestmentsSection = () => {
         onSelect={handleSelect}
       />
 
-      <AssetFormDialog
-        key={assetDialog?.asset?.id ?? "asset-new"}
-        open={Boolean(assetDialog)}
-        onOpenChange={(open) => {
-          if (!open) setAssetDialog(null);
-        }}
-        asset={assetDialog?.asset}
-      />
-      <ValuationSheet
-        asset={valuationSheet}
-        open={Boolean(valuationSheet)}
-        onOpenChange={(open) => {
-          if (!open) setValuationSheet(null);
-        }}
-      />
-      <PositionFormDialog
-        key={positionDialog?.position?.id ?? "position-new"}
-        open={Boolean(positionDialog)}
-        onOpenChange={(open) => {
-          if (!open) setPositionDialog(null);
-        }}
-        position={positionDialog?.position}
-      />
+      <AssetFormDialog open={assetOpen} onOpenChange={setAssetOpen} />
+      <PositionFormDialog open={positionOpen} onOpenChange={setPositionOpen} />
       <DebtFormDialog
-        key={debtDialog?.debt?.id ?? "debt-new"}
-        open={Boolean(debtDialog)}
-        onOpenChange={(open) => {
-          if (!open) setDebtDialog(null);
-        }}
-        debt={debtDialog?.debt}
+        open={debtOpen}
+        onOpenChange={setDebtOpen}
         assets={assets}
-      />
-
-      <ConfirmDialog
-        open={archiveAssetAction.isOpen}
-        onOpenChange={(open) => {
-          if (!open) archiveAssetAction.clear();
-        }}
-        title="Archivar activo"
-        description={`El activo "${archiveAssetAction.target?.name ?? ""}" se ocultará pero conservará su historial.`}
-        confirmLabel="Archivar"
-        variant="destructive"
-        isPending={archiveAssetAction.isPending}
-        onConfirm={archiveAssetAction.confirm}
-      />
-      <ConfirmDialog
-        open={deletePositionAction.isOpen}
-        onOpenChange={(open) => {
-          if (!open) deletePositionAction.clear();
-        }}
-        title="Eliminar posición"
-        description={`Se eliminará "${deletePositionAction.target?.instrument ?? ""}".`}
-        confirmLabel="Eliminar"
-        variant="destructive"
-        isPending={deletePositionAction.isPending}
-        onConfirm={deletePositionAction.confirm}
-      />
-      <ConfirmDialog
-        open={archiveDebtAction.isOpen}
-        onOpenChange={(open) => {
-          if (!open) archiveDebtAction.clear();
-        }}
-        title="Archivar deuda"
-        description={`La deuda "${archiveDebtAction.target?.name ?? ""}" se ocultará pero conservará su historial.`}
-        confirmLabel="Archivar"
-        variant="destructive"
-        isPending={archiveDebtAction.isPending}
-        onConfirm={archiveDebtAction.confirm}
       />
     </section>
   );

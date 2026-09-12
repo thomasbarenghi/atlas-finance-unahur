@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { Money } from "@/components/common/money";
 import { WarningBadge } from "@/components/common/warning-badge";
@@ -106,79 +107,81 @@ export const InvestmentsSummary = ({
           const converted = position.originalCurrency !== currency && hasQuote;
 
           return (
-            <li
-              key={position.symbol}
-              className="flex items-start justify-between gap-3 text-sm"
-            >
-              <span className="flex min-w-0 items-start gap-2">
-                <span
-                  className="mt-1 size-2.5 shrink-0 rounded-full"
-                  style={{
-                    backgroundColor: PALETTE[index % PALETTE.length],
-                  }}
-                  aria-hidden
-                />
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="flex items-center gap-2">
-                    <span className="font-medium">{position.symbol}</span>
-                    <span className="text-muted-foreground hidden truncate sm:inline">
-                      {position.instrument}
-                    </span>
-                    {position.isStale ? (
-                      <WarningBadge
-                        label={
-                          position.quoteDate
-                            ? `Desactualizada · ${formatTimeAgo(position.quoteDate)}`
-                            : "Desactualizada"
-                        }
-                        detail={
-                          position.quoteDate
-                            ? `Última cotización: ${formatDateTime(position.quoteDate)}`
-                            : "Cotización desactualizada"
-                        }
-                      />
-                    ) : null}
-                  </span>
-                  <span className="text-muted-foreground flex items-center gap-1 text-xs tabular-nums">
-                    <span>
-                      {position.quantity} {position.symbol}
-                    </span>
-                    {hasQuote ? (
-                      <>
-                        <span aria-hidden>·</span>
-                        <Money
-                          value={position.originalValue}
-                          currency={position.originalCurrency}
+            <li key={position.symbol}>
+              <Link
+                href={`/patrimony/investments/detail?symbol=${position.symbol}&currency=${position.originalCurrency}`}
+                className="hover:bg-muted/40 -mx-2 flex items-start justify-between gap-3 rounded-xl px-2 py-1 text-sm transition-colors"
+              >
+                <span className="flex min-w-0 items-start gap-2">
+                  <span
+                    className="mt-1 size-2.5 shrink-0 rounded-full"
+                    style={{
+                      backgroundColor: PALETTE[index % PALETTE.length],
+                    }}
+                    aria-hidden
+                  />
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="flex items-center gap-2">
+                      <span className="font-medium">{position.symbol}</span>
+                      <span className="text-muted-foreground hidden truncate sm:inline">
+                        {position.instrument}
+                      </span>
+                      {position.isStale ? (
+                        <WarningBadge
+                          label={
+                            position.quoteDate
+                              ? `Desactualizada · ${formatTimeAgo(position.quoteDate)}`
+                              : "Desactualizada"
+                          }
+                          detail={
+                            position.quoteDate
+                              ? `Última cotización: ${formatDateTime(position.quoteDate)}`
+                              : "Cotización desactualizada"
+                          }
                         />
-                      </>
-                    ) : (
-                      <span>· sin cotización</span>
-                    )}
+                      ) : null}
+                    </span>
+                    <span className="text-muted-foreground flex items-center gap-1 text-xs tabular-nums">
+                      <span>
+                        {position.quantity} {position.symbol}
+                      </span>
+                      {hasQuote ? (
+                        <>
+                          <span aria-hidden>·</span>
+                          <Money
+                            value={position.originalValue}
+                            currency={position.originalCurrency}
+                          />
+                        </>
+                      ) : (
+                        <span>· sin cotización</span>
+                      )}
+                    </span>
                   </span>
                 </span>
-              </span>
 
-              <span className="flex shrink-0 flex-col items-end gap-0.5 tabular-nums">
-                {converted ? (
-                  <Money
-                    value={position.value}
-                    currency={currency}
-                    approximate
-                    className="text-muted-foreground text-xs"
-                  />
-                ) : null}
-                {position.profitLossPct !== null ? (
-                  <span
-                    className={cn(
-                      "text-xs",
-                      profitPositive ? "text-success" : "text-destructive",
-                    )}
-                  >
-                    {profitPositive ? "+" : ""}
-                    {formatPercent(position.profitLossPct / 100)}
-                  </span>
-                ) : null}
-              </span>
+                <span className="flex shrink-0 flex-col items-end gap-0.5 tabular-nums">
+                  {converted ? (
+                    <Money
+                      value={position.value}
+                      currency={currency}
+                      approximate
+                      className="text-muted-foreground text-xs"
+                    />
+                  ) : null}
+                  {position.profitLossPct !== null ? (
+                    <span
+                      className={cn(
+                        "text-xs",
+                        profitPositive ? "text-success" : "text-destructive",
+                      )}
+                    >
+                      {profitPositive ? "+" : ""}
+                      {formatPercent(position.profitLossPct / 100)}
+                    </span>
+                  ) : null}
+                </span>
+              </Link>
             </li>
           );
         })}

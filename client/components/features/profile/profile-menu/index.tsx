@@ -1,13 +1,31 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { useTheme } from "next-themes";
+import { LogOut, Moon } from "lucide-react";
 import { toast } from "sonner";
 import { ListRow } from "@/components/common/list-row";
+import { OptionSheet } from "@/components/common/option-sheet";
 import { useAuth } from "@/hooks/use-auth";
+import { useMounted } from "@/hooks/use-mounted";
+import type { Theme } from "@/lib/api/types";
+import { useUpdateMe } from "@/lib/query/users";
 import { SECTIONS, type AppSection } from "@/lib/sections";
 
 const FINANCE_LINKS: AppSection[] = [SECTIONS.budgets, SECTIONS.categories];
+
+const THEME_OPTIONS: { value: Theme; label: string }[] = [
+  { value: "light", label: "Claro" },
+  { value: "dark", label: "Oscuro" },
+  { value: "system", label: "Automático" },
+];
+
+const THEME_LABELS: Record<Theme, string> = {
+  light: "Claro",
+  dark: "Oscuro",
+  system: "Automático",
+};
 
 const initialsFrom = (name: string | undefined): string => {
   if (!name) return "?";
@@ -22,6 +40,13 @@ const initialsFrom = (name: string | undefined): string => {
 export const ProfileMenu = () => {
   const { user, signOut, isSigningOut } = useAuth();
   const router = useRouter();
+  const mounted = useMounted();
+  const { theme, setTheme } = useTheme();
+  const updateMe = useUpdateMe();
+
+  const [themeOpen, setThemeOpen] = useState(false);
+
+  const themeValue = (theme ?? "system") as Theme;
 
   const handleSignOut = async () => {
     try {
@@ -57,6 +82,15 @@ export const ProfileMenu = () => {
       </section>
 
       <section className="overflow-hidden rounded-2xl border">
+        <ListRow
+          icon={Moon}
+          label="Tema"
+          value={mounted ? THEME_LABELS[themeValue] : undefined}
+          onClick={() => setThemeOpen(true)}
+        />
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border">
         <ListRow {...SECTIONS.settings} />
       </section>
 
@@ -73,6 +107,22 @@ export const ProfileMenu = () => {
           Cerrar sesión
         </button>
       </section>
+
+      <OptionSheet
+        open={themeOpen}
+        onOpenChange={setThemeOpen}
+        title="Tema"
+        options={THEME_OPTIONS}
+        value={themeValue}
+        onSelect={(value) => {
+          const next = value as Theme;
+          setTheme(next);
+          updateMe.mutate(
+            { theme: next },
+            { onError: () => toast.error("No se pudo guardar el tema") },
+          );
+        }}
+      />
     </div>
   );
 };
