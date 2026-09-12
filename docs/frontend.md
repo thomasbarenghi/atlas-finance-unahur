@@ -568,11 +568,12 @@ Implementación de la UI conversacional (SC-009, FR-IA-001..011). El backend es 
 - **Separación**: la orquestación del chat (envío, streaming, grabación/transcripción) vive en el hook privado `assistant-chat/hooks/use-assistant-conversation`; `AssistantChat` queda como presentación. El historial local persiste vía `AssistantChatProvider`.
 - **Flujo**:
   1. Si la IA está deshabilitada (`user.aiEnabled === false`, FR-IA-001), mostrar `Alert` con CTA a `/settings`.
-  2. `POST /assistant/messages` con `{ question, conversationId, period, currency }`; el backend responde `text/event-stream` con los eventos `meta`, `token`, `done`, `error` (ver `backend.md` §7.16).
+  2. `POST /assistant/messages` con `{ question, conversationId, period, currency }`; el backend responde `text/event-stream` con los eventos `meta`, `token`, `action`, `done`, `error` (ver `backend.md` §7.16).
   3. UI muestra estado de carga mientras llega el stream; los `delta` se acumulan en la burbuja del asistente en vivo.
-- **Transporte**: usar `fetch` + `ReadableStream`, **no `EventSource`** (no permite `Authorization` ni body). Implementado en `lib/api/assistant-stream.ts` (`streamAssistantMessage`) con callbacks `onMeta`/`onToken`/`onDone`/`onError`. El `conversationId` devuelto en `meta` se reutiliza para preguntas siguientes.
+- **Acciones**: cuando el asistente ejecuta una mutación (hoy `createAccount`/`updateAccount`) llega `event: action` y el chat muestra una **tarjeta** (`components/features/assistant/assistant-action-card`) con el resultado; las acciones quedan asociadas al mensaje y se persisten con el hilo local.
+- **Transporte**: usar `fetch` + `ReadableStream`, **no `EventSource`** (no permite `Authorization` ni body). Implementado en `lib/api/assistant-stream.ts` (`streamAssistantMessage`) con callbacks `onMeta`/`onToken`/`onAction`/`onDone`/`onError`. El `conversationId` devuelto en `meta` se reutiliza para preguntas siguientes.
 - **Render**: la respuesta se acumula desde los `delta` y se renderiza **Markdown de forma segura** con `components/common/markdown-text` (produce elementos React para negrita/cursiva/código/listas; **nunca** usa `dangerouslySetInnerHTML`, NFR-SEG-006). El front marca la respuesta como informativa (FR-IA-008). El `ScrollArea` de la conversación usa `min-h-0` para poder scrollear dentro del panel.
-- **Audio**: botón de micrófono que graba con `MediaRecorder` (`useAudioRecorder`) y, si el navegador soporta dictado, transcribe en vivo con Web Speech API (`useSpeechRecognition`). El audio se adjunta a la burbuja con un reproductor y se envía por `assistantEndpoints.sendAudio` (multipart). Sin transcripción, el backend responde un mensaje de insuficiencia.
+- **Audio**: disponible **solo en web**. El botón de micrófono graba con `MediaRecorder` (`useAudioRecorder`) y transcribe con Web Speech API (`useSpeechRecognition`); si hay transcripción, la pregunta entra al **stream normal** del asistente (LLM + tools); sin transcripción se muestra un aviso local. En Android el dictado está deshabilitado por ahora (`canUseAudio === false`): el WebView no expone Web Speech y el reconocedor nativo de Google corta por silencio y hace un beep por inicio.
 - **Historial** (FR-IA-009): la conversación **no se pierde** al cerrar el panel; vive en `AssistantChatProvider` y se persiste en `localStorage` (`atlassfin.assistant.threads.v1`). El header del chat tiene **Nueva conversación** (empieza en blanco) y **Historial** (un `Sheet` con las conversaciones anteriores para retomar o eliminar). En modo live el backend además persiste en `ai_conversations` (`GET/DELETE /assistant/conversations`).
 - **Límites**: si llega `done` con `insufficient: true`, mostrar el mensaje sin fallar (FR-IA-011); si llega `error`, mostrar aviso genérico y permitir reintento.
 - **Seguridad de prompts**: el front **nunca** concatena datos del usuario con instrucciones de sistema; envía solo la pregunta y el período (FR-IA-010).
@@ -584,6 +585,7 @@ Implementación de la UI conversacional (SC-009, FR-IA-001..011). El backend es 
 export type AssistantEvent =
   | { type: "meta"; data: AssistantStreamMeta }
   | { type: "token"; data: { delta: string } }
+  | { type: "action"; data: AssistantAction }
   | { type: "done"; data: { conversationId: string; insufficient: boolean } }
   | { type: "error"; data: { code: string; message: string } };
 

@@ -273,6 +273,21 @@ export interface Conversation {
   createdAt: string;
 }
 
+export interface AssistantActionEntity {
+  id: string;
+  name: string;
+  type?: string;
+  currency?: string;
+  initialBalance?: number;
+}
+
+export interface AssistantAction {
+  name: string;
+  status: "executed" | "error";
+  message: string;
+  entity: AssistantActionEntity | null;
+}
+
 export interface AssistantMessageInput {
   question: string;
   conversationId?: string | null;

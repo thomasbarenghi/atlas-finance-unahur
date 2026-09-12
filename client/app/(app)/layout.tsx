@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { AuthGuard } from "@/components/layout/auth-guard";
 import { Header } from "@/components/layout/header";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
@@ -8,8 +9,12 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { AssistantWidget } from "@/components/features/assistant/assistant-widget";
 import { AssistantChatProvider } from "@/providers/assistant-chat-provider";
 import { AssistantPanelProvider } from "@/providers/assistant-panel-provider";
+import { cn } from "@/lib/utils";
 
 const AppLayout = ({ children }: { children: ReactNode }) => {
+  const pathname = usePathname();
+  const isAssistant = pathname === "/assistant";
+
   return (
     <AuthGuard>
       <AssistantPanelProvider>
@@ -18,7 +23,14 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
             <Sidebar />
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
               <Header />
-              <main className="mx-auto w-full max-w-6xl flex-1 overflow-y-auto px-4 pt-5 pb-28 md:pb-10">
+              <main
+                className={cn(
+                  "mx-auto w-full max-w-6xl px-4 pt-5",
+                  isAssistant
+                    ? "flex min-h-0 flex-1 flex-col overflow-hidden pb-[90px]"
+                    : "flex-1 overflow-y-auto pb-28 md:pb-10",
+                )}
+              >
                 {children}
               </main>
             </div>

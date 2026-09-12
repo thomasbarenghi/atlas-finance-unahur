@@ -1,12 +1,14 @@
 "use client";
 
 import { createContext, useContext } from "react";
+import type { AssistantAction } from "@/lib/api/types";
 
 export interface AssistantChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   audioUrl?: string;
+  actions?: AssistantAction[];
 }
 
 export interface AssistantThread {

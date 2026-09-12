@@ -767,9 +767,11 @@ Los objetivos se crean/editan como cuentas `type: "goal"` (ver **Accounts** arri
 event: meta    data: { "conversationId": "uuid", "period": {...}, "currency": "ARS", "sources": ["transactions", "budgets"] }
 event: token   data: { "delta": "Este mes " }
 event: token   data: { "delta": "gastaste más en..." }
+event: action  data: { "name": "createAccount", "status": "executed", "message": "Creé la cuenta \"Banco Galicia\" en ARS.", "entity": { "id": "uuid", "name": "Banco Galicia", "type": "bank", "currency": "ARS", "initialBalance": 0 } }
 event: done    data: { "conversationId": "uuid", "insufficient": false }
 event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 ```
+- **Tool calling:** `POST /assistant/messages` habilita *function calling* del proveedor. El asistente puede crear y editar cuentas con las tools `listAccounts` (lectura), `createAccount` y `updateAccount`. Las tools reutilizan `AccountsService`; no duplican lógica de dominio. Al ejecutar una mutación se emite `event: action` con el resultado (la UI lo muestra como tarjeta en el chat).
 - Si la IA está deshabilitada → `403 AI_DISABLED` (JSON, no stream).
 - Si faltan datos verificables → `event: done` con `insufficient: true` y texto explicativo (FR-IA-011).
 - El servidor persiste pregunta, respuesta y `contextMeta` en `ai_conversations` al finalizar (FR-IA-009).
@@ -843,7 +845,7 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 4. El prompt de sistema es fijo y **separado** de los datos del usuario, que viajan como datos no confiables (FR-IA-010). Se valida la salida antes de presentarla (NFR-SEG-012).
 5. Adjunta metadatos: período, moneda y fuentes consideradas (FR-IA-005).
 6. Declara "información insuficiente" cuando los datos no permiten conclusión verificable (FR-IA-011).
-7. **No** expone operaciones de escritura (el contrato del asistente no permite crear/editar/eliminar; FR-IA-006). Respuesta marcada como informativa (FR-IA-008).
+7. **No** expone operaciones de escritura arbitrarias (FR-IA-006). **Excepción implementada:** tools acotadas de cuentas (`createAccount`/`updateAccount`) que reutilizan `AccountsService`; toda tool resuelve la propiedad desde el usuario autenticado y nunca acepta `userId` del modelo. Respuesta marcada como informativa (FR-IA-008).
 
 **Implementación actual (DeepSeek):**
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 
 interface SpeechAlternative {
   transcript: string;
@@ -36,6 +37,8 @@ interface SpeechRecognitionLike {
 
 type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 
+const LANGUAGE = "es-AR";
+
 const getSpeechRecognitionCtor = (): SpeechRecognitionCtor | null => {
   if (typeof window === "undefined") return null;
   const scope = window as unknown as {
@@ -46,14 +49,28 @@ const getSpeechRecognitionCtor = (): SpeechRecognitionCtor | null => {
 };
 
 export const useSpeechRecognition = () => {
+  const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const transcriptRef = useRef("");
 
-  const start = useCallback(() => {
+  const isNative = Capacitor.isNativePlatform();
+
+  const start = useCallback(async (): Promise<boolean> => {
+    setError(null);
+    transcriptRef.current = "";
+
+    if (isNative) {
+      setError("El dictado por voz no está disponible en la app");
+      return false;
+    }
+
     const Ctor = getSpeechRecognitionCtor();
-    if (!Ctor) return;
+    if (!Ctor) {
+      setError("El dictado no está disponible en este navegador");
+      return false;
+    }
     const recognition = new Ctor();
-    recognition.lang = "es-AR";
+    recognition.lang = LANGUAGE;
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.onresult = (event) => {
@@ -67,9 +84,10 @@ export const useSpeechRecognition = () => {
     recognition.onend = () => {};
     recognition.start();
     recognitionRef.current = recognition;
-  }, []);
+    return true;
+  }, [isNative]);
 
-  const stop = useCallback((): string => {
+  const stop = useCallback(async (): Promise<string> => {
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     const transcript = transcriptRef.current;
@@ -77,11 +95,11 @@ export const useSpeechRecognition = () => {
     return transcript;
   }, []);
 
-  const cancel = useCallback(() => {
+  const cancel = useCallback(async (): Promise<void> => {
     recognitionRef.current?.abort?.();
     recognitionRef.current = null;
     transcriptRef.current = "";
   }, []);
 
-  return { start, stop, cancel };
+  return { isNative, error, start, stop, cancel };
 };

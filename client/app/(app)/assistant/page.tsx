@@ -12,7 +12,7 @@ const AssistantPage = () => {
   const [historyOpen, setHistoryOpen] = useState(false);
 
   return (
-    <div className="flex h-[calc(100%+2rem)] flex-col md:h-full">
+    <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader
         title="Asistente"
         description="Respondé preguntas sobre tus propios datos. Es informativo y no constituye asesoramiento financiero."
@@ -37,7 +37,7 @@ const AssistantPage = () => {
           </>
         }
       />
-      <div className="mt-4 flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col pt-4">
         <AssistantChat
           showHeader={false}
           historyOpen={historyOpen}

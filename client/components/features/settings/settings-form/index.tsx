@@ -106,7 +106,8 @@ export const SettingsForm = () => {
           <CardHeader>
             <CardTitle className="font-heading">Privacidad e IA</CardTitle>
             <CardDescription>
-              El asistente usa solo datos mínimos y nunca modifica registros.
+              El asistente usa datos mínimos y puede crear o editar cuentas a
+              pedido tuyo.
             </CardDescription>
           </CardHeader>
           <CardContent>

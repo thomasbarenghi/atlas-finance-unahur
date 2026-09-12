@@ -24,13 +24,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAssistantChat } from "@/hooks/use-assistant-chat";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
+import { AssistantActionCard } from "../assistant-action-card";
 import { AssistantHistorySheet } from "./history-sheet";
 import { useAssistantConversation } from "./hooks/use-assistant-conversation";
 
 const SUGGESTED_QUESTIONS = [
   "¿En qué gasté más este mes?",
   "¿Cómo van mis presupuestos?",
-  "¿Cómo evolucionó mi patrimonio?",
+  "Creá una cuenta de banco en pesos",
 ];
 
 const formatDuration = (milliseconds: number): string => {
@@ -64,6 +65,7 @@ export const AssistantChat = ({
     isBusy,
     submit,
     recorder,
+    canUseAudio,
     startRecording,
     cancelRecording,
     stopRecording,
@@ -119,8 +121,8 @@ export const AssistantChat = ({
                   ¿En qué te ayudo?
                 </h2>
                 <p className="text-muted-foreground max-w-xs text-sm">
-                  Preguntá por tus gastos, presupuestos o patrimonio. Usa solo
-                  tus datos y no modifica nada.
+                  Preguntá por tus gastos, presupuestos o patrimonio. También
+                  podés pedirle que cree o edite cuentas.
                 </p>
               </div>
               <div className="flex w-full max-w-sm flex-col gap-2">
@@ -162,13 +164,23 @@ export const AssistantChat = ({
                     className="h-9 w-56 max-w-full"
                   />
                 ) : null}
+                {message.role === "assistant" && message.actions?.length ? (
+                  <div className="flex flex-col gap-1.5">
+                    {message.actions.map((action, index) => (
+                      <AssistantActionCard
+                        key={`${action.name}-${index}`}
+                        action={action}
+                      />
+                    ))}
+                  </div>
+                ) : null}
                 {message.content ? (
                   message.role === "assistant" ? (
                     <MarkdownText content={message.content} />
                   ) : (
                     <span>{message.content}</span>
                   )
-                ) : message.role === "assistant" ? (
+                ) : message.role === "assistant" && !message.actions?.length ? (
                   <span className="text-muted-foreground flex items-center gap-2">
                     <Loader2 className="size-3.5 animate-spin" />
                     Pensando…
@@ -235,16 +247,18 @@ export const AssistantChat = ({
                 className="max-h-32 min-h-9 resize-none"
                 aria-label="Pregunta para el asistente"
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label="Grabar audio"
-                disabled={isBusy}
-                onClick={startRecording}
-              >
-                <Mic />
-              </Button>
+              {canUseAudio ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Grabar audio"
+                  disabled={isBusy}
+                  onClick={startRecording}
+                >
+                  <Mic />
+                </Button>
+              ) : null}
               <Button
                 type="submit"
                 size="icon"

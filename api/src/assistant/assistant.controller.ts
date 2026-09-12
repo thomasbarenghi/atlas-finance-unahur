@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Logger,
   Param,
   ParseUUIDPipe,
   Post,
@@ -23,6 +24,8 @@ import { AssistantMessageDto } from "./dto/assistant-message.dto";
 
 @Controller("assistant")
 export class AssistantController {
+  private readonly logger = new Logger(AssistantController.name);
+
   constructor(private readonly assistantService: AssistantService) {}
 
   @Public()
@@ -48,6 +51,12 @@ export class AssistantController {
         );
       }
     } catch (error) {
+      if (!(error instanceof ApiException)) {
+        this.logger.error(
+          "Assistant stream failed",
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
       const body: Pick<ApiErrorBody, "code" | "message"> =
         error instanceof ApiException
           ? (error.getResponse() as ApiErrorBody)

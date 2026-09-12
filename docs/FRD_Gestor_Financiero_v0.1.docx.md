@@ -177,7 +177,7 @@ El producto será una aplicación web con frontend React y componentes shadcn/ui
 | FR-IA-003 | P1 | Enviar al proveedor solo los datos mínimos necesarios para responder la consulta. |
 | FR-IA-004 | P1 | Calcular totales y métricas en el sistema antes de construir el contexto para el modelo. |
 | FR-IA-005 | P1 | Indicar período, moneda y datos considerados en cada respuesta. |
-| FR-IA-006 | P0 | Impedir que el asistente cree, edite o elimine información o ejecute operaciones. |
+| FR-IA-006 | P0 | Permitir que el asistente ejecute acciones de escritura acotadas (crear/editar) sobre los datos del propio usuario, reutilizando los mismos casos de uso y validaciones que la interfaz y sin exceder nunca sus permisos. Las acciones destructivas quedan deshabilitadas salvo habilitación explícita del usuario. |
 | FR-IA-007 | P0 | Impedir cualquier acceso a información perteneciente a otro usuario. |
 | FR-IA-008 | P1 | Mostrar que la respuesta es informativa y no constituye asesoramiento financiero. |
 | FR-IA-009 | P1 | Permitir consultar y eliminar el historial de conversaciones propias. |
@@ -284,7 +284,7 @@ Como usuario registrado, quiero preguntar por mis gastos para entender mi compor
 
 **•** Los totales coinciden con el reporte del mismo período.
 
-**•** La interacción no crea ni modifica registros y declara insuficiencia si faltan datos.
+**•** La interacción puede ejecutar acciones acotadas de creación/edición sobre datos propios con los mismos permisos del usuario, y declara insuficiencia si faltan datos.
 
 # **8\. Pantallas**
 

@@ -8,13 +8,15 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePeriod } from "@/hooks/use-period";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { streamAssistantMessage } from "@/lib/api/assistant-stream";
+import type { AssistantAction } from "@/lib/api/types";
 import { getErrorMessage } from "@/lib/api/errors";
-import { useSendAssistantAudio } from "@/lib/query/assistant";
+
+const NO_TRANSCRIPT_MESSAGE =
+  "Recibí tu audio, pero no pude transcribirlo en este dispositivo. Escribí tu pregunta o probá con dictado por voz disponible.";
 
 export const useAssistantConversation = () => {
   const { user } = useAuth();
   const { range } = usePeriod();
-  const sendAudio = useSendAssistantAudio();
   const recorder = useAudioRecorder();
   const speech = useSpeechRecognition();
   const {
@@ -32,7 +34,7 @@ export const useAssistantConversation = () => {
 
   const messages = activeThread?.messages ?? [];
   const conversationId = activeThread?.conversationId ?? null;
-  const isBusy = isStreaming || sendAudio.isPending;
+  const isBusy = isStreaming;
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -50,26 +52,15 @@ export const useAssistantConversation = () => {
     [updateMessage],
   );
 
-  const submit = useCallback(
-    async (question: string) => {
-      const trimmed = question.trim();
-      if (!trimmed || isBusy) return;
-
-      const assistantId = crypto.randomUUID();
-      appendMessage({
-        id: crypto.randomUUID(),
-        role: "user",
-        content: trimmed,
-      });
-      appendMessage({ id: assistantId, role: "assistant", content: "" });
-      setInput("");
+  const streamInto = useCallback(
+    async (assistantId: string, question: string) => {
       setIsStreaming(true);
-
       let received = "";
+      const actions: AssistantAction[] = [];
       try {
         await streamAssistantMessage(
           {
-            question: trimmed,
+            question,
             conversationId,
             period: range,
             currency: user?.baseCurrency,
@@ -79,6 +70,11 @@ export const useAssistantConversation = () => {
             onToken: (delta) => {
               received += delta;
               updateMessage(assistantId, { content: received });
+              requestAnimationFrame(scrollToBottom);
+            },
+            onAction: (action) => {
+              actions.push(action);
+              updateMessage(assistantId, { actions: [...actions] });
               requestAnimationFrame(scrollToBottom);
             },
             onError: (message) => {
@@ -95,8 +91,6 @@ export const useAssistantConversation = () => {
       }
     },
     [
-      isBusy,
-      appendMessage,
       conversationId,
       range,
       user,
@@ -107,18 +101,36 @@ export const useAssistantConversation = () => {
     ],
   );
 
+  const submit = useCallback(
+    async (question: string) => {
+      const trimmed = question.trim();
+      if (!trimmed || isBusy) return;
+
+      const assistantId = crypto.randomUUID();
+      appendMessage({
+        id: crypto.randomUUID(),
+        role: "user",
+        content: trimmed,
+      });
+      appendMessage({ id: assistantId, role: "assistant", content: "" });
+      setInput("");
+      await streamInto(assistantId, trimmed);
+    },
+    [isBusy, appendMessage, streamInto],
+  );
+
   const startRecording = useCallback(async () => {
-    const started = await recorder.start();
-    if (started) speech.start();
+    const recorded = await recorder.start();
+    if (recorded) await speech.start();
   }, [recorder, speech]);
 
   const cancelRecording = useCallback(() => {
-    speech.cancel();
+    void speech.cancel();
     recorder.cancel();
   }, [recorder, speech]);
 
   const stopRecording = useCallback(async () => {
-    const transcript = speech.stop();
+    const transcript = await speech.stop();
     const recorded = await recorder.stop();
     if (!recorded) return;
 
@@ -132,34 +144,20 @@ export const useAssistantConversation = () => {
     });
     appendMessage({ id: assistantId, role: "assistant", content: "" });
 
-    try {
-      const reply = await sendAudio.mutateAsync({
-        durationMs: recorded.durationMs,
-        transcript: transcript || undefined,
-        blob: recorded.blob,
-        conversationId,
-        period: range,
-        currency: user?.baseCurrency,
-      });
-      setConversationId(reply.conversationId);
-      updateMessage(assistantId, { content: reply.answer });
-    } catch (error) {
-      failAssistant(assistantId, error);
-    } finally {
+    if (!transcript.trim()) {
+      updateMessage(assistantId, { content: NO_TRANSCRIPT_MESSAGE });
       requestAnimationFrame(scrollToBottom);
+      return;
     }
+
+    await streamInto(assistantId, transcript);
   }, [
     speech,
     recorder,
     appendMessage,
-    sendAudio,
-    conversationId,
-    range,
-    user,
-    setConversationId,
     updateMessage,
-    failAssistant,
     scrollToBottom,
+    streamInto,
   ]);
 
   return {
@@ -170,6 +168,7 @@ export const useAssistantConversation = () => {
     isBusy,
     submit,
     recorder,
+    canUseAudio: !speech.isNative,
     startRecording,
     cancelRecording,
     stopRecording,
