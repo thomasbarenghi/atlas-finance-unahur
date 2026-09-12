@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { Archive, ArchiveRestore, Pencil, Wallet } from "lucide-react";
 import { Amount } from "@/components/common/amount";
 import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
@@ -12,13 +11,11 @@ import {
 } from "@/components/common/detail-page";
 import { DetailMetric } from "@/components/common/detail-metric";
 import { RowActionsMenu } from "@/components/common/row-actions-menu";
-import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/common/status-badge";
 import { Button } from "@/components/ui/button";
 import { useConfirmAction } from "@/hooks/use-confirm-action";
 import type { Account, Transaction } from "@/lib/api/types";
-import { formatCurrency, formatDate, formatPercentPoints } from "@/lib/format";
-import { goalAccountProgress } from "@/lib/goal-account";
+import { formatDate } from "@/lib/format";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/labels";
 import { useArchiveAccount, useRestoreAccount } from "@/lib/query/accounts";
 import { useCategories } from "@/lib/query/categories";
@@ -86,12 +83,6 @@ export const AccountDetailView = () => {
     );
   }
 
-  const isGoal = account.type === "goal";
-  const goalProgress = isGoal ? goalAccountProgress(account) : null;
-  const sourceAccount = account.sourceAccountId
-    ? accounts.find((item) => item.id === account.sourceAccountId)
-    : undefined;
-
   return (
     <DetailPage
       title={account.name}
@@ -136,137 +127,64 @@ export const AccountDetailView = () => {
             currency={account.currency}
             className="font-heading text-3xl font-bold sm:text-4xl"
           />
-          {goalProgress ? (
-            <span className="text-muted-foreground text-xs">
-              Meta {formatCurrency(goalProgress.target, account.currency)}
-            </span>
-          ) : null}
         </div>
-        {account.archived ? (
-          <StatusBadge variant="account" archived />
-        ) : goalProgress ? (
-          <StatusBadge variant="goal" status={goalProgress.status} />
-        ) : (
-          <StatusBadge variant="account" archived={false} />
-        )}
+        <StatusBadge variant="account" archived={account.archived} />
       </div>
 
-      {goalProgress ? (
-        <>
-          <div className="grid grid-cols-3 gap-3">
-            <DetailMetric
-              label="Acumulado"
-              value={
-                <Amount
-                  value={goalProgress.saved}
-                  currency={account.currency}
-                  className="font-normal"
-                />
-              }
+      <div className="grid grid-cols-3 gap-3">
+        <DetailMetric
+          label="Saldo inicial"
+          value={
+            <Amount
+              value={account.initialBalance}
+              currency={account.currency}
+              className="font-normal"
             />
-            <DetailMetric
-              label="Objetivo"
-              value={
-                <Amount
-                  value={goalProgress.target}
-                  currency={account.currency}
-                  className="font-normal"
-                />
-              }
+          }
+        />
+        <DetailMetric
+          label="Ingresos"
+          value={
+            <Amount
+              value={summary.income}
+              currency={account.currency}
+              type="income"
             />
-            <DetailMetric
-              label="Falta"
-              value={
-                <Amount
-                  value={goalProgress.remaining}
-                  currency={account.currency}
-                  className="font-normal"
-                />
-              }
+          }
+        />
+        <DetailMetric
+          label="Gastos"
+          value={
+            <Amount
+              value={summary.expense}
+              currency={account.currency}
+              type="expense"
             />
-          </div>
+          }
+        />
+      </div>
 
-          <div className="flex flex-col gap-2">
-            <Progress value={goalProgress.progressPct} className="h-2" />
-            <span className="text-muted-foreground text-xs">
-              {formatPercentPoints(goalProgress.progressPct)} de la meta
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-heading text-base font-semibold">
+            Movimientos
+            <span className="text-muted-foreground font-normal">
+              {" "}
+              ({movementCount})
             </span>
-          </div>
-
-          <div className="bg-card flex items-center justify-between gap-3 rounded-2xl border p-4">
-            <div className="flex min-w-0 flex-col">
-              <span className="text-muted-foreground text-xs">Vive en</span>
-              <span className="truncate text-sm font-medium">
-                {sourceAccount?.name ?? "Sin asignar"}
-              </span>
-            </div>
-            {sourceAccount ? (
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/accounts/detail?id=${sourceAccount.id}`}>
-                  Ver cuenta
-                </Link>
-              </Button>
-            ) : null}
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="grid grid-cols-3 gap-3">
-            <DetailMetric
-              label="Saldo inicial"
-              value={
-                <Amount
-                  value={account.initialBalance}
-                  currency={account.currency}
-                  className="font-normal"
-                />
-              }
-            />
-            <DetailMetric
-              label="Ingresos"
-              value={
-                <Amount
-                  value={summary.income}
-                  currency={account.currency}
-                  type="income"
-                />
-              }
-            />
-            <DetailMetric
-              label="Gastos"
-              value={
-                <Amount
-                  value={summary.expense}
-                  currency={account.currency}
-                  type="expense"
-                />
-              }
-            />
-          </div>
-
-          <section className="flex flex-col gap-3">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="font-heading text-base font-semibold">
-                Movimientos
-                <span className="text-muted-foreground font-normal">
-                  {" "}
-                  ({movementCount})
-                </span>
-              </h2>
-              <span className="text-muted-foreground text-xs">
-                {formatDate(range.from)} – {formatDate(range.to)}
-              </span>
-            </div>
-            <TransactionList
-              transactions={transactions}
-              isLoading={isLoadingTransactions}
-              accountNameById={accountNameById}
-              categoryById={categoryById}
-              onSelect={setEditTransaction}
-            />
-          </section>
-        </>
-      )}
+          </h2>
+          <span className="text-muted-foreground text-xs">
+            {formatDate(range.from)} – {formatDate(range.to)}
+          </span>
+        </div>
+        <TransactionList
+          transactions={transactions}
+          isLoading={isLoadingTransactions}
+          accountNameById={accountNameById}
+          categoryById={categoryById}
+          onSelect={setEditTransaction}
+        />
+      </section>
 
       <AccountFormDialog
         key={account.id}

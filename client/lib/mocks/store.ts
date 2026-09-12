@@ -5,6 +5,7 @@ import type {
   Category,
   Conversation,
   Debt,
+  Goal,
   Position,
   Quote,
   Transaction,
@@ -37,11 +38,13 @@ export type StoredTransaction = Transaction & { userId: string };
 export type StoredAsset = Asset & { userId: string };
 export type StoredDebt = Debt & { userId: string };
 export type StoredPosition = Position & { userId: string };
+export type StoredGoal = Goal & { userId: string };
 export type StoredConversation = Conversation & { userId: string };
 
 export interface MockState {
   users: MockUserRecord[];
   accounts: StoredAccount[];
+  goals: StoredGoal[];
   categories: StoredCategory[];
   transactions: StoredTransaction[];
   budgets: StoredBudget[];
@@ -109,9 +112,6 @@ const createInitialState = (): MockState => {
     currentBalance: 0,
     archived: false,
     notes: null,
-    targetAmount: null,
-    targetDate: null,
-    sourceAccountId: null,
     createdAt: timestamp(now),
     updatedAt: timestamp(now),
   };
@@ -125,9 +125,6 @@ const createInitialState = (): MockState => {
     currentBalance: 0,
     archived: false,
     notes: null,
-    targetAmount: null,
-    targetDate: null,
-    sourceAccountId: null,
     createdAt: timestamp(now),
     updatedAt: timestamp(now),
   };
@@ -141,25 +138,21 @@ const createInitialState = (): MockState => {
     currentBalance: 0,
     archived: false,
     notes: null,
-    targetAmount: null,
-    targetDate: null,
-    sourceAccountId: null,
     createdAt: timestamp(now),
     updatedAt: timestamp(now),
   };
-  const vacaciones: StoredAccount = {
+  const vacaciones: StoredGoal = {
     id: mockId(),
     userId: demoUser.id,
     name: "Vacaciones",
-    type: "goal",
-    currency: "ARS",
-    initialBalance: 120_000,
-    currentBalance: 0,
-    archived: false,
-    notes: null,
     targetAmount: 500_000,
+    savedAmount: 120_000,
+    currency: "ARS",
     targetDate: firstDayOfMonth(6),
     sourceAccountId: banco.id,
+    archived: false,
+    progressPct: 0,
+    status: "pending",
     createdAt: timestamp(now),
     updatedAt: timestamp(now),
   };
@@ -539,7 +532,8 @@ const createInitialState = (): MockState => {
 
   return {
     users: [{ user: demoUser, password: DEMO_PASSWORD }],
-    accounts: [caja, banco, ahorroUsd, vacaciones],
+    accounts: [caja, banco, ahorroUsd],
+    goals: [vacaciones],
     categories: [...systemCategories, ...userCategories],
     transactions,
     budgets,

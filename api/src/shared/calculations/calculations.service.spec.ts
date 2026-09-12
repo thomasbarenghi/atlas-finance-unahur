@@ -214,4 +214,49 @@ describe("CalculationsService", () => {
       ).toBe(1600);
     });
   });
+
+  describe("calculateGoalProgress", () => {
+    const reference = new Date("2026-09-12T00:00:00.000Z");
+
+    it("computes the percentage without dividing by zero", () => {
+      const service = buildService();
+
+      expect(service.calculateGoalProgress(1000, 200, null, reference)).toEqual(
+        {
+          progressPct: 20,
+          status: "in_progress",
+        },
+      );
+      expect(service.calculateGoalProgress(0, 500, null, reference)).toEqual({
+        progressPct: 0,
+        status: "in_progress",
+      });
+    });
+
+    it("marks a goal as pending when nothing was saved", () => {
+      const service = buildService();
+
+      expect(
+        service.calculateGoalProgress(1000, 0, null, reference).status,
+      ).toBe("pending");
+    });
+
+    it("marks a goal as achieved when the target is reached", () => {
+      const service = buildService();
+
+      expect(
+        service.calculateGoalProgress(1000, 1000, "2026-12-01", reference)
+          .status,
+      ).toBe("achieved");
+    });
+
+    it("marks a goal as overdue after its target date", () => {
+      const service = buildService();
+
+      expect(
+        service.calculateGoalProgress(1000, 200, "2026-01-01", reference)
+          .status,
+      ).toBe("overdue");
+    });
+  });
 });

@@ -2,7 +2,6 @@ import {
   Banknote,
   CreditCard,
   Landmark,
-  Target,
   Wallet,
   CircleDollarSign,
   type LucideIcon,
@@ -15,5 +14,4 @@ export const ACCOUNT_TYPE_ICONS: Record<AccountType, LucideIcon> = {
   wallet: Wallet,
   card: CreditCard,
   other: CircleDollarSign,
-  goal: Target,
 };

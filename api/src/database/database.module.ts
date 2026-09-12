@@ -19,7 +19,7 @@ import { AppConfig } from "../config/configuration";
           ssl: database.ssl ? { rejectUnauthorized: false } : false,
           entities: [join(__dirname, "..", "**", "*.entity.{ts,js}")],
           migrations: [join(__dirname, "migrations", "*.{ts,js}")],
-          synchronize: false,
+          synchronize: true,
         };
       },
     }),

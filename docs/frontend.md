@@ -146,7 +146,7 @@ Vista de aterrizaje **"Tu resumen"**, un resumen real (no un tablero de análisi
 
 - **Patrimonio neto** (FR-DAS-001/002): `NetWorthHero` a **ancho completo** con valor, variación vs. período anterior (`TrendBadge`), mini-stats (Ingresos/Gastos/Ahorro/Tasa) y sparkline con **escala adaptativa** (min/max + padding) y **tooltip**. El patrimonio usa la **misma fórmula que Reportes y Patrimonio** (cuentas + activos + inversiones financieras − deudas).
 - Sin acciones rápidas: el inicio prioriza el resumen (patrimonio neto → cuentas → metas → patrimonio). Las altas se hacen desde cada sección o el `+` de la barra inferior.
-- **Cuentas y Metas** (`AccountsSection`): son **conceptos separados** aunque compartan `Account` como base. Se **separan en dos bloques** con `SectionHeader` y `+` propios: **Cuentas** (`AccountsList` con las cuentas comunes, ruta `/accounts/detail`) y **Metas** (`AccountsList` con `type: "goal"`, ruta propia `/goals/detail`, §4.7). Las metas **no suman al patrimonio neto** (el dinero ya está en su cuenta origen). Las metas muestran acumulado/objetivo, cuenta origen, `Progress`, `%`, **faltante** ("Faltan $X"), **fecha objetivo** ("Objetivo: ene 2027") y **ahorro mensual necesario** cuando hay fecha. Las cuentas con saldo negativo muestran "Saldo negativo". Botones `+` (`AccountTypePicker` → `AccountFormDialog`) y las filas de cuenta navegan al detalle (§4.3.1).
+- **Cuentas y Metas** (`AccountsSection`): son **entidades separadas** (`accounts` y `goals`). Se **separan en dos bloques** con `SectionHeader` y `+` propios: **Cuentas** (`AccountsList` sobre `useAccounts`, ruta `/accounts/detail`) y **Metas** (`GoalsList` sobre `useGoals`, ruta propia `/goals/detail`, §4.7). Las metas **no suman al patrimonio neto** (el dinero ya está en su cuenta origen). Las metas muestran acumulado/objetivo, cuenta origen, `Progress`, `%`, **faltante** ("Faltan $X"), **fecha objetivo** ("Objetivo: ene 2027") y **ahorro mensual necesario** cuando hay fecha; `progressPct`/`status` los devuelve el backend (CAL-007). Las cuentas con saldo negativo muestran "Saldo negativo". Botones `+` (`AccountTypePicker` → `AccountFormDialog` para cuentas; `GoalFormDialog` para metas) y las filas navegan al detalle correspondiente (§4.3.1 / §4.7).
 - **Patrimonio** (`InvestmentsSection`, debajo de Metas): renombrada desde "Inversiones" porque agrupa **Activos**, **Inversiones financieras** (posiciones tipo BTC) y **Deudas**. Cada grupo es una lista de items (`AssetsList` / `PositionsList` / `DebtsList`); el `+` abre `InvestmentTypePicker` (Activo / Inversión / Deuda) y **cada fila navega a su página de detalle** (`/patrimony/.../detail`), con menú `...` para acciones rápidas (editar/valuaciones/archivar/eliminar). El `SectionHeader` incluye el CTA **"Ver reportes"** → `/reports/investments` (evolución, composición y KPIs del patrimonio). Los formularios y el `ValuationSheet` viven acá; ya no hay página `/assets`.
 - **Filtro de período** (FR-DAS-007): `PeriodSelector` dentro del contenido de la página. La **moneda de visualización** es la base del usuario (sin selector en la UI).
 - **Estados vacíos** (FR-DAS-008): `EmptyState` reutilizable.
@@ -161,7 +161,7 @@ El **listado de cuentas vive en el inicio** (`/dashboard`, §4.2); se eliminó l
 
 El **formulario** (`AccountFormDialog`) es un editor visual: hero con ícono del tipo y **nombre editables**, chips de **tipo** (scroll horizontal) y **campos que varían según el tipo** (cuenta común: saldo + moneda + observaciones; objetivo: monto asignado, monto objetivo, moneda, fecha límite y cuenta origen; tarjeta: saldo como deuda). Al **editar** suma un toggle **"Cuenta archivada"**.
 
-Un **objetivo es una cuenta especial** (`type: "goal"`): un **sobre virtual** cuyo dinero vive en una cuenta origen (`sourceAccountId`). Por eso **no suma al patrimonio por separado** ni altera el saldo de la cuenta origen; su `currentBalance` es el monto asignado. **Saldo actual** lo devuelve el backend; el front solo lo muestra (FR-CUE-004).
+El formulario de cuentas ya **no incluye metas**: los tipos son `cash`, `bank`, `wallet`, `card` y `other`. Las metas se crean/editan con su propio `GoalFormDialog` (§4.7). **Saldo actual** lo devuelve el backend; el front solo lo muestra (FR-CUE-004).
 
 #### 4.3.1 `/accounts/detail?id=<id>` — Detalle de cuenta
 
@@ -219,11 +219,11 @@ Página de análisis del patrimonio ("Patrimonio", "Evolución y composición de
 
 ### 4.7 Objetivos — SC-007 (FR-OBJ-001..004)
 
-Los objetivos **son cuentas de tipo `goal`** (§4.3) y viven en el bloque **Metas** del inicio (§4.2), separado de **Cuentas**. Tienen su **propia página de detalle** en `/goals/detail?id=` (concepto distinto de cuenta, no bajo `/accounts/detail`): `GoalDetailView` reutiliza `goalAccountProgress`, su `PatrimonyHero` y `DetailMetric`. Se eliminó la página `/goals` original, su `ComingSoon`, la entidad `Goal` separada y la sección `GoalsSection`.
+Los objetivos son un **módulo propio** (`goals`, `lib/query/goals.ts`), no un tipo de cuenta. Viven en el bloque **Metas** del inicio (§4.2), separado de **Cuentas**. Tienen su **propia página de detalle** en `/goals/detail?id=` (no bajo `/accounts/detail`): `GoalDetailView` reutiliza `PatrimonyHero` y `DetailMetric`; el progreso (`goalProgress` en `lib/goal.ts`) parte de `progressPct`/`status` que devuelve el backend (CAL-007) y calcula solo el faltante y el ahorro mensual necesario.
 
-- **Fila de objetivo** (dentro de `AccountsList`, bloque Metas): nombre, acumulado vs. monto objetivo, cuenta origen ("vive en …" abreviado), `Progress` de avance (CAL-007, mínimo visual 0%), `%`, faltante, **fecha objetivo** y **ahorro mensual necesario** (`lib/goal-account.ts`) y `StatusBadge`; navega al **detalle de la meta** (`/goals/detail`). El botón "Ver cuenta" enlaza a la cuenta origen real (`/accounts/detail`).
-- **Estados** (FR-OBJ-004): `Pendiente`, `En curso`, `Alcanzado`, `Vencido` con `Badge` (calculados en `lib/goal-account.ts`).
-- **Crear/editar** (FR-OBJ-001/003) vía `AccountFormDialog` con `type: "goal"` desde el `+` de Cuentas. Archivar/restaurar se hace desde el detalle o el formulario.
+- **Fila de meta** (`GoalsList`, bloque Metas): nombre, acumulado vs. monto objetivo, cuenta origen ("vive en …" abreviado), `Progress` de avance (CAL-007), `%`, faltante, **fecha objetivo** y **ahorro mensual necesario** (`lib/goal.ts`) y `StatusBadge`; navega al **detalle de la meta** (`/goals/detail`). El botón "Ver cuenta" enlaza a la cuenta origen real (`/accounts/detail`).
+- **Estados** (FR-OBJ-004): `Pendiente`, `En curso`, `Alcanzado`, `Vencido` con `Badge` (el `status` lo calcula el backend).
+- **Crear/editar** (FR-OBJ-001/003) con `GoalFormDialog` desde el `+` de Metas: nombre, monto asignado, monto objetivo, moneda, fecha límite y cuenta origen. Archivar/restaurar se hace desde el detalle o el formulario (endpoints `/goals/:id/archive` y `/goals/:id/restore`).
 
 ### 4.8 `/reports` — SC-008 (FR-REP-001..007)
 
@@ -321,7 +321,7 @@ client/
 ├── lib/
 │   ├── utils.ts                   # cn()
 │   ├── format.ts                  # formatCurrency, formatDate, formatPercent, …
-│   ├── period.ts / period-stats.ts / dashboard-widgets.ts / goal-account.ts / labels.ts
+│   ├── period.ts / period-stats.ts / dashboard-widgets.ts / goal.ts / labels.ts
 │   ├── sections.ts / forms.ts / storage.ts
 │   ├── amount-expression.ts
 │   ├── api/                       # client, types, session, endpoints, errors, assistant-stream
@@ -456,7 +456,7 @@ Reflejan el contrato del backend (fuente de verdad: `backend.md` §7.13–§7.17
 
 ```ts
 // ── Enums (deben coincidir 1:1 con backend.md §7.14) ──────────────────────
-export type AccountType = "cash" | "bank" | "wallet" | "card" | "other" | "goal";
+export type AccountType = "cash" | "bank" | "wallet" | "card" | "other";
 export type TransactionType = "income" | "expense" | "transfer";
 export type CategoryType = "income" | "expense";
 export type AssetType = "property" | "vehicle" | "cash" | "investment" | "crypto" | "other";
@@ -476,7 +476,8 @@ export interface AuthResponse { user: User; accessToken: string; refreshToken: s
 export interface CurrenciesResponse { default: string; supported: string[]; }
 
 // ── Finanzas ──────────────────────────────────────────────────────────────
-export interface Account { id: string; name: string; type: AccountType; currency: string; initialBalance: number; currentBalance: number; archived: boolean; notes: string | null; targetAmount: number | null; targetDate: string | null; sourceAccountId: string | null; createdAt: string; updatedAt: string; }
+export interface Account { id: string; name: string; type: AccountType; currency: string; initialBalance: number; currentBalance: number; archived: boolean; notes: string | null; createdAt: string; updatedAt: string; }
+export interface Goal { id: string; name: string; targetAmount: number; savedAmount: number; currency: string; targetDate: string | null; sourceAccountId: string | null; archived: boolean; progressPct: number; status: GoalStatus; createdAt: string; updatedAt: string; }
 export interface Category { id: string; name: string; type: CategoryType; color: string; icon: string | null; archived: boolean; isSystem: boolean; }
 export interface Transaction { id: string; type: TransactionType; amount: number; currency: string; date: string; description: string; notes: string | null; accountId: string; categoryId: string | null; transferGroupId: string | null; createdAt: string; updatedAt: string; }
 export interface Budget { id: string; categoryId: string; category: Pick<Category, "id" | "name" | "color">; period: string; limit: number; currency: string; recurring: boolean; spent: number; available: number; consumedPct: number; status: BudgetStatus; }
@@ -745,7 +746,7 @@ Progresivo y validable al final de cada tanda. Cada tanda deja la app compilando
 - **Aceptación**: registro/login/logout + edición de preferencias funcionales; rutas protegidas; navegación desktop/móvil correcta.
 
 ### Tanda 2 — Cuentas y Movimientos — ✅ Hecho
-- **Cuentas** viven en `/dashboard` (`AccountsSection` → `AccountsList`), con detalle en `/accounts/detail`. Las **Metas** tienen su propio bloque y detalle (`/goals/detail`, §4.7): **concepto separado de cuenta** aunque compartan `Account` como base de datos.
+- **Cuentas** viven en `/dashboard` (`AccountsSection` → `AccountsList`), con detalle en `/accounts/detail`. Las **Metas** tienen su propio bloque (`GoalsList`), hook (`useGoals`) y detalle (`/goals/detail`, §4.7): **entidad separada** (`goals`), no una cuenta.
 - Movimientos con búsqueda, paginación, transferencia (colapsada a una fila) y CRUD en `/transactions`.
 - `Amount`, `CategoryBadge`, `StatusBadge`, `DataList` / `DataListItem`.
 - **Aceptación**: HU-001 y HU-002 completas.
@@ -766,7 +767,7 @@ Progresivo y validable al final de cada tanda. Cada tanda deja la app compilando
 - **Aceptación**: HU-004, HU-005 (FR-ACT-001..008, FR-MER-005).
 
 ### Tanda 6 — Objetivos y Reportes — ✅ Hecho
-- **Separación Metas/Cuentas**: en el dominio los objetivos siguen siendo cuentas `type: "goal"` (sin módulo `goals`, `backend.md` §5.12/§7.8), pero en el producto son un **concepto distinto**: bloque **Metas** aparte de **Cuentas**, ruta propia `/goals/detail`, cálculo de progreso (`lib/goal-account.ts`) y no suman al patrimonio neto.
+- **Separación Metas/Cuentas**: los objetivos son un **módulo propio** (`goals`, `backend.md` §5.12/§7.8), con **bloque Metas** aparte de **Cuentas**, ruta propia `/goals/detail`, hooks `lib/query/goals.ts` y `progressPct`/`status` calculados por el backend (CAL-007). No suman al patrimonio neto.
 - Reportes con widgets personalizables, `ReportsTabs` (General | Patrimonio) y filtros del período.
 - **Aceptación**: FR-OBJ-001..004, FR-REP-001..006 (export CSV/PDF pendientes de contrato).
 

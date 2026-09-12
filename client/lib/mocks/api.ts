@@ -16,12 +16,14 @@ import type {
   CreateBudgetInput,
   CreateCategoryInput,
   CreateDebtInput,
+  CreateGoalInput,
   CreatePositionInput,
   CreateTransactionInput,
   CreateValuationInput,
   CurrenciesResponse,
   DashboardData,
   Debt,
+  Goal,
   LoginInput,
   Paginated,
   Position,
@@ -35,6 +37,7 @@ import type {
   UpdateBudgetInput,
   UpdateCategoryInput,
   UpdateDebtInput,
+  UpdateGoalInput,
   UpdatePositionInput,
   UpdateTransactionInput,
   UpdateUserInput,
@@ -57,6 +60,7 @@ import {
   type StoredCategory,
   type StoredConversation,
   type StoredDebt,
+  type StoredGoal,
   type StoredPosition,
   type StoredTransaction,
 } from "./store";
@@ -116,19 +120,50 @@ const findOwnedCategory = (
 const isQuoteStale = (quote: Quote): boolean =>
   Date.now() - new Date(quote.fetchedAt).getTime() > QUOTE_STALE_MS;
 
-const deriveAccount = (account: Account): Account => {
-  if (account.type === "goal") {
-    return { ...account, currentBalance: account.initialBalance };
-  }
-  return {
-    ...account,
-    currentBalance: mockState.transactions
-      .filter((transaction) => transaction.accountId === account.id)
-      .reduce(
-        (total, transaction) => total + signedAmount(transaction),
-        account.initialBalance,
-      ),
-  };
+const deriveAccount = (account: Account): Account => ({
+  ...account,
+  currentBalance: mockState.transactions
+    .filter((transaction) => transaction.accountId === account.id)
+    .reduce(
+      (total, transaction) => total + signedAmount(transaction),
+      account.initialBalance,
+    ),
+});
+
+const deriveGoal = (goal: StoredGoal): Goal => {
+  const progressPct =
+    goal.targetAmount > 0
+      ? Math.max(0, (goal.savedAmount / goal.targetAmount) * 100)
+      : 0;
+  const overdue =
+    goal.targetDate !== null &&
+    goal.savedAmount < goal.targetAmount &&
+    goal.targetDate < toIsoDate(new Date());
+  const status: Goal["status"] =
+    goal.targetAmount > 0 && goal.savedAmount >= goal.targetAmount
+      ? "achieved"
+      : overdue
+        ? "overdue"
+        : goal.savedAmount > 0
+          ? "in_progress"
+          : "pending";
+
+  return { ...goal, progressPct, status };
+};
+
+const findOwnedGoal = (userId: string, goalId: string): StoredGoal => {
+  const goal = mockState.goals.find(
+    (item) => item.id === goalId && item.userId === userId,
+  );
+  if (!goal) fail(404, "NOT_FOUND", "La meta no existe");
+  return goal;
+};
+
+const assertSourceAccount = (userId: string, sourceAccountId: string): void => {
+  const account = mockState.accounts.find(
+    (item) => item.id === sourceAccountId && item.userId === userId,
+  );
+  if (!account) fail(404, "NOT_FOUND", "La cuenta de origen no existe");
 };
 
 const deriveBudget = (budget: Budget): Budget => {
@@ -292,7 +327,7 @@ const netWorthIn = (currency: string): number => {
     );
   }, 0);
   const accounts = mockState.accounts
-    .filter((account) => account.type !== "goal" && !account.archived)
+    .filter((account) => !account.archived)
     .reduce(
       (total, account) =>
         total +
@@ -543,9 +578,6 @@ export const mockApi = {
       userId: user.id,
       ...input,
       notes: input.notes ?? null,
-      targetAmount: input.targetAmount ?? null,
-      targetDate: input.targetDate ?? null,
-      sourceAccountId: input.sourceAccountId ?? null,
       currentBalance: 0,
       archived: false,
       createdAt: new Date().toISOString(),
@@ -577,6 +609,66 @@ export const mockApi = {
     const account = findOwnedAccount(user.id, id);
     account.archived = false;
     return deriveAccount(account);
+  },
+
+  async listGoals(): Promise<Goal[]> {
+    await delay();
+    const user = requireUser();
+    return mockState.goals
+      .filter((goal) => goal.userId === user.id)
+      .map(deriveGoal);
+  },
+
+  async createGoal(input: CreateGoalInput): Promise<Goal> {
+    await delay();
+    const user = requireUser();
+    if (input.sourceAccountId) {
+      assertSourceAccount(user.id, input.sourceAccountId);
+    }
+    const goal: StoredGoal = {
+      id: mockId(),
+      userId: user.id,
+      name: input.name,
+      targetAmount: input.targetAmount,
+      savedAmount: input.savedAmount ?? 0,
+      currency: input.currency,
+      targetDate: input.targetDate ?? null,
+      sourceAccountId: input.sourceAccountId ?? null,
+      archived: false,
+      progressPct: 0,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    mockState.goals.push(goal);
+    return deriveGoal(goal);
+  },
+
+  async updateGoal(id: string, input: UpdateGoalInput): Promise<Goal> {
+    await delay();
+    const user = requireUser();
+    const goal = findOwnedGoal(user.id, id);
+    if (input.sourceAccountId) {
+      assertSourceAccount(user.id, input.sourceAccountId);
+    }
+    Object.assign(goal, input, { updatedAt: new Date().toISOString() });
+    return deriveGoal(goal);
+  },
+
+  async archiveGoal(id: string): Promise<Goal> {
+    await delay();
+    const user = requireUser();
+    const goal = findOwnedGoal(user.id, id);
+    goal.archived = true;
+    return deriveGoal(goal);
+  },
+
+  async restoreGoal(id: string): Promise<Goal> {
+    await delay();
+    const user = requireUser();
+    const goal = findOwnedGoal(user.id, id);
+    goal.archived = false;
+    return deriveGoal(goal);
   },
 
   async listCategories(): Promise<Category[]> {
@@ -1322,10 +1414,7 @@ export const mockApi = {
     const positionsProfit = positionsValue - positionsCost;
 
     const activeAccounts = mockState.accounts.filter(
-      (account) =>
-        account.userId === user.id &&
-        account.type !== "goal" &&
-        !account.archived,
+      (account) => account.userId === user.id && !account.archived,
     );
     const convertAccount = (account: Account): number =>
       convertCurrency(

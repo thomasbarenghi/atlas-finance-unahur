@@ -1,5 +1,4 @@
-export type AccountType =
-  "cash" | "bank" | "wallet" | "card" | "other" | "goal";
+export type AccountType = "cash" | "bank" | "wallet" | "card" | "other";
 export type TransactionType = "income" | "expense" | "transfer";
 export type CategoryType = "income" | "expense";
 export type AssetType =
@@ -60,9 +59,21 @@ export interface Account {
   currentBalance: number;
   archived: boolean;
   notes: string | null;
-  targetAmount: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Goal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  savedAmount: number;
+  currency: string;
   targetDate: string | null;
   sourceAccountId: string | null;
+  archived: boolean;
+  progressPct: number;
+  status: GoalStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -346,9 +357,6 @@ export interface CreateAccountInput {
   currency: string;
   initialBalance: number;
   notes?: string | null;
-  targetAmount?: number | null;
-  targetDate?: string | null;
-  sourceAccountId?: string | null;
 }
 
 export type UpdateAccountInput = Partial<
@@ -356,6 +364,17 @@ export type UpdateAccountInput = Partial<
 > & {
   initialBalance?: number;
 };
+
+export interface CreateGoalInput {
+  name: string;
+  targetAmount: number;
+  savedAmount?: number;
+  currency: string;
+  targetDate?: string | null;
+  sourceAccountId?: string | null;
+}
+
+export type UpdateGoalInput = Partial<CreateGoalInput>;
 
 export interface CreateCategoryInput {
   name: string;

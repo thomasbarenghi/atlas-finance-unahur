@@ -80,7 +80,7 @@ Frontend (Next.js) ───▶ │  NestJS (monolito)           │
                         │   auth, users, accounts,     │
                         │   transactions, categories,  │
                         │   budgets, assets, debts,    │
-                        │   positions, quotes,         │
+                        │   goals, positions, quotes,  │
                         │   reports, dashboard,        │
                         │   assistant                  │
                         │                              │
@@ -160,6 +160,7 @@ api/
 │   ├── assets/
 │   │   └── entities/{ asset.entity.ts, valuation.entity.ts }
 │   ├── debts/
+│   ├── goals/                       # metas (FR-OBJ-001..004)
 │   ├── positions/
 │   ├── quotes/
 │   ├── reports/
@@ -242,17 +243,14 @@ Tablas derivadas de las entidades del FRD (§10) más las necesarias para trazab
 | id | uuid PK | |
 | user_id | uuid FK | |
 | name | text | |
-| type | text | 'cash' | 'bank' | 'wallet' | 'card' | 'other' | 'goal' |
+| type | text | 'cash' | 'bank' | 'wallet' | 'card' | 'other' |
 | currency | char(3) | |
-| initial_balance | numeric(18,4) | en objetivos, monto asignado |
+| initial_balance | numeric(18,4) | |
 | archived | boolean | default false |
 | notes | text NULL | |
-| target_amount | numeric(18,4) NULL | solo objetivos (FR-OBJ-001) |
-| target_date | date NULL | solo objetivos |
-| source_account_id | uuid FK NULL | cuenta origen donde vive el dinero del objetivo |
 | created_at / updated_at | timestamptz | |
 
-> Saldo actual = `initial_balance` + Σ(movimientos) en moneda de la cuenta (calculado, FR-CUE-004). Para `type = 'goal'` el saldo es el `initial_balance` (monto asignado) y la cuenta **no suma al patrimonio neto** (el dinero ya está en `source_account_id`).
+> Saldo actual = `initial_balance` + Σ(movimientos) en moneda de la cuenta (calculado, FR-CUE-004). Las **metas ya no son cuentas**: tienen su propia tabla y módulo `goals` (§5.12).
 
 ### 5.4 `categories` (FR-TRX-008)
 | Columna | Tipo | Notas |
@@ -368,11 +366,24 @@ Tablas derivadas de las entidades del FRD (§10) más las necesarias para trazab
 
 > Solo se guarda el último precio por símbolo; ante falla externa se conserva el último válido con su fecha real (FR-MER-004).
 
-### 5.12 Objetivos (FR-OBJ-001..004)
+### 5.12 `goals` — Objetivos (FR-OBJ-001..004)
 
-Los objetivos **ya no tienen tabla propia ni módulo `goals`**: se modelan como cuentas con `type = 'goal'` (`target_amount`, `target_date`, `source_account_id` en §5.3). El monto acumulado es el `initial_balance` de la cuenta objetivo.
+Los objetivos son un **módulo propio** (`goals`), no un tipo de cuenta. Una meta es un **sobre virtual** referenciado a una cuenta origen donde vive el dinero; **no suma al patrimonio neto** (el dinero ya está contado en `source_account_id`) y el cliente lo presenta en una sección y ruta propias (`/goals/detail`), separadas de las cuentas comunes (`/accounts/detail`).
 
-> **Separación Cuentas vs. Metas (concepto, no tabla).** En la base una meta *es* una cuenta, pero en el producto es un **concepto distinto**: un "sobre virtual" asociado a una cuenta origen, que **no suma al patrimonio neto** (el dinero ya está contado en `source_account_id`) y que el cliente presenta en una sección y ruta propias (`/goals/detail`) separadas de las cuentas comunes (`/accounts/detail`). Reglas: (1) `type = 'goal'` no admite movimientos como cuenta común; (2) su saldo (`initial_balance`) es el monto asignado; (3) se excluye de `kpis.accounts`/patrimonio; (4) `progressPct`/`status` los calcula el cliente a partir de `target_amount`/`target_date`.
+| Columna | Tipo | Notas |
+| :--- | :--- | :--- |
+| id | uuid PK | |
+| user_id | uuid FK → users | |
+| name | text | |
+| target_amount | numeric(18,4) | monto meta (FR-OBJ-001) |
+| saved_amount | numeric(18,4) | monto acumulado/asignado, default 0 (FR-OBJ-003) |
+| currency | char(3) | |
+| target_date | date NULL | fecha objetivo opcional |
+| source_account_id | uuid FK NULL → accounts | cuenta origen donde vive el dinero |
+| archived | boolean | default false |
+| created_at / updated_at | timestamptz | |
+
+> **Reglas:** (1) la meta no admite movimientos propios; el acumulado se edita con `savedAmount` (FR-OBJ-003); (2) se excluye de `kpis.accounts` y del patrimonio neto; (3) `progressPct` y `status` los calcula el **servidor** en `calculations.service` (CAL-007), no el cliente.
 
 ### 5.13 `ai_conversations` (FR-IA-009)
 | Columna | Tipo | Notas |
@@ -501,7 +512,17 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 
 ### 7.8 Goals
 
-Los objetivos se gestionan con los endpoints de **Accounts** (`type: "goal"`, §7.6/§5.3): **no hay `/goals`**. Es una separación de producto, no de contrato: el cliente los consume como **Metas** (sección y detalle propios) y los endpoints `GET/POST/PATCH /accounts` devuelven `targetAmount`, `targetDate`, `sourceAccountId` para `type: "goal"`. Los `goal` **no** entran en `kpis.accounts` ni en `netWorthComposition` (no suman al patrimonio) — ver §5.12 y §7.7.
+| Método | Ruta | FR |
+| :--- | :--- | :--- |
+| GET | `/goals` | listado de metas con `progressPct` y `status` (FR-OBJ-002/004) |
+| POST | `/goals` | FR-OBJ-001 |
+| GET | `/goals/:id` | — |
+| PATCH | `/goals/:id` | FR-OBJ-003 (actualiza `savedAmount`/metadata) |
+| POST | `/goals/:id/archive` | archiva la meta |
+| POST | `/goals/:id/restore` | restaura la meta |
+
+- Las metas **no** entran en `kpis.accounts` ni en `netWorthComposition` (no suman al patrimonio) — ver §5.12.
+- `sourceAccountId`, si viene, debe pertenecer al usuario autenticado; la verificación la coordina el orquestador del módulo (`goals.orchestrator.ts`) reutilizando `AccountsService`.
 
 ### 7.9 Dashboard
 | Método | Ruta | FR |
@@ -546,7 +567,7 @@ Los objetivos se gestionan con los endpoints de **Accounts** (`type: "goal"`, §
 - **IDs:** `uuid` v4.
 - **Fechas:** los campos `date` viajan como `"YYYY-MM-DD"`; los `timestamptz` como ISO 8601 UTC (`"2026-09-11T14:30:00.000Z"`).
 - **Decimales:** `numeric` se serializa como **number** (no string). Máx. 4 decimales para montos; 8 para cantidades y cotizaciones. Implementar un `transformer` de TypeORM (`parseFloat` al leer) o mappers de salida.
-- **Paginación:** query `page` (default 1) y `pageSize` (default 20, máx. 100). Respuesta: `{ items, page, pageSize, total, totalPages }`. Son paginados: `/transactions` y `/assistant/conversations`. El resto de listados (`/accounts`, `/categories`, `/budgets`, `/assets`, `/assets/:id/valuations`, `/debts`, `/positions`, `/quotes`) devuelven un **array** completo.
+- **Paginación:** query `page` (default 1) y `pageSize` (default 20, máx. 100). Respuesta: `{ items, page, pageSize, total, totalPages }`. Son paginados: `/transactions` y `/assistant/conversations`. El resto de listados (`/accounts`, `/goals`, `/categories`, `/budgets`, `/assets`, `/assets/:id/valuations`, `/debts`, `/positions`, `/quotes`) devuelven un **array** completo.
 - **Filtros de query:** todos opcionales; `from`/`to` en `YYYY-MM-DD` inclusive; `search` busca en `description` y `notes` con `ILIKE`.
 - **Errores:** `{ statusCode, code, message, fieldErrors? }`; `fieldErrors` es `{ [campo]: string[] }` para validación (para mapeo a formularios). El filtro global nunca expone detalles internos (NFR-SEG-010).
 - **Auth:** cookie `HttpOnly` o `Authorization: Bearer`. Los endpoints `@Public()` son: `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/forgot-password`, `/auth/reset-password`, `/health` y los assets de Swagger.
@@ -556,7 +577,7 @@ Los objetivos se gestionan con los endpoints de **Accounts** (`type: "goal"`, §
 
 | Concepto | Valores |
 | :--- | :--- |
-| `AccountType` | `cash` \| `bank` \| `wallet` \| `card` \| `other` \| `goal` |
+| `AccountType` | `cash` \| `bank` \| `wallet` \| `card` \| `other` |
 | `TransactionType` | `income` \| `expense` \| `transfer` |
 | `CategoryType` | `income` \| `expense` |
 | `AssetType` | `property` \| `vehicle` \| `cash` \| `investment` \| `crypto` \| `other` |
@@ -594,19 +615,13 @@ Los objetivos se gestionan con los endpoints de **Accounts** (`type: "goal"`, §
 
 **Accounts**
 ```jsonc
-// POST /accounts — body (cuenta normal)
+// POST /accounts — body
 { "name": "Caja", "type": "cash", "currency": "ARS", "initialBalance": 50000, "notes": null }
-// POST /accounts — body (objetivo)
-{ "name": "Vacaciones", "type": "goal", "currency": "ARS", "initialBalance": 120000,
-  "targetAmount": 500000, "targetDate": "2026-06-01", "sourceAccountId": "uuid-banco" }
 // Account
 { "id": "uuid", "name": "Caja", "type": "cash", "currency": "ARS",
   "initialBalance": 50000, "currentBalance": 73500, "archived": false, "notes": null,
-  "targetAmount": null, "targetDate": null, "sourceAccountId": null,
   "createdAt": "ISO", "updatedAt": "ISO" }
 ```
-
-- Los **objetivos** (`type: "goal"`) son **sobres virtuales** asociados a una cuenta origen (`sourceAccountId`): su `currentBalance` es el monto asignado (`initialBalance`) y **no suman al patrimonio neto** (el dinero ya está contado en la cuenta origen). `targetAmount`/`targetDate` son la meta.
 
 **Categories**
 ```jsonc
@@ -695,8 +710,21 @@ Los objetivos se gestionan con los endpoints de **Accounts** (`type: "goal"`, §
 - `isStale` se calcula con `QUOTE_STALE_MS` (true si `now − fetchedAt > umbral`); la cotización se conserva aunque sea vieja (FR-MER-004/005).
 
 **Goals**
+```jsonc
+// POST /goals — body
+{ "name": "Vacaciones", "targetAmount": 500000, "savedAmount": 120000, "currency": "ARS",
+  "targetDate": "2026-06-01", "sourceAccountId": "uuid-banco" }
+// PATCH /goals/:id — body (parcial; savedAmount actualiza el acumulado, FR-OBJ-003)
+{ "savedAmount": 150000 }
+// Goal
+{ "id": "uuid", "name": "Vacaciones", "targetAmount": 500000, "savedAmount": 120000,
+  "currency": "ARS", "targetDate": "2026-06-01", "sourceAccountId": "uuid-banco",
+  "archived": false, "progressPct": 24, "status": "in_progress",
+  "createdAt": "ISO", "updatedAt": "ISO" }
+```
 
-Los objetivos se crean/editan como cuentas `type: "goal"` (ver **Accounts** arriba y §5.3). El cliente calcula `progressPct` y `status` a partir de `initialBalance` (acumulado), `targetAmount` y `targetDate`.
+- `progressPct` (CAL-007) y `status` (FR-OBJ-004) los calcula el **servidor** en `calculations.service`; el cliente solo los muestra.
+- `sourceAccountId` debe pertenecer al usuario; la meta **no suma** al patrimonio neto ni a `kpis.accounts` (§5.12).
 
 **Dashboard**
 ```jsonc
@@ -816,7 +844,7 @@ Centralizadas en `calculations.service.ts` para garantizar consistencia entre da
 | CAL-004 Consumo presupuesto | Σ gastos de la categoría y período / límite × 100; si límite = 0, no dividir (devolver 0 o estado "sin límite"). |
 | CAL-005 Valor de posición | cantidad × último precio válido en la moneda del instrumento. |
 | CAL-006 Ganancia nominal | valor actual − (cantidad × avg_cost). |
-| CAL-007 Progreso de objetivo | acumulado / meta × 100, con mínimo visual 0%. |
+| CAL-007 Progreso de objetivo | acumulado / meta × 100, con mínimo 0% (sin techo). Implementado en `calculations.service.calculateGoalProgress`; lo expone `GET /goals` como `progressPct` + `status`. |
 | CAL-008 Conversión | importe × última tasa válida a la fecha de cálculo (vía `fx.service`). |
 | CAL-009 Trazabilidad | cada conversión registra par, tasa, proveedor y fecha (`exchange_rates`). |
 
@@ -1015,8 +1043,8 @@ Cada tanda deja la API compilando (`npm run lint && npm run build`) y con migrac
 - **Aceptación**: HU-004, HU-005, FR-ACT-*, FR-MER-*.
 
 ### Tanda 6 — Objetivos y seed — ◐ Parcial
-- **Los objetivos NO son un módulo `goals`**: se modelan como **cuentas `type: "goal"`** (`target_amount`/`target_date`/`source_account_id`, §5.3), con reglas propias: el saldo es el monto asignado y **no suman al patrimonio neto** (es un "sobre virtual" cuyo dinero ya está en la cuenta origen). Es una **separación de producto, no de tabla**: en el cliente aparecen como **Metas**, bloque y ruta propios (`/goals/detail`), distintos de **Cuentas** (`/accounts/detail`).
-- `seed` de datos de demo (incluye una meta).
+- **Los objetivos son un módulo `goals`** (no un tipo de cuenta): tabla `goals` (§5.12), endpoints `/goals` (§7.8), cálculo de progreso/estado en `calculations.service` (CAL-007) y validación de la cuenta origen vía orquestador. **No suman al patrimonio neto** (son un "sobre virtual" cuyo dinero ya está en la cuenta origen). En el cliente aparecen como **Metas**, bloque y ruta propios (`/goals/detail`), distintos de **Cuentas** (`/accounts/detail`).
+- `seed` de datos de demo (incluye metas con cuenta origen).
 - **Aceptación**: FR-OBJ-001..004, FRD §12.
 
 ### Tanda 7 — Asistente IA — ◐ Parcial

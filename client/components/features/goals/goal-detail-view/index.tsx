@@ -16,27 +16,26 @@ import { StatusBadge } from "@/components/common/status-badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useConfirmAction } from "@/hooks/use-confirm-action";
-import type { Account } from "@/lib/api/types";
+import type { Goal } from "@/lib/api/types";
 import { formatCurrency, formatDate, formatPercentPoints } from "@/lib/format";
-import { goalAccountProgress } from "@/lib/goal-account";
-import { ACCOUNT_TYPE_LABELS } from "@/lib/labels";
-import { useArchiveAccount, useRestoreAccount } from "@/lib/query/accounts";
-import { AccountFormDialog } from "@/components/features/accounts/account-form-dialog";
+import { goalProgress } from "@/lib/goal";
+import { useArchiveGoal, useRestoreGoal } from "@/lib/query/goals";
+import { GoalFormDialog } from "@/components/features/goals/goal-form-dialog";
 import { PatrimonyHero } from "@/components/features/patrimony/patrimony-hero";
 import { useGoalDetail } from "./hooks/use-goal-detail";
 
 export const GoalDetailView = () => {
   const { goal, sourceAccount, isLoading } = useGoalDetail();
-  const archiveAccount = useArchiveAccount();
-  const restoreAccount = useRestoreAccount();
+  const archiveGoal = useArchiveGoal();
+  const restoreGoal = useRestoreGoal();
 
   const [editOpen, setEditOpen] = useState(false);
 
-  const archiveAction = useConfirmAction<Account>({
+  const archiveAction = useConfirmAction<Goal>({
     run: (target) =>
       target.archived
-        ? restoreAccount.mutateAsync(target.id)
-        : archiveAccount.mutateAsync(target.id),
+        ? restoreGoal.mutateAsync(target.id)
+        : archiveGoal.mutateAsync(target.id),
     successMessage: (target) =>
       target.archived ? "Meta restaurada" : "Meta archivada",
     errorMessage: "No se pudo actualizar la meta",
@@ -57,12 +56,12 @@ export const GoalDetailView = () => {
     );
   }
 
-  const progress = goalAccountProgress(goal);
+  const progress = goalProgress(goal);
 
   return (
     <DetailPage
       title={goal.name}
-      description={`${ACCOUNT_TYPE_LABELS[goal.type]} · ${goal.currency}`}
+      description={`Meta de ahorro · ${goal.currency}`}
       actions={
         <>
           <Button
@@ -168,11 +167,11 @@ export const GoalDetailView = () => {
         </div>
       </SectionCard>
 
-      <AccountFormDialog
+      <GoalFormDialog
         key={goal.id}
         open={editOpen}
         onOpenChange={setEditOpen}
-        account={goal}
+        goal={goal}
       />
       <ConfirmActionDialog
         action={archiveAction}

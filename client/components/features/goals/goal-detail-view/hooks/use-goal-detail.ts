@@ -3,18 +3,21 @@
 import { useMemo } from "react";
 import { useQueryParam } from "@/hooks/use-query-param";
 import { useAccounts } from "@/lib/query/accounts";
+import { useGoals } from "@/lib/query/goals";
 
 export const useGoalDetail = () => {
   const goalId = useQueryParam("id") ?? undefined;
+  const goalsQuery = useGoals();
   const accountsQuery = useAccounts();
 
+  const goals = useMemo(() => goalsQuery.data ?? [], [goalsQuery.data]);
   const accounts = useMemo(
     () => accountsQuery.data ?? [],
     [accountsQuery.data],
   );
   const goal = useMemo(
-    () => accounts.find((item) => item.id === goalId && item.type === "goal"),
-    [accounts, goalId],
+    () => goals.find((item) => item.id === goalId),
+    [goals, goalId],
   );
   const sourceAccount = useMemo(
     () =>
@@ -27,6 +30,6 @@ export const useGoalDetail = () => {
   return {
     goal,
     sourceAccount,
-    isLoading: accountsQuery.isLoading,
+    isLoading: goalsQuery.isLoading || accountsQuery.isLoading,
   };
 };

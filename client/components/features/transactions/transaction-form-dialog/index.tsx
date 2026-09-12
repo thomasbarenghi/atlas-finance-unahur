@@ -72,8 +72,7 @@ export const TransactionFormDialog = ({
       date: transaction?.date ?? todayIso(),
       accountId:
         transaction?.accountId ??
-        accounts.find((account) => !account.archived && account.type !== "goal")
-          ?.id ??
+        accounts.find((account) => !account.archived)?.id ??
         "",
       transferAccountId: transaction?.transferAccountId ?? undefined,
       categoryId: transaction?.categoryId ?? undefined,
@@ -91,9 +90,7 @@ export const TransactionFormDialog = ({
   const accountId = useWatch({ control: form.control, name: "accountId" });
   const currency = useWatch({ control: form.control, name: "currency" });
 
-  const activeAccounts = accounts.filter(
-    (account) => !account.archived && account.type !== "goal",
-  );
+  const activeAccounts = accounts.filter((account) => !account.archived);
   const selectedAccount = activeAccounts.find(
     (account) => account.id === accountId,
   );

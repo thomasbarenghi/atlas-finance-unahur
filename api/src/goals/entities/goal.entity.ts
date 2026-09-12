@@ -45,6 +45,13 @@ export class Goal {
   @Column({ name: "target_date", type: "date", nullable: true })
   targetDate: string | null;
 
+  @Index()
+  @Column({ name: "source_account_id", type: "uuid", nullable: true })
+  sourceAccountId: string | null;
+
+  @Column({ type: "boolean", default: false })
+  archived: boolean;
+
   @CreateDateColumn({ name: "created_at", type: "timestamptz" })
   createdAt: Date;
 

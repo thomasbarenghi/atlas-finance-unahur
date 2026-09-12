@@ -35,6 +35,18 @@ export class AccountsService {
     return accounts.map(toAccountResponse);
   }
 
+  async getAccount(userId: string, id: string): Promise<AccountResponseDto> {
+    const account = await this.accountsRepository.findOneBy({ id, userId });
+    if (!account) {
+      throw new ApiException(
+        ErrorCode.NOT_FOUND,
+        HttpStatus.NOT_FOUND,
+        "La cuenta no existe",
+      );
+    }
+    return toAccountResponse(account);
+  }
+
   async createAccount(
     userId: string,
     dto: CreateAccountDto,

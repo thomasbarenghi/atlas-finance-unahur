@@ -401,6 +401,7 @@ export const runSeed = async (dataSource: DataSource): Promise<void> => {
         savedAmount: 120000,
         currency: "ARS",
         targetDate: firstDayOfMonth(6),
+        sourceAccountId: bank.id,
       }),
       goalRepo.create({
         userId: user.id,
