@@ -12,7 +12,6 @@ const DESCRIPTIONS: Record<AccountType, string> = {
   wallet: "Billeteras virtuales",
   card: "Tarjetas de crédito",
   other: "Otros tipos de cuenta",
-  goal: "Meta de ahorro",
 };
 
 export const AccountTypePicker = ({

@@ -1,10 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import type { BudgetStatus } from "../../common/types/financial-enums";
+import type {
+  BudgetStatus,
+  GoalStatus,
+} from "../../common/types/financial-enums";
 import { AppConfig } from "../../config/configuration";
 import type {
   BalanceAccount,
   BudgetConsumption,
+  GoalProgress,
   MoneyTransaction,
   NetWorthParts,
   PeriodFlows,
@@ -13,6 +17,8 @@ import type {
 } from "./calculations.types";
 
 const FULL_MONTH_END = "-31";
+
+const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
 
 @Injectable()
 export class CalculationsService {
@@ -84,6 +90,31 @@ export class CalculationsService {
             : "available";
 
     return { limit, spent, available: limit - spent, consumedPct, status };
+  }
+
+  calculateGoalProgress(
+    targetAmount: number,
+    savedAmount: number,
+    targetDate: string | null,
+    reference: Date = new Date(),
+  ): GoalProgress {
+    const progressPct =
+      targetAmount > 0 ? Math.max(0, (savedAmount / targetAmount) * 100) : 0;
+    const overdue =
+      targetDate !== null &&
+      savedAmount < targetAmount &&
+      targetDate < toIsoDate(reference);
+
+    const status: GoalStatus =
+      targetAmount > 0 && savedAmount >= targetAmount
+        ? "achieved"
+        : overdue
+          ? "overdue"
+          : savedAmount > 0
+            ? "in_progress"
+            : "pending";
+
+    return { progressPct, status };
   }
 
   calculateCurrentBalance(

@@ -12,7 +12,6 @@ export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   wallet: "Billetera",
   card: "Tarjeta",
   other: "Otra",
-  goal: "Objetivo",
 };
 
 export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
@@ -48,7 +47,6 @@ export const ACCOUNT_TYPE_VALUES = [
   "wallet",
   "card",
   "other",
-  "goal",
 ] as const satisfies readonly AccountType[];
 
 export const ASSET_TYPE_VALUES = [

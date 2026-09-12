@@ -8,6 +8,7 @@ import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { configuration } from "./config/configuration";
 import { validateEnv } from "./config/env.validation";
 import { DatabaseModule } from "./database/database.module";
+import { GoalsModule } from "./goals/goals.module";
 import { HealthModule } from "./health/health.module";
 
 @Module({
@@ -23,6 +24,7 @@ import { HealthModule } from "./health/health.module";
     AuthModule,
     HealthModule,
     AssistantModule,
+    GoalsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
 })

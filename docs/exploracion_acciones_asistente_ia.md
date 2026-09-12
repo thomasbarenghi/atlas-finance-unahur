@@ -16,12 +16,13 @@
    de texto precalculado en un único prompt y streamea la respuesta
    (`api/src/assistant/assistant.service.ts:37-45,164-231`). `AiService` no envía `tools` ni
    interpreta `tool_calls` (`api/src/shared/ai/ai.service.ts:8-90`).
-2. **Hallazgo crítico: el API de finanzas no está implementado.** Solo existen *entidades* para
-   `accounts`, `transactions`, `categories`, `budgets`, `goals`, `assets`, `debts`, `positions`,
-   `quotes`; no hay controllers, services, DTOs ni orquestadores. `app.module.ts` solo registra
-   `AuthModule`, `HealthModule`, `AssistantModule` (`api/src/app.module.ts:13-29`). Incluso el
-   `AuthController/AuthService` real no existe (solo estrategia JWT). El cliente funciona
-   **100% con mocks** (`client/lib/mocks/api.ts`).
+2. **Hallazgo crítico: el API de finanzas está casi todo sin implementar.** Solo existen
+   *entidades* para `transactions`, `categories`, `budgets`, `assets`, `debts`, `positions`,
+   `quotes`; `accounts` tiene service + DTOs (sin controller REST) y `goals` ya es un módulo
+   completo (controller/service/orchestrator). `app.module.ts` registra `AuthModule`,
+   `HealthModule`, `AssistantModule` y `GoalsModule`. El `AuthController/AuthService` real no
+   existe (solo estrategia JWT). El cliente funciona **100% con mocks** salvo `goals`, que ya
+   consume la API real cuando `NEXT_PUBLIC_USE_MOCKS=false` (`client/lib/mocks/api.ts`).
 3. **Consecuencia directa:** hoy no hay "servicios/use cases existentes que reutilizar" en el
    backend. La acción correcta no es que la IA llame endpoints HTTP, sino **construir primero la
    capa de casos de uso** (servicios primarios + orquestadores) y que **tanto los controllers REST
@@ -59,8 +60,10 @@ atlas-finance-unahur/
 | Componente | Estado | Evidencia |
 | :--- | :--- | :--- |
 | Auth (login/register/refresh) | ❌ Solo estrategia JWT y módulo | `api/src/auth/auth.module.ts`, `jwt.strategy.ts`; no hay `auth.controller.ts` |
-| Accounts / Transactions / Categories | ❌ Solo entidades | `api/src/<dominio>/entities/*.entity.ts` |
-| Budgets / Assets / Debts / Positions / Quotes / Goals | ❌ Solo entidades | ídem |
+| Accounts | ◐ Service + DTOs (sin controller REST) | `api/src/accounts/accounts.service.ts` |
+| Goals | ✅ Módulo implementado (controller/service/orchestrator) | `api/src/goals/*` |
+| Transactions / Categories | ❌ Solo entidades | `api/src/<dominio>/entities/*.entity.ts` |
+| Budgets / Assets / Debts / Positions / Quotes | ❌ Solo entidades | ídem |
 | Calculations | ✅ Implementado | `api/src/shared/calculations/calculations.service.ts` |
 | AI client | ✅ Implementado (streaming, sin tools) | `api/src/shared/ai/ai.service.ts` |
 | Assistant | ✅ Implementado (solo lectura) | `api/src/assistant/*` |
@@ -150,9 +153,9 @@ Características clave:
 | D2 | Crear/editar presupuesto | `POST/PATCH /budgets` | ❌ | write_safe |
 | D3 | Eliminar presupuesto | `DELETE /budgets/:id` | ❌ | **destructive** |
 | D4 | Copiar presupuestos del mes anterior | `POST /budgets/copy-previous` | ❌ | write_safe (bulk) |
-| E1 | Crear objetivo (cuenta `type=goal`) | `POST /accounts` | ❌ | write_safe |
-| E2 | Editar / archivar objetivo | `PATCH /accounts/:id` | ❌ | write_safe / sensitive |
-| E3 | Registrar aporte a objetivo | (vía transferencia) | ❌ | sensitive |
+| E1 | Crear meta (`goals`) | `POST /goals` | ✅ | write_safe |
+| E2 | Editar / archivar meta | `PATCH /goals/:id`, `POST /goals/:id/{archive,restore}` | ✅ | write_safe / sensitive |
+| E3 | Registrar aporte a meta | `PATCH /goals/:id` (`savedAmount`) | ✅ | sensitive |
 | F1 | Listar activos / valuaciones | `GET /assets`, `/assets/:id/valuations` | ❌ | read |
 | F2 | Crear activo (+ valuación inicial) | `POST /assets` | ❌ | write_safe (compuesto) |
 | F3 | Editar activo | `PATCH /assets/:id` | ❌ | write_safe |
@@ -531,6 +534,7 @@ tests de seguridad (ownership, doble ejecución, prompt injection) según el ski
 3. ¿Se requiere un "modo borrador" (la IA prepara el formulario pre-cargado y el usuario lo
    completa en la UI) como alternativa de menor riesgo? Sería un buen paso intermedio entre
    "solo lectura" y "ejecución".
-4. ¿Cómo se reconcilia el `goal` deprecado en `docs/backend.md` con la entidad/tabla `goals`
-   todavía presente?
+4. ~~¿Cómo se reconcilia el `goal` deprecado en `docs/backend.md` con la entidad/tabla `goals`
+   todavía presente?~~ **Resuelto:** las metas son ahora un **módulo `goals`** propio
+   (`docs/backend.md` §5.12/§7.8) con tabla `goals` (se quitó `type: "goal"` de `accounts`).
 5. ¿Conviene registrar también en la auditoría las tools de lectura para trazabilidad completa?

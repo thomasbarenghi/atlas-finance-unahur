@@ -16,6 +16,7 @@ import type {
   CreateBudgetInput,
   CreateCategoryInput,
   CreateDebtInput,
+  CreateGoalInput,
   CreatePositionInput,
   CreateTransactionInput,
   CreateValuationInput,
@@ -23,6 +24,7 @@ import type {
   DashboardData,
   Debt,
   ForgotPasswordInput,
+  Goal,
   LoginInput,
   Paginated,
   Position,
@@ -36,6 +38,7 @@ import type {
   UpdateBudgetInput,
   UpdateCategoryInput,
   UpdateDebtInput,
+  UpdateGoalInput,
   UpdatePositionInput,
   UpdateTransactionInput,
   UpdateUserInput,
@@ -107,6 +110,21 @@ export const accountEndpoints = {
     USE_MOCKS
       ? mockApi.restoreAccount(id)
       : post<Account>(`/accounts/${id}/restore`),
+};
+
+export const goalEndpoints = {
+  list: (): Promise<Goal[]> =>
+    USE_MOCKS ? mockApi.listGoals() : get<Goal[]>("/goals"),
+  create: (input: CreateGoalInput): Promise<Goal> =>
+    USE_MOCKS ? mockApi.createGoal(input) : post<Goal>("/goals", input),
+  update: (id: string, input: UpdateGoalInput): Promise<Goal> =>
+    USE_MOCKS
+      ? mockApi.updateGoal(id, input)
+      : patch<Goal>(`/goals/${id}`, input),
+  archive: (id: string): Promise<Goal> =>
+    USE_MOCKS ? mockApi.archiveGoal(id) : post<Goal>(`/goals/${id}/archive`),
+  restore: (id: string): Promise<Goal> =>
+    USE_MOCKS ? mockApi.restoreGoal(id) : post<Goal>(`/goals/${id}/restore`),
 };
 
 export const categoryEndpoints = {

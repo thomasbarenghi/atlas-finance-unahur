@@ -1,5 +1,6 @@
 import type {
   BudgetStatus,
+  GoalStatus,
   TransactionType,
 } from "../../common/types/financial-enums";
 
@@ -50,4 +51,9 @@ export interface NetWorthParts {
   positions: number;
   cash: number;
   debts: number;
+}
+
+export interface GoalProgress {
+  progressPct: number;
+  status: GoalStatus;
 }

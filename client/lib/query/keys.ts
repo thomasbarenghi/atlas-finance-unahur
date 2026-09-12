@@ -12,6 +12,7 @@ export const queryKeys = {
   },
   currencies: ["currencies"] as const,
   accounts: ["accounts"] as const,
+  goals: ["goals"] as const,
   categories: ["categories"] as const,
   transactionsBase: ["transactions"] as const,
   transactions: (filters: TransactionFilters) =>
