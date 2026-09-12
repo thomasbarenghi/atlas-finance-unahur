@@ -8,10 +8,12 @@ import {
   Post,
   Query,
   Res,
+  UseGuards,
 } from "@nestjs/common";
 import { Response } from "express";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { Public } from "../common/decorators/public.decorator";
+import { OptionalJwtAuthGuard } from "../common/guards/optional-jwt-auth.guard";
 import { Paginated, PaginationDto } from "../common/dto/pagination.dto";
 import { ApiErrorBody, ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
@@ -24,6 +26,7 @@ export class AssistantController {
   constructor(private readonly assistantService: AssistantService) {}
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Post("messages")
   async stream(
     @CurrentUser() user: AuthUser | undefined,

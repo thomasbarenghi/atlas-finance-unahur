@@ -47,7 +47,7 @@ export const linkedAssetForDebt = (
   assets: Asset[],
   debt: Debt,
 ): Asset | undefined =>
-  debt.assetId ? assets.find((asset) => asset.id === debt.assetId) : undefined;
+  assets.find((asset) => asset.id === debt.assetId || asset.debtId === debt.id);
 
 export const equityFor = (assetValue: number, debtBalance: number): number =>
   assetValue - debtBalance;

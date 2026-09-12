@@ -1,8 +1,8 @@
 import { DetailMetric } from "@/components/common/detail-metric";
 import { Money } from "@/components/common/money";
-import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
+import { SignedMoney } from "@/components/common/signed-money";
+import { formatDate, formatPercentPoints } from "@/lib/format";
 import { valuationChange } from "@/lib/patrimony";
-import { cn } from "@/lib/utils";
 import type { ValuationSummaryProps } from "./valuation-summary.types";
 
 export const ValuationSummary = ({
@@ -37,10 +37,7 @@ export const ValuationSummary = ({
           change.previous === null ? (
             <span className="text-muted-foreground">—</span>
           ) : (
-            <span className={positive ? "text-success" : "text-destructive"}>
-              {positive ? "+" : "−"}
-              {formatCurrency(Math.abs(change.delta), currency)}
-            </span>
+            <SignedMoney value={change.delta} currency={currency} />
           )
         }
       />
@@ -50,11 +47,9 @@ export const ValuationSummary = ({
           change.deltaPct === null ? (
             <span className="text-muted-foreground">—</span>
           ) : (
-            <span
-              className={cn(positive ? "text-success" : "text-destructive")}
-            >
+            <span className={positive ? "text-success" : "text-destructive"}>
               {positive ? "+" : ""}
-              {formatPercent(change.deltaPct / 100)}
+              {formatPercentPoints(change.deltaPct)}
             </span>
           )
         }

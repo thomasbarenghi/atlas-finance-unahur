@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -87,17 +87,13 @@ export const CategoriesView = () => {
         category={dialog?.category}
         initialType={dialog?.type}
       />
-      <ConfirmDialog
-        open={archiveAction.isOpen}
-        onOpenChange={(open) => {
-          if (!open) archiveAction.clear();
-        }}
+      <ConfirmActionDialog
+        action={archiveAction}
         title="Archivar categoría"
-        description={`La categoría "${archiveAction.target?.name ?? ""}" dejará de estar disponible para nuevos movimientos.`}
+        description={(target) =>
+          `La categoría "${target.name}" dejará de estar disponible para nuevos movimientos.`
+        }
         confirmLabel="Archivar"
-        variant="destructive"
-        isPending={archiveAction.isPending}
-        onConfirm={archiveAction.confirm}
       />
     </div>
   );

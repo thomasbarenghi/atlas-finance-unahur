@@ -4,6 +4,7 @@ import { toIsoDate } from "@/lib/format";
 export interface GoalAccountProgress {
   saved: number;
   target: number;
+  remaining: number;
   progressPct: number;
   status: GoalStatus;
   targetDate: string | null;
@@ -46,6 +47,7 @@ export const goalAccountProgress = (
   return {
     saved,
     target,
+    remaining: Math.max(0, target - saved),
     progressPct,
     status,
     targetDate: account.targetDate,

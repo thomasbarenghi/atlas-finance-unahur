@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
-import { Archive, Pencil } from "lucide-react";
+import { Archive } from "lucide-react";
 import { toast } from "sonner";
 import { FormCurrencyField } from "@/components/common/form-currency-field";
 import { FormDateField } from "@/components/common/form-date-field";
 import { FormDialog } from "@/components/common/form-dialog";
+import { FormHero } from "@/components/common/form-hero";
 import { FormTextField } from "@/components/common/form-text-field";
 import {
   FormControl,
@@ -151,16 +152,11 @@ export const AssetFormDialog = ({
       isPending={isPending}
       contentClassName="max-h-[90dvh] overflow-y-auto"
     >
-      <div className="from-primary/10 to-background flex w-full min-w-0 flex-col items-center gap-3 rounded-3xl border bg-gradient-to-b p-6 text-center">
-        <span className="relative">
-          <AssetIcon type={type} className="size-16 [&_svg]:size-8" />
-          <span className="bg-background absolute -right-1 -bottom-1 flex size-7 items-center justify-center rounded-full border">
-            <Pencil className="size-3.5" aria-hidden />
-          </span>
-        </span>
-        <span className="text-muted-foreground text-xs">
-          {ASSET_TYPE_LABELS[type]}
-        </span>
+      <FormHero
+        icon={<AssetIcon type={type} className="size-16 [&_svg]:size-8" />}
+        label={ASSET_TYPE_LABELS[type]}
+        helper={HELPER_TEXT[type]}
+      >
         <FormField
           control={form.control}
           name="name"
@@ -177,8 +173,7 @@ export const AssetFormDialog = ({
             </FormItem>
           )}
         />
-        <p className="text-muted-foreground text-xs">{HELPER_TEXT[type]}</p>
-      </div>
+      </FormHero>
 
       <FormField
         control={form.control}

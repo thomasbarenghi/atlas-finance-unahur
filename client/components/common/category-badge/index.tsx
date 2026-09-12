@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
+import { hexToRgba } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 import type { CategoryBadgeProps } from "./category-badge.types";
-import { hexToRgba } from "./category-badge.utils";
 
 export const CategoryBadge = ({ category, className }: CategoryBadgeProps) => {
   return (

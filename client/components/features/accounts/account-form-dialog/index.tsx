@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
-import { Archive, Pencil, X } from "lucide-react";
+import { Archive, X } from "lucide-react";
 import { toast } from "sonner";
 import { DatePicker } from "@/components/common/date-picker";
 import { FormCurrencyField } from "@/components/common/form-currency-field";
 import { FormDialog } from "@/components/common/form-dialog";
+import { FormHero } from "@/components/common/form-hero";
 import { FormTextField } from "@/components/common/form-text-field";
 import { Button } from "@/components/ui/button";
 import {
@@ -162,16 +163,11 @@ export const AccountFormDialog = ({
       isPending={isPending}
       contentClassName="max-h-[90dvh] overflow-y-auto"
     >
-      <div className="from-primary/10 to-background flex w-full min-w-0 flex-col items-center gap-3 rounded-3xl border bg-gradient-to-b p-6 text-center">
-        <span className="relative">
-          <AccountIcon type={type} className="size-16 [&_svg]:size-8" />
-          <span className="bg-background absolute -right-1 -bottom-1 flex size-7 items-center justify-center rounded-full border">
-            <Pencil className="size-3.5" aria-hidden />
-          </span>
-        </span>
-        <span className="text-muted-foreground text-xs">
-          {ACCOUNT_TYPE_LABELS[type]}
-        </span>
+      <FormHero
+        icon={<AccountIcon type={type} className="size-16 [&_svg]:size-8" />}
+        label={ACCOUNT_TYPE_LABELS[type]}
+        helper={HELPER_TEXT[type]}
+      >
         <FormField
           control={form.control}
           name="name"
@@ -188,8 +184,7 @@ export const AccountFormDialog = ({
             </FormItem>
           )}
         />
-        <p className="text-muted-foreground text-xs">{HELPER_TEXT[type]}</p>
-      </div>
+      </FormHero>
 
       <FormField
         control={form.control}

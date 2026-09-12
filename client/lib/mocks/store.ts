@@ -430,12 +430,12 @@ const createInitialState = (): MockState => {
   };
 
   const budgets: StoredBudget[] = [
-    { category: vivienda, limit: 380_000 },
-    { category: comida, limit: 150_000 },
-    { category: transporte, limit: 50_000 },
-    { category: ocio, limit: 80_000 },
-    { category: compras, limit: 120_000 },
-  ].map(({ category, limit }) => ({
+    { category: vivienda, limit: 380_000, recurring: true },
+    { category: comida, limit: 150_000, recurring: true },
+    { category: transporte, limit: 50_000, recurring: false },
+    { category: ocio, limit: 80_000, recurring: false },
+    { category: compras, limit: 120_000, recurring: false },
+  ].map(({ category, limit, recurring }) => ({
     id: mockId(),
     userId: demoUser.id,
     categoryId: category.id,
@@ -443,6 +443,7 @@ const createInitialState = (): MockState => {
     period: firstDayOfMonth(0),
     limit,
     currency: "ARS",
+    recurring,
     spent: 0,
     available: limit,
     consumedPct: 0,

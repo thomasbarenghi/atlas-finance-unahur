@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { useConfirmAction } from "@/hooks/use-confirm-action";
@@ -125,21 +125,15 @@ export const TransactionsView = () => {
         accounts={accounts}
         categories={categories}
       />
-      <ConfirmDialog
-        open={deleteAction.isOpen}
-        onOpenChange={(open) => {
-          if (!open) deleteAction.clear();
-        }}
+      <ConfirmActionDialog
+        action={deleteAction}
         title="Eliminar movimiento"
-        description={
-          deleteAction.target?.transferGroupId
+        description={(target) =>
+          target.transferGroupId
             ? "Se eliminarán ambos lados de la transferencia. Esta acción no se puede deshacer."
             : "El movimiento se eliminará de forma permanente."
         }
         confirmLabel="Eliminar"
-        variant="destructive"
-        isPending={deleteAction.isPending}
-        onConfirm={deleteAction.confirm}
       />
     </div>
   );

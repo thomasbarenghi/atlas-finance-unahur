@@ -10,7 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { OptionSheetProps } from "./option-sheet.types";
 
-export const OptionSheet = ({
+export const OptionSheet = <T extends string = string>({
   open,
   onOpenChange,
   title,
@@ -18,7 +18,7 @@ export const OptionSheet = ({
   options,
   value,
   onSelect,
-}: OptionSheetProps) => {
+}: OptionSheetProps<T>) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <ResponsiveDialogContent>

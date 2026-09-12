@@ -10,6 +10,7 @@ import type {
   Budget,
   Category,
   Conversation,
+  CopyBudgetsInput,
   CreateAccountInput,
   CreateAssetInput,
   CreateBudgetInput,
@@ -157,10 +158,7 @@ export const budgetEndpoints = {
       : patch<Budget>(`/budgets/${id}`, input),
   remove: (id: string): Promise<void> =>
     USE_MOCKS ? mockApi.deleteBudget(id) : del<void>(`/budgets/${id}`),
-  copyPrevious: (input: {
-    period: string;
-    sourcePeriod?: string;
-  }): Promise<Budget[]> =>
+  copyPrevious: (input: CopyBudgetsInput): Promise<Budget[]> =>
     USE_MOCKS
       ? mockApi.copyPreviousBudgets(input)
       : post<Budget[]>("/budgets/copy-previous", input),

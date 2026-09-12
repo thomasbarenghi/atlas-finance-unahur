@@ -9,20 +9,13 @@ import { EmptyState } from "@/components/common/empty-state";
 import { StatusBadge } from "@/components/common/status-badge";
 import { Progress } from "@/components/ui/progress";
 import { AccountIcon } from "@/components/features/accounts/account-icon";
-import { formatCurrency, formatMonth } from "@/lib/format";
+import { formatCurrency, formatMonth, formatPercentPoints } from "@/lib/format";
 import { goalAccountProgress } from "@/lib/goal-account";
-import { ACCOUNT_TYPE_LABELS } from "@/lib/labels";
-import type { AccountType } from "@/lib/api/types";
+import {
+  ACCOUNT_TYPE_LABELS,
+  ACCOUNT_TYPE_VALUES as TYPE_ORDER,
+} from "@/lib/labels";
 import type { AccountsListProps } from "./accounts-list.types";
-
-const TYPE_ORDER: AccountType[] = [
-  "cash",
-  "bank",
-  "wallet",
-  "card",
-  "other",
-  "goal",
-];
 
 export const AccountsList = ({
   accounts,
@@ -52,6 +45,7 @@ export const AccountsList = ({
           const {
             saved,
             target,
+            remaining,
             progressPct,
             status,
             targetDate,
@@ -82,10 +76,10 @@ export const AccountsList = ({
               </div>
               <Progress value={progressPct} className="h-2" />
               <div className="text-muted-foreground flex items-center justify-between text-xs tabular-nums">
-                <span>{progressPct.toFixed(0)}%</span>
+                <span>{formatPercentPoints(progressPct)}</span>
                 <span>
                   {saved < target
-                    ? `Faltan ${formatCurrency(target - saved, account.currency)}`
+                    ? `Faltan ${formatCurrency(remaining, account.currency)}`
                     : "Meta cumplida"}
                 </span>
               </div>

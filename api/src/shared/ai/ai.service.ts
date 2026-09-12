@@ -20,10 +20,6 @@ export class AiService {
 
   constructor(private readonly config: ConfigService<AppConfig, true>) {}
 
-  isConfigured(): boolean {
-    return Boolean(this.config.get("ai", { infer: true }).apiKey);
-  }
-
   async *streamChat(messages: AiMessage[]): AsyncGenerator<string> {
     const ai = this.config.get("ai", { infer: true });
     if (!ai.apiKey) {
@@ -53,6 +49,7 @@ export class AiService {
           responseType: "stream",
           signal: controller.signal,
           timeout: ai.timeoutMs,
+          maxRedirects: 0,
         },
       );
 

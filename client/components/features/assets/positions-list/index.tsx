@@ -6,6 +6,7 @@ import { DataList } from "@/components/common/data-list";
 import { DataListItem } from "@/components/common/data-list-item";
 import { EmptyState } from "@/components/common/empty-state";
 import { IconBadge } from "@/components/common/icon-badge";
+import { formatPercentPoints } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { PositionsListProps } from "./positions-list.types";
 
@@ -55,7 +56,7 @@ export const PositionsList = ({ positions, isLoading }: PositionsListProps) => {
                     )}
                   >
                     {positive ? "+" : ""}
-                    {position.profitLossPct.toFixed(1)}%
+                    {formatPercentPoints(position.profitLossPct)}
                   </span>
                 ) : null}
               </span>

@@ -1,18 +1,24 @@
-import { SECTIONS, type AppSection } from "@/lib/sections";
+import type { LucideIcon } from "lucide-react";
+import { SECTIONS, type AppSectionId } from "@/lib/sections";
+import { SECTION_ICONS } from "./section-icons";
 
-export type NavItem = AppSection;
+export interface NavItem {
+  id: AppSectionId;
+  href: string;
+  label: string;
+  icon: LucideIcon;
+}
 
-export const NAV_ITEMS: NavItem[] = [
-  SECTIONS.dashboard,
-  SECTIONS.transactions,
-  SECTIONS.budgets,
-  SECTIONS.reports,
-  SECTIONS.settings,
-];
+const toNavItem = (id: AppSectionId): NavItem => ({
+  id,
+  ...SECTIONS[id],
+  icon: SECTION_ICONS[id],
+});
 
-export const MOBILE_NAV_ITEMS: NavItem[] = [
-  SECTIONS.dashboard,
-  SECTIONS.assistant,
-  SECTIONS.reports,
-  SECTIONS.profile,
-];
+export const NAV_ITEMS: NavItem[] = (
+  ["dashboard", "transactions", "budgets", "reports", "settings"] as const
+).map(toNavItem);
+
+export const MOBILE_NAV_ITEMS: NavItem[] = (
+  ["dashboard", "assistant", "reports", "profile"] as const
+).map(toNavItem);

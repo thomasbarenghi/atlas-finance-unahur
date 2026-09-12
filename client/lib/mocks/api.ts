@@ -152,6 +152,36 @@ const deriveBudget = (budget: Budget): Budget => {
   return { ...budget, spent, available, consumedPct, status };
 };
 
+const projectBudgetsForMonth = (
+  budgets: StoredBudget[],
+  month: string,
+): StoredBudget[] => {
+  const explicit = budgets.filter(
+    (budget) => budget.period.slice(0, 7) === month,
+  );
+  const explicitCategoryIds = new Set(
+    explicit.map((budget) => budget.categoryId),
+  );
+  const latestRecurringByCategory = new Map<string, StoredBudget>();
+
+  for (const budget of budgets) {
+    if (!budget.recurring) continue;
+    if (budget.period.slice(0, 7) > month) continue;
+    if (explicitCategoryIds.has(budget.categoryId)) continue;
+    const current = latestRecurringByCategory.get(budget.categoryId);
+    if (!current || budget.period.slice(0, 7) > current.period.slice(0, 7)) {
+      latestRecurringByCategory.set(budget.categoryId, budget);
+    }
+  }
+
+  const projected = [...latestRecurringByCategory.values()].map((template) => ({
+    ...template,
+    period: `${month}-01`,
+  }));
+
+  return [...explicit, ...projected];
+};
+
 const deriveAsset = (asset: Asset): Asset => {
   const latest = mockState.valuations
     .filter((valuation) => valuation.assetId === asset.id)
@@ -356,8 +386,7 @@ const buildAssistantAnswer = (
 
   if (text.includes("presupuesto")) {
     const month = to.slice(0, 7);
-    const alerts = mockState.budgets
-      .filter((budget) => budget.period.slice(0, 7) === month)
+    const alerts = projectBudgetsForMonth(mockState.budgets, month)
       .map(deriveBudget)
       .filter((budget) => budget.status !== "available");
     if (alerts.length === 0) {
@@ -769,10 +798,11 @@ export const mockApi = {
     await delay();
     const user = requireUser();
     const month = period?.slice(0, 7);
-    return mockState.budgets
-      .filter((budget) => budget.userId === user.id)
-      .filter((budget) => !month || budget.period.slice(0, 7) === month)
-      .map(deriveBudget);
+    const scoped = mockState.budgets.filter(
+      (budget) => budget.userId === user.id,
+    );
+    const budgets = month ? projectBudgetsForMonth(scoped, month) : scoped;
+    return budgets.map(deriveBudget);
   },
 
   async createBudget(input: CreateBudgetInput): Promise<Budget> {
@@ -801,6 +831,7 @@ export const mockApi = {
       period: `${input.period.slice(0, 7)}-01`,
       limit: input.limit,
       currency: input.currency,
+      recurring: input.recurring ?? false,
       spent: 0,
       available: input.limit,
       consumedPct: 0,
@@ -859,6 +890,7 @@ export const mockApi = {
         ...original,
         id: mockId(),
         period: `${target}-01`,
+        recurring: false,
       };
       mockState.budgets.push(copy);
       copies.push(deriveBudget(copy));
@@ -1355,12 +1387,10 @@ export const mockApi = {
       return { month, value };
     });
 
-    const budgetAlerts = mockState.budgets
-      .filter(
-        (budget) =>
-          budget.userId === user.id &&
-          budget.period.slice(0, 7) === query.to.slice(0, 7),
-      )
+    const budgetAlerts = projectBudgetsForMonth(
+      mockState.budgets.filter((budget) => budget.userId === user.id),
+      query.to.slice(0, 7),
+    )
       .map(deriveBudget)
       .filter((budget) => budget.status !== "available")
       .map((budget) => ({

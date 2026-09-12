@@ -7,11 +7,15 @@ import type {
 } from "@/lib/api/types";
 import { queryKeys } from "./keys";
 
-export const useTransactions = (filters: TransactionFilters) =>
+export const useTransactions = (
+  filters: TransactionFilters,
+  options?: { enabled?: boolean },
+) =>
   useQuery({
     queryKey: queryKeys.transactions(filters),
     queryFn: () => transactionEndpoints.list(filters),
     placeholderData: (previous) => previous,
+    enabled: options?.enabled ?? true,
   });
 
 const invalidateTransactionViews = (

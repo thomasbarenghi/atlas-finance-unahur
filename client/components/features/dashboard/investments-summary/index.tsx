@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { TrendingDown, TrendingUp } from "lucide-react";
+import { EmptyState } from "@/components/common/empty-state";
 import { Money } from "@/components/common/money";
+import { SignedMoney } from "@/components/common/signed-money";
 import { WarningBadge } from "@/components/common/warning-badge";
 import {
   formatCurrency,
   formatDateTime,
-  formatPercent,
+  formatPercentPoints,
   formatTimeAgo,
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -37,9 +39,11 @@ export const InvestmentsSummary = ({
 
   if (positions.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm">
-        Todavía no tenés inversiones financieras cargadas.
-      </p>
+      <EmptyState
+        icon={TrendingUp}
+        title="Todavía no tenés inversiones"
+        description="Cargá un instrumento y su costo promedio para valuarlo."
+      />
     );
   }
 
@@ -62,15 +66,13 @@ export const InvestmentsSummary = ({
         </div>
         <div className="flex flex-col gap-0.5">
           <span className="text-muted-foreground text-xs">Resultado</span>
-          <span
-            className={cn(
-              "flex items-center gap-1 text-xl font-semibold tabular-nums",
-              positive ? "text-success" : "text-destructive",
-            )}
-          >
+          <span className="flex items-center gap-1 text-xl font-semibold">
             <ProfitIcon className="size-4" aria-hidden />
-            {positive ? "+" : "−"}
-            {formatCurrency(Math.abs(profitLoss), currency)}
+            <SignedMoney
+              value={profitLoss}
+              currency={currency}
+              className="text-xl font-semibold"
+            />
           </span>
           <span
             className={cn(
@@ -79,7 +81,7 @@ export const InvestmentsSummary = ({
             )}
           >
             {positive ? "+" : ""}
-            {formatPercent(profitLossPct / 100)}
+            {formatPercentPoints(profitLossPct)}
           </span>
         </div>
       </div>
@@ -87,7 +89,7 @@ export const InvestmentsSummary = ({
       <div className="flex h-3 w-full overflow-hidden rounded-full">
         {positions.map((position, index) => (
           <div
-            key={position.symbol}
+            key={`${position.symbol}-${position.originalCurrency}`}
             style={{
               width:
                 distributionTotal > 0
@@ -107,7 +109,7 @@ export const InvestmentsSummary = ({
           const converted = position.originalCurrency !== currency && hasQuote;
 
           return (
-            <li key={position.symbol}>
+            <li key={`${position.symbol}-${position.originalCurrency}`}>
               <Link
                 href={`/patrimony/investments/detail?symbol=${position.symbol}&currency=${position.originalCurrency}`}
                 className="hover:bg-muted/40 -mx-2 flex items-start justify-between gap-3 rounded-xl px-2 py-1 text-sm transition-colors"
@@ -177,7 +179,7 @@ export const InvestmentsSummary = ({
                       )}
                     >
                       {profitPositive ? "+" : ""}
-                      {formatPercent(position.profitLossPct / 100)}
+                      {formatPercentPoints(position.profitLossPct)}
                     </span>
                   ) : null}
                 </span>

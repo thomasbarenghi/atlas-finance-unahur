@@ -1,5 +1,5 @@
 import { Progress } from "@/components/ui/progress";
-import { formatCurrency, formatPercent } from "@/lib/format";
+import { formatCurrency, formatPercentPoints } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { budgetIndicatorClass } from "./budget-progress.utils";
 import type { BudgetProgressProps } from "./budget-progress.types";
@@ -36,7 +36,7 @@ export const BudgetProgress = ({
                 : "text-muted-foreground",
           )}
         >
-          {formatPercent(consumedPct / 100)}
+          {formatPercentPoints(consumedPct)}
         </span>
       </div>
     </div>

@@ -17,6 +17,11 @@ export const formatPercent = (value: number, locale: string = DEFAULT_LOCALE) =>
     maximumFractionDigits: 1,
   }).format(value);
 
+export const formatPercentPoints = (
+  value: number,
+  locale: string = DEFAULT_LOCALE,
+) => formatPercent(value / 100, locale);
+
 export const formatApproxCurrency = (
   value: number,
   currency: string,

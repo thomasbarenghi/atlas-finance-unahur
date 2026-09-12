@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Loader2, LogOut, Trash2 } from "lucide-react";
@@ -28,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
+import { useSignOut } from "@/hooks/use-sign-out";
 import { getErrorMessage } from "@/lib/api/errors";
 import { useClearConversations } from "@/lib/query/assistant";
 import { useUpdateMe } from "@/lib/query/users";
@@ -37,8 +37,8 @@ import {
 } from "@/lib/validation/settings";
 
 export const SettingsForm = () => {
-  const { user, signOut, isSigningOut } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
+  const { signOut, isSigningOut } = useSignOut();
   const updateMe = useUpdateMe();
   const clearConversations = useClearConversations();
 
@@ -66,15 +66,6 @@ export const SettingsForm = () => {
       toast.success("Preferencias guardadas");
     } catch (error) {
       toast.error(getErrorMessage(error, "No se pudieron guardar los cambios"));
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      router.replace("/login");
-    } catch {
-      toast.error("No se pudo cerrar la sesión");
     }
   };
 
@@ -187,7 +178,7 @@ export const SettingsForm = () => {
             variant="destructive"
             className="w-fit"
             disabled={isSigningOut}
-            onClick={handleSignOut}
+            onClick={signOut}
           >
             <LogOut /> Cerrar sesión
           </Button>

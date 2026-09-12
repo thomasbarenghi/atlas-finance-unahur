@@ -6,6 +6,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import type { DashboardData } from "@/lib/api/types";
 import { computeChartDomain } from "@/lib/chart-scale";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { buildPeriodSummaryStats } from "@/lib/period-stats";
@@ -15,7 +16,7 @@ export interface NetWorthHeroProps {
   value: number;
   deltaPct: number | null;
   currency: string;
-  series: { date: string; value: number }[];
+  series: DashboardData["netWorthSeries"];
   income: number;
   expenses: number;
   savings: number;

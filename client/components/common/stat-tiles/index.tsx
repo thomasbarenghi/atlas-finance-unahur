@@ -1,4 +1,4 @@
-import { formatPercent } from "@/lib/format";
+import { formatPercentPoints } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { StatTilesProps } from "./stat-tiles.types";
 import { statDeltaTone } from "./stat-tiles.utils";
@@ -29,7 +29,7 @@ export const StatTiles = ({ stats }: StatTilesProps) => {
               {stat.deltaPct >= 0 ? "+" : ""}
               {stat.deltaUnit === "points"
                 ? `${stat.deltaPct.toFixed(1)} pp`
-                : formatPercent(stat.deltaPct / 100)}{" "}
+                : formatPercentPoints(stat.deltaPct)}{" "}
               vs. ant.
             </span>
           ) : null}

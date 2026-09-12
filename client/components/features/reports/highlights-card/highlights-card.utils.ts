@@ -1,4 +1,4 @@
-import { formatCurrency, formatPercent } from "@/lib/format";
+import { formatCurrency, formatPercentPoints } from "@/lib/format";
 import type { Highlight, HighlightsCardProps } from "./highlights-card.types";
 
 const MAX_HIGHLIGHTS = 3;
@@ -16,7 +16,7 @@ export const buildHighlights = ({
     highlights.push({
       id: "expenses",
       tone: lower ? "positive" : "negative",
-      text: `Gastaste ${formatPercent(Math.abs(expensesDeltaPct) / 100)} ${
+      text: `Gastaste ${formatPercentPoints(Math.abs(expensesDeltaPct))} ${
         lower ? "menos" : "más"
       } que el período anterior.`,
     });
@@ -27,8 +27,8 @@ export const buildHighlights = ({
     highlights.push({
       id: "savings",
       tone: up ? "positive" : "negative",
-      text: `Tu ahorro ${up ? "subió" : "bajó"} ${formatPercent(
-        Math.abs(savingsDeltaPct) / 100,
+      text: `Tu ahorro ${up ? "subió" : "bajó"} ${formatPercentPoints(
+        Math.abs(savingsDeltaPct),
       )}.`,
     });
   }

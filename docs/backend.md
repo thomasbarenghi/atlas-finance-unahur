@@ -293,8 +293,11 @@ Tablas derivadas de las entidades del FRD (§10) más las necesarias para trazab
 | period | date | primer día del mes |
 | limit | numeric(18,4) | |
 | currency | char(3) | |
+| recurring | boolean | default `false`; renueva el presupuesto cada mes |
 | created_at / updated_at | timestamptz | |
 | UNIQUE(user_id, category_id, period) | | |
+
+> **Renovación automática (FR-PRE-007):** un presupuesto con `recurring = true` actúa como plantilla desde su `period` en adelante. Al listar un mes, el API proyecta la plantilla vigente de cada categoría (la más reciente con `period <= mes`) salvo que exista un presupuesto explícito para ese `mes` + categoría, que la reemplaza. El `spent`/`status` proyectado se calcula con las transacciones del mes consultado. Desactivar `recurring` detiene la renovación a partir del mes de la plantilla.
 
 ### 5.7 `assets` (FR-ACT-001..007)
 | Columna | Tipo | Notas |
@@ -629,7 +632,7 @@ Los objetivos se gestionan con los endpoints de **Accounts** (`type: "goal"`, §
   "description": "Supermercado", "notes": null, "accountId": "uuid", "categoryId": "uuid",
   "transferGroupId": null, "createdAt": "ISO", "updatedAt": "ISO" }
 ```
-- `amount` siempre positivo; el signo lo determina `type` (CAL-002/003).
+- `amount` es positivo en `income`/`expense` (el signo lo determina `type`, CAL-002/003). En transferencias, cada lado se persiste con signo opuesto: negativo en la cuenta origen y positivo en la destino.
 - `transferGroupId` no nulo agrupa los dos lados de una transferencia.
 - `DELETE /transactions/:id` de una transferencia elimina **ambos lados** del grupo.
 - `PATCH /transactions/:id` de una transferencia edita **ambos lados** atómicamente (si cambian `accountId`/`transferAccountId`, se reasignan).
@@ -638,10 +641,13 @@ Los objetivos se gestionan con los endpoints de **Accounts** (`type: "goal"`, §
 **Budgets**
 ```jsonc
 // POST /budgets — body
-{ "categoryId": "uuid", "period": "2026-09-01", "limit": 80000, "currency": "ARS" }
+{ "categoryId": "uuid", "period": "2026-09-01", "limit": 80000, "currency": "ARS", "recurring": true }
+// PATCH /budgets/:id — body (parcial)
+{ "limit": 90000, "currency": "ARS", "recurring": false }
 // GET /budgets?period=2026-09 → Budget[]
+// Incluye los presupuestos explícitos del mes y las proyecciones de los recurrentes vigentes.
 { "id": "uuid", "categoryId": "uuid", "category": { "id": "uuid", "name": "Comida", "color": "#ef4444" },
-  "period": "2026-09-01", "limit": 80000, "currency": "ARS",
+  "period": "2026-09-01", "limit": 80000, "currency": "ARS", "recurring": true,
   "spent": 65000, "available": 15000, "consumedPct": 81.25, "status": "warning" }
 // POST /budgets/copy-previous — body
 { "period": "2026-09-01", "sourcePeriod": "2026-08-01" }   // sourcePeriod opcional (default: mes anterior)
@@ -842,7 +848,8 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 **Implementación actual (DeepSeek):**
 
 - `shared/ai/ai.service.ts` (`AiModule`): cliente del proveedor (DeepSeek/OpenAI-compatible) con `axios` `responseType: "stream"`, timeout de `AI_TIMEOUT_MS` y aborto; expone `streamChat(messages)` como `AsyncGenerator<string>`. Mapea fallas a `AI_UNAVAILABLE` (NFR-SEG-009).
-- `assistant/assistant-context.service.ts`: arma el **contexto mínimo** del usuario consultando sus entidades (transacciones del período, top categorías de gasto, presupuestos del mes, patrimonio estimado con valuaciones/deudas/posiciones/saldos iniciales) y produce un resumen textual. *Deviación conocida:* hoy consulta repositorios directamente porque los dominios de finanzas del API todavía son esqueletos (solo entidades); cuando existan los servicios primarios, este armado debe moverse a un orquestador que los coordine (ver `orchestrator-domain-architecture`).
+- `shared/calculations/calculations.service.ts` (`CalculationsModule`): fuente única de las reglas CAL-001..004 (flujo del período, gastos del mes, consumo/estado de presupuesto, saldo actual por movimientos, última valuación por activo y patrimonio neto). El asistente la reutiliza en lugar de repetir fórmulas. Cubierta por pruebas unitarias.
+- `assistant/assistant-context.service.ts`: arma el **contexto mínimo** del usuario consultando sus entidades (transacciones del período, top categorías de gasto, presupuestos del mes, patrimonio estimado con valuaciones/deudas/posiciones y saldos actuales `initial_balance + Σ movimientos`) usando `calculations.service`, y produce un resumen textual. *Deviación conocida:* hoy consulta repositorios directamente porque los dominios de finanzas del API todavía son esqueletos (solo entidades); cuando existan los servicios primarios, este armado debe moverse a un orquestador que los coordine (ver `orchestrator-domain-architecture`).
 - `assistant/assistant.service.ts`: `assertAiEnabled`, persistencia en `ai_conversations` y `answer()` como generador de eventos (`meta`/`token`/`done`). El **prompt de sistema es fijo** y declara explícitamente el alcance: solo un resumen agregado del período indicado, sin detalle de movimientos ni historial de otros períodos; ante preguntas fuera de ese alcance debe aclararlo (FR-IA-010/011).
 - `assistant/assistant.controller.ts`: `POST /assistant/messages` (SSE), `GET /assistant/conversations` (paginado), `GET/DELETE /assistant/conversations/:id`, `DELETE /assistant/conversations`. Si `aiEnabled === false` responde `403 AI_DISABLED` en JSON (no abre el stream).
 - **Acceso dev del stream**: `POST /assistant/messages` está marcado `@Public()` pero resuelve el usuario así: si hay sesión válida la usa; si no, y `NODE_ENV !== "production"`, cae al usuario demo `AI_DEV_USER_EMAIL`; en producción sin sesión responde `401 UNAUTHENTICATED`. Permite probar el asistente con el cliente en modo mock sin implementar todo el auth. Los endpoints de historial siguen requiriendo JWT.

@@ -5,6 +5,7 @@ export const budgetSchema = z.object({
   period: z.string().min(7, "Elegí un período"),
   limit: z.coerce.number().positive("El límite debe ser mayor que cero"),
   currency: z.string().min(3, "Elegí una moneda"),
+  recurring: z.boolean(),
 });
 
 export type BudgetFormValues = z.infer<typeof budgetSchema>;

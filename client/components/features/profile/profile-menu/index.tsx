@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { LogOut, Moon } from "lucide-react";
 import { toast } from "sonner";
@@ -9,11 +8,16 @@ import { ListRow } from "@/components/common/list-row";
 import { OptionSheet } from "@/components/common/option-sheet";
 import { useAuth } from "@/hooks/use-auth";
 import { useMounted } from "@/hooks/use-mounted";
+import { useSignOut } from "@/hooks/use-sign-out";
 import type { Theme } from "@/lib/api/types";
 import { useUpdateMe } from "@/lib/query/users";
-import { SECTIONS, type AppSection } from "@/lib/sections";
+import { SECTIONS } from "@/lib/sections";
+import { SECTION_ICONS } from "@/components/layout/section-icons";
 
-const FINANCE_LINKS: AppSection[] = [SECTIONS.budgets, SECTIONS.categories];
+const FINANCE_LINKS = [
+  { ...SECTIONS.budgets, icon: SECTION_ICONS.budgets },
+  { ...SECTIONS.categories, icon: SECTION_ICONS.categories },
+];
 
 const THEME_OPTIONS: { value: Theme; label: string }[] = [
   { value: "light", label: "Claro" },
@@ -21,11 +25,8 @@ const THEME_OPTIONS: { value: Theme; label: string }[] = [
   { value: "system", label: "Automático" },
 ];
 
-const THEME_LABELS: Record<Theme, string> = {
-  light: "Claro",
-  dark: "Oscuro",
-  system: "Automático",
-};
+const themeLabel = (theme: Theme): string =>
+  THEME_OPTIONS.find((option) => option.value === theme)?.label ?? "";
 
 const initialsFrom = (name: string | undefined): string => {
   if (!name) return "?";
@@ -38,8 +39,8 @@ const initialsFrom = (name: string | undefined): string => {
 };
 
 export const ProfileMenu = () => {
-  const { user, signOut, isSigningOut } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
+  const { signOut, isSigningOut } = useSignOut();
   const mounted = useMounted();
   const { theme, setTheme } = useTheme();
   const updateMe = useUpdateMe();
@@ -47,15 +48,6 @@ export const ProfileMenu = () => {
   const [themeOpen, setThemeOpen] = useState(false);
 
   const themeValue = (theme ?? "system") as Theme;
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      router.replace("/login");
-    } catch {
-      toast.error("No se pudo cerrar la sesión");
-    }
-  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -85,19 +77,19 @@ export const ProfileMenu = () => {
         <ListRow
           icon={Moon}
           label="Tema"
-          value={mounted ? THEME_LABELS[themeValue] : undefined}
+          value={mounted ? themeLabel(themeValue) : undefined}
           onClick={() => setThemeOpen(true)}
         />
       </section>
 
       <section className="overflow-hidden rounded-2xl border">
-        <ListRow {...SECTIONS.settings} />
+        <ListRow {...SECTIONS.settings} icon={SECTION_ICONS.settings} />
       </section>
 
       <section className="overflow-hidden rounded-2xl border">
         <button
           type="button"
-          onClick={handleSignOut}
+          onClick={signOut}
           disabled={isSigningOut}
           className="text-destructive hover:bg-destructive/5 flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium transition-colors disabled:opacity-60"
         >
@@ -114,8 +106,7 @@ export const ProfileMenu = () => {
         title="Tema"
         options={THEME_OPTIONS}
         value={themeValue}
-        onSelect={(value) => {
-          const next = value as Theme;
+        onSelect={(next) => {
           setTheme(next);
           updateMe.mutate(
             { theme: next },

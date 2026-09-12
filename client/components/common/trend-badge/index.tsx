@@ -1,5 +1,5 @@
 import { TrendingDown, TrendingUp } from "lucide-react";
-import { formatPercent } from "@/lib/format";
+import { formatPercentPoints } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { TrendBadgeProps } from "./trend-badge.types";
 
@@ -21,7 +21,7 @@ export const TrendBadge = ({ deltaPct, label, className }: TrendBadgeProps) => {
     >
       <DeltaIcon className="size-3.5" aria-hidden />
       {positive ? "+" : ""}
-      {formatPercent(deltaPct / 100)}
+      {formatPercentPoints(deltaPct)}
       {label ? <span className="font-normal">{label}</span> : null}
     </span>
   );

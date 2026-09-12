@@ -1,11 +1,5 @@
-import type { DashboardInvestmentPosition } from "@/lib/api/types";
+import type { DashboardData } from "@/lib/api/types";
 
-export interface InvestmentsSummaryProps {
-  totalValue: number;
-  totalCost: number;
-  profitLoss: number;
-  profitLossPct: number;
-  staleQuotes: number;
-  positions: DashboardInvestmentPosition[];
+export type InvestmentsSummaryProps = DashboardData["investments"] & {
   currency: string;
-}
+};

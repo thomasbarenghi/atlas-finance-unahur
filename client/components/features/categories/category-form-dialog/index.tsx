@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
 import { FormDialog } from "@/components/common/form-dialog";
 import { FormSelectField } from "@/components/common/form-select-field";
 import { FormTextField } from "@/components/common/form-text-field";
@@ -158,17 +158,13 @@ export const CategoryFormDialog = ({
         />
       </FormDialog>
 
-      <ConfirmDialog
-        open={archiveAction.isOpen}
-        onOpenChange={(open) => {
-          if (!open) archiveAction.clear();
-        }}
+      <ConfirmActionDialog
+        action={archiveAction}
         title="Archivar categoría"
-        description={`La categoría "${archiveAction.target?.name ?? ""}" dejará de estar disponible para nuevos movimientos.`}
+        description={(target) =>
+          `La categoría "${target.name}" dejará de estar disponible para nuevos movimientos.`
+        }
         confirmLabel="Archivar"
-        variant="destructive"
-        isPending={archiveAction.isPending}
-        onConfirm={archiveAction.confirm}
       />
     </>
   );

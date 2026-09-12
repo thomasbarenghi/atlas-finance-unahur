@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Coins, LogOut, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { IconBadge } from "@/components/common/icon-badge";
@@ -10,27 +9,19 @@ import { OptionSheet } from "@/components/common/option-sheet";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
+import { useSignOut } from "@/hooks/use-sign-out";
 import { useCurrencies } from "@/lib/query/reference";
 import { useUpdateMe } from "@/lib/query/users";
 
 export const SettingsMenu = () => {
-  const { user, signOut } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
+  const { signOut } = useSignOut();
   const currencies = useCurrencies();
   const updateMe = useUpdateMe();
 
   const [currencyOpen, setCurrencyOpen] = useState(false);
 
   const supported = currencies.data?.supported ?? [user?.baseCurrency ?? "ARS"];
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      router.replace("/login");
-    } catch {
-      toast.error("No se pudo cerrar la sesión");
-    }
-  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -62,7 +53,7 @@ export const SettingsMenu = () => {
 
       <Button
         variant="outline"
-        onClick={handleSignOut}
+        onClick={signOut}
         className="border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10 hover:text-destructive h-11 w-full rounded-2xl"
       >
         <LogOut /> Cerrar sesión

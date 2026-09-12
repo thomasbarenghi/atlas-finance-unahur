@@ -1,16 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Archive, CreditCard, Pencil } from "lucide-react";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
+import {
+  DetailPage,
+  DetailPageNotFound,
+  DetailPageSkeleton,
+} from "@/components/common/detail-page";
 import { DetailMetric } from "@/components/common/detail-metric";
-import { EmptyState } from "@/components/common/empty-state";
-import { PageHeader } from "@/components/common/page-header";
 import { RowActionsMenu } from "@/components/common/row-actions-menu";
 import { SectionCard } from "@/components/common/section-card";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useConfirmAction } from "@/hooks/use-confirm-action";
 import type { Debt } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
@@ -35,34 +36,17 @@ export const DebtDetailView = () => {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex flex-col gap-6">
-        <Skeleton className="h-9 w-40" />
-        <Skeleton className="h-44 w-full rounded-2xl" />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Skeleton className="h-16 rounded-2xl" />
-          <Skeleton className="h-16 rounded-2xl" />
-          <Skeleton className="h-16 rounded-2xl" />
-        </div>
-      </div>
-    );
+    return <DetailPageSkeleton />;
   }
 
   if (!debt) {
     return (
-      <div className="flex flex-col gap-6">
-        <PageHeader title="Deuda" />
-        <EmptyState
-          icon={CreditCard}
-          title="Deuda no encontrada"
-          description="La deuda que buscás no existe o fue archivada."
-          action={
-            <Button asChild>
-              <Link href="/dashboard">Volver al inicio</Link>
-            </Button>
-          }
-        />
-      </div>
+      <DetailPageNotFound
+        entityLabel="Deuda"
+        icon={CreditCard}
+        title="Deuda no encontrada"
+        description="La deuda que buscás no existe o fue archivada."
+      />
     );
   }
 
@@ -71,44 +55,42 @@ export const DebtDetailView = () => {
     : undefined;
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title={debt.name}
-        description={`${DEBT_TYPE_LABELS[debt.type]} · ${debt.currency}${
-          debt.archived ? " · Archivada" : ""
-        }`}
-        actions={
-          <>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Editar deuda"
-              onClick={() => setEditOpen(true)}
-            >
-              <Pencil />
-            </Button>
-            <RowActionsMenu
-              label={debt.name}
-              triggerLabel="Más acciones"
-              actions={[
-                {
-                  label: "Editar",
-                  icon: Pencil,
-                  onSelect: () => setEditOpen(true),
-                },
-                {
-                  label: "Archivar",
-                  icon: Archive,
-                  variant: "destructive",
-                  hidden: debt.archived,
-                  onSelect: () => archiveAction.request(debt),
-                },
-              ]}
-            />
-          </>
-        }
-      />
-
+    <DetailPage
+      title={debt.name}
+      description={`${DEBT_TYPE_LABELS[debt.type]} · ${debt.currency}${
+        debt.archived ? " · Archivada" : ""
+      }`}
+      actions={
+        <>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Editar deuda"
+            onClick={() => setEditOpen(true)}
+          >
+            <Pencil />
+          </Button>
+          <RowActionsMenu
+            label={debt.name}
+            triggerLabel="Más acciones"
+            actions={[
+              {
+                label: "Editar",
+                icon: Pencil,
+                onSelect: () => setEditOpen(true),
+              },
+              {
+                label: "Archivar",
+                icon: Archive,
+                variant: "destructive",
+                hidden: debt.archived,
+                onSelect: () => archiveAction.request(debt),
+              },
+            ]}
+          />
+        </>
+      }
+    >
       <PatrimonyHero
         icon={CreditCard}
         title="Saldo pendiente"
@@ -160,18 +142,14 @@ export const DebtDetailView = () => {
         debt={debt}
         assets={assets}
       />
-      <ConfirmDialog
-        open={archiveAction.isOpen}
-        onOpenChange={(open) => {
-          if (!open) archiveAction.clear();
-        }}
+      <ConfirmActionDialog
+        action={archiveAction}
         title="Archivar deuda"
-        description={`La deuda "${archiveAction.target?.name ?? ""}" dejará de descontarse de tu patrimonio.`}
+        description={(target) =>
+          `La deuda "${target.name}" dejará de descontarse de tu patrimonio.`
+        }
         confirmLabel="Archivar"
-        variant="destructive"
-        isPending={archiveAction.isPending}
-        onConfirm={archiveAction.confirm}
       />
-    </div>
+    </DetailPage>
   );
 };

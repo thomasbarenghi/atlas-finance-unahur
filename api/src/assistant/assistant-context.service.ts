@@ -1,13 +1,16 @@
-import { Injectable } from "@nestjs/common";
+import { HttpStatus, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, Repository } from "typeorm";
+import { In, IsNull, Repository } from "typeorm";
 import { Account } from "../accounts/entities/account.entity";
+import { ApiException } from "../common/errors/api.exception";
+import { ErrorCode } from "../common/errors/error-codes";
 import { Asset } from "../assets/entities/asset.entity";
 import { Valuation } from "../assets/entities/valuation.entity";
 import { Budget } from "../budgets/entities/budget.entity";
 import { Category } from "../categories/entities/category.entity";
 import { Debt } from "../debts/entities/debt.entity";
 import { Position } from "../positions/entities/position.entity";
+import { CalculationsService } from "../shared/calculations/calculations.service";
 import { Transaction } from "../transactions/entities/transaction.entity";
 import { User } from "../users/entities/user.entity";
 import { AssistantMessageDto } from "./dto/assistant-message.dto";
@@ -44,6 +47,7 @@ export class AssistantContextService {
     private readonly positionsRepository: Repository<Position>,
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
+    private readonly calculations: CalculationsService,
   ) {}
 
   async build(
@@ -55,37 +59,37 @@ export class AssistantContextService {
     const from =
       dto.period?.from ??
       toIsoDate(new Date(new Date(to).getTime() - 29 * DAY_MS));
+    if (from > to) {
+      throw new ApiException(
+        ErrorCode.VALIDATION_ERROR,
+        HttpStatus.BAD_REQUEST,
+        "El período es inválido",
+      );
+    }
     const currency = dto.currency ?? user.baseCurrency;
     const sources = new Set<string>(["transactions"]);
 
     const transactions = await this.transactionsRepository.find({
       where: { userId },
     });
-    const categories = await this.categoriesRepository.find();
-    const categoryName = (id: string | null): string =>
-      categories.find((category) => category.id === id)?.name ??
-      "Sin categoría";
-
-    const inPeriod = transactions.filter(
-      (transaction) => transaction.date >= from && transaction.date <= to,
+    const categories = await this.categoriesRepository.find({
+      where: [{ userId }, { userId: IsNull() }],
+    });
+    const categoryNameById = new Map(
+      categories.map((category) => [category.id, category.name]),
     );
-    const income = inPeriod
-      .filter((transaction) => transaction.type === "income")
-      .reduce((total, transaction) => total + transaction.amount, 0);
-    const expenses = inPeriod
-      .filter((transaction) => transaction.type === "expense")
-      .reduce((total, transaction) => total + transaction.amount, 0);
+    const categoryName = (id: string | null): string =>
+      (id ? categoryNameById.get(id) : undefined) ?? "Sin categoría";
 
-    const expenseByCategory = new Map<string, number>();
-    for (const transaction of inPeriod) {
-      if (transaction.type !== "expense" || !transaction.categoryId) continue;
-      expenseByCategory.set(
-        transaction.categoryId,
-        (expenseByCategory.get(transaction.categoryId) ?? 0) +
-          transaction.amount,
-      );
-    }
-    const topCategories = [...expenseByCategory.entries()]
+    const flows = this.calculations.calculatePeriodFlows(
+      transactions,
+      from,
+      to,
+    );
+
+    const periodExpensesByCategory =
+      this.calculations.calculateExpensesByCategory(transactions, from, to);
+    const topCategories = [...periodExpensesByCategory.entries()]
       .map(([categoryId, value]) => ({
         name: categoryName(categoryId),
         value,
@@ -94,57 +98,43 @@ export class AssistantContextService {
       .slice(0, 5);
 
     const month = to.slice(0, 7);
+    const monthExpensesByCategory =
+      this.calculations.calculateExpensesByCategory(
+        transactions,
+        `${month}-01`,
+        `${month}-31`,
+      );
     const budgets = await this.budgetsRepository.find({
       where: { userId, period: `${month}-01` },
     });
     if (budgets.length > 0) sources.add("budgets");
-    const monthExpenses = transactions
-      .filter(
-        (transaction) =>
-          transaction.type === "expense" &&
-          transaction.date.slice(0, 7) === month,
-      )
-      .reduce((total, transaction) => {
-        return total + transaction.amount;
-      }, 0);
     const budgetSummary = budgets.slice(0, 6).map((budget) => {
-      const spent = transactions
-        .filter(
-          (transaction) =>
-            transaction.type === "expense" &&
-            transaction.categoryId === budget.categoryId &&
-            transaction.date.slice(0, 7) === month,
-        )
-        .reduce((total, transaction) => total + transaction.amount, 0);
-      const consumedPct =
-        budget.limit > 0 ? Math.round((spent / budget.limit) * 100) : 0;
+      const spent = monthExpensesByCategory.get(budget.categoryId) ?? 0;
+      const consumption = this.calculations.calculateBudgetConsumption(
+        budget.limit,
+        spent,
+      );
       return {
         category: categoryName(budget.categoryId),
-        limit: budget.limit,
-        spent,
-        consumedPct,
+        limit: consumption.limit,
+        spent: consumption.spent,
+        consumedPct: Math.round(consumption.consumedPct),
       };
     });
 
     const accounts = await this.accountsRepository.find({ where: { userId } });
-    const cash = accounts
-      .filter((account) => !account.archived)
-      .reduce((total, account) => total + account.initialBalance, 0);
+    const cash = this.calculations.calculateCashBalance(accounts, transactions);
 
     const assets = await this.assetsRepository.find({ where: { userId } });
     const assetIds = assets.map((asset) => asset.id);
-    const assetsValue = (
+    const valuations =
       assetIds.length > 0
         ? await this.valuationsRepository.find({
             where: { assetId: In(assetIds) },
             order: { date: "DESC" },
           })
-        : []
-    ).reduce((total, valuation, index, list) => {
-      const isLatest =
-        list.findIndex((item) => item.assetId === valuation.assetId) === index;
-      return isLatest ? total + valuation.value : total;
-    }, 0);
+        : [];
+    const assetsValue = this.calculations.getLatestValuationsTotal(valuations);
     if (assets.length > 0) sources.add("assets");
 
     const debts = await this.debtsRepository.find({ where: { userId } });
@@ -156,21 +146,25 @@ export class AssistantContextService {
     const positions = await this.positionsRepository.find({
       where: { userId },
     });
-    const positionsCost = positions
-      .filter((position) => !position.archived)
-      .reduce(
-        (total, position) => total + position.quantity * position.avgCost,
-        0,
-      );
+    const positionsCost = this.calculations.calculatePositionsCost(positions);
     if (positions.length > 0) sources.add("positions");
 
-    const netWorth = assetsValue + positionsCost + cash - debtTotal;
+    const netWorth = this.calculations.calculateNetWorth({
+      assets: assetsValue,
+      positions: positionsCost,
+      cash,
+      debts: debtTotal,
+    });
+    const monthExpenses = this.calculations.calculateMonthExpenses(
+      transactions,
+      month,
+    );
 
     const summary = [
       `Período analizado: ${from} a ${to} (moneda ${currency}).`,
-      `Ingresos del período: ${income}.`,
-      `Gastos del período: ${expenses}.`,
-      `Ahorro (ingresos - gastos): ${income - expenses}.`,
+      `Ingresos del período: ${flows.income}.`,
+      `Gastos del período: ${flows.expenses}.`,
+      `Ahorro (ingresos - gastos): ${flows.savings}.`,
       topCategories.length > 0
         ? `Mayores gastos por categoría: ${topCategories
             .map((item) => `${item.name} ${item.value}`)

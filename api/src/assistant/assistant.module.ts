@@ -8,6 +8,7 @@ import { Category } from "../categories/entities/category.entity";
 import { Debt } from "../debts/entities/debt.entity";
 import { Position } from "../positions/entities/position.entity";
 import { AiModule } from "../shared/ai/ai.module";
+import { CalculationsModule } from "../shared/calculations/calculations.module";
 import { Transaction } from "../transactions/entities/transaction.entity";
 import { User } from "../users/entities/user.entity";
 import { AssistantContextService } from "./assistant-context.service";
@@ -30,6 +31,7 @@ import { AiConversation } from "./entities/ai-conversation.entity";
       Account,
     ]),
     AiModule,
+    CalculationsModule,
   ],
   controllers: [AssistantController],
   providers: [AssistantService, AssistantContextService],

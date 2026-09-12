@@ -98,6 +98,7 @@
     ├── /patrimony/debts/detail        # detalle de una deuda (SC-006)
     ├── /transactions         # listado + alta/edición (SC-004)
     ├── /budgets              # control por categoría/período (SC-005)
+    ├── /budgets/detail       # detalle del presupuesto: ritmo del mes + movimientos (SC-005)
     ├── /reports              # resumen, export, print (SC-008)
     ├── /reports/investments  # reporte de patrimonio (SC-006/008)
     ├── /categories           # categorías de ingresos y gastos (SC-004)
@@ -182,15 +183,16 @@ Un **objetivo es una cuenta especial** (`type: "goal"`): un **sobre virtual** cu
 - **Categorías personalizadas** (FR-TRX-008): gestión en el mismo módulo (ver §4.11).
 - **CSV** (FR-TRX-009, P2) y **recurrentes** (FR-TRX-010, P2): marcados como fases futuras.
 
-### 4.5 `/budgets` — SC-005 (FR-PRE-001..006)
+### 4.5 `/budgets` — SC-005 (FR-PRE-001..007)
 
 - **Resumen mensual** (`BudgetsSummary`): `Presupuesto total`, `Gastado`, `Disponible` y `Categorías excedidas` antes del grid.
-- **Listado por período** (selector de mes): cada tarjeta = categoría con `BudgetProgress` y `StatusBadge` de estado, ordenadas por **gravedad** (`Excedido → Advertencia → Disponible`, luego mayor consumo).
+- **Listado por período** (selector de mes): cada tarjeta = categoría con `BudgetProgress` y `StatusBadge` de estado, ordenadas por **gravedad** (`Excedido → Advertencia → Disponible`, luego mayor consumo). La tarjeta entera abre el detalle (chevron); muestra "Se renueva" si el presupuesto es recurrente. La edición/eliminación se hacen desde el detalle.
 - **Métricas por presupuesto** (FR-PRE-002/004): límite, gasto acumulado, disponible/excedido y % consumido (sin límite visual a 100%: muestra 120%).
 - **Estados** (FR-PRE-003): `Disponible` (verde), `Advertencia` (ámbar), `Excedido` (rojo) en la barra **y** badge textual (NFR-UA-005). Un excedido dice **"Excedido por $X"**, nunca "Disponible" negativo. La tarjeta indica "Restan N días" para el mes en curso.
-- **Crear** (FR-PRE-001): categoría + mes + límite + moneda.
+- **Crear** (FR-PRE-001): categoría + mes + límite + moneda, con **Renovación automática** (FR-PRE-007): el presupuesto se repite cada mes con el mismo límite sin recrearlo.
 - **Copiar mes anterior** (FR-PRE-005, P1): botón "Copiar del mes anterior".
 - **Editar/eliminar** con confirmación (FR-PRE-006).
+- **Detalle** (`/budgets/detail?id=&period=`, FR-PRE-008): encabezado con categoría y mes; resumen de consumo; **Ritmo del mes** (promedio diario, proyección de cierre, disponible por día, días restantes y aviso de posible exceso); y los **movimientos de la categoría** que componen el presupuesto. Abre la edición del presupuesto.
 
 ### 4.6 Inversiones — SC-006 (FR-ACT-001..008)
 
@@ -286,6 +288,7 @@ client/
 │       ├── accounts/detail/page.tsx
 │       ├── transactions/page.tsx
 │       ├── budgets/page.tsx
+│       ├── budgets/detail/page.tsx
 │       ├── categories/page.tsx
 │       ├── reports/page.tsx
 │       ├── reports/investments/page.tsx
@@ -476,7 +479,7 @@ export interface CurrenciesResponse { default: string; supported: string[]; }
 export interface Account { id: string; name: string; type: AccountType; currency: string; initialBalance: number; currentBalance: number; archived: boolean; notes: string | null; targetAmount: number | null; targetDate: string | null; sourceAccountId: string | null; createdAt: string; updatedAt: string; }
 export interface Category { id: string; name: string; type: CategoryType; color: string; icon: string | null; archived: boolean; isSystem: boolean; }
 export interface Transaction { id: string; type: TransactionType; amount: number; currency: string; date: string; description: string; notes: string | null; accountId: string; categoryId: string | null; transferGroupId: string | null; createdAt: string; updatedAt: string; }
-export interface Budget { id: string; categoryId: string; category: Pick<Category, "id" | "name" | "color">; period: string; limit: number; currency: string; spent: number; available: number; consumedPct: number; status: BudgetStatus; }
+export interface Budget { id: string; categoryId: string; category: Pick<Category, "id" | "name" | "color">; period: string; limit: number; currency: string; recurring: boolean; spent: number; available: number; consumedPct: number; status: BudgetStatus; }
 export interface Asset { id: string; name: string; type: AssetType; currency: string; currentValue: number; valuationDate: string; archived: boolean; notes: string | null; createdAt: string; updatedAt: string; }
 export interface Valuation { id: string; assetId: string; value: number; currency: string; date: string; source: ValuationSource; createdAt: string; }
 export interface Debt { id: string; name: string; type: DebtType; balance: number; currency: string; date: string; archived: boolean; assetId: string | null; createdAt: string; updatedAt: string; }
@@ -752,6 +755,7 @@ Progresivo y validable al final de cada tanda. Cada tanda deja la app compilando
 
 ### Tanda 4 — Presupuestos — ✅ Hecho
 - Listado por período con `BudgetProgress` (colores por estado, "Excedido por $X"), resumen mensual, orden por gravedad, copiar mes y CRUD.
+- Renovación automática (`recurring`) con proyección mensual y página de detalle (ritmo del mes + movimientos de la categoría).
 - **Aceptación**: HU-003 (FR-PRE-001..006).
 
 ### Tanda 5 — Activos, inversiones y deudas — ✅ Hecho

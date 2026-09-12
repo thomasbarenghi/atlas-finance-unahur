@@ -100,6 +100,7 @@ export interface Budget {
   period: string;
   limit: number;
   currency: string;
+  recurring: boolean;
   spent: number;
   available: number;
   consumedPct: number;
@@ -380,10 +381,11 @@ export interface CreateBudgetInput {
   period: string;
   limit: number;
   currency: string;
+  recurring?: boolean;
 }
 
 export type UpdateBudgetInput = Partial<
-  Pick<CreateBudgetInput, "limit" | "currency">
+  Pick<CreateBudgetInput, "limit" | "currency" | "recurring">
 >;
 
 export interface CopyBudgetsInput {

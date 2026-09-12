@@ -1,5 +1,5 @@
 import type { PeriodRange } from "@/lib/api/types";
-import { toIsoDate } from "@/lib/format";
+import { formatMonth, monthStartFromInput, toIsoDate } from "@/lib/format";
 
 export type PeriodPreset =
   "month" | "last-month" | "3m" | "6m" | "12m" | "custom";
@@ -55,6 +55,29 @@ export const resolvePeriod = (
   );
   return { from: toIsoDate(from), to };
 };
+
+export interface MonthOption {
+  value: string;
+  label: string;
+}
+
+export const buildMonthOptions = (
+  reference: Date = new Date(),
+  count = 12,
+  monthsBack = 5,
+): MonthOption[] =>
+  Array.from({ length: count }, (_, index) => {
+    const date = new Date(
+      reference.getFullYear(),
+      reference.getMonth() + index - monthsBack,
+      1,
+    );
+    const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+      2,
+      "0",
+    )}`;
+    return { value, label: formatMonth(monthStartFromInput(value)) };
+  });
 
 export const daysRemainingInMonth = (
   periodIso: string,

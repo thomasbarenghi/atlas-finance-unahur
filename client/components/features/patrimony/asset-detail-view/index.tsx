@@ -1,17 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Archive, LineChart, Package, Pencil } from "lucide-react";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
+import {
+  DetailPage,
+  DetailPageNotFound,
+  DetailPageSkeleton,
+} from "@/components/common/detail-page";
 import { DetailMetric } from "@/components/common/detail-metric";
-import { EmptyState } from "@/components/common/empty-state";
-import { PageHeader } from "@/components/common/page-header";
 import { RowActionsMenu } from "@/components/common/row-actions-menu";
 import { SectionCard } from "@/components/common/section-card";
 import { TrendBadge } from "@/components/common/trend-badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useConfirmAction } from "@/hooks/use-confirm-action";
 import type { Asset } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
@@ -41,36 +42,17 @@ export const AssetDetailView = () => {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex flex-col gap-6">
-        <Skeleton className="h-9 w-40" />
-        <Skeleton className="h-44 w-full rounded-2xl" />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          <Skeleton className="h-16 rounded-2xl" />
-          <Skeleton className="h-16 rounded-2xl" />
-          <Skeleton className="h-16 rounded-2xl" />
-          <Skeleton className="h-16 rounded-2xl" />
-          <Skeleton className="h-16 rounded-2xl" />
-        </div>
-      </div>
-    );
+    return <DetailPageSkeleton metricCount={5} />;
   }
 
   if (!asset) {
     return (
-      <div className="flex flex-col gap-6">
-        <PageHeader title="Activo" />
-        <EmptyState
-          icon={Package}
-          title="Activo no encontrado"
-          description="El activo que buscás no existe o fue archivado."
-          action={
-            <Button asChild>
-              <Link href="/dashboard">Volver al inicio</Link>
-            </Button>
-          }
-        />
-      </div>
+      <DetailPageNotFound
+        entityLabel="Activo"
+        icon={Package}
+        title="Activo no encontrado"
+        description="El activo que buscás no existe o fue archivado."
+      />
     );
   }
 
@@ -81,44 +63,42 @@ export const AssetDetailView = () => {
     : undefined;
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title={asset.name}
-        description={`${ASSET_TYPE_LABELS[asset.type]} · ${asset.currency}${
-          asset.archived ? " · Archivado" : ""
-        }`}
-        actions={
-          <>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Editar activo"
-              onClick={() => setEditOpen(true)}
-            >
-              <Pencil />
-            </Button>
-            <RowActionsMenu
-              label={asset.name}
-              triggerLabel="Más acciones"
-              actions={[
-                {
-                  label: "Valuaciones",
-                  icon: LineChart,
-                  onSelect: () => setValuationOpen(true),
-                },
-                {
-                  label: "Archivar",
-                  icon: Archive,
-                  variant: "destructive",
-                  hidden: asset.archived,
-                  onSelect: () => archiveAction.request(asset),
-                },
-              ]}
-            />
-          </>
-        }
-      />
-
+    <DetailPage
+      title={asset.name}
+      description={`${ASSET_TYPE_LABELS[asset.type]} · ${asset.currency}${
+        asset.archived ? " · Archivado" : ""
+      }`}
+      actions={
+        <>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Editar activo"
+            onClick={() => setEditOpen(true)}
+          >
+            <Pencil />
+          </Button>
+          <RowActionsMenu
+            label={asset.name}
+            triggerLabel="Más acciones"
+            actions={[
+              {
+                label: "Valuaciones",
+                icon: LineChart,
+                onSelect: () => setValuationOpen(true),
+              },
+              {
+                label: "Archivar",
+                icon: Archive,
+                variant: "destructive",
+                hidden: asset.archived,
+                onSelect: () => archiveAction.request(asset),
+              },
+            ]}
+          />
+        </>
+      }
+    >
       <PatrimonyHero
         icon={Icon}
         title={asset.name}
@@ -127,7 +107,7 @@ export const AssetDetailView = () => {
         currency={asset.currency}
         supportingText={`Actualizado ${formatDate(asset.valuationDate)}`}
         badge={
-          change?.deltaPct !== null && change?.deltaPct !== undefined ? (
+          change?.deltaPct != null ? (
             <TrendBadge
               deltaPct={change.deltaPct}
               label="desde la valuación anterior"
@@ -144,7 +124,7 @@ export const AssetDetailView = () => {
           debt={linkedDebt.balance}
           currency={asset.currency}
           debtHref={debtHref}
-          debtLabel={`${linkedDebt.name}`}
+          debtLabel={linkedDebt.name}
         />
       ) : null}
 
@@ -178,18 +158,14 @@ export const AssetDetailView = () => {
         open={valuationOpen}
         onOpenChange={setValuationOpen}
       />
-      <ConfirmDialog
-        open={archiveAction.isOpen}
-        onOpenChange={(open) => {
-          if (!open) archiveAction.clear();
-        }}
+      <ConfirmActionDialog
+        action={archiveAction}
         title="Archivar activo"
-        description={`El activo "${archiveAction.target?.name ?? ""}" dejará de contar en tu patrimonio.`}
+        description={(target) =>
+          `El activo "${target.name}" dejará de contar en tu patrimonio.`
+        }
         confirmLabel="Archivar"
-        variant="destructive"
-        isPending={archiveAction.isPending}
-        onConfirm={archiveAction.confirm}
       />
-    </div>
+    </DetailPage>
   );
 };

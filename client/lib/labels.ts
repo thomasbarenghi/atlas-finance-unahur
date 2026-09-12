@@ -42,8 +42,27 @@ export const DEBT_TYPE_LABELS: Record<DebtType, string> = {
   other: "Otra",
 };
 
-export const ACCOUNT_TYPE_VALUES = Object.keys(
-  ACCOUNT_TYPE_LABELS,
-) as AccountType[];
-export const ASSET_TYPE_VALUES = Object.keys(ASSET_TYPE_LABELS) as AssetType[];
-export const DEBT_TYPE_VALUES = Object.keys(DEBT_TYPE_LABELS) as DebtType[];
+export const ACCOUNT_TYPE_VALUES = [
+  "cash",
+  "bank",
+  "wallet",
+  "card",
+  "other",
+  "goal",
+] as const satisfies readonly AccountType[];
+
+export const ASSET_TYPE_VALUES = [
+  "property",
+  "vehicle",
+  "cash",
+  "investment",
+  "crypto",
+  "other",
+] as const satisfies readonly AssetType[];
+
+export const DEBT_TYPE_VALUES = [
+  "loan",
+  "mortgage",
+  "card",
+  "other",
+] as const satisfies readonly DebtType[];

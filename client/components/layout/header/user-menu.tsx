@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { LogOut, Settings, User as UserIcon } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,20 +12,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
+import { useSignOut } from "@/hooks/use-sign-out";
 
 export const UserMenu = () => {
-  const { user, signOut, isSigningOut } = useAuth();
-  const router = useRouter();
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      toast.success("Sesión cerrada");
-      router.replace("/login");
-    } catch {
-      toast.error("No se pudo cerrar la sesión");
-    }
-  };
+  const { user } = useAuth();
+  const { signOut, isSigningOut } = useSignOut({
+    successMessage: "Sesión cerrada",
+  });
 
   return (
     <DropdownMenu>
@@ -59,7 +50,7 @@ export const UserMenu = () => {
         <DropdownMenuItem
           variant="destructive"
           disabled={isSigningOut}
-          onClick={handleSignOut}
+          onClick={signOut}
         >
           <LogOut /> Cerrar sesión
         </DropdownMenuItem>

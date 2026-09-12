@@ -83,7 +83,7 @@ export class AssistantService {
     if (!user) {
       throw new ApiException(
         ErrorCode.NOT_FOUND,
-        HttpStatus.PRECONDITION_FAILED,
+        HttpStatus.NOT_FOUND,
         "El usuario de desarrollo no existe; corré el seed del API",
       );
     }
@@ -167,6 +167,22 @@ export class AssistantService {
   ): AsyncGenerator<AssistantEvent> {
     const context = await this.contextService.build(userId, dto);
     const conversationId = dto.conversationId ?? randomUUID();
+
+    if (dto.conversationId) {
+      const existingConversation = await this.conversationsRepository.findOneBy(
+        {
+          id: dto.conversationId,
+          userId,
+        },
+      );
+      if (!existingConversation) {
+        throw new ApiException(
+          ErrorCode.NOT_FOUND,
+          HttpStatus.NOT_FOUND,
+          "La conversación no existe",
+        );
+      }
+    }
 
     yield {
       type: "meta",

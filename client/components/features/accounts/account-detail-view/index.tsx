@@ -4,17 +4,20 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Archive, ArchiveRestore, Pencil, Wallet } from "lucide-react";
 import { Amount } from "@/components/common/amount";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import { EmptyState } from "@/components/common/empty-state";
-import { PageHeader } from "@/components/common/page-header";
+import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
+import {
+  DetailPage,
+  DetailPageNotFound,
+  DetailPageSkeleton,
+} from "@/components/common/detail-page";
+import { DetailMetric } from "@/components/common/detail-metric";
 import { RowActionsMenu } from "@/components/common/row-actions-menu";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/common/status-badge";
 import { Button } from "@/components/ui/button";
 import { useConfirmAction } from "@/hooks/use-confirm-action";
 import type { Account, Transaction } from "@/lib/api/types";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, formatPercentPoints } from "@/lib/format";
 import { goalAccountProgress } from "@/lib/goal-account";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/labels";
 import { useArchiveAccount, useRestoreAccount } from "@/lib/query/accounts";
@@ -23,7 +26,6 @@ import { AccountFormDialog } from "@/components/features/accounts/account-form-d
 import { AccountIcon } from "@/components/features/accounts/account-icon";
 import { TransactionFormDialog } from "@/components/features/transactions/transaction-form-dialog";
 import { TransactionList } from "@/components/features/transactions/transaction-list";
-import { AccountStat } from "./components/account-stat";
 import { useAccountDetail } from "./hooks/use-account-detail";
 
 export const AccountDetailView = () => {
@@ -70,35 +72,17 @@ export const AccountDetailView = () => {
   );
 
   if (isLoading) {
-    return (
-      <div className="flex flex-col gap-6">
-        <Skeleton className="h-9 w-40" />
-        <Skeleton className="h-44 w-full rounded-2xl" />
-        <div className="grid grid-cols-3 gap-3">
-          <Skeleton className="h-16 rounded-2xl" />
-          <Skeleton className="h-16 rounded-2xl" />
-          <Skeleton className="h-16 rounded-2xl" />
-        </div>
-        <Skeleton className="h-64 w-full rounded-2xl" />
-      </div>
-    );
+    return <DetailPageSkeleton />;
   }
 
   if (!account) {
     return (
-      <div className="flex flex-col gap-6">
-        <PageHeader title="Cuenta" />
-        <EmptyState
-          icon={Wallet}
-          title="Cuenta no encontrada"
-          description="La cuenta que buscás no existe o fue eliminada."
-          action={
-            <Button asChild>
-              <Link href="/dashboard">Volver al inicio</Link>
-            </Button>
-          }
-        />
-      </div>
+      <DetailPageNotFound
+        entityLabel="Cuenta"
+        icon={Wallet}
+        title="Cuenta no encontrada"
+        description="La cuenta que buscás no existe o fue eliminada."
+      />
     );
   }
 
@@ -109,42 +93,40 @@ export const AccountDetailView = () => {
     : undefined;
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title={account.name}
-        description={`${ACCOUNT_TYPE_LABELS[account.type]} · ${account.currency}`}
-        actions={
-          <>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Editar cuenta"
-              onClick={() => setEditOpen(true)}
-            >
-              <Pencil />
-            </Button>
-            <RowActionsMenu
-              label={account.name}
-              triggerLabel="Más acciones"
-              actions={[
-                account.archived
-                  ? {
-                      label: "Restaurar",
-                      icon: ArchiveRestore,
-                      onSelect: () => archiveAction.request(account),
-                    }
-                  : {
-                      label: "Archivar",
-                      icon: Archive,
-                      variant: "destructive",
-                      onSelect: () => archiveAction.request(account),
-                    },
-              ]}
-            />
-          </>
-        }
-      />
-
+    <DetailPage
+      title={account.name}
+      description={`${ACCOUNT_TYPE_LABELS[account.type]} · ${account.currency}`}
+      actions={
+        <>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Editar cuenta"
+            onClick={() => setEditOpen(true)}
+          >
+            <Pencil />
+          </Button>
+          <RowActionsMenu
+            label={account.name}
+            triggerLabel="Más acciones"
+            actions={[
+              account.archived
+                ? {
+                    label: "Restaurar",
+                    icon: ArchiveRestore,
+                    onSelect: () => archiveAction.request(account),
+                  }
+                : {
+                    label: "Archivar",
+                    icon: Archive,
+                    variant: "destructive",
+                    onSelect: () => archiveAction.request(account),
+                  },
+            ]}
+          />
+        </>
+      }
+    >
       <div className="from-primary/10 to-background flex flex-col items-center gap-3 rounded-2xl border bg-gradient-to-b p-6 text-center">
         <AccountIcon type={account.type} className="size-14 [&_svg]:size-7" />
         <div className="flex flex-col gap-1">
@@ -172,7 +154,7 @@ export const AccountDetailView = () => {
       {goalProgress ? (
         <>
           <div className="grid grid-cols-3 gap-3">
-            <AccountStat
+            <DetailMetric
               label="Acumulado"
               value={
                 <Amount
@@ -182,7 +164,7 @@ export const AccountDetailView = () => {
                 />
               }
             />
-            <AccountStat
+            <DetailMetric
               label="Objetivo"
               value={
                 <Amount
@@ -192,11 +174,11 @@ export const AccountDetailView = () => {
                 />
               }
             />
-            <AccountStat
+            <DetailMetric
               label="Falta"
               value={
                 <Amount
-                  value={Math.max(0, goalProgress.target - goalProgress.saved)}
+                  value={goalProgress.remaining}
                   currency={account.currency}
                   className="font-normal"
                 />
@@ -207,7 +189,7 @@ export const AccountDetailView = () => {
           <div className="flex flex-col gap-2">
             <Progress value={goalProgress.progressPct} className="h-2" />
             <span className="text-muted-foreground text-xs">
-              {goalProgress.progressPct.toFixed(0)}% de la meta
+              {formatPercentPoints(goalProgress.progressPct)} de la meta
             </span>
           </div>
 
@@ -230,7 +212,7 @@ export const AccountDetailView = () => {
       ) : (
         <>
           <div className="grid grid-cols-3 gap-3">
-            <AccountStat
+            <DetailMetric
               label="Saldo inicial"
               value={
                 <Amount
@@ -240,7 +222,7 @@ export const AccountDetailView = () => {
                 />
               }
             />
-            <AccountStat
+            <DetailMetric
               label="Ingresos"
               value={
                 <Amount
@@ -250,7 +232,7 @@ export const AccountDetailView = () => {
                 />
               }
             />
-            <AccountStat
+            <DetailMetric
               label="Gastos"
               value={
                 <Amount
@@ -302,26 +284,19 @@ export const AccountDetailView = () => {
         accounts={accounts}
         categories={categories}
       />
-      <ConfirmDialog
-        open={archiveAction.isOpen}
-        onOpenChange={(open) => {
-          if (!open) archiveAction.clear();
-        }}
-        title={
-          archiveAction.target?.archived
-            ? "Restaurar cuenta"
-            : "Archivar cuenta"
+      <ConfirmActionDialog
+        action={archiveAction}
+        title={(target) =>
+          target.archived ? "Restaurar cuenta" : "Archivar cuenta"
         }
-        description={
-          archiveAction.target?.archived
-            ? `La cuenta "${archiveAction.target?.name ?? ""}" volverá a estar disponible para nuevos movimientos.`
-            : `La cuenta "${archiveAction.target?.name ?? ""}" conservará su historial y no admitirá nuevos movimientos.`
+        description={(target) =>
+          target.archived
+            ? `La cuenta "${target.name}" volverá a estar disponible para nuevos movimientos.`
+            : `La cuenta "${target.name}" conservará su historial y no admitirá nuevos movimientos.`
         }
-        confirmLabel={archiveAction.target?.archived ? "Restaurar" : "Archivar"}
-        variant={archiveAction.target?.archived ? "default" : "destructive"}
-        isPending={archiveAction.isPending}
-        onConfirm={archiveAction.confirm}
+        confirmLabel={(target) => (target.archived ? "Restaurar" : "Archivar")}
+        variant={(target) => (target.archived ? "default" : "destructive")}
       />
-    </div>
+    </DetailPage>
   );
 };

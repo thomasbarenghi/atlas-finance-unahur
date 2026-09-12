@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { budgetEndpoints } from "@/lib/api/endpoints";
-import type { CreateBudgetInput, UpdateBudgetInput } from "@/lib/api/types";
+import type {
+  CopyBudgetsInput,
+  CreateBudgetInput,
+  UpdateBudgetInput,
+} from "@/lib/api/types";
 import { queryKeys } from "./keys";
 
 const invalidateBudgetViews = (
@@ -44,7 +48,7 @@ export const useDeleteBudget = () => {
 export const useCopyPreviousBudgets = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { period: string; sourcePeriod?: string }) =>
+    mutationFn: (input: CopyBudgetsInput) =>
       budgetEndpoints.copyPrevious(input),
     onSuccess: () => invalidateBudgetViews(queryClient),
   });
