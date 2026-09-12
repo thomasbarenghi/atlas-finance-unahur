@@ -36,6 +36,9 @@ export class Budget {
   @Column({ type: "char", length: 3 })
   currency: string;
 
+  @Column({ type: "boolean", default: false })
+  recurring: boolean;
+
   @CreateDateColumn({ name: "created_at", type: "timestamptz" })
   createdAt: Date;
 

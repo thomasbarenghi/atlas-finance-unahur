@@ -80,7 +80,7 @@ Frontend (Next.js) ───▶ │  NestJS (monolito)           │
                         │   auth, users, accounts,     │
                         │   transactions, categories,  │
                         │   budgets, assets, debts,    │
-                        │   positions, quotes, goals,  │
+                        │   positions, quotes,         │
                         │   reports, dashboard,        │
                         │   assistant                  │
                         │                              │
@@ -162,7 +162,6 @@ api/
 │   ├── debts/
 │   ├── positions/
 │   ├── quotes/
-│   ├── goals/
 │   ├── reports/
 │   ├── dashboard/
 │   ├── assistant/
@@ -196,7 +195,7 @@ api/
 └── tsconfig.json
 ```
 
-**Nota sobre la estructura por módulo** (se repite en `accounts`, `transactions`, `categories`, `budgets`, `debts`, `positions`, `quotes`, `goals`, `reports`, `dashboard`): cada uno contiene `*.module.ts`, `*.controller.ts`, `*.service.ts`, `dto/` y, cuando corresponde, `entities/`. El patrón es:
+**Nota sobre la estructura por módulo** (se repite en `accounts`, `transactions`, `categories`, `budgets`, `debts`, `positions`, `quotes`, `reports`, `dashboard`): cada uno contiene `*.module.ts`, `*.controller.ts`, `*.service.ts`, `dto/` y, cuando corresponde, `entities/`. El patrón es:
 
 ```
 <feature>/
@@ -243,14 +242,17 @@ Tablas derivadas de las entidades del FRD (§10) más las necesarias para trazab
 | id | uuid PK | |
 | user_id | uuid FK | |
 | name | text | |
-| type | text | 'cash' | 'bank' | 'wallet' | 'card' | 'other' |
+| type | text | 'cash' | 'bank' | 'wallet' | 'card' | 'other' | 'goal' |
 | currency | char(3) | |
-| initial_balance | numeric(18,4) | |
+| initial_balance | numeric(18,4) | en objetivos, monto asignado |
 | archived | boolean | default false |
 | notes | text NULL | |
+| target_amount | numeric(18,4) NULL | solo objetivos (FR-OBJ-001) |
+| target_date | date NULL | solo objetivos |
+| source_account_id | uuid FK NULL | cuenta origen donde vive el dinero del objetivo |
 | created_at / updated_at | timestamptz | |
 
-> Saldo actual = `initial_balance` + Σ(movimientos) en moneda de la cuenta (calculado, FR-CUE-004).
+> Saldo actual = `initial_balance` + Σ(movimientos) en moneda de la cuenta (calculado, FR-CUE-004). Para `type = 'goal'` el saldo es el `initial_balance` (monto asignado) y la cuenta **no suma al patrimonio neto** (el dinero ya está en `source_account_id`).
 
 ### 5.4 `categories` (FR-TRX-008)
 | Columna | Tipo | Notas |
@@ -291,8 +293,11 @@ Tablas derivadas de las entidades del FRD (§10) más las necesarias para trazab
 | period | date | primer día del mes |
 | limit | numeric(18,4) | |
 | currency | char(3) | |
+| recurring | boolean | default `false`; renueva el presupuesto cada mes |
 | created_at / updated_at | timestamptz | |
 | UNIQUE(user_id, category_id, period) | | |
+
+> **Renovación automática (FR-PRE-007):** un presupuesto con `recurring = true` actúa como plantilla desde su `period` en adelante. Al listar un mes, el API proyecta la plantilla vigente de cada categoría (la más reciente con `period <= mes`) salvo que exista un presupuesto explícito para ese `mes` + categoría, que la reemplaza. El `spent`/`status` proyectado se calcula con las transacciones del mes consultado. Desactivar `recurring` detiene la renovación a partir del mes de la plantilla.
 
 ### 5.7 `assets` (FR-ACT-001..007)
 | Columna | Tipo | Notas |
@@ -363,17 +368,11 @@ Tablas derivadas de las entidades del FRD (§10) más las necesarias para trazab
 
 > Solo se guarda el último precio por símbolo; ante falla externa se conserva el último válido con su fecha real (FR-MER-004).
 
-### 5.12 `goals` (FR-OBJ-001..004)
-| Columna | Tipo | Notas |
-| :--- | :--- | :--- |
-| id | uuid PK | |
-| user_id | uuid FK | |
-| name | text | |
-| target_amount | numeric(18,4) | |
-| saved_amount | numeric(18,4) | acumulado (FR-OBJ-003) |
-| currency | char(3) | |
-| target_date | date NULL | |
-| created_at / updated_at | timestamptz | |
+### 5.12 Objetivos (FR-OBJ-001..004)
+
+Los objetivos **ya no tienen tabla propia ni módulo `goals`**: se modelan como cuentas con `type = 'goal'` (`target_amount`, `target_date`, `source_account_id` en §5.3). El monto acumulado es el `initial_balance` de la cuenta objetivo.
+
+> **Separación Cuentas vs. Metas (concepto, no tabla).** En la base una meta *es* una cuenta, pero en el producto es un **concepto distinto**: un "sobre virtual" asociado a una cuenta origen, que **no suma al patrimonio neto** (el dinero ya está contado en `source_account_id`) y que el cliente presenta en una sección y ruta propias (`/goals/detail`) separadas de las cuentas comunes (`/accounts/detail`). Reglas: (1) `type = 'goal'` no admite movimientos como cuenta común; (2) su saldo (`initial_balance`) es el monto asignado; (3) se excluye de `kpis.accounts`/patrimonio; (4) `progressPct`/`status` los calcula el cliente a partir de `target_amount`/`target_date`.
 
 ### 5.13 `ai_conversations` (FR-IA-009)
 | Columna | Tipo | Notas |
@@ -501,16 +500,13 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 | GET | `/quotes` | catálogo con precio, proveedor, fecha y bandera de antigüedad (FR-MER-001..006) |
 
 ### 7.8 Goals
-| Método | Ruta | FR |
-| :--- | :--- | :--- |
-| GET / POST | `/goals` | FR-OBJ-001 |
-| PATCH | `/goals/:id` | FR-OBJ-003 |
-| DELETE | `/goals/:id` | — |
+
+Los objetivos se gestionan con los endpoints de **Accounts** (`type: "goal"`, §7.6/§5.3): **no hay `/goals`**. Es una separación de producto, no de contrato: el cliente los consume como **Metas** (sección y detalle propios) y los endpoints `GET/POST/PATCH /accounts` devuelven `targetAmount`, `targetDate`, `sourceAccountId` para `type: "goal"`. Los `goal` **no** entran en `kpis.accounts` ni en `netWorthComposition` (no suman al patrimonio) — ver §5.12 y §7.7.
 
 ### 7.9 Dashboard
 | Método | Ruta | FR |
 | :--- | :--- | :--- |
-| GET | `/dashboard?from&to&currency=` | agrega en una sola llamada: KPIs (patrimonio, ingresos, gastos, ahorro), series de patrimonio, ingresos vs gastos por mes, gastos por categoría, composición de activos y alertas de presupuesto (FR-DAS-001..007) |
+| GET | `/dashboard?from&to&currency=` | agrega en una sola llamada: KPIs (patrimonio, ingresos, gastos, ahorro, activos, cuentas, deudas e inversiones con sus variaciones), series de patrimonio, evolución del valor de activos, ingresos vs gastos por mes, gastos por categoría, cambios por categoría vs. período anterior, composición de activos (base bruta con cuentas netas, sin deudas), inversiones financieras y alertas de presupuesto (FR-DAS-001..007). `kpis.netWorth = activos + inversiones + cuentas netas − deudas`; la suma de `netWorthComposition` es el activo bruto y restando `kpis.debts` reconstruye el patrimonio neto |
 
 ### 7.10 Reports
 | Método | Ruta | FR |
@@ -550,7 +546,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 - **IDs:** `uuid` v4.
 - **Fechas:** los campos `date` viajan como `"YYYY-MM-DD"`; los `timestamptz` como ISO 8601 UTC (`"2026-09-11T14:30:00.000Z"`).
 - **Decimales:** `numeric` se serializa como **number** (no string). Máx. 4 decimales para montos; 8 para cantidades y cotizaciones. Implementar un `transformer` de TypeORM (`parseFloat` al leer) o mappers de salida.
-- **Paginación:** query `page` (default 1) y `pageSize` (default 20, máx. 100). Respuesta: `{ items, page, pageSize, total, totalPages }`. Son paginados: `/transactions` y `/assistant/conversations`. El resto de listados (`/accounts`, `/categories`, `/budgets`, `/assets`, `/assets/:id/valuations`, `/debts`, `/positions`, `/quotes`, `/goals`) devuelven un **array** completo.
+- **Paginación:** query `page` (default 1) y `pageSize` (default 20, máx. 100). Respuesta: `{ items, page, pageSize, total, totalPages }`. Son paginados: `/transactions` y `/assistant/conversations`. El resto de listados (`/accounts`, `/categories`, `/budgets`, `/assets`, `/assets/:id/valuations`, `/debts`, `/positions`, `/quotes`) devuelven un **array** completo.
 - **Filtros de query:** todos opcionales; `from`/`to` en `YYYY-MM-DD` inclusive; `search` busca en `description` y `notes` con `ILIKE`.
 - **Errores:** `{ statusCode, code, message, fieldErrors? }`; `fieldErrors` es `{ [campo]: string[] }` para validación (para mapeo a formularios). El filtro global nunca expone detalles internos (NFR-SEG-010).
 - **Auth:** cookie `HttpOnly` o `Authorization: Bearer`. Los endpoints `@Public()` son: `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/forgot-password`, `/auth/reset-password`, `/health` y los assets de Swagger.
@@ -560,7 +556,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 
 | Concepto | Valores |
 | :--- | :--- |
-| `AccountType` | `cash` \| `bank` \| `wallet` \| `card` \| `other` |
+| `AccountType` | `cash` \| `bank` \| `wallet` \| `card` \| `other` \| `goal` |
 | `TransactionType` | `income` \| `expense` \| `transfer` |
 | `CategoryType` | `income` \| `expense` |
 | `AssetType` | `property` \| `vehicle` \| `cash` \| `investment` \| `crypto` \| `other` |
@@ -598,13 +594,19 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 
 **Accounts**
 ```jsonc
-// POST /accounts — body
+// POST /accounts — body (cuenta normal)
 { "name": "Caja", "type": "cash", "currency": "ARS", "initialBalance": 50000, "notes": null }
+// POST /accounts — body (objetivo)
+{ "name": "Vacaciones", "type": "goal", "currency": "ARS", "initialBalance": 120000,
+  "targetAmount": 500000, "targetDate": "2026-06-01", "sourceAccountId": "uuid-banco" }
 // Account
 { "id": "uuid", "name": "Caja", "type": "cash", "currency": "ARS",
   "initialBalance": 50000, "currentBalance": 73500, "archived": false, "notes": null,
+  "targetAmount": null, "targetDate": null, "sourceAccountId": null,
   "createdAt": "ISO", "updatedAt": "ISO" }
 ```
+
+- Los **objetivos** (`type: "goal"`) son **sobres virtuales** asociados a una cuenta origen (`sourceAccountId`): su `currentBalance` es el monto asignado (`initialBalance`) y **no suman al patrimonio neto** (el dinero ya está contado en la cuenta origen). `targetAmount`/`targetDate` son la meta.
 
 **Categories**
 ```jsonc
@@ -630,7 +632,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
   "description": "Supermercado", "notes": null, "accountId": "uuid", "categoryId": "uuid",
   "transferGroupId": null, "createdAt": "ISO", "updatedAt": "ISO" }
 ```
-- `amount` siempre positivo; el signo lo determina `type` (CAL-002/003).
+- `amount` es positivo en `income`/`expense` (el signo lo determina `type`, CAL-002/003). En transferencias, cada lado se persiste con signo opuesto: negativo en la cuenta origen y positivo en la destino.
 - `transferGroupId` no nulo agrupa los dos lados de una transferencia.
 - `DELETE /transactions/:id` de una transferencia elimina **ambos lados** del grupo.
 - `PATCH /transactions/:id` de una transferencia edita **ambos lados** atómicamente (si cambian `accountId`/`transferAccountId`, se reasignan).
@@ -639,10 +641,13 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 **Budgets**
 ```jsonc
 // POST /budgets — body
-{ "categoryId": "uuid", "period": "2026-09-01", "limit": 80000, "currency": "ARS" }
+{ "categoryId": "uuid", "period": "2026-09-01", "limit": 80000, "currency": "ARS", "recurring": true }
+// PATCH /budgets/:id — body (parcial)
+{ "limit": 90000, "currency": "ARS", "recurring": false }
 // GET /budgets?period=2026-09 → Budget[]
+// Incluye los presupuestos explícitos del mes y las proyecciones de los recurrentes vigentes.
 { "id": "uuid", "categoryId": "uuid", "category": { "id": "uuid", "name": "Comida", "color": "#ef4444" },
-  "period": "2026-09-01", "limit": 80000, "currency": "ARS",
+  "period": "2026-09-01", "limit": 80000, "currency": "ARS", "recurring": true,
   "spent": 65000, "available": 15000, "consumedPct": 81.25, "status": "warning" }
 // POST /budgets/copy-previous — body
 { "period": "2026-09-01", "sourcePeriod": "2026-08-01" }   // sourcePeriod opcional (default: mes anterior)
@@ -690,14 +695,8 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 - `isStale` se calcula con `QUOTE_STALE_MS` (true si `now − fetchedAt > umbral`); la cotización se conserva aunque sea vieja (FR-MER-004/005).
 
 **Goals**
-```jsonc
-// POST /goals — body
-{ "name": "Vacaciones", "targetAmount": 500000, "currency": "ARS", "targetDate": "2027-01-01" }
-// Goal
-{ "id": "uuid", "name": "Vacaciones", "targetAmount": 500000, "savedAmount": 120000,
-  "currency": "ARS", "targetDate": "2027-01-01", "progressPct": 24, "status": "in_progress",
-  "createdAt": "ISO", "updatedAt": "ISO" }
-```
+
+Los objetivos se crean/editan como cuentas `type: "goal"` (ver **Accounts** arriba y §5.3). El cliente calcula `progressPct` y `status` a partir de `initialBalance` (acumulado), `targetAmount` y `targetDate`.
 
 **Dashboard**
 ```jsonc
@@ -709,12 +708,31 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
     "netWorth": 1200000, "netWorthDeltaPct": 3.4,
     "income": 900000, "incomeDeltaPct": 5.1,
     "expenses": 640000, "expensesDeltaPct": -2.0,
-    "savings": 260000, "savingsDeltaPct": 12.0
+    "savings": 260000, "savingsDeltaPct": 12.0, "savingsRateDeltaPp": 3.2,
+    "assets": 102000000, "assetsDeltaPct": 1.8,
+    "debts": 42000000, "debtsDeltaPct": -2.1,
+    "accounts": 2262000, "accountsDeltaPct": null, "investmentsDeltaPct": 19.6
   },
-  "netWorthSeries": [{ "date": "2026-06-30", "value": 1000000 }],
+  "netWorthSeries": [{ "date": "2026-06-30", "value": 1000000, "assets": 103000000, "debts": 42000000 }],
+  "assetsValueByMonth": [{ "month": "2026-06", "value": 97000000 }],
   "incomeExpenseByMonth": [{ "month": "2026-06", "income": 300000, "expenses": 210000 }],
   "expensesByCategory": [{ "categoryId": "uuid", "name": "Comida", "color": "#ef4444", "value": 120000 }],
+  "categoryChanges": [{ "categoryId": "uuid", "name": "Comida", "current": 120000, "previous": 202000, "deltaPct": -40.6 }],
   "assetsComposition": [{ "type": "property", "value": 90000000 }],
+  "netWorthComposition": [
+    { "kind": "property", "label": "Propiedades", "value": 90000000 },
+    { "kind": "vehicle", "label": "Vehículos", "value": 12000000 },
+    { "kind": "investment", "label": "Inversiones", "value": 5680000 },
+    { "kind": "account", "label": "Cuentas", "value": 2262000 }
+  ],
+  "investments": {
+    "totalValue": 5680000, "totalCost": 4750000, "profitLoss": 930000, "profitLossPct": 19.6, "staleQuotes": 1,
+    "positions": [{
+      "symbol": "BTC", "instrument": "Bitcoin", "quantity": 0.05,
+      "originalCurrency": "USD", "originalValue": 3200, "originalCost": 2750, "originalProfitLoss": 450,
+      "value": 3200000, "profitLossPct": 16.4, "isStale": false, "quoteDate": "2026-09-12T12:00:00.000Z"
+    }]
+  },
   "budgetAlerts": [{ "budgetId": "uuid", "categoryName": "Comida", "consumedPct": 95, "status": "warning" }]
 }
 ```
@@ -737,6 +755,8 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 
 `POST /assistant/messages` responde `text/event-stream` (SSE). **El cliente debe usar `fetch` + `ReadableStream`, no `EventSource`**, porque `EventSource` no permite el header `Authorization` (necesario en nativo) ni el cuerpo de request.
 
+**Proveedor implementado: DeepSeek** (OpenAI-compatible). El backend llama a `POST {AI_BASE_URL}/chat/completions` con `Authorization: Bearer {AI_API_KEY}`, `stream: true` y `model: {AI_MODEL}` (default `deepseek-chat`), y reemite el texto como eventos SSE. La API key **nunca** sale del servidor (NFR-SEG-007); el cliente no conoce credenciales del proveedor y con el modo mock (`NEXT_PUBLIC_USE_MOCKS`, default) ni siquiera toca el endpoint.
+
 ```jsonc
 // Request body
 { "question": "¿En qué gasté más este mes?", "conversationId": null,
@@ -747,9 +767,11 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 event: meta    data: { "conversationId": "uuid", "period": {...}, "currency": "ARS", "sources": ["transactions", "budgets"] }
 event: token   data: { "delta": "Este mes " }
 event: token   data: { "delta": "gastaste más en..." }
+event: action  data: { "name": "createAccount", "status": "executed", "message": "Creé la cuenta \"Banco Galicia\" en ARS.", "entity": { "id": "uuid", "name": "Banco Galicia", "type": "bank", "currency": "ARS", "initialBalance": 0 } }
 event: done    data: { "conversationId": "uuid", "insufficient": false }
 event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 ```
+- **Tool calling:** `POST /assistant/messages` habilita *function calling* del proveedor. El asistente puede crear y editar cuentas con las tools `listAccounts` (lectura), `createAccount` y `updateAccount`. Las tools reutilizan `AccountsService`; no duplican lógica de dominio. Al ejecutar una mutación se emite `event: action` con el resultado (la UI lo muestra como tarjeta en el chat).
 - Si la IA está deshabilitada → `403 AI_DISABLED` (JSON, no stream).
 - Si faltan datos verificables → `event: done` con `insufficient: true` y texto explicativo (FR-IA-011).
 - El servidor persiste pregunta, respuesta y `contextMeta` en `ai_conversations` al finalizar (FR-IA-009).
@@ -823,7 +845,19 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 4. El prompt de sistema es fijo y **separado** de los datos del usuario, que viajan como datos no confiables (FR-IA-010). Se valida la salida antes de presentarla (NFR-SEG-012).
 5. Adjunta metadatos: período, moneda y fuentes consideradas (FR-IA-005).
 6. Declara "información insuficiente" cuando los datos no permiten conclusión verificable (FR-IA-011).
-7. **No** expone operaciones de escritura (el contrato del asistente no permite crear/editar/eliminar; FR-IA-006). Respuesta marcada como informativa (FR-IA-008).
+7. **No** expone operaciones de escritura arbitrarias (FR-IA-006). **Excepción implementada:** tools acotadas de cuentas (`createAccount`/`updateAccount`) que reutilizan `AccountsService`; toda tool resuelve la propiedad desde el usuario autenticado y nunca acepta `userId` del modelo. Respuesta marcada como informativa (FR-IA-008).
+
+**Implementación actual (DeepSeek):**
+
+- `shared/ai/ai.service.ts` (`AiModule`): cliente del proveedor (DeepSeek/OpenAI-compatible) con `axios` `responseType: "stream"`, timeout de `AI_TIMEOUT_MS` y aborto; expone `streamChat(messages)` como `AsyncGenerator<string>`. Mapea fallas a `AI_UNAVAILABLE` (NFR-SEG-009).
+- `shared/calculations/calculations.service.ts` (`CalculationsModule`): fuente única de las reglas CAL-001..004 (flujo del período, gastos del mes, consumo/estado de presupuesto, saldo actual por movimientos, última valuación por activo y patrimonio neto). El asistente la reutiliza en lugar de repetir fórmulas. Cubierta por pruebas unitarias.
+- `assistant/assistant-context.service.ts`: arma el **contexto mínimo** del usuario consultando sus entidades (transacciones del período, top categorías de gasto, presupuestos del mes, patrimonio estimado con valuaciones/deudas/posiciones y saldos actuales `initial_balance + Σ movimientos`) usando `calculations.service`, y produce un resumen textual. *Deviación conocida:* hoy consulta repositorios directamente porque los dominios de finanzas del API todavía son esqueletos (solo entidades); cuando existan los servicios primarios, este armado debe moverse a un orquestador que los coordine (ver `orchestrator-domain-architecture`).
+- `assistant/assistant.service.ts`: `assertAiEnabled`, persistencia en `ai_conversations` y `answer()` como generador de eventos (`meta`/`token`/`done`). El **prompt de sistema es fijo** y declara explícitamente el alcance: solo un resumen agregado del período indicado, sin detalle de movimientos ni historial de otros períodos; ante preguntas fuera de ese alcance debe aclararlo (FR-IA-010/011).
+- `assistant/assistant.controller.ts`: `POST /assistant/messages` (SSE), `GET /assistant/conversations` (paginado), `GET/DELETE /assistant/conversations/:id`, `DELETE /assistant/conversations`. Si `aiEnabled === false` responde `403 AI_DISABLED` en JSON (no abre el stream).
+- **Acceso dev del stream**: `POST /assistant/messages` está marcado `@Public()` pero resuelve el usuario así: si hay sesión válida la usa; si no, y `NODE_ENV !== "production"`, cae al usuario demo `AI_DEV_USER_EMAIL`; en producción sin sesión responde `401 UNAUTHENTICATED`. Permite probar el asistente con el cliente en modo mock sin implementar todo el auth. Los endpoints de historial siguen requiriendo JWT.
+- El cliente consume el stream en `client/lib/api/assistant-stream.ts` (mock con `NEXT_PUBLIC_USE_MOCKS`).
+
+> Estado: el API aún no expone el resto de los dominios (accounts, transactions, budgets, etc. solo tienen entidades), por lo que el asistente no es ejecutable end-to-end hasta completar auth/DB y los servicios de finanzas. La key `AI_API_KEY` va en `api/.env`.
 
 ### 9.3 Servicio de correo (actor "Servicio de correo")
 - Envío de enlace de recuperación con token temporal. Ante falla, informa que no pudo enviarse y permite reintento (dependencia §11 FRD).
@@ -899,11 +933,14 @@ MARKET_API_URL=...
 MARKET_API_KEY=...
 MARKET_REFRESH_INTERVAL_MS=300000
 
-# IA
-AI_PROVIDER=openai             # openai | anthropic
-AI_API_KEY=...
-AI_MODEL=...
-AI_TIMEOUT_MS=15000
+# IA (DeepSeek por defecto; OpenAI-compatible)
+# La API key SIEMPRE vive en el servidor: nunca exponerla con NEXT_PUBLIC_* en el cliente.
+AI_PROVIDER=deepseek           # deepseek | openai
+AI_API_KEY=...                 # sk-... (solo en .env del backend)
+AI_BASE_URL=https://api.deepseek.com
+AI_MODEL=deepseek-chat         # deepseek-chat | deepseek-reasoner (u otro)
+AI_TIMEOUT_MS=30000
+AI_DEV_USER_EMAIL=demo@atlassfin.app   # solo dev: usuario del stream sin JWT
 
 # Correo
 SMTP_HOST=...
@@ -945,46 +982,48 @@ QUOTE_STALE_MS=3600000
 
 ## 14. Plan de trabajo por tandas
 
-Cada tanda deja la API compilando (`npm run lint && npm run build`) y con migración + tests asociados. Alineado con el plan del front (`frontend.md`).
+Cada tanda deja la API compilando (`npm run lint && npm run build`) y con migración + tests asociados. Alineado con el plan del front (`frontend.md`). El cliente avanza sobre el **mock** (§11 de ese doc) mientras la API se completa; hoy el API real es un esqueleto (auth/health/entidades + `assistant`). Estado por tanda abajo.
 
-### Tanda 0 — Setup del proyecto
+### Tanda 0 — Setup del proyecto — ◐ Base hecha
 - Scaffold NestJS, config global (`@nestjs/config`), `ValidationPipe`, `Logger`, Swagger, prefijo `/api`, CORS, cookies.
 - TypeORM + DataSource + primeras migraciones (usuarios, sesiones, cuentas, categorías, movimientos, cotizaciones, exchange_rates).
 - `common/` (guards, decorators, filters, interceptors).
 - **Aceptación**: API levanta, migra y responde `/api/health`.
 
-### Tanda 1 — Autenticación
+### Tanda 1 — Autenticación — ◐ Parcial
 - `auth` + `users`: register, login, refresh, logout, me; `PATCH /users/me`; `GET /currencies`; argon2; JWT strategy; cookies + `Authorization: Bearer`; throttler en login.
 - `forgot-password`/`reset-password` + `mail` service (FR-AUT-003).
 - **Aceptación**: FR-AUT-001..006, NFR-SEG-003/004/010.
 
-### Tanda 2 — Cuentas, categorías y movimientos
+### Tanda 2 — Cuentas, categorías y movimientos — ⬜ Pendiente
 - CRUD `accounts`, `categories`, `transactions` con filtros y búsqueda.
 - Transferencias atómicas (FR-TRX-004/005) y exclusión de consolidados (CAL-003).
 - **Aceptación**: HU-001, HU-002, FR-CUE-*, FR-TRX-001..008.
 
-### Tanda 3 — Cálculos, dashboard y reportes
+### Tanda 3 — Cálculos, dashboard y reportes — ⬜ Pendiente
 - `calculations` + `fx` (CAL-001..009), `dashboard`, `reports` (summary, by-category, net-worth, budgets, export CSV).
+- Los campos que el cliente ya consume (`kpis.accounts`, `savingsRateDeltaPp`, `categoryChanges`, `netWorthComposition`, `investments.positions` con moneda original) están en el contrato §7.7 y el mock; la API debe implementarlos.
 - **Aceptación**: FR-DAS-*, FR-REP-001..006.
 
-### Tanda 4 — Presupuestos
+### Tanda 4 — Presupuestos — ⬜ Pendiente
 - CRUD `budgets`, cálculo de consumo y estados (FR-PRE-001..006), copiar mes anterior.
 - **Aceptación**: HU-003.
 
-### Tanda 5 — Activos, deudas, posiciones y mercado
+### Tanda 5 — Activos, deudas, posiciones y mercado — ⬜ Pendiente
 - `assets` + `valuations` + `debts` + `positions` + `quotes`.
 - `market` (proveedor) + `market-scheduler` (caché, límites, último válido).
 - **Aceptación**: HU-004, HU-005, FR-ACT-*, FR-MER-*.
 
-### Tanda 6 — Objetivos y seed
-- `goals` + `seed` de datos de demo.
+### Tanda 6 — Objetivos y seed — ◐ Parcial
+- **Los objetivos NO son un módulo `goals`**: se modelan como **cuentas `type: "goal"`** (`target_amount`/`target_date`/`source_account_id`, §5.3), con reglas propias: el saldo es el monto asignado y **no suman al patrimonio neto** (es un "sobre virtual" cuyo dinero ya está en la cuenta origen). Es una **separación de producto, no de tabla**: en el cliente aparecen como **Metas**, bloque y ruta propios (`/goals/detail`), distintos de **Cuentas** (`/accounts/detail`).
+- `seed` de datos de demo (incluye una meta).
 - **Aceptación**: FR-OBJ-001..004, FRD §12.
 
-### Tanda 7 — Asistente IA
+### Tanda 7 — Asistente IA — ◐ Parcial
 - `assistant` + `ai`: conversaciones, mensajes con stream SSE (contrato §7.16), contexto mínimo, metadatos, insuficiencia.
 - **Aceptación**: HU-006, FR-IA-001..011, NFR-SEG-011/012.
 
-### Tanda 8 — Endurecimiento
+### Tanda 8 — Endurecimiento — ⬜ Pendiente
 - Tests e2e P0, rate limiting completo, timeout en salidas externas, logging seguro, validación de host.
 - **Aceptación**: NFR-SEG-005..010, NFR-PR-003/004, NFR-CAL-004.
 
