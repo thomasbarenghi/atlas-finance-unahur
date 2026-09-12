@@ -1,7 +1,12 @@
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { Money } from "@/components/common/money";
 import { WarningBadge } from "@/components/common/warning-badge";
-import { formatCurrency, formatPercent, formatTimeAgo } from "@/lib/format";
+import {
+  formatCurrency,
+  formatDateTime,
+  formatPercent,
+  formatTimeAgo,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { InvestmentsSummaryProps } from "./investments-summary.types";
 
@@ -121,10 +126,14 @@ export const InvestmentsSummary = ({
                     </span>
                     {position.isStale ? (
                       <WarningBadge
-                        label="Desactualizada"
+                        label={
+                          position.quoteDate
+                            ? `Desactualizada · ${formatTimeAgo(position.quoteDate)}`
+                            : "Desactualizada"
+                        }
                         detail={
                           position.quoteDate
-                            ? `Cotización ${formatTimeAgo(position.quoteDate)}`
+                            ? `Última cotización: ${formatDateTime(position.quoteDate)}`
                             : "Cotización desactualizada"
                         }
                       />

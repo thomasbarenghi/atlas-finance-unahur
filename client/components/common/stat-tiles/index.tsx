@@ -27,7 +27,10 @@ export const StatTiles = ({ stats }: StatTilesProps) => {
               )}
             >
               {stat.deltaPct >= 0 ? "+" : ""}
-              {formatPercent(stat.deltaPct / 100)} vs. ant.
+              {stat.deltaUnit === "points"
+                ? `${stat.deltaPct.toFixed(1)} pp`
+                : formatPercent(stat.deltaPct / 100)}{" "}
+              vs. ant.
             </span>
           ) : null}
         </div>

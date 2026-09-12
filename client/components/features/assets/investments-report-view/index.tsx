@@ -82,8 +82,15 @@ export const InvestmentsReportView = () => {
       favorable: "up",
     },
     {
+      label: "Cuentas",
+      value: formatCurrency(data.kpis.accounts, currency),
+      tone: data.kpis.accounts < 0 ? "text-destructive" : "text-foreground",
+      deltaPct: data.kpis.accountsDeltaPct,
+      favorable: "up",
+    },
+    {
       label: "Deudas",
-      value: formatCurrency(data.kpis.debts, currency),
+      value: `−${formatCurrency(data.kpis.debts, currency)}`,
       tone: "text-destructive",
       deltaPct: data.kpis.debtsDeltaPct,
       favorable: "down",
@@ -116,6 +123,8 @@ export const InvestmentsReportView = () => {
     value: item.value,
     color: COMPOSITION_COLORS[item.kind],
   }));
+  const grossAssets =
+    data.kpis.assets + data.investments.totalValue + data.kpis.accounts;
 
   return (
     <div className="flex flex-col gap-6">
@@ -175,14 +184,34 @@ export const InvestmentsReportView = () => {
       </SectionCard>
 
       <SectionCard
-        title="Composición del patrimonio"
-        description="Valor vigente por tipo de activo."
+        title="Composición de activos"
+        description="Distribución del valor bruto de tus activos."
       >
         <AllocationList
           items={composition}
           currency={currency}
-          caption="Composición del patrimonio"
+          caption="Composición de activos"
         />
+        <dl className="mt-4 flex flex-col gap-1 border-t pt-3 text-sm">
+          <div className="flex items-center justify-between gap-2">
+            <dt className="text-muted-foreground">Activos brutos</dt>
+            <dd className="font-medium tabular-nums">
+              {formatCurrency(grossAssets, currency)}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <dt className="text-muted-foreground">Deudas</dt>
+            <dd className="text-destructive font-medium tabular-nums">
+              −{formatCurrency(data.kpis.debts, currency)}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <dt className="font-medium">Patrimonio neto</dt>
+            <dd className="font-heading font-semibold tabular-nums">
+              {formatCurrency(data.kpis.netWorth, currency)}
+            </dd>
+          </div>
+        </dl>
       </SectionCard>
 
       <SectionCard

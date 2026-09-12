@@ -9,6 +9,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { formatCurrency, formatPercent } from "@/lib/format";
+import { groupSmallCategories } from "./category-donut.utils";
 
 export interface CategoryDonutProps {
   data: { categoryId: string; name: string; color: string; value: number }[];
@@ -20,9 +21,10 @@ const config = {
 } satisfies ChartConfig;
 
 export const CategoryDonut = ({ data, currency }: CategoryDonutProps) => {
-  const total = data.reduce((sum, item) => sum + item.value, 0);
+  const chartData = groupSmallCategories(data);
+  const total = chartData.reduce((sum, item) => sum + item.value, 0);
 
-  if (data.length === 0 || total <= 0) {
+  if (chartData.length === 0 || total <= 0) {
     return (
       <EmptyState
         icon={PieChartIcon}
@@ -49,21 +51,21 @@ export const CategoryDonut = ({ data, currency }: CategoryDonutProps) => {
             }
           />
           <Pie
-            data={data}
+            data={chartData}
             dataKey="value"
             nameKey="name"
             innerRadius={55}
             outerRadius={90}
             paddingAngle={2}
           >
-            {data.map((item) => (
+            {chartData.map((item) => (
               <Cell key={item.categoryId} fill={item.color} />
             ))}
           </Pie>
         </PieChart>
       </ChartContainer>
       <ul className="flex flex-col gap-2">
-        {data.map((item) => (
+        {chartData.map((item) => (
           <li
             key={item.categoryId}
             className="flex items-center justify-between gap-2 text-sm"
@@ -86,7 +88,7 @@ export const CategoryDonut = ({ data, currency }: CategoryDonutProps) => {
       <ChartDataTable
         caption="Gastos por categoría"
         headers={["Categoría", "Monto"]}
-        rows={data.map((item) => ({
+        rows={chartData.map((item) => ({
           key: item.categoryId,
           cells: [item.name, formatCurrency(item.value, currency)],
         }))}

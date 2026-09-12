@@ -5,7 +5,6 @@ import { PeriodCurrencyFilters } from "@/components/common/period-currency-filte
 import { NetWorthHero } from "@/components/features/dashboard/net-worth-hero";
 import { AccountsSection } from "@/components/features/home/accounts-section";
 import { InvestmentsSection } from "@/components/features/home/investments-section";
-import { QuickActions } from "@/components/features/home/quick-actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDisplayCurrency } from "@/hooks/use-display-currency";
 import { usePeriod } from "@/hooks/use-period";
@@ -42,8 +41,6 @@ export const HomeView = () => {
           savings={data.kpis.savings}
         />
       )}
-
-      <QuickActions />
 
       <AccountsSection />
 

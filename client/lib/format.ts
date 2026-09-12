@@ -40,6 +40,12 @@ export const formatDate = (iso: string, locale: string = DEFAULT_LOCALE) =>
     new Date(iso.length === 10 ? `${iso}T00:00:00` : iso),
   );
 
+export const formatDateTime = (iso: string, locale: string = DEFAULT_LOCALE) =>
+  new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(iso));
+
 export const formatMonth = (iso: string, locale: string = DEFAULT_LOCALE) =>
   new Intl.DateTimeFormat(locale, {
     month: "short",

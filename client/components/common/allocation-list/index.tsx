@@ -29,7 +29,7 @@ export const AllocationList = ({
       {rows.map((row, index) => {
         const color =
           row.color ?? DEFAULT_COLORS[index % DEFAULT_COLORS.length];
-        const share = row.value / resolvedTotal;
+        const share = row.value > 0 ? row.value / resolvedTotal : 0;
         return (
           <div key={row.key} className="flex flex-col gap-1">
             <div className="flex items-center justify-between gap-2 text-sm">
@@ -42,15 +42,18 @@ export const AllocationList = ({
                 {row.label}
               </span>
               <span className="text-muted-foreground tabular-nums">
-                {formatCurrency(row.value, currency)} · {formatPercent(share)}
+                {formatCurrency(row.value, currency)}
+                {share > 0 ? ` · ${formatPercent(share)}` : ""}
               </span>
             </div>
-            <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
-              <div
-                className="h-full rounded-full"
-                style={{ width: `${share * 100}%`, backgroundColor: color }}
-              />
-            </div>
+            {share > 0 ? (
+              <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${share * 100}%`, backgroundColor: color }}
+                />
+              </div>
+            ) : null}
           </div>
         );
       })}

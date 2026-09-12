@@ -7,10 +7,10 @@ import {
   ChartLegend,
   ChartLegendContent,
   ChartTooltip,
-  ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
 import { formatCurrency, formatMonth } from "@/lib/format";
+import { IncomeExpenseTooltip } from "./components/income-expense-tooltip";
 
 export interface IncomeExpenseChartProps {
   data: { month: string; income: number; expenses: number }[];
@@ -55,11 +55,7 @@ export const IncomeExpenseChart = ({
             axisLine={false}
           />
           <ChartTooltip
-            content={
-              <ChartTooltipContent
-                formatter={(value) => formatCurrency(Number(value), currency)}
-              />
-            }
+            content={<IncomeExpenseTooltip currency={currency} />}
           />
           <ChartLegend content={<ChartLegendContent />} />
           <Bar dataKey="income" fill="var(--color-income)" radius={6} />

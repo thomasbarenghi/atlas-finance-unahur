@@ -199,11 +199,13 @@ export interface DashboardData {
     expensesDeltaPct: number | null;
     savings: number;
     savingsDeltaPct: number | null;
+    savingsRateDeltaPp: number | null;
     assets: number;
     assetsDeltaPct: number | null;
     debts: number;
     debtsDeltaPct: number | null;
     accounts: number;
+    accountsDeltaPct: number | null;
     investmentsDeltaPct: number | null;
   };
   netWorthSeries: {

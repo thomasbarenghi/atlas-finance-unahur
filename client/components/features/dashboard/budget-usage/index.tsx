@@ -1,9 +1,9 @@
 "use client";
 
 import { PiggyBank } from "lucide-react";
+import { BudgetProgress } from "@/components/common/budget-progress";
 import { EmptyState } from "@/components/common/empty-state";
 import { StatusBadge } from "@/components/common/status-badge";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/format";
 import { useBudgets } from "@/lib/query/budgets";
@@ -45,12 +45,16 @@ export const BudgetUsage = ({ period }: BudgetUsageProps) => {
             <span className="text-sm font-medium">{budget.category.name}</span>
             <StatusBadge variant="budget" status={budget.status} />
           </div>
-          <Progress value={Math.min(budget.consumedPct, 100)} />
           <span className="text-muted-foreground text-xs">
             {formatCurrency(budget.spent, budget.currency)} de{" "}
-            {formatCurrency(budget.limit, budget.currency)} ·{" "}
-            {budget.consumedPct.toFixed(0)}%
+            {formatCurrency(budget.limit, budget.currency)}
           </span>
+          <BudgetProgress
+            status={budget.status}
+            consumedPct={budget.consumedPct}
+            available={budget.available}
+            currency={budget.currency}
+          />
         </li>
       ))}
     </ul>

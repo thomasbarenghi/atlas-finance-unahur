@@ -56,6 +56,26 @@ export const resolvePeriod = (
   return { from: toIsoDate(from), to };
 };
 
+export const daysRemainingInMonth = (
+  periodIso: string,
+  reference: Date = new Date(),
+): number | null => {
+  const [year, month] = periodIso.slice(0, 7).split("-").map(Number);
+  if (!year || !month) return null;
+  const monthStart = new Date(year, month - 1, 1);
+  const monthEnd = new Date(year, month, 0);
+  const today = new Date(
+    reference.getFullYear(),
+    reference.getMonth(),
+    reference.getDate(),
+  );
+  if (today < monthStart || today > monthEnd) return null;
+  return Math.max(
+    0,
+    Math.round((monthEnd.getTime() - today.getTime()) / 86_400_000),
+  );
+};
+
 const formatRangeDate = (iso: string, withYear: boolean): string =>
   new Intl.DateTimeFormat("es-AR", {
     day: "numeric",

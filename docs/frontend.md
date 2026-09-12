@@ -104,20 +104,20 @@
 **Reglas de enrutamiento:**
 
 - La protección de rutas vive en un **`AuthGuard` en cliente** (componente que envuelve el layout de `(app)`): si no hay sesión, redirige a `/login`. El backend valida la autorización en cada request, así que el guard es solo UX (FR-AUT-004).
-- `(app)` comparte un `layout.tsx` con la navegación (sidebar en desktop / barra inferior en móvil), `Header` (selector de período/moneda global) y el provider de TanStack Query.
+- `(app)` comparte un `layout.tsx` con la navegación (sidebar en desktop / barra inferior en móvil), `Header` (moneda base, tema y usuario) y el provider de TanStack Query.
 - Toda página de `(app)` se renderiza tras una verificación de sesión; los datos se cargan en cliente vía Query.
 - **Sin `middleware.ts`** (o solo como optimización opcional en web): en el build estático/Capacitor no existe, por lo que la barrera real es el guard en cliente + el backend.
 
 **Navegación responsive (web + app):**
 
-- **Desktop (≥ `md`)**: `Sidebar` lateral fija con las secciones y accesos de perfil/configuración. El `Header` (selectores de período/moneda, tema y menú de usuario) es **solo desktop** (`hidden md:flex`).
+- **Desktop (≥ `md`)**: `Sidebar` lateral fija con las secciones y accesos de perfil/configuración. El `Header` (**moneda base**, tema y menú de usuario) es **solo desktop** (`hidden md:flex`). El **período** ya no vive en el header: es un filtro de página.
 - **Móvil (< `md`)**: la navegación se convierte en una **barra inferior estilo app móvil** (flotante, separada del borde, con bordes redondeados), como en las apps nativas. Se detecta por viewport (`matchMedia` / CSS), no por plataforma. El estilo visual es propio; se toma como referencia (no como requisito) la estética "Liquid Glass" de iOS 26.
 - La barra inferior tiene **4 ítems**: `Inicio`, **`Asistente`** (abre el chat, no navega), `Reportes` y `Perfil`; más un **botón central prominente** `+` que lleva a **Movimientos**.
 - **`Perfil`** (ruta `/profile`) es el hub de la barra inferior: muestra la tarjeta de perfil, las secciones que no están en la barra (Presupuestos, Categorías), un acceso a **Ajustes** (`/settings`) y **Cerrar sesión**. Se comporta como una pestaña más, no como un `Sheet` superpuesto.
 - **El asistente no está en la sidebar**: en **desktop** es un **widget flotante** (botón abajo a la derecha) disponible en `(app)`, salvo en `/assistant`; en **mobile** es una **página propia** (`/assistant`) a la que se entra desde el ítem `Asistente` de la barra inferior. Ver §10.
 - Estado activo con ícono + label, respetando NFR-UA-005 (no solo color); safe-areas (`env(safe-area-inset-bottom)`) para el notch/gesto de home.
-- **Mobile**: no hay header global (se veía "raro" y poco nativo). Cada página muestra su propio título (`PageHeader`) y el acceso a preferencias/IA queda en la pestaña `Ajustes`. En `/dashboard` (y luego `/reports`) los selectores de período/moneda se muestran dentro del contenido (`md:hidden`), no en una barra fija.
-- Los selectores `PeriodSelector`/`CurrencySelector` viven en `components/common/` (los usa el header desktop y el dashboard mobile).
+- **Mobile**: no hay header global (se veía "raro" y poco nativo). Cada página muestra su propio título (`PageHeader`) y el acceso a preferencias/IA queda en la pestaña `Ajustes`. En `/dashboard`, `/reports` y `/reports/investments` el **período** (y la moneda en mobile) se muestra dentro del contenido (`PeriodCurrencyFilters`), no en una barra fija.
+- Los selectores `PeriodSelector`/`CurrencySelector` viven en `components/common/` (los usa el header desktop y el contenido mobile). El período es un **filtro por página**; la moneda es una **preferencia global** (header en desktop, contenido en mobile).
 - El mismo comportamiento aplica en el navegador móvil y dentro de Capacitor (misma base de código).
 
 ---
@@ -140,10 +140,10 @@ Cada página lista: FRs cubiertos, componentes shadcn, y comportamiento esperado
 Vista de aterrizaje **"Tu resumen"**, un resumen real (no un tablero de análisis), con `Skeleton` mientras carga.
 
 - **Patrimonio neto** (FR-DAS-001/002): `NetWorthHero` a **ancho completo** con valor, variación vs. período anterior (`TrendBadge`), mini-stats (Ingresos/Gastos/Ahorro/Tasa) y sparkline con **escala adaptativa** (min/max + padding) y **tooltip**. El patrimonio usa la **misma fórmula que Reportes y Patrimonio** (cuentas + activos + inversiones financieras − deudas).
-- **Acciones rápidas** (segunda sección, debajo del patrimonio): `QuickActions` con botones de **acción** (Registrar movimiento, Crear presupuesto, Agregar inversión) que abren sus diálogos; ya **no** duplican la navegación del sidebar.
-- **Cuentas y Metas** (`AccountsSection`): el listado vive acá (ya no hay página `/accounts`) y se **separa en dos bloques**: **Cuentas** (`AccountsList` con las cuentas comunes) y **Metas** (`AccountsList` con `type: "goal"`), cada una con su `SectionHeader` y `+`. Las metas muestran acumulado/objetivo, cuenta origen, `Progress`, `%` y **faltante** ("Faltan $X"). Botones `+` (`AccountTypePicker` → `AccountFormDialog`) y las filas de cuenta navegan al detalle (§4.3.1).
-- **Patrimonio** (`InvestmentsSection`, debajo de Metas): renombrada desde "Inversiones" porque agrupa **Activos**, **Inversiones financieras** (posiciones tipo BTC) y **Deudas**. Cada grupo es una lista de items (`AssetsList` / `PositionsList` / `DebtsList`); el `+` abre `InvestmentTypePicker` (Activo / Inversión / Deuda) y las filas permiten **editar** (menú con valuaciones o archivar/eliminar). Los formularios y el `ValuationSheet` viven acá; ya no hay página `/assets`.
-- **Selector de período/moneda** (FR-DAS-007): en el header, solo en `/dashboard` y `/reports`.
+- Sin acciones rápidas: el inicio prioriza el resumen (patrimonio → cuentas → metas → patrimonio). Las altas se hacen desde cada sección o el `+` de la barra inferior.
+- **Cuentas y Metas** (`AccountsSection`): el listado vive acá (ya no hay página `/accounts`) y se **separa en dos bloques**: **Cuentas** (`AccountsList` con las cuentas comunes) y **Metas** (`AccountsList` con `type: "goal"`), cada una con su `SectionHeader` y `+`. Las metas muestran acumulado/objetivo, cuenta origen, `Progress`, `%`, **faltante** ("Faltan $X"), **fecha objetivo** ("Objetivo: ene 2027") y **ahorro mensual necesario** cuando hay fecha. Las cuentas con saldo negativo muestran "Saldo negativo". Botones `+` (`AccountTypePicker` → `AccountFormDialog`) y las filas de cuenta navegan al detalle (§4.3.1).
+- **Patrimonio** (`InvestmentsSection`, debajo de Metas): renombrada desde "Inversiones" porque agrupa **Activos**, **Inversiones financieras** (posiciones tipo BTC) y **Deudas**. Cada grupo es una lista de items (`AssetsList` / `PositionsList` / `DebtsList`); el `+` abre `InvestmentTypePicker` (Activo / Inversión / Deuda) y las filas permiten **editar** (menú con valuaciones o archivar/eliminar). El `SectionHeader` incluye el CTA **"Ver patrimonio completo"** → `/reports/investments`. Los formularios y el `ValuationSheet` viven acá; ya no hay página `/assets`.
+- **Filtro de período** (FR-DAS-007): `PeriodSelector` dentro del contenido de la página; la **moneda base** vive en el `Header` (desktop) o junto al período (mobile).
 - **Estados vacíos** (FR-DAS-008): `EmptyState` reutilizable.
 
 > El tablero de widgets y gráficos de análisis (FR-DAS-003..006, FR-REP-*) ahora vive en **`/reports`** (§4.8).
@@ -170,8 +170,9 @@ Un **objetivo es una cuenta especial** (`type: "goal"`): un **sobre virtual** cu
 
 ### 4.4 `/transactions` — SC-004 (FR-TRX-001..010)
 
-- **Lista de items** (`TransactionList`) con paginación (NFR-PR-002) y menú por fila (editar/eliminar): ícono por tipo, descripción, `fecha · categoría · cuenta` y monto (color por signo). Cada fila abre la edición.
+- **Lista de items** (`TransactionList`) con paginación (NFR-PR-002) y menú por fila (editar/eliminar): ícono por tipo, descripción, `fecha · categoría · cuenta` y monto (color por signo). Cada fila abre la edición. **Las transferencias se colapsan en una sola fila** (`collapseTransfers` por `transferGroupId`, conservando la pata origen): subtítulo `fecha · Transferencia · Cuenta origen → destino` y monto **neutro** (sin verde/rojo); no afectan ingresos, gastos, ahorro ni patrimonio.
 - **Búsqueda** (FR-TRX-006/007): único control de filtrado, `Input` tipo pill con debounce sobre descripción/notas. Se quitaron los filtros de tipo/fecha/cuenta/categoría.
+- **CTA de alta**: botón `+ Nuevo movimiento` en desktop (ícono en mobile, donde la barra inferior ya aporta el `+` central).
 - **Alta/edición** como editor moderno estilo app (`Dialog` + `Form`, FR-TRX-001/002/003): **segmented de tipo** (Gasto/Ingreso/Transferencia), filas de cuenta y categoría, **teclado numérico** (`AmountKeypad`) con operaciones `+ − × ÷`, **cálculo en vivo** (el resultado se muestra mientras se escribe, sin botón `=`), monto grande con signo por tipo y saldo disponible, fecha + comentario. El monto se evalúa con `lib/amount-expression.ts` (sin `eval`) y se valida `> 0`. Si es transferencia, selector origen/destino que excluye la otra cuenta elegida (FR-TRX-004).
 - **Eliminar** con `AlertDialog` de confirmación.
 - **Categorías personalizadas** (FR-TRX-008): gestión en el mismo módulo (ver §4.11).
@@ -179,9 +180,10 @@ Un **objetivo es una cuenta especial** (`type: "goal"`): un **sobre virtual** cu
 
 ### 4.5 `/budgets` — SC-005 (FR-PRE-001..006)
 
-- **Listado por período** (`Tabs` o selector de mes): cada fila = categoría con `Progress` y `Badge` de estado.
-- **Métricas por presupuesto** (FR-PRE-002/004): límite, gasto acumulado, disponible, % consumido.
-- **Estados** (FR-PRE-003): `Disponible`, `Advertencia` (≥ umbral), `Excedido` (> 100%). Color + texto + icono (NFR-UA-005).
+- **Resumen mensual** (`BudgetsSummary`): `Presupuesto total`, `Gastado`, `Disponible` y `Categorías excedidas` antes del grid.
+- **Listado por período** (selector de mes): cada tarjeta = categoría con `BudgetProgress` y `StatusBadge` de estado, ordenadas por **gravedad** (`Excedido → Advertencia → Disponible`, luego mayor consumo).
+- **Métricas por presupuesto** (FR-PRE-002/004): límite, gasto acumulado, disponible/excedido y % consumido (sin límite visual a 100%: muestra 120%).
+- **Estados** (FR-PRE-003): `Disponible` (verde), `Advertencia` (ámbar), `Excedido` (rojo) en la barra **y** badge textual (NFR-UA-005). Un excedido dice **"Excedido por $X"**, nunca "Disponible" negativo. La tarjeta indica "Restan N días" para el mes en curso.
 - **Crear** (FR-PRE-001): categoría + mes + límite + moneda.
 - **Copiar mes anterior** (FR-PRE-005, P1): botón "Copiar del mes anterior".
 - **Editar/eliminar** con confirmación (FR-PRE-006).
@@ -199,17 +201,17 @@ La gestión vive en el inicio (§4.2, sección **Patrimonio** / `InvestmentsSect
 
 Página de análisis del patrimonio ("Patrimonio", "Evolución y composición de tu patrimonio"), accesible desde la **navegación secundaria** de Reportes (`ReportsTabs`: General | Patrimonio), no desde un botón de acción. Usa el `useDashboard` del período/moneda elegidos.
 
-- **Resumen**: tiles de **Activos, Inversiones financieras, Deudas y Patrimonio neto**, cada uno con variación cuando existe (`StatTiles`).
+- **Resumen**: tiles de **Activos, Inversiones financieras, Cuentas, Deudas y Patrimonio neto**, cada uno con variación cuando existe (`StatTiles`). Los cinco componentes **reconstruyen exactamente** el patrimonio neto (`activos + inversiones + cuentas netas − deudas`).
 - **Evolución** (`TimeSeriesChart`): selector **Patrimonio | Activos | Deudas** sobre `netWorthSeries` (`{ date, value, assets, debts }`), con tooltip y **máximo/mínimo** del período. Estado vacío con menos de dos puntos.
-- **Composición del patrimonio** (`AllocationList` sobre `netWorthComposition`): Propiedades, Vehículos, Otros activos, Inversiones, Efectivo y Cuentas.
-- **Inversiones financieras** (`InvestmentsSummary`): valor actual, capital invertido y resultado; por posición muestra **cantidad y moneda original** (`0,05 BTC · US$ 3.200`) y la **conversión** a la moneda base (`≈ ARS $3.200.000`); la cotización desactualizada se identifica por posición (`WarningBadge` con antigüedad) además del resumen inferior.
-- **Pendiente (contrato)**: evolución del precio de cada posición y de la reducción de deuda (requieren historial en el backend; hoy solo hay valuaciones de activos). `debtsDeltaPct` queda en `null` hasta que exista historial.
+- **Composición de activos** (`AllocationList` sobre `netWorthComposition`): Propiedades, Vehículos, Otros activos, Inversiones y **Cuentas netas** (incluye saldos negativos). Debajo, el cierre contable: `Activos brutos`, `Deudas` y `Patrimonio neto`. Los porcentajes se calculan sobre el activo bruto, sin deudas.
+- **Inversiones financieras** (`InvestmentsSummary`): valor actual, capital invertido y resultado; por posición muestra **cantidad y moneda original** (`0,05 BTC · US$ 3.200`) y la **conversión** a la moneda base (`≈ ARS $3.200.000`); la cotización desactualizada se identifica por posición (`WarningBadge` con **antigüedad visible** "hace 2 h" y detalle "Última cotización: …") además del resumen inferior.
+- **Pendiente (contrato)**: evolución del precio de cada posición y de la reducción de deuda (requieren historial en el backend; hoy solo hay valuaciones de activos). `debtsDeltaPct` se calcula con la serie de deuda del mock.
 
 ### 4.7 Objetivos — SC-007 (FR-OBJ-001..004)
 
 Los objetivos **son cuentas de tipo `goal`** (§4.3) y viven en el bloque **Metas** del inicio (§4.2), separado de **Cuentas**; se eliminó la página `/goals`, su `ComingSoon`, la entidad `Goal` separada y la sección `GoalsSection`.
 
-- **Fila de objetivo** (dentro de `AccountsList`, bloque Metas): nombre, acumulado vs. monto objetivo, cuenta origen ("vive en …" abreviado), `Progress` de avance (CAL-007, mínimo visual 0%), `%`, faltante y `StatusBadge`; abre el **detalle de la cuenta** (§4.3.1).
+- **Fila de objetivo** (dentro de `AccountsList`, bloque Metas): nombre, acumulado vs. monto objetivo, cuenta origen ("vive en …" abreviado), `Progress` de avance (CAL-007, mínimo visual 0%), `%`, faltante, **fecha objetivo** y **ahorro mensual necesario** (`lib/goal-account.ts`) y `StatusBadge`; abre el **detalle de la cuenta** (§4.3.1).
 - **Estados** (FR-OBJ-004): `Pendiente`, `En curso`, `Alcanzado`, `Vencido` con `Badge` (calculados en `lib/goal-account.ts`).
 - **Crear/editar** (FR-OBJ-001/003) vía `AccountFormDialog` con `type: "goal"` desde el `+` de Cuentas. Archivar/restaurar se hace desde el detalle o el formulario.
 
@@ -217,17 +219,17 @@ Los objetivos **son cuentas de tipo `goal`** (§4.3) y viven en el bloque **Meta
 
 Tablero **personalizable por widgets** (base que antes vivía en el inicio) + análisis del período. Selector de período/moneda en el header.
 
-- **Resumen del período** (`ReportsSummary`, siempre arriba): tira compacta con **Ingresos, Gastos, Ahorro y Tasa de ahorro**, con variación vs. período anterior en ingresos/gastos. Lo primero que se ve es "cuánto entró, cuánto salió, cuánto ahorré". Los cuatro KPIs aparecen **una sola vez** (el widget de patrimonio no los repite).
-- **Cambios destacados** (`HighlightsCard`): bloque compacto de insights calculados comparando el período actual con el anterior (variación de gastos, ahorro y la categoría de mayor cambio), sin IA.
+- **Resumen del período** (`ReportsSummary`, siempre arriba): tira compacta con **Ingresos, Gastos, Ahorro y Tasa de ahorro**, con variación vs. período anterior en los cuatro (la tasa de ahorro en **puntos porcentuales**, "+3,2 pp"). Lo primero que se ve es "cuánto entró, cuánto salió, cuánto ahorré". Los cuatro KPIs aparecen **una sola vez** (el widget de patrimonio no los repite).
+- **Cambios destacados** (`HighlightsCard`): bloque compacto de insights calculados comparando el período actual con el anterior (variación de gastos, ahorro y la categoría de mayor cambio), sin IA. Se ubica **debajo de los gráficos** (después del tablero de widgets).
 - **Widgets** (FR-DAS-002..006, FR-REP-002/003/004/005), en orden por defecto: **patrimonio neto**, **ingresos vs. gastos**, **gastos por categoría** y **presupuesto mensual y su uso**. Se movieron **inversiones** y **composición de activos** al reporte de patrimonio (§4.6.1); se eliminaron **comparación de gastos** (redundante con *ingresos vs. gastos*) y **alertas de presupuesto** (redundante con *presupuesto mensual*).
-- **Período**: el encabezado muestra el rango en lenguaje de usuario (`describePeriod`, p. ej. "Últimos 6 meses · 1 abr – 12 sep 2026"). El **widget de presupuesto** explicita que es del **mes actual** y no depende del período global ("Presupuesto de septiembre · Mes actual · no depende del período global").
+- **Período**: `PeriodSelector` dentro del contenido; el encabezado muestra el rango en lenguaje de usuario (`describePeriod`, p. ej. "Últimos 6 meses · 1 abr – 12 sep 2026"). El **widget de presupuesto** explicita que es del **mes actual** y no depende del período global ("Presupuesto de septiembre · Mes actual · no depende del período global").
 - **Navegación secundaria** (`ReportsTabs`): **General | Patrimonio**; reemplaza al botón **Inversiones** del header. El header solo conserva acciones (Widgets, Editar).
 - **Pendiente (contrato backend)**: resumen financiero como tabla (FR-REP-001), export CSV (FR-REP-006), PDF/imprimible (FR-REP-007, P2).
 
 #### 4.8.1 Widgets y personalización
 
 - **Registro de widgets** en `lib/dashboard-widgets.ts`: `id`, `label`, `description`, `weight` (para empaquetado) y **`maxSpan`** (máximo de columnas que puede ocupar).
-- **Widget de presupuesto**: `budgetUsage` (`BudgetUsage`: presupuestos del mes con `Progress`, gasto/límite y estado). Toma el mes del fin del período elegido.
+- **Widget de presupuesto**: `budgetUsage` (`BudgetUsage`: presupuestos del mes con el mismo `BudgetProgress` que la página Presupuestos, gasto/límite y estado). Toma el mes del fin del período elegido.
 - **Tarjeta compacta** (`WidgetCard`): encabezado chico (título + bajada) y contenido a `px-5`; reemplaza el `Card`/`CardHeader` para que cada widget ocupe menos y muestre más.
 - **Orden en mobile**: como el tablero edita solo en desktop, en mobile los widgets se listan en el **orden de prioridad del registro** (`DASHBOARD_WIDGETS`), no en el orden de columnas, para que la lectura sea coherente.
 - **Layout persistido en el cliente** (`localStorage`, clave `atlassfin.dashboard.layout.v7`) vía `useDashboardLayout`: `{ columns: id[][], hidden: id[], spans }`. Es una decisión de UI, no se persiste en el backend.
@@ -289,7 +291,7 @@ client/
 │   │   ├── app-nav.ts               # registro de navegación (desktop y móvil)
 │   │   ├── sidebar.tsx
 │   │   ├── mobile-tab-bar.tsx       # barra inferior estilo app móvil
-│   │   ├── header.tsx               # header desktop (período/moneda, tema, usuario)
+│   │   ├── header.tsx               # header desktop (moneda, tema, usuario)
 │   │   ├── header/user-menu.tsx
 │   │   ├── auth-guard.tsx           # guard de sesión en cliente (rutas de (app))
 │   │   ├── brand.tsx
@@ -372,7 +374,7 @@ npx shadcn@latest add breadcrumb avatar
 
 - **`Amount`**: formatea monto con signo y color (`success` positivo ingreso, `destructive` gasto, `muted` transferencia). Respeta NFR-UA-005 (signo + color, no solo color).
 - **`StatTiles`**: grilla **2×2 en mobile** que pasa a tira horizontal en desktop (`label` + valor con tono y delta opcional). La usan `ReportsSummary` y el reporte de patrimonio; los textos/formatos de Ingresos/Gastos/Ahorro/Tasa se derivan de `lib/period-stats.ts` (fuente única compartida con `NetWorthHero`).
-- **`PeriodCurrencyFilters`**: selector de período + moneda para mobile (`md:hidden`), compartido por `/dashboard`, `/reports` y `/reports/investments`. En desktop los mismos selectores viven en el `Header`.
+- **`PeriodCurrencyFilters`**: `PeriodSelector` (filtro de página) + `CurrencySelector` en mobile, compartido por `/dashboard`, `/reports` y `/reports/investments`. En desktop la moneda vive en el `Header` y el período queda en el contenido.
 - **`NetWorthHero`**: hero de patrimonio neto con variación, mini-stats del período (opcionales vía `showPeriodStats`) y sparkline con escala adaptativa y tooltip.
 - **`Money`**: formatea un monto en una moneda (`formatCurrency`) con variante aproximada (`≈`) para conversiones.
 - **`TrendBadge`**: pill de variación con ícono y color por signo.
@@ -380,6 +382,7 @@ npx shadcn@latest add breadcrumb avatar
 - **`AllocationList`**: lista de composición con barra, valor y porcentaje (no depende solo del color); usada por la composición del patrimonio.
 - **`WarningBadge`**: badge de advertencia con detalle en tooltip (p. ej. cotización desactualizada).
 - **`TimeSeriesChart`**: gráfico temporal genérico (áreas, tooltip, escala adaptativa y estado vacío con menos de dos puntos).
+- **`BudgetProgress`**: barra + etiqueta de presupuesto reutilizada por Presupuestos y Reportes; color por estado (verde/ámbar/rojo), `Excedido por $X` y porcentaje real (>100%).
 - **`EmptyState`**: ícono, título, descripción, acción CTA (FR-DAS-008).
 - **`CategoryBadge`**: `Badge` con el color de la categoría.
 - **`StatusBadge`**: estado con ícono + texto + color (presupuesto, objetivo, cuenta y cotización); reemplaza a `BudgetStatusBadge`.
@@ -393,7 +396,7 @@ npx shadcn@latest add breadcrumb avatar
 - **`useConfirmAction`**: hook compartido que encapsula el patrón *confirmar → mutar → toast* (usado por eliminar/archivar cuentas, movimientos, presupuestos, categorías, activos, posiciones y deudas).
 
 **Fuentes únicas de verdad transversales:**
-- `lib/sections.ts`: registro de secciones (`href` + `label` + `icon`) consumido por sidebar, tab bar, accesos rápidos y perfil; agregar una sección es un solo cambio.
+- `lib/sections.ts`: registro de secciones (`href` + `label` + `icon`) consumido por sidebar, tab bar y perfil; agregar una sección es un solo cambio.
 - `lib/period-stats.ts`: labels/formatos de Ingresos/Gastos/Ahorro/Tasa.
 - `lib/forms.ts`: mapeo de `fieldErrors` del backend a campos de RHF.
 - `lib/storage.ts`: lectura/escritura segura de `localStorage` (layout del tablero, hilos del asistente).
@@ -540,7 +543,7 @@ La analítica es el diferenciador. Directrices:
   - Composición (partes de un todo) → donut (gastos por categoría, activos por tipo).
   - Progreso → `Progress` (presupuestos, objetivos).
 - **Datos tabulados**: cada gráfico tiene su tabla equivalente para NFR-UA-004.
-- **Período global**: el `PeriodSelector` del header controla el período; se refleja en `dashboard` y `reports` (FR-DAS-007).
+- **Período de página**: el `PeriodSelector` vive en el contenido de `dashboard`, `reports` y `reports/investments` (FR-DAS-007). Presupuestos tiene su propio selector de mes y Movimientos su búsqueda; así el alcance de cada filtro es explícito. La **moneda base** es preferencia global (`CurrencySelector`).
 - **Cambio de moneda**: el `CurrencySelector` recarga los agregados usando tasas del backend (FR-DAS-007, CAL-008). Los montos siempre llegan calculados; el front no convierte.
 
 ---
@@ -731,7 +734,7 @@ Progresivo y validable al final de cada tanda. Cada tanda deja la app compilando
 - **Aceptación**: HU-001 y HU-002 completas.
 
 ### Tanda 3 — Dashboard + gráficos
-- Inicio "Tu resumen": `NetWorthHero`, accesos rápidos, cuentas e inversiones; tablero de widgets/gráficos en `/reports`.
+- Inicio "Tu resumen": `NetWorthHero`, cuentas, metas y patrimonio; tablero de widgets/gráficos en `/reports`.
 - `EmptyState`, `PeriodSelector`, `CurrencySelector`, `StatTiles`.
 - **Aceptación**: FR-DAS-001..008.
 

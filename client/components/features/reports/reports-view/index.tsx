@@ -198,13 +198,8 @@ export const ReportsView = () => {
         savings={data.kpis.savings}
         incomeDeltaPct={data.kpis.incomeDeltaPct}
         expensesDeltaPct={data.kpis.expensesDeltaPct}
-        currency={currency}
-      />
-
-      <HighlightsCard
-        categoryChanges={data.categoryChanges}
-        expensesDeltaPct={data.kpis.expensesDeltaPct}
         savingsDeltaPct={data.kpis.savingsDeltaPct}
+        savingsRateDeltaPp={data.kpis.savingsRateDeltaPp}
         currency={currency}
       />
 
@@ -233,6 +228,13 @@ export const ReportsView = () => {
           onSwap={swap}
         />
       )}
+
+      <HighlightsCard
+        categoryChanges={data.categoryChanges}
+        expensesDeltaPct={data.kpis.expensesDeltaPct}
+        savingsDeltaPct={data.kpis.savingsDeltaPct}
+        currency={currency}
+      />
 
       <WidgetPicker
         open={pickerOpen}

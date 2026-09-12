@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   ArrowLeftRight,
   Pencil,
@@ -13,10 +14,12 @@ import { DataList } from "@/components/common/data-list";
 import { DataListItem } from "@/components/common/data-list-item";
 import { EmptyState } from "@/components/common/empty-state";
 import { IconBadge, type IconBadgeTone } from "@/components/common/icon-badge";
+import { Money } from "@/components/common/money";
 import { RowActionsMenu } from "@/components/common/row-actions-menu";
 import type { TransactionType } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
 import type { TransactionListProps } from "./transaction-list.types";
+import { collapseTransfers } from "./transaction-list.utils";
 
 const TYPE_PRESENTATION: Record<
   TransactionType,
@@ -36,9 +39,11 @@ export const TransactionList = ({
   onSelect,
   onDelete,
 }: TransactionListProps) => {
+  const rows = useMemo(() => collapseTransfers(transactions), [transactions]);
+
   return (
     <DataList
-      data={transactions}
+      data={rows}
       isLoading={isLoading}
       pagination={pagination}
       getRowKey={(transaction) => transaction.id}
@@ -59,11 +64,18 @@ export const TransactionList = ({
         const target = transaction.transferAccountId
           ? accountNameById.get(transaction.transferAccountId)
           : undefined;
-        const subtitle = [
-          formatDate(transaction.date),
-          category?.name ?? "Sin categoría",
-          target ? `${accountName} → ${target}` : accountName,
-        ].join(" · ");
+        const isTransfer = transaction.type === "transfer";
+        const subtitle = isTransfer
+          ? [
+              formatDate(transaction.date),
+              "Transferencia",
+              target ? `${accountName} → ${target}` : accountName,
+            ].join(" · ")
+          : [
+              formatDate(transaction.date),
+              category?.name ?? "Sin categoría",
+              accountName,
+            ].join(" · ");
 
         return (
           <DataListItem
@@ -71,11 +83,19 @@ export const TransactionList = ({
             title={transaction.description}
             subtitle={subtitle}
             trailing={
-              <Amount
-                value={transaction.amount}
-                currency={transaction.currency}
-                type={transaction.type}
-              />
+              isTransfer ? (
+                <Money
+                  value={Math.abs(transaction.amount)}
+                  currency={transaction.currency}
+                  className="text-muted-foreground font-medium"
+                />
+              ) : (
+                <Amount
+                  value={transaction.amount}
+                  currency={transaction.currency}
+                  type={transaction.type}
+                />
+              )
             }
             onClick={onSelect ? () => onSelect(transaction) : undefined}
             showChevron={false}

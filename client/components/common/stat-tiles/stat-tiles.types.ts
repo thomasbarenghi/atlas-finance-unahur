@@ -3,6 +3,7 @@ export interface StatTile {
   value: string;
   tone?: string;
   deltaPct?: number | null;
+  deltaUnit?: "percent" | "points";
   favorable?: "up" | "down";
 }
 

@@ -1305,12 +1305,6 @@ export const mockApi = {
       (total, account) => total + convertAccount(account),
       0,
     );
-    const cashValue = activeAccounts
-      .filter((account) => account.type === "cash")
-      .reduce((total, account) => total + convertAccount(account), 0);
-    const bankValue = activeAccounts
-      .filter((account) => account.type !== "cash")
-      .reduce((total, account) => total + convertAccount(account), 0);
 
     const compositionMap = new Map<Asset["type"], number>();
     for (const asset of mockState.assets.filter(
@@ -1379,21 +1373,27 @@ export const mockApi = {
     const monthAssetsByName = new Map(
       assetsValueByMonth.map((item) => [item.month, item.value]),
     );
-    const netWorthSeries = months.map((month) => {
+    const debtSeries = months.map((_month, index) => {
+      const ratio = months.length > 1 ? index / (months.length - 1) : 1;
+      return debtsValue * (1.02 - 0.02 * ratio);
+    });
+    const netWorthSeries = months.map((month, index) => {
       const date = new Date(`${month}-01T00:00:00`);
       date.setMonth(date.getMonth() + 1);
       date.setDate(0);
       const physicalAssets = monthAssetsByName.get(month) ?? assetsValue;
       const totalAssets = physicalAssets + positionsValue + accountsValue;
+      const monthDebts = debtSeries[index] ?? debtsValue;
       return {
         date: toIsoDate(date),
-        value: totalAssets - debtsValue,
+        value: totalAssets - monthDebts,
         assets: totalAssets,
-        debts: debtsValue,
+        debts: monthDebts,
       };
     });
     const seriesStart = netWorthSeries[0]?.value ?? netWorth;
     const assetsStart = netWorthSeries[0]?.assets ?? assetsValue;
+    const debtsStart = debtSeries[0] ?? debtsValue;
 
     const categoryTotals = (from: string, to: string): Map<string, number> => {
       const totals = new Map<string, number>();
@@ -1457,9 +1457,8 @@ export const mockApi = {
         label: "Inversiones",
         value: positionsValue,
       },
-      { kind: "cash" as const, label: "Efectivo", value: cashValue },
-      { kind: "account" as const, label: "Cuentas", value: bankValue },
-    ].filter((item) => item.value > 0);
+      { kind: "account" as const, label: "Cuentas", value: accountsValue },
+    ].filter((item) => item.value !== 0);
 
     return {
       period: { from: query.from, to: query.to },
@@ -1473,14 +1472,19 @@ export const mockApi = {
         expensesDeltaPct: pctDelta(current.expenses, prevFlow.expenses),
         savings: current.savings,
         savingsDeltaPct: pctDelta(current.savings, prevFlow.savings),
+        savingsRateDeltaPp:
+          ((current.income > 0 ? current.savings / current.income : 0) -
+            (prevFlow.income > 0 ? prevFlow.savings / prevFlow.income : 0)) *
+          100,
         assets: assetsValue,
         assetsDeltaPct: pctDelta(
           assetsValue,
           assetsStart - positionsValue - accountsValue,
         ),
         debts: debtsValue,
-        debtsDeltaPct: null,
+        debtsDeltaPct: pctDelta(debtsValue, debtsStart),
         accounts: accountsValue,
+        accountsDeltaPct: null,
         investmentsDeltaPct:
           positionsCost > 0 ? (positionsProfit / positionsCost) * 100 : null,
       },

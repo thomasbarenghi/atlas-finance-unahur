@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, Plus } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { SectionHeader } from "@/components/common/section-header";
 import { Button } from "@/components/ui/button";
@@ -76,14 +77,24 @@ export const InvestmentsSection = () => {
         title="Patrimonio"
         description="Activos, inversiones financieras y deudas."
         actions={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Nuevo activo, inversión o deuda"
-            onClick={() => setPickerOpen(true)}
-          >
-            <Plus />
-          </Button>
+          <>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/reports/investments">
+                <span className="hidden sm:inline">
+                  Ver patrimonio completo
+                </span>
+                <ArrowUpRight />
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Nuevo activo, inversión o deuda"
+              onClick={() => setPickerOpen(true)}
+            >
+              <Plus />
+            </Button>
+          </>
         }
       />
 

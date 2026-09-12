@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { StatusBadge } from "@/components/common/status-badge";
 import { Progress } from "@/components/ui/progress";
 import { AccountIcon } from "@/components/features/accounts/account-icon";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatMonth } from "@/lib/format";
 import { goalAccountProgress } from "@/lib/goal-account";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/labels";
 import type { AccountType } from "@/lib/api/types";
@@ -49,8 +49,14 @@ export const AccountsList = ({
       }
       renderItem={(account) => {
         if (account.type === "goal") {
-          const { saved, target, progressPct, status } =
-            goalAccountProgress(account);
+          const {
+            saved,
+            target,
+            progressPct,
+            status,
+            targetDate,
+            monthlySaving,
+          } = goalAccountProgress(account);
           const source = account.sourceAccountId
             ? sourceNameById?.get(account.sourceAccountId)
             : undefined;
@@ -83,6 +89,19 @@ export const AccountsList = ({
                     : "Meta cumplida"}
                 </span>
               </div>
+              {targetDate || monthlySaving !== null ? (
+                <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-x-3 text-xs">
+                  {targetDate ? (
+                    <span>Objetivo: {formatMonth(targetDate)}</span>
+                  ) : null}
+                  {monthlySaving !== null ? (
+                    <span className="tabular-nums">
+                      Necesitás ahorrar{" "}
+                      {formatCurrency(monthlySaving, account.currency)}/mes
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
             </Link>
           );
         }
@@ -101,6 +120,10 @@ export const AccountsList = ({
                 />
                 {account.archived ? (
                   <StatusBadge variant="account" archived />
+                ) : account.currentBalance < 0 ? (
+                  <span className="text-destructive text-xs">
+                    Saldo negativo
+                  </span>
                 ) : null}
               </span>
             }

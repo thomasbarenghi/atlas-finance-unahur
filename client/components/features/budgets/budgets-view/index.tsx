@@ -21,6 +21,10 @@ import { useBudgets, useDeleteBudget } from "@/lib/query/budgets";
 import { useCategories } from "@/lib/query/categories";
 import { BudgetCard } from "@/components/features/budgets/budget-card";
 import { BudgetFormDialog } from "@/components/features/budgets/budget-form-dialog";
+import {
+  BudgetsSummary,
+  sortBudgetsBySeverity,
+} from "@/components/features/budgets/budgets-summary";
 
 export const BudgetsView = () => {
   const [month, setMonth] = useState(() =>
@@ -46,6 +50,10 @@ export const BudgetsView = () => {
     [categoriesQuery.data],
   );
   const budgets = useMemo(() => budgetsQuery.data ?? [], [budgetsQuery.data]);
+  const sortedBudgets = useMemo(
+    () => sortBudgetsBySeverity(budgets),
+    [budgets],
+  );
 
   const monthOptions = useMemo(() => {
     const base = new Date();
@@ -87,6 +95,8 @@ export const BudgetsView = () => {
         </Select>
       </div>
 
+      {budgets.length > 0 ? <BudgetsSummary budgets={budgets} /> : null}
+
       {budgetsQuery.isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (
@@ -106,7 +116,7 @@ export const BudgetsView = () => {
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {budgets.map((budget) => (
+          {sortedBudgets.map((budget) => (
             <BudgetCard
               key={budget.id}
               budget={budget}

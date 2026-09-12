@@ -72,11 +72,13 @@ export const TransactionsView = () => {
         description="Ingresos, gastos y transferencias."
         actions={
           <Button
-            size="icon"
+            size="sm"
             aria-label="Nuevo movimiento"
+            className="gap-1"
             onClick={() => setCreateOpen(true)}
           >
             <Plus />
+            <span className="hidden sm:inline">Nuevo movimiento</span>
           </Button>
         }
       />
