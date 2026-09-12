@@ -169,7 +169,64 @@ export class CalculationsService {
       );
   }
 
+  calculatePositionValue(
+    quantity: number,
+    avgCost: number,
+    price: number,
+  ): {
+    costBasis: number;
+    currentValue: number;
+    profitLoss: number;
+    profitLossPct: number;
+  } {
+    const costBasis = quantity * avgCost;
+    const currentValue = quantity * price;
+    const profitLoss = currentValue - costBasis;
+    return {
+      costBasis,
+      currentValue,
+      profitLoss,
+      profitLossPct: costBasis > 0 ? (profitLoss / costBasis) * 100 : 0,
+    };
+  }
+
   calculateNetWorth({ assets, positions, cash, debts }: NetWorthParts): number {
     return assets + positions + cash - debts;
+  }
+
+  pctDelta(current: number, previous: number): number | null {
+    if (previous === 0) return null;
+    return ((current - previous) / Math.abs(previous)) * 100;
+  }
+
+  monthRange(from: string, to: string): string[] {
+    const months: string[] = [];
+    const cursor = new Date(`${from.slice(0, 7)}-01T00:00:00.000Z`);
+    const end = new Date(`${to.slice(0, 7)}-01T00:00:00.000Z`);
+    while (cursor <= end) {
+      months.push(toIsoDate(cursor).slice(0, 7));
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+    return months;
+  }
+
+  previousRange(from: string, to: string): { from: string; to: string } {
+    const start = new Date(`${from}T00:00:00.000Z`);
+    const end = new Date(`${to}T00:00:00.000Z`);
+    const days = Math.max(
+      1,
+      Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1,
+    );
+    const previousEnd = new Date(start);
+    previousEnd.setUTCDate(previousEnd.getUTCDate() - 1);
+    const previousStart = new Date(previousEnd);
+    previousStart.setUTCDate(previousStart.getUTCDate() - (days - 1));
+    return { from: toIsoDate(previousStart), to: toIsoDate(previousEnd) };
+  }
+
+  monthEnd(month: string): string {
+    const [year, monthNumber] = month.split("-").map(Number);
+    const lastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+    return `${month}-${String(lastDay).padStart(2, "0")}`;
   }
 }

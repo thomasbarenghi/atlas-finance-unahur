@@ -9,13 +9,17 @@ const password = z
 
 export const loginSchema = z.object({
   email: z.string().email("Ingresá un email válido"),
-  password: z.string().min(1, "Ingresá tu contraseña"),
+  password: z
+    .string()
+    .min(1, "Ingresá tu contraseña")
+    .max(72, "La contraseña no puede superar los 72 caracteres"),
 });
 
 export const registerSchema = z
   .object({
     name: z
       .string()
+      .trim()
       .min(2, "El nombre debe tener al menos 2 caracteres")
       .max(80, "El nombre no puede superar los 80 caracteres"),
     email: z.string().email("Ingresá un email válido"),

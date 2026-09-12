@@ -4,7 +4,6 @@ import { formatCurrency, formatPercent, toIsoDate } from "@/lib/format";
 import type {
   Account,
   Asset,
-  AssistantAudioInput,
   AssistantMessageInput,
   AssistantReply,
   Budget,
@@ -104,6 +103,17 @@ const findOwnedAccount = (userId: string, accountId: string): Account => {
 const assertAccountUsable = (account: Account): void => {
   if (account.archived) {
     fail(409, "ACCOUNT_ARCHIVED", "La cuenta está archivada");
+  }
+};
+
+const assertCurrencyMatches = (account: Account, currency: string): void => {
+  if (account.currency.toUpperCase() !== currency.toUpperCase()) {
+    fail(
+      400,
+      "VALIDATION_ERROR",
+      "La moneda del movimiento debe coincidir con la de la cuenta",
+      { currency: ["Debe coincidir con la moneda de la cuenta"] },
+    );
   }
 };
 
@@ -365,8 +375,10 @@ const assertTransfer = (
   }
   const destination = findOwnedAccount(userId, input.transferAccountId);
   assertAccountUsable(destination);
+  assertCurrencyMatches(destination, input.currency);
   const origin = findOwnedAccount(userId, input.accountId);
   assertAccountUsable(origin);
+  assertCurrencyMatches(origin, input.currency);
 };
 
 const buildAssistantAnswer = (
@@ -779,6 +791,7 @@ export const mockApi = {
     const user = requireUser();
     const account = findOwnedAccount(user.id, input.accountId);
     assertAccountUsable(account);
+    assertCurrencyMatches(account, input.currency);
 
     if (input.type === "transfer") {
       assertTransfer(input, user.id);
@@ -860,8 +873,13 @@ export const mockApi = {
       return transaction;
     }
 
-    if (input.accountId) {
-      assertAccountUsable(findOwnedAccount(user.id, input.accountId));
+    if (input.accountId || input.currency) {
+      const target = findOwnedAccount(
+        user.id,
+        input.accountId ?? transaction.accountId,
+      );
+      assertAccountUsable(target);
+      if (input.currency) assertCurrencyMatches(target, input.currency);
     }
     Object.assign(transaction, input, {
       amount:
@@ -1212,50 +1230,6 @@ export const mockApi = {
       id: input.conversationId ?? mockId(),
       userId: user.id,
       question: input.question,
-      answer,
-      contextMeta: { period: { from, to }, currency, sources },
-      createdAt: new Date().toISOString(),
-    };
-    mockState.conversations.push(conversation);
-
-    return {
-      conversationId: conversation.id,
-      answer,
-      insufficient,
-      contextMeta: conversation.contextMeta,
-    };
-  },
-
-  async sendAudioMessage(input: AssistantAudioInput): Promise<AssistantReply> {
-    await delay();
-    const user = requireUser();
-    if (!user.aiEnabled) {
-      fail(403, "AI_DISABLED", "El asistente está deshabilitado");
-    }
-    const currency = input.currency ?? user.baseCurrency;
-    const { from, to } = resolveAssistantRange(input.period);
-    const question = input.transcript?.trim();
-
-    if (!question) {
-      return {
-        conversationId: input.conversationId ?? mockId(),
-        answer:
-          "Recibí tu audio, pero no pude transcribirlo en este navegador. Escribí tu pregunta o probá con dictado por voz disponible.",
-        insufficient: true,
-        contextMeta: { period: { from, to }, currency, sources: [] },
-      };
-    }
-
-    const { answer, insufficient, sources } = buildAssistantAnswer(
-      question,
-      currency,
-      from,
-      to,
-    );
-    const conversation: StoredConversation = {
-      id: input.conversationId ?? mockId(),
-      userId: user.id,
-      question: `[Audio] ${question}`,
       answer,
       contextMeta: { period: { from, to }, currency, sources },
       createdAt: new Date().toISOString(),

@@ -313,15 +313,6 @@ export interface AssistantReply {
   contextMeta: Conversation["contextMeta"];
 }
 
-export interface AssistantAudioInput {
-  durationMs: number;
-  transcript?: string;
-  blob?: Blob;
-  conversationId?: string | null;
-  period?: PeriodRange;
-  currency?: string;
-}
-
 /* ── Inputs (mirror the REST request DTOs) ─────────────────────────────── */
 
 export interface LoginInput {
@@ -436,7 +427,9 @@ export interface CreateAssetInput {
   notes?: string | null;
 }
 
-export type UpdateAssetInput = Partial<Omit<CreateAssetInput, "initialValue">>;
+export type UpdateAssetInput = Partial<
+  Omit<CreateAssetInput, "initialValue" | "date">
+>;
 
 export interface CreateValuationInput {
   value: number;

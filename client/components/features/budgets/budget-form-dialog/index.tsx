@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import { PiggyBank, Repeat } from "lucide-react";
@@ -9,6 +10,7 @@ import { FormCurrencyField } from "@/components/common/form-currency-field";
 import { FormDialog } from "@/components/common/form-dialog";
 import { FormHero } from "@/components/common/form-hero";
 import { FormSelectField } from "@/components/common/form-select-field";
+import { MoneyInput } from "@/components/common/money-input";
 import {
   FormControl,
   FormDescription,
@@ -17,10 +19,11 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
 import { getErrorMessage } from "@/lib/api/errors";
+import { sortCategories } from "@/lib/categories";
 import { hexToRgba } from "@/lib/colors";
 import {
   formatCurrency,
@@ -29,6 +32,7 @@ import {
 } from "@/lib/format";
 import { buildMonthOptions } from "@/lib/period";
 import { useCreateBudget, useUpdateBudget } from "@/lib/query/budgets";
+import { useCategories } from "@/lib/query/categories";
 import { cn } from "@/lib/utils";
 import { budgetSchema, type BudgetFormValues } from "@/lib/validation/budgets";
 import { BudgetCategoryPicker } from "./components/budget-category-picker";
@@ -38,14 +42,19 @@ export const BudgetFormDialog = ({
   open,
   onOpenChange,
   budget,
-  categories,
   defaultPeriod,
 }: BudgetFormDialogProps) => {
   const { user } = useAuth();
   const createBudget = useCreateBudget();
   const updateBudget = useUpdateBudget();
+  const categoriesQuery = useCategories();
   const isEditing = Boolean(budget);
   const isPending = createBudget.isPending || updateBudget.isPending;
+
+  const { refetch: refetchCategories } = categoriesQuery;
+  useEffect(() => {
+    if (open) void refetchCategories();
+  }, [open, refetchCategories]);
 
   const form = useForm<BudgetFormValues>({
     resolver: zodResolver(budgetSchema),
@@ -62,8 +71,10 @@ export const BudgetFormDialog = ({
   const currency = useWatch({ control: form.control, name: "currency" });
   const limit = useWatch({ control: form.control, name: "limit" });
 
-  const expenseCategories = categories.filter(
-    (category) => category.type === "expense" && !category.archived,
+  const expenseCategories = sortCategories(
+    (categoriesQuery.data ?? []).filter(
+      (category) => category.type === "expense" && !category.archived,
+    ),
   );
   const selectedCategory = expenseCategories.find(
     (category) => category.id === categoryId,
@@ -140,14 +151,11 @@ export const BudgetFormDialog = ({
           render={({ field }) => (
             <FormItem className="w-full">
               <FormControl>
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  min="0"
-                  placeholder="0"
-                  className="h-auto border-0 bg-transparent px-0 text-center font-heading text-3xl font-bold shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  {...field}
+                <MoneyInput
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  inputClassName="h-auto border-0 bg-transparent pl-8 text-center font-heading text-3xl font-bold shadow-none focus-visible:ring-0"
                 />
               </FormControl>
               <FormMessage className="text-center" />
@@ -165,12 +173,28 @@ export const BudgetFormDialog = ({
         render={({ field }) => (
           <FormItem className="min-w-0">
             <FormLabel>Categoría</FormLabel>
-            <BudgetCategoryPicker
-              categories={expenseCategories}
-              value={field.value}
-              onChange={field.onChange}
-              disabled={isEditing}
-            />
+            {categoriesQuery.isLoading ? (
+              <div className="flex gap-2">
+                <Skeleton className="h-9 w-24 rounded-full" />
+                <Skeleton className="h-9 w-24 rounded-full" />
+                <Skeleton className="h-9 w-24 rounded-full" />
+              </div>
+            ) : expenseCategories.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                No tenés categorías de gasto.{" "}
+                <Link href="/categories" className="text-primary underline">
+                  Creá una
+                </Link>{" "}
+                para asignarle un presupuesto.
+              </p>
+            ) : (
+              <BudgetCategoryPicker
+                categories={expenseCategories}
+                value={field.value}
+                onChange={field.onChange}
+                disabled={isEditing}
+              />
+            )}
             <FormMessage />
           </FormItem>
         )}

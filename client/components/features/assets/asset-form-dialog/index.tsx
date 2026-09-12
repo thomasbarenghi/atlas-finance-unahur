@@ -9,6 +9,7 @@ import { FormCurrencyField } from "@/components/common/form-currency-field";
 import { FormDateField } from "@/components/common/form-date-field";
 import { FormDialog } from "@/components/common/form-dialog";
 import { FormHero } from "@/components/common/form-hero";
+import { FormMoneyField } from "@/components/common/form-money-field";
 import { FormTextField } from "@/components/common/form-text-field";
 import {
   FormControl,
@@ -96,7 +97,6 @@ export const AssetFormDialog = ({
             name: values.name,
             type: values.type,
             currency: values.currency,
-            date: values.date,
             notes: values.notes ?? null,
           },
         });
@@ -210,24 +210,18 @@ export const AssetFormDialog = ({
 
       <div className="grid grid-cols-2 gap-3">
         {isEditing ? (
-          <FormTextField
+          <FormMoneyField
             name="newValue"
             label="Nueva valuación"
-            type="number"
-            step="0.01"
-            min="0"
             placeholder="Igual al actual"
           />
         ) : (
-          <FormTextField
-            name="initialValue"
-            label="Valor inicial"
-            type="number"
-            step="0.01"
-            min="0"
-          />
+          <FormMoneyField name="initialValue" label="Valor inicial" />
         )}
-        <FormCurrencyField fallback={user?.baseCurrency ?? "ARS"} />
+        <FormCurrencyField
+          fallback={user?.baseCurrency ?? "ARS"}
+          disabled={isEditing}
+        />
       </div>
 
       {isEditing ? (

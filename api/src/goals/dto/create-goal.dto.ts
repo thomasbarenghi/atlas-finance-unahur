@@ -30,9 +30,9 @@ export class CreateGoalDto {
 
   @IsOptional()
   @Matches(ISO_DATE, { message: "targetDate debe ser YYYY-MM-DD" })
-  targetDate?: string;
+  targetDate?: string | null;
 
   @IsOptional()
   @IsUUID()
-  sourceAccountId?: string;
+  sourceAccountId?: string | null;
 }

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { FormCurrencyField } from "@/components/common/form-currency-field";
 import { FormDialog } from "@/components/common/form-dialog";
 import { FormHero } from "@/components/common/form-hero";
+import { FormMoneyField } from "@/components/common/form-money-field";
 import { FormTextField } from "@/components/common/form-text-field";
 import {
   FormControl,
@@ -180,13 +181,11 @@ export const AccountFormDialog = ({
       />
 
       <div className="grid grid-cols-2 gap-3">
-        <FormTextField
-          name="initialBalance"
-          label="Saldo inicial"
-          type="number"
-          step="0.01"
+        <FormMoneyField name="initialBalance" label="Saldo inicial" />
+        <FormCurrencyField
+          fallback={user?.baseCurrency ?? "ARS"}
+          disabled={isEditing}
         />
-        <FormCurrencyField fallback={user?.baseCurrency ?? "ARS"} />
       </div>
 
       <FormTextField name="notes" label="Observaciones" multiline />

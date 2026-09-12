@@ -1,5 +1,5 @@
 import { mockApi } from "@/lib/mocks/api";
-import { API_BASE_URL } from "./client";
+import { API_BASE_URL, refreshAuthSession } from "./client";
 import type {
   AssistantAction,
   AssistantMessageInput,
@@ -60,17 +60,24 @@ export const streamAssistantMessage = async (
     return;
   }
 
-  const response = await fetch(`${API_BASE_URL}/assistant/messages`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      question: input.question,
-      conversationId: input.conversationId ?? null,
-      period: input.period,
-      currency: input.currency,
-    }),
-  });
+  const send = () =>
+    fetch(`${API_BASE_URL}/assistant/messages`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        question: input.question,
+        conversationId: input.conversationId ?? null,
+        period: input.period,
+        currency: input.currency,
+      }),
+    });
+
+  let response = await send();
+  if (response.status === 401) {
+    const refreshed = await refreshAuthSession();
+    if (refreshed) response = await send();
+  }
 
   if (!response.ok || !response.body) {
     let message = "El asistente no está disponible";

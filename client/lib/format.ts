@@ -22,6 +22,61 @@ export const formatPercentPoints = (
   locale: string = DEFAULT_LOCALE,
 ) => formatPercent(value / 100, locale);
 
+export const formatMoneyInput = (
+  value: number | null | undefined,
+  locale: string = DEFAULT_LOCALE,
+): string => {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "";
+  }
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(
+    value,
+  );
+};
+
+export const sanitizeMoneyInput = (input: string): string => {
+  const cleaned = input.replace(/[^\d.,]/g, "");
+  const commaIndex = cleaned.indexOf(",");
+  if (commaIndex === -1) return cleaned;
+  return (
+    cleaned.slice(0, commaIndex + 1) +
+    cleaned.slice(commaIndex + 1).replace(/,/g, "")
+  );
+};
+
+const THOUSANDS_FORMATTER = new Intl.NumberFormat(DEFAULT_LOCALE, {
+  maximumFractionDigits: 0,
+});
+
+export const formatMoneyTyping = (input: string): string => {
+  const [integerPart, decimalPart] = sanitizeMoneyInput(input).split(",");
+  const digits = integerPart.replace(/\./g, "");
+  const formattedInteger =
+    digits === "" ? "" : THOUSANDS_FORMATTER.format(Number(digits));
+  return decimalPart === undefined
+    ? formattedInteger
+    : `${formattedInteger},${decimalPart}`;
+};
+
+export const parseMoneyInput = (input: string): number | null => {
+  let normalized = sanitizeMoneyInput(input);
+  if (normalized.includes(",")) {
+    normalized = normalized.replace(/\./g, "").replace(",", ".");
+  } else {
+    const parts = normalized.split(".");
+    if (parts.length > 1) {
+      const decimals = parts[parts.length - 1];
+      normalized =
+        decimals.length > 0 && decimals.length <= 2
+          ? `${parts.slice(0, -1).join("")}.${decimals}`
+          : parts.join("");
+    }
+  }
+  if (normalized === "" || normalized === ".") return null;
+  const value = Number(normalized);
+  return Number.isFinite(value) ? value : null;
+};
+
 export const formatApproxCurrency = (
   value: number,
   currency: string,

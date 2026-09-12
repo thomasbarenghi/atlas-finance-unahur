@@ -34,9 +34,14 @@ export const FormTextField = ({
           {label ? <FormLabel>{label}</FormLabel> : null}
           <FormControl>
             {multiline ? (
-              <Textarea rows={rows ?? 2} {...inputProps} {...field} />
+              <Textarea
+                rows={rows ?? 2}
+                {...inputProps}
+                {...field}
+                value={field.value ?? ""}
+              />
             ) : (
-              <Input {...inputProps} {...field} />
+              <Input {...inputProps} {...field} value={field.value ?? ""} />
             )}
           </FormControl>
           {description ? (

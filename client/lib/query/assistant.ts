@@ -16,21 +16,3 @@ export const useClearConversations = () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations }),
   });
 };
-
-export const useSendAssistantMessage = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: assistantEndpoints.send,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversations }),
-  });
-};
-
-export const useSendAssistantAudio = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: assistantEndpoints.sendAudio,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversations }),
-  });
-};

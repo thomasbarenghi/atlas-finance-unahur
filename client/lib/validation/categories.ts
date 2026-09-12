@@ -1,12 +1,15 @@
 import { z } from "zod";
 
+const HEX_COLOR = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
 export const categorySchema = z.object({
   name: z
     .string()
+    .trim()
     .min(1, "Ingresá un nombre")
     .max(60, "El nombre es demasiado largo"),
   type: z.enum(["income", "expense"]),
-  color: z.string().min(4, "Elegí un color"),
+  color: z.string().regex(HEX_COLOR, "Elegí un color válido"),
 });
 
 export type CategoryFormValues = z.infer<typeof categorySchema>;

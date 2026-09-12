@@ -1,11 +1,8 @@
-import { apiFetch, del, get, patch, post } from "./client";
+import { del, get, patch, post } from "./client";
 import { mockApi } from "@/lib/mocks/api";
 import type {
   Account,
   Asset,
-  AssistantAudioInput,
-  AssistantMessageInput,
-  AssistantReply,
   AuthResponse,
   Budget,
   Category,
@@ -259,27 +256,4 @@ export const assistantEndpoints = {
     USE_MOCKS
       ? mockApi.deleteConversations()
       : del<void>("/assistant/conversations"),
-  send: (input: AssistantMessageInput): Promise<AssistantReply> =>
-    USE_MOCKS
-      ? mockApi.sendMessage(input)
-      : post<AssistantReply>("/assistant/messages", input),
-  sendAudio: (input: AssistantAudioInput): Promise<AssistantReply> => {
-    if (USE_MOCKS) return mockApi.sendAudioMessage(input);
-    const formData = new FormData();
-    if (input.blob) formData.append("audio", input.blob, "audio.webm");
-    if (input.transcript) formData.append("transcript", input.transcript);
-    if (input.conversationId) {
-      formData.append("conversationId", input.conversationId);
-    }
-    if (input.period) {
-      formData.append("from", input.period.from);
-      formData.append("to", input.period.to);
-    }
-    if (input.currency) formData.append("currency", input.currency);
-    formData.append("durationMs", String(input.durationMs));
-    return apiFetch<AssistantReply>("/assistant/audio", {
-      method: "POST",
-      body: formData,
-    });
-  },
 };

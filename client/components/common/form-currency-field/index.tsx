@@ -7,12 +7,14 @@ export interface FormCurrencyFieldProps {
   name?: string;
   label?: string;
   fallback?: string;
+  disabled?: boolean;
 }
 
 export const FormCurrencyField = ({
   name = "currency",
   label = "Moneda",
   fallback = "ARS",
+  disabled,
 }: FormCurrencyFieldProps) => {
   const currencies = useCurrencies();
   const supported = currencies.data?.supported ?? [fallback];
@@ -21,6 +23,7 @@ export const FormCurrencyField = ({
     <FormSelectField
       name={name}
       label={label}
+      disabled={disabled}
       options={supported.map((currency) => ({
         value: currency,
         label: currency,

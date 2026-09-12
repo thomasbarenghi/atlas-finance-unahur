@@ -1,14 +1,16 @@
 import { z } from "zod";
+import { currencySchema, moneySchema, notesSchema } from "./common";
 
 export const accountSchema = z.object({
   name: z
     .string()
+    .trim()
     .min(1, "Ingresá un nombre")
     .max(80, "El nombre es demasiado largo"),
   type: z.enum(["cash", "bank", "wallet", "card", "other"]),
-  currency: z.string().min(3, "Elegí una moneda"),
-  initialBalance: z.coerce.number(),
-  notes: z.string().max(500, "Máximo 500 caracteres").optional(),
+  currency: currencySchema,
+  initialBalance: moneySchema,
+  notes: notesSchema.optional(),
 });
 
 export type AccountFormValues = z.infer<typeof accountSchema>;
