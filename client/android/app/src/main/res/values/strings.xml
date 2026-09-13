@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Atlass Fin</string>
+    <string name="title_activity_main">Atlass Fin</string>
+    <string name="package_name">com.atlassfin.app</string>
+    <string name="custom_url_scheme">com.atlassfin.app</string>
+</resources>

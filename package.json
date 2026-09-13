@@ -1,0 +1,22 @@
+{
+  "name": "atlas-finance-unahur",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Atlass Fin — personal finance manager (monorepo: client + api)",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "format": "sh scripts/run-in-projects.sh format",
+    "format:check": "sh scripts/run-in-projects.sh format:check",
+    "lint": "sh scripts/run-in-projects.sh lint",
+    "typecheck": "sh scripts/run-in-projects.sh typecheck",
+    "test": "sh scripts/run-in-projects.sh test",
+    "test:e2e": "sh scripts/run-in-projects.sh test:e2e",
+    "build": "sh scripts/run-in-projects.sh build"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}
