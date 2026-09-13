@@ -21,4 +21,8 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   aiEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  assistantDestructiveEnabled?: boolean;
 }

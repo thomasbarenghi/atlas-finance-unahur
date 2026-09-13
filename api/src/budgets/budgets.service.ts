@@ -273,6 +273,14 @@ export class BudgetsService {
         "La categoría no existe",
       );
     }
+    if (category.type !== "expense") {
+      throw new ApiException(
+        ErrorCode.VALIDATION_ERROR,
+        HttpStatus.BAD_REQUEST,
+        "El presupuesto debe ser sobre una categoría de gasto",
+        { categoryId: ["Debe ser una categoría de gasto"] },
+      );
+    }
   }
 
   private async findOwnedBudget(userId: string, id: string): Promise<Budget> {

@@ -161,6 +161,7 @@ export class AssistantContextService {
     );
 
     const summary = [
+      `Fecha de hoy: ${toIsoDate(new Date())}.`,
       `Período analizado: ${from} a ${to} (moneda ${currency}).`,
       `Ingresos del período: ${flows.income}.`,
       `Gastos del período: ${flows.expenses}.`,

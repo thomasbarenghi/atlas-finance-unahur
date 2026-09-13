@@ -30,6 +30,13 @@ export class User {
   @Column({ name: "ai_enabled", type: "boolean", default: false })
   aiEnabled: boolean;
 
+  @Column({
+    name: "assistant_destructive_enabled",
+    type: "boolean",
+    default: false,
+  })
+  assistantDestructiveEnabled: boolean;
+
   @CreateDateColumn({ name: "created_at", type: "timestamptz" })
   createdAt: Date;
 

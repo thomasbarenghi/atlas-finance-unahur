@@ -10,6 +10,7 @@ import {
 } from "@nestjs/common";
 import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
+import { AddToPositionDto } from "./dto/add-to-position.dto";
 import { CreatePositionDto } from "./dto/create-position.dto";
 import { PositionResponseDto } from "./dto/position-response.dto";
 import { UpdatePositionDto } from "./dto/update-position.dto";
@@ -35,6 +36,20 @@ export class PositionsController {
     @Body() dto: CreatePositionDto,
   ): Promise<PositionResponseDto> {
     return this.positionsService.createPosition(userId, dto);
+  }
+
+  @Post(":id/add")
+  @ApiOperation({
+    summary:
+      "Suma una compra a una posición (monto + precio unitario) y recalcula cantidad y costo promedio",
+  })
+  @ApiOkResponse({ description: "PositionResponseDto" })
+  addToPosition(
+    @CurrentUser("id") userId: string,
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body() dto: AddToPositionDto,
+  ): Promise<PositionResponseDto> {
+    return this.positionsService.addToPosition(userId, id, dto);
   }
 
   @Patch(":id")

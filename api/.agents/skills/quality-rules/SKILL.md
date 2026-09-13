@@ -168,7 +168,7 @@ export function toAccountResponse(a: Account): AccountResponseDto {
 
 - All outbound calls go through dedicated providers (`market`, `ai`, `mail`, `fx`) using `HttpModule` with timeout, host validation, HTTPS, and no redirect following (NFR-SEG-009).
 - External failures degrade gracefully: keep the last valid market price (never invent one), and surface `AI_UNAVAILABLE`/`MARKET_UNAVAILABLE`.
-- The AI context is built server-side from minimal, pre-calculated, user-scoped data; system instructions are fixed and separated from user data. The assistant MUST NOT write data (FR-IA-006/010).
+- The AI context is built server-side from minimal, pre-calculated, user-scoped data; system instructions are fixed and separated from user data. Assistant write actions use typed tools that reuse the same primary services/orchestrators, never touch a `userId` supplied by the model, require user confirmation (pending action + one-time token) and gate destructive tools behind the user's `assistantDestructiveEnabled` flag (FR-IA-006/010).
 
 ## 12. Errors
 

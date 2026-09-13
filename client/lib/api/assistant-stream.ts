@@ -1,7 +1,8 @@
 import { mockApi } from "@/lib/mocks/api";
 import { API_BASE_URL, refreshAuthSession } from "./client";
 import type {
-  AssistantAction,
+  AssistantActionError,
+  AssistantActionProposal,
   AssistantMessageInput,
   PeriodRange,
 } from "./types";
@@ -19,7 +20,8 @@ export interface AssistantStreamMeta {
 export interface AssistantStreamHandlers {
   onMeta?: (meta: AssistantStreamMeta) => void;
   onToken?: (delta: string) => void;
-  onAction?: (action: AssistantAction) => void;
+  onProposal?: (proposal: AssistantActionProposal) => void;
+  onActionError?: (error: AssistantActionError) => void;
   onDone?: (result: { conversationId: string; insufficient: boolean }) => void;
   onError?: (message: string) => void;
 }
@@ -111,8 +113,10 @@ export const streamAssistantMessage = async (
         handlers.onMeta?.(parsed as unknown as AssistantStreamMeta);
       } else if (event === "token") {
         handlers.onToken?.(String(parsed.delta ?? ""));
-      } else if (event === "action") {
-        handlers.onAction?.(parsed as unknown as AssistantAction);
+      } else if (event === "action_proposal") {
+        handlers.onProposal?.(parsed as unknown as AssistantActionProposal);
+      } else if (event === "action_error") {
+        handlers.onActionError?.(parsed as unknown as AssistantActionError);
       } else if (event === "done") {
         handlers.onDone?.({
           conversationId: String(parsed.conversationId ?? ""),

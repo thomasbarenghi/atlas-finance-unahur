@@ -8,6 +8,7 @@ import { AppConfig } from "../config/configuration";
 import { Quote } from "../quotes/entities/quote.entity";
 import { CalculationsService } from "../shared/calculations/calculations.service";
 import { CreatePositionDto } from "./dto/create-position.dto";
+import { AddToPositionDto } from "./dto/add-to-position.dto";
 import { PositionResponseDto } from "./dto/position-response.dto";
 import { UpdatePositionDto } from "./dto/update-position.dto";
 import { Position } from "./entities/position.entity";
@@ -71,6 +72,27 @@ export class PositionsService {
     if (dto.avgCost !== undefined) position.avgCost = dto.avgCost;
     if (dto.currency !== undefined)
       position.currency = dto.currency.toUpperCase();
+
+    const saved = await this.positionsRepository.save(position);
+    const [response] = await this.derive([saved]);
+    return response;
+  }
+
+  async addToPosition(
+    userId: string,
+    id: string,
+    dto: AddToPositionDto,
+  ): Promise<PositionResponseDto> {
+    const position = await this.findOwnedPosition(userId, id);
+    const addedQuantity = dto.amount / dto.unitPrice;
+    const newQuantity = position.quantity + addedQuantity;
+    const newAvgCost =
+      newQuantity > 0
+        ? (position.quantity * position.avgCost + dto.amount) / newQuantity
+        : position.avgCost;
+
+    position.quantity = newQuantity;
+    position.avgCost = newAvgCost;
 
     const saved = await this.positionsRepository.save(position);
     const [response] = await this.derive([saved]);

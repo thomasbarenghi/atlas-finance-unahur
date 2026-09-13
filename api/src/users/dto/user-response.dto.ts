@@ -8,6 +8,7 @@ export interface UserResponseDto {
   baseCurrency: string;
   theme: Theme;
   aiEnabled: boolean;
+  assistantDestructiveEnabled: boolean;
   createdAt: string;
 }
 
@@ -18,5 +19,6 @@ export const toUserResponse = (user: User): UserResponseDto => ({
   baseCurrency: user.baseCurrency,
   theme: user.theme,
   aiEnabled: user.aiEnabled,
+  assistantDestructiveEnabled: user.assistantDestructiveEnabled,
   createdAt: user.createdAt.toISOString(),
 });

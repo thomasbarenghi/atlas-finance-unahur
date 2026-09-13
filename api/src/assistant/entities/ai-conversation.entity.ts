@@ -6,6 +6,11 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 
+export interface StoredConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 @Entity("ai_conversations")
 export class AiConversation {
   @PrimaryGeneratedColumn("uuid")
@@ -23,6 +28,9 @@ export class AiConversation {
 
   @Column({ name: "context_meta", type: "jsonb", default: {} })
   contextMeta: Record<string, unknown>;
+
+  @Column({ type: "jsonb", default: () => "'[]'::jsonb" })
+  messages: StoredConversationMessage[];
 
   @CreateDateColumn({ name: "created_at", type: "timestamptz" })
   createdAt: Date;
