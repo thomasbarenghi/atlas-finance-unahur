@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Coins, LogOut, Sparkles } from "lucide-react";
+import { Coins, LogOut, ShieldAlert, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { IconBadge } from "@/components/common/icon-badge";
 import { ListRow } from "@/components/common/list-row";
@@ -44,6 +44,23 @@ export const SettingsMenu = () => {
             onCheckedChange={(checked) =>
               updateMe.mutate(
                 { aiEnabled: checked },
+                { onError: () => toast.error("No se pudo actualizar") },
+              )
+            }
+          />
+        </div>
+        <div className="flex items-center gap-3 border-t px-4 py-2.5">
+          <IconBadge icon={ShieldAlert} size="sm" shape="lg" />
+          <span className="flex-1 text-sm font-medium">
+            Acciones destructivas
+          </span>
+          <Switch
+            checked={user?.assistantDestructiveEnabled ?? false}
+            disabled={updateMe.isPending || !user?.aiEnabled}
+            aria-label="Acciones destructivas del asistente"
+            onCheckedChange={(checked) =>
+              updateMe.mutate(
+                { assistantDestructiveEnabled: checked },
                 { onError: () => toast.error("No se pudo actualizar") },
               )
             }

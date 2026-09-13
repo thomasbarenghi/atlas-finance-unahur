@@ -3,6 +3,7 @@ import { mockApi } from "@/lib/mocks/api";
 import type {
   Account,
   Asset,
+  AssistantActionResult,
   AuthResponse,
   Budget,
   Category,
@@ -256,4 +257,22 @@ export const assistantEndpoints = {
     USE_MOCKS
       ? mockApi.deleteConversations()
       : del<void>("/assistant/conversations"),
+  confirmAction: (
+    actionId: string,
+    token: string,
+  ): Promise<AssistantActionResult> =>
+    USE_MOCKS
+      ? mockApi.confirmAction(actionId, token)
+      : post<AssistantActionResult>(`/assistant/actions/${actionId}/confirm`, {
+          token,
+        }),
+  cancelAction: (
+    actionId: string,
+    token: string,
+  ): Promise<AssistantActionResult> =>
+    USE_MOCKS
+      ? mockApi.cancelAction(actionId, token)
+      : post<AssistantActionResult>(`/assistant/actions/${actionId}/cancel`, {
+          token,
+        }),
 };

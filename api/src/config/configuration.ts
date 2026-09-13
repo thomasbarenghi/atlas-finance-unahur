@@ -38,6 +38,7 @@ export interface AiConfig {
   model: string;
   timeoutMs: number;
   devUserEmail: string;
+  actionTtlMs: number;
 }
 
 export interface MailConfig {
@@ -140,6 +141,7 @@ export const configuration = (): AppConfig => ({
       (process.env.AI_PROVIDER === "openai" ? "gpt-4o-mini" : "deepseek-chat"),
     timeoutMs: toNumber(process.env.AI_TIMEOUT_MS, 30000),
     devUserEmail: process.env.AI_DEV_USER_EMAIL || "demo@atlassfin.app",
+    actionTtlMs: toNumber(process.env.AI_ACTION_TTL_MS, 120000),
   },
   mail: {
     host: process.env.SMTP_HOST || null,

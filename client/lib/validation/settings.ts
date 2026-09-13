@@ -9,6 +9,7 @@ export const settingsSchema = z.object({
     .max(80, "El nombre no puede superar los 80 caracteres"),
   baseCurrency: currencySchema,
   aiEnabled: z.boolean(),
+  assistantDestructiveEnabled: z.boolean(),
 });
 
 export type SettingsFormValues = z.infer<typeof settingsSchema>;

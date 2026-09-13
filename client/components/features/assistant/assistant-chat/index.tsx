@@ -70,6 +70,9 @@ export const AssistantChat = ({
     cancelRecording,
     stopRecording,
     startNewThread,
+    confirmAction,
+    cancelAction,
+    isActionLocked,
   } = useAssistantConversation();
 
   const [internalHistoryOpen, setInternalHistoryOpen] = useState(false);
@@ -122,7 +125,7 @@ export const AssistantChat = ({
                 </h2>
                 <p className="text-muted-foreground max-w-xs text-sm">
                   Preguntá por tus gastos, presupuestos o patrimonio. También
-                  podés pedirle que cree o edite cuentas.
+                  podés pedirle que cree, edite o elimine datos.
                 </p>
               </div>
               <div className="flex w-full max-w-sm flex-col gap-2">
@@ -166,10 +169,17 @@ export const AssistantChat = ({
                 ) : null}
                 {message.role === "assistant" && message.actions?.length ? (
                   <div className="flex flex-col gap-1.5">
-                    {message.actions.map((action, index) => (
+                    {message.actions.map((action) => (
                       <AssistantActionCard
-                        key={`${action.name}-${index}`}
+                        key={action.actionId}
                         action={action}
+                        locked={isActionLocked(action)}
+                        onConfirm={(actionId) =>
+                          confirmAction(message.id, actionId)
+                        }
+                        onCancel={(actionId) =>
+                          cancelAction(message.id, actionId)
+                        }
                       />
                     ))}
                   </div>

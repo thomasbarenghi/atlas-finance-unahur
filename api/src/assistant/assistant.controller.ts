@@ -19,8 +19,10 @@ import { Paginated, PaginationDto } from "../common/dto/pagination.dto";
 import { ApiErrorBody, ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
 import { AuthUser } from "../common/types/auth-user";
+import { ActionResultDto } from "./actions/action-result.dto";
 import { AssistantService, ConversationResponse } from "./assistant.service";
 import { AssistantMessageDto } from "./dto/assistant-message.dto";
+import { ConfirmActionDto } from "./dto/confirm-action.dto";
 
 @Controller("assistant")
 export class AssistantController {
@@ -102,5 +104,23 @@ export class AssistantController {
   @Delete("conversations")
   clear(@CurrentUser() user: AuthUser): Promise<void> {
     return this.assistantService.deleteConversations(user.id);
+  }
+
+  @Post("actions/:id/confirm")
+  confirmAction(
+    @CurrentUser() user: AuthUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body() dto: ConfirmActionDto,
+  ): Promise<ActionResultDto> {
+    return this.assistantService.confirmAction(user.id, id, dto.token);
+  }
+
+  @Post("actions/:id/cancel")
+  cancelAction(
+    @CurrentUser() user: AuthUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body() dto: ConfirmActionDto,
+  ): Promise<ActionResultDto> {
+    return this.assistantService.cancelAction(user.id, id, dto.token);
   }
 }

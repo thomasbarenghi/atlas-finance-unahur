@@ -99,6 +99,7 @@ const createInitialState = (): MockState => {
     baseCurrency: "ARS",
     theme: "system",
     aiEnabled: true,
+    assistantDestructiveEnabled: false,
     createdAt: timestamp(now),
   };
 

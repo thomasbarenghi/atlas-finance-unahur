@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, Repository } from "typeorm";
+import { DataSource, In, Repository } from "typeorm";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
 import { Debt } from "../debts/entities/debt.entity";
@@ -33,6 +33,7 @@ export class AssetsService {
     private readonly valuationsRepository: Repository<Valuation>,
     @InjectRepository(Debt)
     private readonly debtsRepository: Repository<Debt>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async listAssets(userId: string): Promise<AssetResponseDto[]> {
@@ -53,24 +54,27 @@ export class AssetsService {
     userId: string,
     dto: CreateAssetDto,
   ): Promise<AssetResponseDto> {
-    const asset = await this.assetsRepository.save(
-      this.assetsRepository.create({
-        userId,
-        name: dto.name.trim(),
-        type: dto.type,
-        currency: dto.currency.toUpperCase(),
-        notes: dto.notes?.trim() || null,
-      }),
-    );
-    await this.valuationsRepository.save(
-      this.valuationsRepository.create({
-        assetId: asset.id,
-        value: dto.initialValue,
-        currency: dto.currency.toUpperCase(),
-        date: dto.date,
-        source: "manual",
-      }),
-    );
+    const asset = await this.dataSource.transaction(async (manager) => {
+      const created = await manager.save(
+        manager.create(Asset, {
+          userId,
+          name: dto.name.trim(),
+          type: dto.type,
+          currency: dto.currency.toUpperCase(),
+          notes: dto.notes?.trim() || null,
+        }),
+      );
+      await manager.save(
+        manager.create(Valuation, {
+          assetId: created.id,
+          value: dto.initialValue,
+          currency: dto.currency.toUpperCase(),
+          date: dto.date,
+          source: "manual",
+        }),
+      );
+      return created;
+    });
     const [response] = await this.derive(userId, [asset]);
     return response;
   }

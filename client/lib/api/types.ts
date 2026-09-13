@@ -36,6 +36,7 @@ export interface User {
   baseCurrency: string;
   theme: Theme;
   aiEnabled: boolean;
+  assistantDestructiveEnabled: boolean;
   createdAt: string;
 }
 
@@ -292,11 +293,53 @@ export interface AssistantActionEntity {
   initialBalance?: number;
 }
 
-export interface AssistantAction {
+export type ActionClass = "read" | "write_safe" | "sensitive" | "destructive";
+
+export interface ActionPreviewField {
+  label: string;
+  value: string;
+}
+
+export interface ActionPreview {
+  title: string;
+  summary: string;
+  fields: ActionPreviewField[];
+  impact?: string;
+}
+
+export interface AssistantActionProposal {
+  actionId: string;
+  token: string;
   name: string;
-  status: "executed" | "error";
-  message: string;
+  title: string;
+  classification: ActionClass;
+  destructive: boolean;
+  summary: string;
+  preview: ActionPreview;
+  expiresAt: string;
+  planId: string | null;
+  step: number;
+  pending: boolean;
+}
+
+export interface AssistantActionResult {
+  actionId: string;
+  name: string;
+  title: string;
+  classification: ActionClass;
+  status: "executed" | "failed" | "cancelled";
+  summary: string;
   entity: AssistantActionEntity | null;
+  code?: string;
+  fieldErrors?: Record<string, string[]>;
+}
+
+export interface AssistantActionError {
+  name: string;
+  title: string;
+  code: string;
+  message: string;
+  fieldErrors?: Record<string, string[]>;
 }
 
 export interface AssistantMessageInput {
@@ -340,6 +383,7 @@ export interface UpdateUserInput {
   baseCurrency?: string;
   theme?: Theme;
   aiEnabled?: boolean;
+  assistantDestructiveEnabled?: boolean;
 }
 
 export interface CreateAccountInput {

@@ -9,7 +9,7 @@ import {
 } from "@/hooks/use-assistant-chat";
 import { readJson, writeJson } from "@/lib/storage";
 
-const STORAGE_KEY = "atlassfin.assistant.threads.v1";
+const STORAGE_KEY = "atlassfin.assistant.threads.v2";
 
 interface AssistantChatState {
   threads: AssistantThread[];
@@ -21,6 +21,40 @@ const titleFrom = (message: AssistantChatMessage): string =>
     ? message.content.slice(0, 60)
     : "Nueva conversación";
 
+/**
+ * El token de confirmación de una acción es de un solo uso y vida corta; no
+ * debe quedar en `localStorage`. Al persistir lo vaciamos; al rehidratar, las
+ * acciones que seguían pendientes quedan como fallidas (hay que volver a
+ * pedirlas) para no ofrecer un botón de confirmación sin token válido.
+ */
+const stripActionTokens = (state: AssistantChatState): AssistantChatState => ({
+  ...state,
+  threads: state.threads.map((thread) => ({
+    ...thread,
+    messages: thread.messages.map((message) => ({
+      ...message,
+      actions: message.actions?.map((action) => ({ ...action, token: "" })),
+    })),
+  })),
+});
+
+const restoreActions = (
+  message: AssistantChatMessage,
+): AssistantChatMessage => ({
+  ...message,
+  actions: message.actions?.map((action) =>
+    (action.status === "proposed" || action.status === "executing") &&
+    !action.token
+      ? {
+          ...action,
+          status: "failed" as const,
+          resultSummary:
+            "Por seguridad, la confirmación ya no está disponible. Volvé a pedir la acción al asistente.",
+        }
+      : action,
+  ),
+});
+
 const readState = (): AssistantChatState => {
   const parsed = readJson<Partial<AssistantChatState>>(STORAGE_KEY, {
     threads: [],
@@ -29,10 +63,9 @@ const readState = (): AssistantChatState => {
   const threads = (Array.isArray(parsed.threads) ? parsed.threads : []).map(
     (thread) => ({
       ...thread,
-      messages: (thread.messages ?? []).map((message) => ({
-        ...message,
-        audioUrl: undefined,
-      })),
+      messages: (thread.messages ?? []).map((message) =>
+        restoreActions({ ...message, audioUrl: undefined }),
+      ),
     }),
   ) as AssistantThread[];
   return {
@@ -49,7 +82,7 @@ export const AssistantChatProvider = ({
   const [state, setState] = useState<AssistantChatState>(readState);
 
   useEffect(() => {
-    writeJson(STORAGE_KEY, state);
+    writeJson(STORAGE_KEY, stripActionTokens(state));
   }, [state]);
 
   const appendMessage = useCallback((message: AssistantChatMessage) => {

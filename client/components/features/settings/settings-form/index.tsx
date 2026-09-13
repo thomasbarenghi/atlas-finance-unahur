@@ -48,8 +48,11 @@ export const SettingsForm = () => {
       name: user?.name ?? "",
       baseCurrency: user?.baseCurrency ?? "ARS",
       aiEnabled: user?.aiEnabled ?? false,
+      assistantDestructiveEnabled: user?.assistantDestructiveEnabled ?? false,
     },
   });
+
+  const aiEnabled = form.watch("aiEnabled");
 
   useEffect(() => {
     if (!user) return;
@@ -57,6 +60,7 @@ export const SettingsForm = () => {
       name: user.name,
       baseCurrency: user.baseCurrency,
       aiEnabled: user.aiEnabled,
+      assistantDestructiveEnabled: user.assistantDestructiveEnabled,
     });
   }, [user, form]);
 
@@ -106,11 +110,11 @@ export const SettingsForm = () => {
           <CardHeader>
             <CardTitle className="font-heading">Privacidad e IA</CardTitle>
             <CardDescription>
-              El asistente usa datos mínimos y puede crear o editar cuentas a
-              pedido tuyo.
+              El asistente usa datos mínimos y puede crear, editar o eliminar
+              datos a pedido tuyo, siempre con tu confirmación.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-3">
             <FormField
               control={form.control}
               name="aiEnabled"
@@ -125,6 +129,28 @@ export const SettingsForm = () => {
                   <FormControl>
                     <Switch
                       checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="assistantDestructiveEnabled"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-xl border p-3">
+                  <div className="flex flex-col gap-0.5">
+                    <FormLabel>Acciones destructivas</FormLabel>
+                    <FormDescription>
+                      Permitir que el asistente elimine movimientos,
+                      presupuestos o inversiones, siempre con confirmación.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      disabled={!aiEnabled}
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>

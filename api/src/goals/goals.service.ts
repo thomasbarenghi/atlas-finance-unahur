@@ -88,6 +88,16 @@ export class GoalsService {
     return this.toResponse(await this.goalsRepository.save(goal));
   }
 
+  async contributeToGoal(
+    userId: string,
+    id: string,
+    amount: number,
+  ): Promise<GoalResponseDto> {
+    const goal = await this.findOwnedGoal(userId, id);
+    goal.savedAmount = goal.savedAmount + amount;
+    return this.toResponse(await this.goalsRepository.save(goal));
+  }
+
   async archiveGoal(userId: string, id: string): Promise<GoalResponseDto> {
     const goal = await this.findOwnedGoal(userId, id);
     goal.archived = true;

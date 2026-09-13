@@ -4,6 +4,7 @@ import { formatCurrency, formatPercent, toIsoDate } from "@/lib/format";
 import type {
   Account,
   Asset,
+  AssistantActionResult,
   AssistantMessageInput,
   AssistantReply,
   Budget,
@@ -539,6 +540,7 @@ export const mockApi = {
       baseCurrency: "ARS",
       theme: "system",
       aiEnabled: false,
+      assistantDestructiveEnabled: false,
       createdAt,
     };
     mockState.users.push({ user, password: input.password });
@@ -1258,6 +1260,44 @@ export const mockApi = {
     mockState.conversations = mockState.conversations.filter(
       (conversation) => conversation.userId !== user.id,
     );
+  },
+
+  async confirmAction(
+    actionId: string,
+    token: string,
+  ): Promise<AssistantActionResult> {
+    await delay();
+    requireUser();
+    void token;
+    return {
+      actionId,
+      name: "unknown",
+      title: "Acción del asistente",
+      classification: "write_safe",
+      status: "failed",
+      summary:
+        "El modo demo no ejecuta acciones del asistente. Conectá el backend real para confirmarlas.",
+      entity: null,
+      code: "ACTION_NOT_ALLOWED",
+    };
+  },
+
+  async cancelAction(
+    actionId: string,
+    token: string,
+  ): Promise<AssistantActionResult> {
+    await delay();
+    requireUser();
+    void token;
+    return {
+      actionId,
+      name: "unknown",
+      title: "Acción del asistente",
+      classification: "write_safe",
+      status: "cancelled",
+      summary: "Acción cancelada.",
+      entity: null,
+    };
   },
 
   async forgotPassword(email: string): Promise<void> {

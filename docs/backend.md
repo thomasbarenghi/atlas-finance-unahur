@@ -169,9 +169,13 @@ api/
 │   │   ├── assistant.module.ts
 │   │   ├── assistant.controller.ts
 │   │   ├── assistant.service.ts
+│   │   ├── assistant-context.service.ts
+│   │   ├── tools/                    # ToolRegistry + ReferenceResolver + tools por dominio
+│   │   ├── actions/                  # acciones pendientes (confirmación/auditoría)
 │   │   ├── dto/
 │   │   └── entities/
-│   │       └── ai-conversation.entity.ts
+│   │       ├── ai-conversation.entity.ts
+│   │       └── assistant-action.entity.ts
 │   ├── calculations/                # reglas CAL-001..009
 │   │   ├── calculations.module.ts
 │   │   └── calculations.service.ts
@@ -225,6 +229,7 @@ Tablas derivadas de las entidades del FRD (§10) más las necesarias para trazab
 | base_currency | char(3) | default 'USD' (FR-AUT-005) |
 | theme | text | 'light' | 'dark' | 'system' (FR-AUT-006) |
 | ai_enabled | boolean | default false (FR-IA-001) |
+| assistant_destructive_enabled | boolean | default false; habilita las acciones destructivas del asistente (FR-IA-006) |
 | created_at / updated_at | timestamptz | |
 
 ### 5.2 `sessions`
@@ -393,7 +398,10 @@ Los objetivos son un **módulo propio** (`goals`), no un tipo de cuenta. Una met
 | question | text | |
 | answer | text | |
 | context_meta | jsonb | período, moneda, fuentes consideradas (FR-IA-005) |
+| messages | jsonb | transcript del hilo (`[{ role, content }]`) para dar **memoria conversacional**; se recortan los últimos turnos |
 | created_at | timestamptz | |
+
+> `question`/`answer` guardan el **último turno**; `messages` conserva el historial completo del hilo y se reinyecta al modelo en cada pregunta. La tabla se crea/actualiza con `synchronize: true`.
 
 ### 5.14 `exchange_rates` (CAL-008/009)
 | Columna | Tipo | Notas |
@@ -408,6 +416,31 @@ Los objetivos son un **módulo propio** (`goals`), no un tipo de cuenta. Una met
 | UNIQUE(base_currency, quote_currency, provider, date) | | |
 
 > Cada conversión registra el par, la tasa, el proveedor y la fecha utilizados (CAL-009). Las tasas pueden ser fijas (seed) o provistas por el proveedor de mercado si está disponible.
+
+### 5.15 `assistant_actions` (FR-IA-006, auditoría y confirmación)
+
+Cada acción de escritura que propone el asistente se guarda como una **acción pendiente** sujeta a confirmación del usuario; también sirve de auditoría. Las **tools de lectura** ejecutadas se registran en la misma tabla (fila ya `executed`, `plan_id` y `token_hash` nulos) para trazabilidad, sin bloquear la respuesta si la auditoría falla.
+
+| Columna | Tipo | Notas |
+| :--- | :--- | :--- |
+| id | uuid PK | |
+| user_id | uuid FK → users | on delete cascade |
+| conversation_id | uuid NULL | conversación que la originó |
+| plan_id | uuid NULL | agrupa las acciones propuestas en una misma respuesta |
+| step | int | orden dentro del plan (0, 1, 2…) |
+| resolved | boolean | `false` si las referencias todavía no existen (dependencia pendiente) |
+| tool_name | text | nombre estable de la tool (`createAccount`, `deleteBudget`, …) |
+| classification | text | `read` \| `write_safe` \| `sensitive` \| `destructive` |
+| args | jsonb | argumentos validados (ids del usuario) o crudos si `resolved=false` |
+| preview | jsonb | resumen legible + campos mostrados al usuario |
+| status | text | `proposed` \| `executed` \| `failed` \| `cancelled` \| `expired` |
+| token_hash | text | hash sha-256 del token de confirmación de un solo uso |
+| result | jsonb NULL | resultado/entidad al ejecutar |
+| error_message | text NULL | motivo del fallo |
+| expires_at | timestamptz | TTL (`AI_ACTION_TTL_MS`, default 120 s) |
+| created_at / updated_at | timestamptz | |
+
+> La confirmación bloquea la fila (`pessimistic_write`) y valida **estado, TTL y token**, además del **orden del plan** (no se puede ejecutar un paso mientras uno anterior del mismo `planId` no esté `executed`/`cancelled`); así se evita la doble ejecución y las dependencias fuera de orden. Al vencer el TTL la acción pasa a `expired`. Las tablas/columnas se crean/actualizan con **`synchronize: true`** (no hay migración para esta funcionalidad).
 
 ---
 
@@ -503,6 +536,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 | PATCH | `/debts/:id` | FR-ACT-007 + vinculación `assetId` (FR-ACT-008, P1) |
 | POST | `/debts/:id/archive` | FR-ACT-007 |
 | GET / POST | `/positions` | FR-ACT-005 |
+| POST | `/positions/:id/add` | FR-ACT-005/006 (suma compra: monto + precio unitario; recalcula cantidad y costo promedio) |
 | PATCH / DELETE | `/positions/:id` | FR-ACT-007 |
 
 ### 7.7 Quotes
@@ -548,17 +582,19 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 | DELETE | `/assistant/conversations/:id` | FR-IA-009 |
 | DELETE | `/assistant/conversations` | borrar historial (FR-IA-009) |
 | POST | `/assistant/messages` | pregunta; responde con stream (FR-IA-002..011) |
+| POST | `/assistant/actions/:id/confirm` | confirma y ejecuta una acción propuesta (FR-IA-006) |
+| POST | `/assistant/actions/:id/cancel` | cancela una acción propuesta |
 
 > El estado habilitado/deshabilitado de la IA (FR-IA-001) es una **preferencia del usuario** (`users.ai_enabled`), expuesta en `GET /auth/me` y modificable con `PATCH /users/me`. No existe un endpoint separado de settings del asistente: una sola fuente de verdad.
 
 ### 7.12 Users (perfil y preferencias)
 | Método | Ruta | FR |
 | :--- | :--- | :--- |
-| PATCH | `/users/me` | actualiza `name`, `baseCurrency`, `theme`, `aiEnabled` (FR-AUT-005/006, FR-IA-001) |
+| PATCH | `/users/me` | actualiza `name`, `baseCurrency`, `theme`, `aiEnabled`, `assistantDestructiveEnabled` (FR-AUT-005/006, FR-IA-001/006) |
 
 ```jsonc
 // PATCH /users/me — body (todos opcionales, al menos uno)
-{ "name": "Ana", "baseCurrency": "ARS", "theme": "dark", "aiEnabled": true }
+{ "name": "Ana", "baseCurrency": "ARS", "theme": "dark", "aiEnabled": true, "assistantDestructiveEnabled": true }
 // response 200 → User (mismo shape que GET /auth/me)
 ```
 
@@ -791,16 +827,25 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 { "question": "¿En qué gasté más este mes?", "conversationId": null,
   "period": { "from": "2026-09-01", "to": "2026-09-30" }, "currency": "ARS" }
 // (conversationId = null crea una conversación nueva en el servidor)
+// Si enviás un conversationId existente, el backend reinyecta los turnos previos de ese hilo
+// (memoria conversacional) además del resumen del período.
 
 // Eventos SSE (cada uno: `event: <nombre>\ndata: <json>\n\n`)
 event: meta    data: { "conversationId": "uuid", "period": {...}, "currency": "ARS", "sources": ["transactions", "budgets"] }
 event: token   data: { "delta": "Este mes " }
 event: token   data: { "delta": "gastaste más en..." }
-event: action  data: { "name": "createAccount", "status": "executed", "message": "Creé la cuenta \"Banco Galicia\" en ARS.", "entity": { "id": "uuid", "name": "Banco Galicia", "type": "bank", "currency": "ARS", "initialBalance": 0 } }
+event: action_proposal data: { "actionId": "uuid", "token": "opaco", "name": "createAccount", "title": "Crear cuenta", "classification": "write_safe", "destructive": false, "summary": "Crear la cuenta \"Banco Galicia\" en ARS", "preview": { "title": "Crear cuenta", "summary": "...", "fields": [{ "label": "Nombre", "value": "Banco Galicia" }] }, "expiresAt": "ISO" }
+event: action_error data: { "name": "createTransaction", "title": "Crear movimiento", "code": "VALIDATION_ERROR", "message": "No encontré ninguna categoría que coincida..." }
 event: done    data: { "conversationId": "uuid", "insufficient": false }
 event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 ```
-- **Tool calling:** `POST /assistant/messages` habilita *function calling* del proveedor. El asistente puede crear y editar cuentas con las tools `listAccounts` (lectura), `createAccount` y `updateAccount`. Las tools reutilizan `AccountsService`; no duplican lógica de dominio. Al ejecutar una mutación se emite `event: action` con el resultado (la UI lo muestra como tarjeta en el chat).
+- **Tool calling:** `POST /assistant/messages` habilita *function calling* del proveedor. Las **tools de lectura** (`listAccounts`, `listTransactions`, `listBudgets`, `listAssets`, `listValuations`, `listDebts`, `listPositions`, `listGoals`, `listCategories`, `getProfile`, `getDashboard`, `getReportSummary`, `getReportByCategory`, `listQuotes`) se ejecutan al instante y devuelven datos al modelo (las lecturas de un mismo paso se ejecutan en paralelo). Las **tools de escritura** (una por primitiva: `create*`, `update*`, `archive*`, `restore*`, `transferBetweenAccounts`, `createValuation`, `contributeToGoal`, `copyPreviousBudgets`, `addToPosition`) **no se ejecutan en el stream**: crean una acción pendiente y emiten `event: action_proposal` con la vista previa. `addToPosition` suma una compra a una posición existente (monto + precio unitario) y el backend recalcula cantidad y costo promedio ponderado; `contributeToGoal` **suma** al acumulado de la meta (no lo sobrescribe). Las propuestas idénticas (misma tool y argumentos) dentro de un mismo plan **no se duplican**. **No hay tools compuestas**: una operación compleja se propone como **varias acciones** (una tarjeta por tool).
+- **Plan y dependencias:** todas las acciones propuestas en una misma respuesta comparten `planId` y llevan `step` (orden). Las referencias se resuelven en la preparación; si un nombre todavía no existe **pero fue propuesto para crearse en el mismo plan** (p. ej. una deuda vinculada a un activo que se está creando), la acción queda marcada `pending` con los argumentos crudos y se emite igual su tarjeta. Si el nombre no corresponde a ninguna creación del plan, se emite `action_error` (`NOT_FOUND`) en lugar de una tarjeta imposible de resolver. Al confirmar, el backend **verifica el orden del plan** y **reintenta la resolución**: si el paso previo no está `executed`/`cancelled`, responde `ACTION_DEPENDENCY_PENDING`; si el paso previo ya se ejecutó, ejecuta. El cliente ordena las tarjetas, bloquea las posteriores hasta que la previa se resuelva y permite **Reintentar/Cancelar** las que fallan.
+- **Confirmación:** el cliente confirma con `POST /assistant/actions/:id/confirm` (body `{ token }`) y recibe un `ActionResultDto` (`status: executed|failed`, `summary`, `entity`, `code?`, `fieldErrors?`). También puede cancelar con `POST /assistant/actions/:id/cancel`. La ejecución reutiliza los **mismos servicios primarios/orquestadores** que el REST (no hay lógica de dominio en el asistente).
+- **Propuestas y errores:** el modelo debe proponer los cambios **llamando a la tool** (la tarjeta solo existe si hubo tool call). Si la preparación falla (dato faltante, referencia ambigua, destructiva deshabilitada), se emite `event: action_error` con el motivo y no se crea ninguna acción.
+- **Resolución de referencias:** las tools aceptan id (uuid) o nombre, siempre resueltos **por el usuario autenticado**; si hay ambigüedad o no existe, el servidor no adivina y pide precisión. Un id aportado por el modelo nunca otorga autorización.
+- **Destructivas (opt-in):** `deleteTransaction`, `deleteBudget` y `deletePosition` (clase `destructive`) solo se envían al modelo si el usuario activó `assistantDestructiveEnabled`; si no, ni siquiera están disponibles.
+- Cada ejecución queda auditada en `assistant_actions` (§5.15) y se evita la doble ejecución con estado + token de un solo uso + TTL.
 - Si la IA está deshabilitada → `403 AI_DISABLED` (JSON, no stream).
 - Si faltan datos verificables → `event: done` con `insufficient: true` y texto explicativo (FR-IA-011).
 - El servidor persiste pregunta, respuesta y `contextMeta` en `ai_conversations` al finalizar (FR-IA-009).
@@ -816,6 +861,11 @@ event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 | `SESSION_REVOKED` | 401 | refresh token revocado |
 | `FORBIDDEN` | 403 | recurso de otro usuario |
 | `AI_DISABLED` | 403 | asistente deshabilitado |
+| `DESTRUCTIVE_DISABLED` | 403 | acción destructiva con el flag del usuario apagado |
+| `ACTION_NOT_ALLOWED` | 403/400 | acción no disponible o token de confirmación inválido |
+| `ACTION_ALREADY_EXECUTED` | 409 | la acción ya fue ejecutada |
+| `ACTION_EXPIRED` | 410 | la acción superó su TTL |
+| `ACTION_DEPENDENCY_PENDING` | 409 | falta confirmar una acción previa del mismo plan (`planId`) |
 | `NOT_FOUND` | 404 | recurso inexistente o ajeno |
 | `ACCOUNT_ARCHIVED` | 409 | movimiento sobre cuenta archivada |
 | `DUPLICATE_BUDGET` | 409 | presupuesto ya existe para categoría/período |
@@ -875,14 +925,14 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 4. El prompt de sistema es fijo y **separado** de los datos del usuario, que viajan como datos no confiables (FR-IA-010). Se valida la salida antes de presentarla (NFR-SEG-012).
 5. Adjunta metadatos: período, moneda y fuentes consideradas (FR-IA-005).
 6. Declara "información insuficiente" cuando los datos no permiten conclusión verificable (FR-IA-011).
-7. **No** expone operaciones de escritura arbitrarias (FR-IA-006). **Excepción implementada:** tools acotadas de cuentas (`createAccount`/`updateAccount`) que reutilizan `AccountsService`; toda tool resuelve la propiedad desde el usuario autenticado y nunca acepta `userId` del modelo. Respuesta marcada como informativa (FR-IA-008).
+7. **No** expone operaciones arbitrarias (FR-IA-006). **Implementado:** un catálogo de tools tipadas y clasificadas (`read`/`write_safe`/`sensitive`/`destructive`) sobre todos los dominios, que reutilizan los mismos servicios primarios/orquestadores que el REST. Toda tool resuelve la propiedad desde el usuario autenticado y nunca acepta `userId` del modelo. Las mutaciones requieren **confirmación** (acción pendiente + token de un solo uso) y las destructivas exigen `assistantDestructiveEnabled`. Respuesta marcada como informativa (FR-IA-008).
 
 **Implementación actual (DeepSeek):**
 
 - `shared/ai/ai.service.ts` (`AiModule`): cliente del proveedor (DeepSeek/OpenAI-compatible) con `axios` `responseType: "stream"`, timeout de `AI_TIMEOUT_MS` y aborto; expone `streamChat(messages)` como `AsyncGenerator<string>`. Mapea fallas a `AI_UNAVAILABLE` (NFR-SEG-009).
 - `shared/calculations/calculations.service.ts` (`CalculationsModule`): fuente única de las reglas CAL-001..004 (flujo del período, gastos del mes, consumo/estado de presupuesto, saldo actual por movimientos, última valuación por activo y patrimonio neto). El asistente la reutiliza en lugar de repetir fórmulas. Cubierta por pruebas unitarias.
 - `assistant/assistant-context.service.ts`: arma el **contexto mínimo** del usuario consultando sus entidades (transacciones del período, top categorías de gasto, presupuestos del mes, patrimonio estimado con valuaciones/deudas/posiciones y saldos actuales `initial_balance + Σ movimientos`) usando `calculations.service`, y produce un resumen textual. *Deviación conocida:* hoy consulta repositorios directamente porque los dominios de finanzas del API todavía son esqueletos (solo entidades); cuando existan los servicios primarios, este armado debe moverse a un orquestador que los coordine (ver `orchestrator-domain-architecture`).
-- `assistant/assistant.service.ts`: `assertAiEnabled`, persistencia en `ai_conversations` y `answer()` como generador de eventos (`meta`/`token`/`done`). El **prompt de sistema es fijo** y declara explícitamente el alcance: solo un resumen agregado del período indicado, sin detalle de movimientos ni historial de otros períodos; ante preguntas fuera de ese alcance debe aclararlo (FR-IA-010/011).
+- `assistant/assistant.service.ts`: `assertAiEnabled`, persistencia en `ai_conversations` y `answer()` como generador de eventos (`meta`/`token`/`action_proposal`/`done`). Coordina lecturas y propone mutaciones vía `ToolRegistry` + `PendingActionsService`; `POST /assistant/actions/:id/{confirm,cancel}` ejecuta o cancela. El **prompt de sistema es fijo** y declara explícitamente el alcance: solo un resumen agregado del período indicado, sin detalle de movimientos ni historial de otros períodos; ante preguntas fuera de ese alcance debe aclararlo (FR-IA-010/011).
 - `assistant/assistant.controller.ts`: `POST /assistant/messages` (SSE), `GET /assistant/conversations` (paginado), `GET/DELETE /assistant/conversations/:id`, `DELETE /assistant/conversations`. Si `aiEnabled === false` responde `403 AI_DISABLED` en JSON (no abre el stream).
 - **Acceso dev del stream**: `POST /assistant/messages` está marcado `@Public()` pero resuelve el usuario así: si hay sesión válida la usa; si no, y `NODE_ENV !== "production"`, cae al usuario demo `AI_DEV_USER_EMAIL`; en producción sin sesión responde `401 UNAUTHENTICATED`. Permite probar el asistente con el cliente en modo mock sin implementar todo el auth. Los endpoints de historial siguen requiriendo JWT.
 - El cliente consume el stream en `client/lib/api/assistant-stream.ts` (mock con `NEXT_PUBLIC_USE_MOCKS`).
@@ -974,6 +1024,7 @@ AI_API_KEY=...                 # sk-... (solo en .env del backend)
 AI_BASE_URL=https://api.deepseek.com
 AI_MODEL=deepseek-chat         # deepseek-chat | deepseek-reasoner (u otro)
 AI_TIMEOUT_MS=30000
+AI_ACTION_TTL_MS=120000
 AI_DEV_USER_EMAIL=demo@atlassfin.app   # solo dev: usuario del stream sin JWT
 
 # Correo

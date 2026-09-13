@@ -40,6 +40,9 @@ export class UsersService {
     }
     if (dto.theme !== undefined) user.theme = dto.theme;
     if (dto.aiEnabled !== undefined) user.aiEnabled = dto.aiEnabled;
+    if (dto.assistantDestructiveEnabled !== undefined) {
+      user.assistantDestructiveEnabled = dto.assistantDestructiveEnabled;
+    }
 
     return toUserResponse(await this.usersRepository.save(user));
   }
