@@ -10,9 +10,9 @@ Atlass Fin backend: a **NestJS monolith** exposing a REST API for the web/native
 
 ## Source of truth (READMEs / docs)
 
-- `../docs/backend.md` — architecture, data model, auth, **REST contract** (DTOs, enums, errors §7.13–§7.18), calculations, integrations, security, seed, env, batches plan.
-- `../docs/frontend.md` — the consumer; useful to keep contracts aligned.
-- `../docs/FRD_Gestor_Financiero_v0.1.docx.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
+- `../docs/architecture/backend.md` — architecture, data model, auth, **REST contract** (DTOs, enums, errors §7.13–§7.18), calculations, integrations, security, seed, env, batches plan.
+- `../docs/architecture/frontend.md` — the consumer; useful to keep contracts aligned.
+- `../docs/specification/FRD_Gestor_Financiero_v0.2.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
 
 ## Skills (load before coding)
 

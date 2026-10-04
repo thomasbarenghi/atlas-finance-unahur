@@ -171,6 +171,7 @@ export interface Position {
   quoteDate: string | null;
   quoteProvider: string | null;
   isStale: boolean;
+  archived: boolean;
 }
 
 export interface Quote {
@@ -198,6 +199,7 @@ export interface DashboardInvestmentPosition {
   profitLossPct: number | null;
   isStale: boolean;
   quoteDate: string | null;
+  quoteProvider: string | null;
 }
 
 export interface DashboardData {

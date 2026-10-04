@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
 import * as argon2 from "argon2";
-import { randomBytes, randomUUID } from "crypto";
+import { createHash, randomBytes, randomUUID } from "crypto";
 import { Repository } from "typeorm";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
@@ -163,10 +163,14 @@ export class AuthService {
     const user = await this.usersRepository.findOneBy({ email });
     if (!user) return;
 
+    const ttlSeconds = this.config.get("resetTokenTtl", { infer: true });
     const token = await this.jwtService.signAsync(
       { sub: user.id, purpose: "reset" } satisfies ResetTokenPayload,
-      { expiresIn: this.config.get("resetTokenTtl", { infer: true }) },
+      { expiresIn: ttlSeconds },
     );
+    user.resetTokenHash = this.hashResetToken(token);
+    user.resetTokenExpiresAt = new Date(Date.now() + ttlSeconds * 1000);
+    await this.usersRepository.save(user);
     await this.mailService.sendPasswordReset(user.email, token);
   }
 
@@ -190,7 +194,14 @@ export class AuthService {
     }
 
     const user = await this.usersRepository.findOneBy({ id: payload.sub });
-    if (!user) {
+    const tokenHash = this.hashResetToken(dto.token);
+    if (
+      !user ||
+      !user.resetTokenHash ||
+      user.resetTokenHash !== tokenHash ||
+      !user.resetTokenExpiresAt ||
+      user.resetTokenExpiresAt.getTime() <= Date.now()
+    ) {
       throw new ApiException(
         ErrorCode.VALIDATION_ERROR,
         HttpStatus.BAD_REQUEST,
@@ -199,6 +210,8 @@ export class AuthService {
     }
 
     user.passwordHash = await argon2.hash(dto.password);
+    user.resetTokenHash = null;
+    user.resetTokenExpiresAt = null;
     await this.usersRepository.save(user);
     await this.sessionsRepository.update(
       { userId: user.id },
@@ -233,6 +246,10 @@ export class AuthService {
       }),
     );
     return { id, secret: refresh.secret };
+  }
+
+  private hashResetToken(token: string): string {
+    return createHash("sha256").update(token).digest("hex");
   }
 
   private async buildRefreshToken(): Promise<{

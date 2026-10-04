@@ -63,6 +63,26 @@ export class PositionsController {
     return this.positionsService.updatePosition(userId, id, dto);
   }
 
+  @Post(":id/archive")
+  @ApiOperation({ summary: "Archiva una posición" })
+  @ApiOkResponse({ description: "PositionResponseDto" })
+  archive(
+    @CurrentUser("id") userId: string,
+    @Param("id", new ParseUUIDPipe()) id: string,
+  ): Promise<PositionResponseDto> {
+    return this.positionsService.archivePosition(userId, id);
+  }
+
+  @Post(":id/restore")
+  @ApiOperation({ summary: "Restaura una posición archivada" })
+  @ApiOkResponse({ description: "PositionResponseDto" })
+  restore(
+    @CurrentUser("id") userId: string,
+    @Param("id", new ParseUUIDPipe()) id: string,
+  ): Promise<PositionResponseDto> {
+    return this.positionsService.restorePosition(userId, id);
+  }
+
   @Delete(":id")
   @ApiOperation({ summary: "Elimina una posición" })
   remove(

@@ -3,7 +3,7 @@
 > **Audiencia:** agentes de IA que implementarán el backend.
 > **Stack:** NestJS (monolítico) · TypeScript · PostgreSQL (Supabase como proveedor) · TypeORM · JWT (cookie HttpOnly + Bearer) · REST.
 > **Frontend:** consume esta API. Ver `frontend.md`.
-> **Referencia funcional:** `FRD_Gestor_Financiero_v0.1.docx.md`. Todo requisito citado (FR-*, HU-*, CAL-*, NFR-*) corresponde a ese documento.
+> **Referencia funcional:** `../specification/FRD_Gestor_Financiero_v0.2.md`. Todo requisito citado (FR-*, HU-*, CAL-*, NFR-*) corresponde a ese documento.
 
 ---
 
@@ -60,8 +60,8 @@ Backend monolítico que sirve una API REST para Atlass Fin. Organiza y explica l
 | Auth | JWT (access token) + sesión persistida | Permite invalidar sesión al cerrar (FR-AUT-002). Transporte por cookie o Bearer para soportar web y nativo. |
 | Transporte de token | Cookie `HttpOnly; Secure; SameSite` (web) + `Authorization: Bearer` (nativo) | Mitiga XSS y soporta clientes nativos; consistente con NFR-SEG-004. |
 | IDs | `uuid` (gen_random_uuid) | Identificadores no predecibles (NFR-SEG-005). |
-| Moneda base | Almacenada en `users.base_currency` | Consolida cálculos (FR-AUT-005, CAL-001). |
-| Conversión | Tabla `exchange_rates` con trazabilidad | Cumple CAL-008/009. |
+| Moneda base | Almacenada en `users.base_currency` | Consolida cálculos y es la moneda de visualización de dashboard y reportes (FR-AUT-005, FR-DAS-007, CAL-001). |
+| Conversión | Tabla `exchange_rates` con trazabilidad | Trazabilidad cambiaria: CAL-008/009 en la v0.1, fuera del alcance publicado de la v0.2 (ver §5.14 y §8). |
 | Streaming IA | SSE o JSON+stream | UI reactiva y cancelable (NFR-PR-004). |
 
 ---
@@ -160,7 +160,7 @@ api/
 │   ├── assets/
 │   │   └── entities/{ asset.entity.ts, valuation.entity.ts }
 │   ├── debts/
-│   ├── goals/                       # metas (FR-OBJ-001..004)
+│   ├── goals/                       # metas (FR-OBJ-001..005)
 │   ├── positions/
 │   ├── quotes/
 │   ├── reports/
@@ -176,7 +176,7 @@ api/
 │   │   └── entities/
 │   │       ├── ai-conversation.entity.ts
 │   │       └── assistant-action.entity.ts
-│   ├── calculations/                # reglas CAL-001..009
+│   ├── calculations/                # reglas CAL-001..007 y CAL-010
 │   │   ├── calculations.module.ts
 │   │   └── calculations.service.ts
 │   ├── fx/                          # tasas de cambio + conversión
@@ -215,7 +215,7 @@ api/
 
 ## 5. Modelo de datos (PostgreSQL)
 
-Tablas derivadas de las entidades del FRD (§10) más las necesarias para trazabilidad y sesiones. Todos los `id` son `uuid` v4. Toda tabla con datos de usuario lleva `user_id` (o desciende de una entidad que lo tiene) y un índice.
+Tablas derivadas de las entidades principales del FRD (§3.2) más las necesarias para trazabilidad y sesiones. Todos los `id` son `uuid` v4. Toda tabla con datos de usuario lleva `user_id` (o desciende de una entidad que lo tiene) y un índice.
 
 > **Convención de columnas:** `snake_case` en la DB; los enums se almacenan como `text` con validación en la capa de aplicación (valores en §7.14); los `numeric` se serializan como `number` en la API (ver §7.13).
 
@@ -226,10 +226,10 @@ Tablas derivadas de las entidades del FRD (§10) más las necesarias para trazab
 | name | text | |
 | email | text UNIQUE | lowercase |
 | password_hash | text | argon2 |
-| base_currency | char(3) | default 'USD' (FR-AUT-005) |
+| base_currency | char(3) | default 'ARS' (FR-AUT-005; configurable con `DEFAULT_CURRENCY`) |
 | theme | text | 'light' | 'dark' | 'system' (FR-AUT-006) |
 | ai_enabled | boolean | default false (FR-IA-001) |
-| assistant_destructive_enabled | boolean | default false; habilita las acciones destructivas del asistente (FR-IA-006) |
+| assistant_destructive_enabled | boolean | default false; habilita las acciones destructivas del asistente, de forma independiente de `ai_enabled` (FR-IA-006) |
 | created_at / updated_at | timestamptz | |
 
 ### 5.2 `sessions`
@@ -242,7 +242,7 @@ Tablas derivadas de las entidades del FRD (§10) más las necesarias para trazab
 | revoked_at | timestamptz NULL | se marca al logout (FR-AUT-002) |
 | created_at | timestamptz | |
 
-### 5.3 `accounts` (FR-CUE-001..005)
+### 5.3 `accounts` (FR-CUE-001..006)
 | Columna | Tipo | Notas |
 | :--- | :--- | :--- |
 | id | uuid PK | |
@@ -255,7 +255,7 @@ Tablas derivadas de las entidades del FRD (§10) más las necesarias para trazab
 | notes | text NULL | |
 | created_at / updated_at | timestamptz | |
 
-> Saldo actual = `initial_balance` + Σ(movimientos) en moneda de la cuenta (calculado, FR-CUE-004). Las **metas ya no son cuentas**: tienen su propia tabla y módulo `goals` (§5.12).
+> Saldo actual = `initial_balance` + Σ(movimientos) en moneda de la cuenta (calculado, FR-CUE-004). Las **metas ya no son cuentas**: tienen su propia tabla y módulo `goals` (§5.12). El archivo conserva el historial y no admite nuevos movimientos (FR-CUE-005); `POST /accounts/:id/restore` vuelve a habilitarla sin perder ese historial (FR-CUE-006).
 
 ### 5.4 `categories` (FR-TRX-008)
 | Columna | Tipo | Notas |
@@ -371,7 +371,7 @@ Tablas derivadas de las entidades del FRD (§10) más las necesarias para trazab
 
 > Solo se guarda el último precio por símbolo; ante falla externa se conserva el último válido con su fecha real (FR-MER-004).
 
-### 5.12 `goals` — Objetivos (FR-OBJ-001..004)
+### 5.12 `goals` — Objetivos (FR-OBJ-001..005)
 
 Los objetivos son un **módulo propio** (`goals`), no un tipo de cuenta. Una meta es un **sobre virtual** referenciado a una cuenta origen donde vive el dinero; **no suma al patrimonio neto** (el dinero ya está contado en `source_account_id`) y el cliente lo presenta en una sección y ruta propias (`/goals/detail`), separadas de las cuentas comunes (`/accounts/detail`).
 
@@ -384,13 +384,13 @@ Los objetivos son un **módulo propio** (`goals`), no un tipo de cuenta. Una met
 | saved_amount | numeric(18,4) | monto acumulado/asignado, default 0 (FR-OBJ-003) |
 | currency | char(3) | |
 | target_date | date NULL | fecha objetivo opcional |
-| source_account_id | uuid FK NULL → accounts | cuenta origen donde vive el dinero |
+| source_account_id | uuid FK NULL → accounts | cuenta origen donde vive el dinero (FR-OBJ-005) |
 | archived | boolean | default false |
 | created_at / updated_at | timestamptz | |
 
-> **Reglas:** (1) la meta no admite movimientos propios; el acumulado se edita con `savedAmount` (FR-OBJ-003); (2) se excluye de `kpis.accounts` y del patrimonio neto; (3) `progressPct` y `status` los calcula el **servidor** en `calculations.service` (CAL-007), no el cliente.
+> **Reglas:** (1) la meta no admite movimientos propios; el acumulado se edita con `savedAmount` (FR-OBJ-003); (2) se excluye de `kpis.accounts` y del patrimonio neto (FR-OBJ-005); (3) `progressPct` y `status` los calcula el **servidor** en `calculations.service` (CAL-007), no el cliente.
 
-### 5.13 `ai_conversations` (FR-IA-009)
+### 5.13 `ai_conversations` (FR-IA-009/014)
 | Columna | Tipo | Notas |
 | :--- | :--- | :--- |
 | id | uuid PK | |
@@ -401,9 +401,9 @@ Los objetivos son un **módulo propio** (`goals`), no un tipo de cuenta. Una met
 | messages | jsonb | transcript del hilo (`[{ role, content }]`) para dar **memoria conversacional**; se recortan los últimos turnos |
 | created_at | timestamptz | |
 
-> `question`/`answer` guardan el **último turno**; `messages` conserva el historial completo del hilo y se reinyecta al modelo en cada pregunta. La tabla se crea/actualiza con `synchronize: true`.
+> `question`/`answer` guardan el **último turno**; `messages` conserva el historial completo del hilo y se reinyecta al modelo en cada pregunta. La tabla se crea/actualiza con `synchronize: true`. El historial base vive en el **cliente** y solo se persiste en el servidor cuando el asistente está en **modo en vivo**; el usuario puede eliminar una conversación o todo el historial (§7.11), sin afectar otros datos (FR-IA-014).
 
-### 5.14 `exchange_rates` (CAL-008/009)
+### 5.14 `exchange_rates` (conversión y trazabilidad cambiaria)
 | Columna | Tipo | Notas |
 | :--- | :--- | :--- |
 | id | uuid PK | |
@@ -415,11 +415,11 @@ Los objetivos son un **módulo propio** (`goals`), no un tipo de cuenta. Una met
 | created_at | timestamptz | |
 | UNIQUE(base_currency, quote_currency, provider, date) | | |
 
-> Cada conversión registra el par, la tasa, el proveedor y la fecha utilizados (CAL-009). Las tasas pueden ser fijas (seed) o provistas por el proveedor de mercado si está disponible.
+> Cada conversión registra el par, la tasa, el proveedor y la fecha utilizados. Las tasas pueden ser fijas (seed) o provistas por el proveedor de mercado si está disponible. La v0.2 publicada **no** incluye CAL-008/CAL-009 (IDs fuera de alcance): se conserva el diseño de la v0.1 (ver §8).
 
-### 5.15 `assistant_actions` (FR-IA-006, auditoría y confirmación)
+### 5.15 `assistant_actions` (FR-IA-006/012, auditoría y confirmación)
 
-Cada acción de escritura que propone el asistente se guarda como una **acción pendiente** sujeta a confirmación del usuario; también sirve de auditoría. Las **tools de lectura** ejecutadas se registran en la misma tabla (fila ya `executed`, `plan_id` y `token_hash` nulos) para trazabilidad, sin bloquear la respuesta si la auditoría falla.
+Cada acción de escritura que propone el asistente se guarda como una **acción pendiente** sujeta a **confirmación explícita** del usuario (FR-IA-012); también sirve de auditoría. Las **tools de lectura** ejecutadas se registran en la misma tabla (fila ya `executed`, `plan_id` y `token_hash` nulos) para trazabilidad, sin bloquear la respuesta si la auditoría falla.
 
 | Columna | Tipo | Notas |
 | :--- | :--- | :--- |
@@ -440,7 +440,7 @@ Cada acción de escritura que propone el asistente se guarda como una **acción 
 | expires_at | timestamptz | TTL (`AI_ACTION_TTL_MS`, default 120 s) |
 | created_at / updated_at | timestamptz | |
 
-> La confirmación bloquea la fila (`pessimistic_write`) y valida **estado, TTL y token**, además del **orden del plan** (no se puede ejecutar un paso mientras uno anterior del mismo `planId` no esté `executed`/`cancelled`); así se evita la doble ejecución y las dependencias fuera de orden. Al vencer el TTL la acción pasa a `expired`. Las tablas/columnas se crean/actualizan con **`synchronize: true`** (no hay migración para esta funcionalidad).
+> La confirmación bloquea la fila (`pessimistic_write`) y valida **estado, TTL y token**, además del **orden del plan** (no se puede ejecutar un paso mientras uno anterior del mismo `planId` no esté `executed`/`cancelled`); así se evita la doble ejecución y las dependencias fuera de orden. El **token es de un solo uso**: una vez que la acción queda `executed`, un nuevo intento responde `ACTION_ALREADY_EXECUTED`. Al vencer el TTL la acción pasa a `expired`. Las tablas/columnas se crean/actualizan con **`synchronize: true`** (no hay migración para esta funcionalidad).
 
 ---
 
@@ -497,7 +497,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 | GET | `/accounts/:id` | — |
 | PATCH | `/accounts/:id` | FR-CUE-003 |
 | POST | `/accounts/:id/archive` | FR-CUE-003/005 |
-| POST | `/accounts/:id/restore` | FR-CUE-003 |
+| POST | `/accounts/:id/restore` | FR-CUE-006 (devuelve `archived: false`; conserva el historial y habilita nuevos movimientos) |
 
 ### 7.3 Categories
 | Método | Ruta | FR |
@@ -538,6 +538,8 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 | GET / POST | `/positions` | FR-ACT-005 |
 | POST | `/positions/:id/add` | FR-ACT-005/006 (suma compra: monto + precio unitario; recalcula cantidad y costo promedio) |
 | PATCH / DELETE | `/positions/:id` | FR-ACT-007 |
+| POST | `/positions/:id/archive` | FR-ACT-007 (una posición archivada no suma al patrimonio) |
+| POST | `/positions/:id/restore` | FR-ACT-007 |
 
 ### 7.7 Quotes
 | Método | Ruta | FR |
@@ -557,12 +559,16 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 | POST | `/goals/:id/restore` | restaura la meta |
 
 - Las metas **no** entran en `kpis.accounts` ni en `netWorthComposition` (no suman al patrimonio) — ver §5.12.
-- `sourceAccountId`, si viene, debe pertenecer al usuario autenticado; la verificación la coordina el orquestador del módulo (`goals.orchestrator.ts`) reutilizando `AccountsService`.
+- `sourceAccountId` (FR-OBJ-005), si viene, debe pertenecer al usuario autenticado; la verificación la coordina el orquestador del módulo (`goals.orchestrator.ts`) reutilizando `AccountsService`.
 
 ### 7.9 Dashboard
 | Método | Ruta | FR |
 | :--- | :--- | :--- |
 | GET | `/dashboard?from&to&currency=` | agrega en una sola llamada: KPIs (patrimonio, ingresos, gastos, ahorro, activos, cuentas, deudas e inversiones con sus variaciones), series de patrimonio, evolución del valor de activos, ingresos vs gastos por mes, gastos por categoría, cambios por categoría vs. período anterior, composición de activos (base bruta con cuentas netas, sin deudas), inversiones financieras y alertas de presupuesto (FR-DAS-001..007). `kpis.netWorth = activos + inversiones + cuentas netas − deudas`; la suma de `netWorthComposition` es el activo bruto y restando `kpis.debts` reconstruye el patrimonio neto |
+
+- **Período y moneda (FR-DAS-007):** `from`/`to` son seleccionables (default: últimos 180 días). La **moneda de visualización es la moneda base** del usuario (`users.base_currency`, editable en Configuración con `PATCH /users/me`): **no hay selector de moneda por vista**. `DashboardQueryDto` acepta un `currency` opcional que sobrescribe la base; el cliente toma la moneda base del usuario (`useDisplayCurrency`) y la envía en el query, y si el query se omite el servidor usa `users.base_currency`.
+- **Patrimonio neto (CAL-001, §8):** activos + posiciones + saldos netos de cuentas − deudas, todo en moneda base. Los **objetivos no se suman** (el agregado de dashboard no los consulta; ver §5.12).
+- **Tasa de ahorro (CAL-010, §8):** `kpis.savingsRateDeltaPp` expresa en **puntos porcentuales** la variación de la tasa de ahorro contra el período anterior.
 
 ### 7.10 Reports
 | Método | Ruta | FR |
@@ -574,23 +580,25 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 | GET | `/reports/investments` | FR-REP-005 (P1) |
 | GET | `/reports/export?from&to&type=transactions|summary&format=csv` | FR-REP-006 |
 
+> Los reportes comparten `DashboardQueryDto` con el dashboard: el **período** es seleccionable y la **moneda** es la base del usuario (FR-DAS-007); el `currency` opcional aplica a `summary`, `by-category`, `net-worth`, `investments` y `export`.
+
 ### 7.11 Assistant
 | Método | Ruta | FR |
 | :--- | :--- | :--- |
-| GET | `/assistant/conversations` | FR-IA-009 (paginado) |
-| GET | `/assistant/conversations/:id` | FR-IA-009 |
-| DELETE | `/assistant/conversations/:id` | FR-IA-009 |
-| DELETE | `/assistant/conversations` | borrar historial (FR-IA-009) |
-| POST | `/assistant/messages` | pregunta; responde con stream (FR-IA-002..011) |
-| POST | `/assistant/actions/:id/confirm` | confirma y ejecuta una acción propuesta (FR-IA-006) |
-| POST | `/assistant/actions/:id/cancel` | cancela una acción propuesta |
+| GET | `/assistant/conversations` | FR-IA-009/014 (paginado) |
+| GET | `/assistant/conversations/:id` | FR-IA-009/014 |
+| DELETE | `/assistant/conversations/:id` | FR-IA-009/014 |
+| DELETE | `/assistant/conversations` | borrar historial (FR-IA-009/014) |
+| POST | `/assistant/messages` | pregunta; responde con stream (FR-IA-001/002, FR-IA-008..014) |
+| POST | `/assistant/actions/:id/confirm` | confirma y ejecuta una acción propuesta (FR-IA-006/012) |
+| POST | `/assistant/actions/:id/cancel` | cancela una acción propuesta (FR-IA-012) |
 
 > El estado habilitado/deshabilitado de la IA (FR-IA-001) es una **preferencia del usuario** (`users.ai_enabled`), expuesta en `GET /auth/me` y modificable con `PATCH /users/me`. No existe un endpoint separado de settings del asistente: una sola fuente de verdad.
 
 ### 7.12 Users (perfil y preferencias)
 | Método | Ruta | FR |
 | :--- | :--- | :--- |
-| PATCH | `/users/me` | actualiza `name`, `baseCurrency`, `theme`, `aiEnabled`, `assistantDestructiveEnabled` (FR-AUT-005/006, FR-IA-001/006) |
+| PATCH | `/users/me` | actualiza `name`, `baseCurrency`, `theme`, `aiEnabled`, `assistantDestructiveEnabled` (FR-AUT-005/006, FR-DAS-007, FR-IA-001/006) |
 
 ```jsonc
 // PATCH /users/me — body (todos opcionales, al menos uno)
@@ -608,7 +616,8 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 - **Filtros de query:** todos opcionales; `from`/`to` en `YYYY-MM-DD` inclusive; `search` busca en `description` y `notes` con `ILIKE`.
 - **Errores:** `{ statusCode, code, message, fieldErrors? }`; `fieldErrors` es `{ [campo]: string[] }` para validación (para mapeo a formularios). El filtro global nunca expone detalles internos (NFR-SEG-010).
 - **Auth:** cookie `HttpOnly` o `Authorization: Bearer`. Los endpoints `@Public()` son: `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/forgot-password`, `/auth/reset-password`, `/health` y los assets de Swagger.
-- **CORS:** con credenciales habilitadas; permitir `CORS_ORIGIN` y `CORS_ORIGIN_NATIVE` exactos (no `*`).
+- **CORS:** con credenciales habilitadas; permitir `CORS_ORIGIN` y `CORS_ORIGIN_NATIVE` exactos (no `*`). Incluir `https://localhost` en `CORS_ORIGIN_NATIVE` para el webview de Android (Capacitor 8), además de `capacitor://localhost` (iOS) y `http://localhost` (Android previo).
+- **App Android (NFR-CAL-006):** el cliente se empaqueta con Capacitor (Android en esta versión; iOS diferido) y consume el mismo contrato REST: usa `Authorization: Bearer` y `POST /auth/refresh` para la **sesión persistente** (el refresh token se guarda en el cliente, `client/lib/api/token-store.ts`). Las **safe-areas** se resuelven en el cliente (`frontend.md`) y no modifican el contrato del backend.
 
 ### 7.14 Enums y catálogos
 
@@ -635,7 +644,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 ```jsonc
 // POST /auth/register — body
 { "name": "Ana", "email": "ana@example.com", "password": "Secreta123" }
-// 201 → { "user": User }  (y fija cookies / tokens, igual que login)
+// 201 → { "user": User, "accessToken": "eyJ...", "refreshToken": "opaco..." }  (y fija cookies, igual que login)
 
 // POST /auth/login — body
 { "email": "ana@example.com", "password": "Secreta123" }
@@ -647,7 +656,8 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 
 // User
 { "id": "uuid", "name": "Ana", "email": "ana@example.com",
-  "baseCurrency": "ARS", "theme": "system", "aiEnabled": false, "createdAt": "ISO" }
+  "baseCurrency": "ARS", "theme": "system", "aiEnabled": false,
+  "assistantDestructiveEnabled": false, "createdAt": "ISO" }
 ```
 
 **Accounts**
@@ -734,6 +744,8 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 ```jsonc
 // POST /positions — body
 { "symbol": "BTC", "instrument": "Bitcoin", "quantity": 0.05, "avgCost": 55000, "currency": "USD" }
+// POST /positions/:id/add — body (`AddToPositionDto`; aporte a una posición existente)
+{ "amount": 1500, "unitPrice": 60000 }   // addedQuantity = amount / unitPrice; avgCost = (quantity × avgCost + amount) / newQuantity
 // Position (con valorización)
 { "id": "uuid", "symbol": "BTC", "instrument": "Bitcoin", "quantity": 0.05,
   "avgCost": 55000, "currency": "USD", "currentPrice": 64000,
@@ -761,7 +773,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 ```
 
 - `progressPct` (CAL-007) y `status` (FR-OBJ-004) los calcula el **servidor** en `calculations.service`; el cliente solo los muestra.
-- `sourceAccountId` debe pertenecer al usuario; la meta **no suma** al patrimonio neto ni a `kpis.accounts` (§5.12).
+- `sourceAccountId` debe pertenecer al usuario (FR-OBJ-005); la meta **no suma** al patrimonio neto ni a `kpis.accounts` (§5.12).
 
 **Dashboard**
 ```jsonc
@@ -831,7 +843,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 // (memoria conversacional) además del resumen del período.
 
 // Eventos SSE (cada uno: `event: <nombre>\ndata: <json>\n\n`)
-event: meta    data: { "conversationId": "uuid", "period": {...}, "currency": "ARS", "sources": ["transactions", "budgets"] }
+event: meta    data: { "conversationId": "uuid", "period": {...}, "currency": "ARS", "sources": ["transactions", "budgets"], "disclaimer": "Respuesta informativa calculada a partir de tus datos; no constituye asesoramiento financiero." }
 event: token   data: { "delta": "Este mes " }
 event: token   data: { "delta": "gastaste más en..." }
 event: action_proposal data: { "actionId": "uuid", "token": "opaco", "name": "createAccount", "title": "Crear cuenta", "classification": "write_safe", "destructive": false, "summary": "Crear la cuenta \"Banco Galicia\" en ARS", "preview": { "title": "Crear cuenta", "summary": "...", "fields": [{ "label": "Nombre", "value": "Banco Galicia" }] }, "expiresAt": "ISO" }
@@ -841,14 +853,16 @@ event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 ```
 - **Tool calling:** `POST /assistant/messages` habilita *function calling* del proveedor. Las **tools de lectura** (`listAccounts`, `listTransactions`, `listBudgets`, `listAssets`, `listValuations`, `listDebts`, `listPositions`, `listGoals`, `listCategories`, `getProfile`, `getDashboard`, `getReportSummary`, `getReportByCategory`, `listQuotes`) se ejecutan al instante y devuelven datos al modelo (las lecturas de un mismo paso se ejecutan en paralelo). Las **tools de escritura** (una por primitiva: `create*`, `update*`, `archive*`, `restore*`, `transferBetweenAccounts`, `createValuation`, `contributeToGoal`, `copyPreviousBudgets`, `addToPosition`) **no se ejecutan en el stream**: crean una acción pendiente y emiten `event: action_proposal` con la vista previa. `addToPosition` suma una compra a una posición existente (monto + precio unitario) y el backend recalcula cantidad y costo promedio ponderado; `contributeToGoal` **suma** al acumulado de la meta (no lo sobrescribe). Las propuestas idénticas (misma tool y argumentos) dentro de un mismo plan **no se duplican**. **No hay tools compuestas**: una operación compleja se propone como **varias acciones** (una tarjeta por tool).
 - **Plan y dependencias:** todas las acciones propuestas en una misma respuesta comparten `planId` y llevan `step` (orden). Las referencias se resuelven en la preparación; si un nombre todavía no existe **pero fue propuesto para crearse en el mismo plan** (p. ej. una deuda vinculada a un activo que se está creando), la acción queda marcada `pending` con los argumentos crudos y se emite igual su tarjeta. Si el nombre no corresponde a ninguna creación del plan, se emite `action_error` (`NOT_FOUND`) en lugar de una tarjeta imposible de resolver. Al confirmar, el backend **verifica el orden del plan** y **reintenta la resolución**: si el paso previo no está `executed`/`cancelled`, responde `ACTION_DEPENDENCY_PENDING`; si el paso previo ya se ejecutó, ejecuta. El cliente ordena las tarjetas, bloquea las posteriores hasta que la previa se resuelva y permite **Reintentar/Cancelar** las que fallan.
-- **Confirmación:** el cliente confirma con `POST /assistant/actions/:id/confirm` (body `{ token }`) y recibe un `ActionResultDto` (`status: executed|failed`, `summary`, `entity`, `code?`, `fieldErrors?`). También puede cancelar con `POST /assistant/actions/:id/cancel`. La ejecución reutiliza los **mismos servicios primarios/orquestadores** que el REST (no hay lógica de dominio en el asistente).
+- **Confirmación (FR-IA-012):** toda escritura propuesta queda **pendiente** hasta que el usuario la confirme. El cliente confirma con `POST /assistant/actions/:id/confirm` (body `{ token }`, `ConfirmActionDto`) y recibe un `ActionResultDto` (`status: executed|failed`, `summary`, `entity`, `code?`, `fieldErrors?`). El **token es de un solo uso y con vencimiento** (`expiresAt`, `AI_ACTION_TTL_MS`, default 120 s): reconfirmar una acción ya `executed` responde `ACTION_ALREADY_EXECUTED`, fuera del TTL responde `ACTION_EXPIRED` y un token inválido `ACTION_NOT_ALLOWED`; una acción `failed` puede reintentarse con el mismo token. La confirmación también valida el **orden del plan** (`ACTION_DEPENDENCY_PENDING`, §5.15). Cancelar requiere el mismo body `{ token }` en `POST /assistant/actions/:id/cancel`. La ejecución **queda registrada** en `assistant_actions` (§5.15) y reutiliza los **mismos servicios primarios/orquestadores** que el REST (no hay lógica de dominio en el asistente). Confirmar o cancelar exige que la IA siga habilitada (`403 AI_DISABLED`).
 - **Propuestas y errores:** el modelo debe proponer los cambios **llamando a la tool** (la tarjeta solo existe si hubo tool call). Si la preparación falla (dato faltante, referencia ambigua, destructiva deshabilitada), se emite `event: action_error` con el motivo y no se crea ninguna acción.
 - **Resolución de referencias:** las tools aceptan id (uuid) o nombre, siempre resueltos **por el usuario autenticado**; si hay ambigüedad o no existe, el servidor no adivina y pide precisión. Un id aportado por el modelo nunca otorga autorización.
 - **Destructivas (opt-in):** `deleteTransaction`, `deleteBudget` y `deletePosition` (clase `destructive`) solo se envían al modelo si el usuario activó `assistantDestructiveEnabled`; si no, ni siquiera están disponibles.
-- Cada ejecución queda auditada en `assistant_actions` (§5.15) y se evita la doble ejecución con estado + token de un solo uso + TTL.
+- Cada ejecución queda auditada en `assistant_actions` (§5.15) y se evita la doble ejecución con estado + token de un solo uso + TTL (FR-IA-012).
+- **Token en el cliente:** el cliente persiste el hilo en `localStorage` (`atlassfin.assistant.threads.v2`) pero **vacía el token** antes de guardar; al rehidratar, las acciones que seguían propuestas quedan `failed` y deben volver a pedirse (`client/providers/assistant-chat-provider.tsx`). Refuerza el carácter de un solo uso y vida corta del token.
+- **Entrada por voz (FR-IA-013, P2):** la transcripción a texto ocurre en el **cliente** (Web Speech API, `client/hooks/use-speech-recognition.ts`); en plataformas sin soporte —incluida la app Android— el dictado no está disponible y el usuario escribe. El backend recibe siempre texto.
 - Si la IA está deshabilitada → `403 AI_DISABLED` (JSON, no stream).
 - Si faltan datos verificables → `event: done` con `insufficient: true` y texto explicativo (FR-IA-011).
-- El servidor persiste pregunta, respuesta y `contextMeta` en `ai_conversations` al finalizar (FR-IA-009).
+- En **modo en vivo** el servidor persiste pregunta, respuesta, `contextMeta` y el transcript (`messages`) en `ai_conversations` al finalizar; en modo mock el historial queda solo en el cliente (FR-IA-014, §5.13). El borrado del historial se hace con los endpoints de §7.11 (FR-IA-009/014).
 - La respuesta del modelo se valida y se sirve como texto plano; nunca como HTML (NFR-SEG-006/012).
 
 ### 7.17 Catálogo de códigos de error
@@ -885,19 +899,20 @@ event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 
 ## 8. Reglas de cálculo
 
-Centralizadas en `calculations.service.ts` para garantizar consistencia entre dashboard, reportes e IA. Cubiertas por pruebas unitarias (NFR-CAL-004).
+Centralizadas en `calculations.service.ts` para garantizar consistencia entre dashboard, reportes e IA. Cubiertas por pruebas unitarias (NFR-CAL-004). Las reglas que combinan varios dominios (patrimonio neto consolidado y tasa de ahorro) se arman en `dashboard.service.ts` reutilizando ese service.
 
 | Regla | Implementación |
 | :--- | :--- |
-| CAL-001 Patrimonio neto | Σ valuaciones vigentes de activos (convertidas) − Σ deudas (convertidas) en moneda base. |
+| CAL-001 Patrimonio neto | Σ activos + Σ posiciones + Σ saldos netos de cuentas − Σ deudas, todo en moneda base. Los **objetivos no se suman** (FR-OBJ-005). Implementado en `calculations.service.calculateNetWorth({ assets, positions, cash, debts })` y en el agregado de `dashboard.service` (`assetsValue + positionsValue + accountsValue − debtsValue`, §7.9); `GET /reports/summary` y `GET /reports/net-worth` lo consumen del dashboard. |
 | CAL-002 Flujo de fondos | Σ ingresos − Σ gastos del período (excluye transferencias). |
 | CAL-003 Transferencias | `type='transfer'` se excluye de ingresos/gastos consolidados. |
 | CAL-004 Consumo presupuesto | Σ gastos de la categoría y período / límite × 100; si límite = 0, no dividir (devolver 0 o estado "sin límite"). |
 | CAL-005 Valor de posición | cantidad × último precio válido en la moneda del instrumento. |
 | CAL-006 Ganancia nominal | valor actual − (cantidad × avg_cost). |
 | CAL-007 Progreso de objetivo | acumulado / meta × 100, con mínimo 0% (sin techo). Implementado en `calculations.service.calculateGoalProgress`; lo expone `GET /goals` como `progressPct` + `status`. |
-| CAL-008 Conversión | importe × última tasa válida a la fecha de cálculo (vía `fx.service`). |
-| CAL-009 Trazabilidad | cada conversión registra par, tasa, proveedor y fecha (`exchange_rates`). |
+| CAL-008 Conversión *(v0.1; fuera del alcance publicado de la v0.2)* | importe × última tasa válida a la fecha de cálculo (vía `fx.service`). |
+| CAL-009 Trazabilidad *(v0.1; fuera del alcance publicado de la v0.2)* | cada conversión registra par, tasa, proveedor y fecha (`exchange_rates`, §5.14). |
+| CAL-010 Tasa de ahorro | ahorro del período / ingresos del período × 100; si los ingresos del período son 0, la tasa es 0. Su **variación** se expresa en **puntos porcentuales**: `kpis.savingsRateDeltaPp = (tasa actual − tasa del período anterior) × 100`. Implementado en `dashboard.service` (§7.9). |
 
 **Estados de presupuesto (FR-PRE-003):** `available` (< umbral de advertencia), `warning` (≥ umbral y ≤ 100%), `exceeded` (> 100%). Umbral configurable (p. ej. 80%).
 
@@ -911,7 +926,7 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 
 ### 9.1 Proveedor de mercado (actor "Proveedor de mercado")
 - **Cripto — Binance** (`MARKET_API_URL`, sin API key ni atribución): `GET /ticker/24hr?symbols=[...]` devuelve precio y variación 24h en una sola llamada (FR-MER-001; símbolos soportados en `crypto-symbols.ts`). Cotiza contra `USDT` y se etiqueta con `MARKET_VS_CURRENCY` (default `USD`).
-- **Monedas — currency-api de Fawaz Ahmed** (`FX_API_URL`, sin API key ni atribución): base `ARS`, deriva `X:ARS` y actualiza `exchange_rates` (CAL-009). Es la fuente del pivote que usa `fx.service`.
+- **Monedas — currency-api de Fawaz Ahmed** (`FX_API_URL`, sin API key ni atribución): base `ARS`, deriva `X:ARS` y actualiza `exchange_rates` (trazabilidad cambiaria, §5.14). Es la fuente del pivote que usa `fx.service`.
 - `MarketSchedulerService` (`@nestjs/schedule`) refresca al arrancar y luego cada `MARKET_REFRESH_INTERVAL_MS` (default 5 min); `POST /market/refresh` permite forzarlo. Todo es configurable con `MARKET_ENABLED`, `MARKET_SYMBOLS`, `MARKET_VS_CURRENCY`, `MARKET_TIMEOUT_MS`.
 - Ante falla, mantiene el último valor válido en base y NO inventa uno nuevo (FR-MER-004); expone `fetched_at` para marcar antigüedad (FR-MER-005). Se conserva un único proveedor por par símbolo/moneda.
 - Guarda `symbol, price, currency, provider, fetched_at` (FR-MER-002) y `change_24h` si lo informa (FR-MER-006). Alcance actual: cripto y monedas; acciones/ETFs fuera de alcance.
@@ -925,7 +940,7 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 4. El prompt de sistema es fijo y **separado** de los datos del usuario, que viajan como datos no confiables (FR-IA-010). Se valida la salida antes de presentarla (NFR-SEG-012).
 5. Adjunta metadatos: período, moneda y fuentes consideradas (FR-IA-005).
 6. Declara "información insuficiente" cuando los datos no permiten conclusión verificable (FR-IA-011).
-7. **No** expone operaciones arbitrarias (FR-IA-006). **Implementado:** un catálogo de tools tipadas y clasificadas (`read`/`write_safe`/`sensitive`/`destructive`) sobre todos los dominios, que reutilizan los mismos servicios primarios/orquestadores que el REST. Toda tool resuelve la propiedad desde el usuario autenticado y nunca acepta `userId` del modelo. Las mutaciones requieren **confirmación** (acción pendiente + token de un solo uso) y las destructivas exigen `assistantDestructiveEnabled`. Respuesta marcada como informativa (FR-IA-008).
+7. **No** expone operaciones arbitrarias (FR-IA-006). **Implementado:** un catálogo de tools tipadas y clasificadas (`read`/`write_safe`/`sensitive`/`destructive`) sobre todos los dominios, que reutilizan los mismos servicios primarios/orquestadores que el REST. Toda tool resuelve la propiedad desde el usuario autenticado y nunca acepta `userId` del modelo. Las mutaciones requieren **confirmación explícita** (acción pendiente + token de un solo uso + TTL + orden del plan, FR-IA-012) y las destructivas exigen `assistantDestructiveEnabled`. Respuesta marcada como informativa (FR-IA-008).
 
 **Implementación actual (DeepSeek):**
 
@@ -940,7 +955,7 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 > Estado: los dominios de finanzas (auth, users, accounts, categories, transactions, budgets, assets/valuations, debts, positions, quotes, dashboard y reports) ya exponen sus servicios y endpoints, por lo que el asistente es ejecutable end-to-end con sesión válida. La key `AI_API_KEY` va en `api/.env`. El armado de contexto sigue leyendo repositorios directamente (ver nota anterior) y debe migrarse a un orquestador cuando se refactorice.
 
 ### 9.3 Servicio de correo (actor "Servicio de correo")
-- Envío de enlace de recuperación con token temporal. Ante falla, informa que no pudo enviarse y permite reintento (dependencia §11 FRD).
+- Envío de enlace de recuperación con token temporal. Ante falla, informa que no pudo enviarse y permite reintento (dependencia §2.5 del FRD).
 
 ---
 
@@ -965,7 +980,7 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 
 ## 11. Datos de demostración (seed)
 
-`seed` ejecutable (`npm run seed`) que crea un usuario ficticio y datos reproducibles (NFR-CAL-005, FRD §12):
+`seed` ejecutable (`npm run seed`) que crea un usuario ficticio y datos reproducibles (NFR-CAL-005, FRD §2.6):
 
 - Un usuario demo sin datos reales.
 - Tres cuentas en al menos dos monedas.
@@ -1006,7 +1021,7 @@ COOKIE_SAME_SITE=lax
 
 # Frontend (CORS)
 CORS_ORIGIN=http://localhost:3000
-CORS_ORIGIN_NATIVE=capacitor://localhost,http://localhost   # orígenes nativos de Capacitor
+CORS_ORIGIN_NATIVE=capacitor://localhost,http://localhost,https://localhost   # orígenes nativos de Capacitor
 
 # Mercado (proveedores gratis, sin API key ni atribución)
 MARKET_ENABLED=true
@@ -1042,6 +1057,7 @@ BUDGET_WARNING_THRESHOLD=0.8
 
 # Monedas y catálogo de mercado
 SUPPORTED_CURRENCIES=ARS,USD,EUR,BRL,UYU
+DEFAULT_CURRENCY=ARS
 MARKET_SYMBOLS=BTC,ETH,USDT,USDC,SOL,BNB
 
 # Cotización
@@ -1086,7 +1102,7 @@ Cada tanda deja la API compilando (`npm run lint && npm run build`) y con migrac
 - **Aceptación**: HU-001, HU-002, FR-CUE-*, FR-TRX-001..008.
 
 ### Tanda 3 — Cálculos, dashboard y reportes — ✅ Hecho
-- `calculations` + `fx` (CAL-001..009), `dashboard`, `reports` (summary, by-category, net-worth, budgets, export CSV).
+- `calculations` + `fx` (CAL-001..007 y CAL-010), `dashboard`, `reports` (summary, by-category, net-worth, budgets, export CSV).
 - Los campos que el cliente ya consume (`kpis.accounts`, `savingsRateDeltaPp`, `categoryChanges`, `netWorthComposition`, `investments.positions` con moneda original) están en el contrato §7.7 y el mock; la API debe implementarlos.
 - **Aceptación**: FR-DAS-*, FR-REP-001..006.
 
@@ -1102,11 +1118,11 @@ Cada tanda deja la API compilando (`npm run lint && npm run build`) y con migrac
 ### Tanda 6 — Objetivos y seed — ✅ Hecho
 - **Los objetivos son un módulo `goals`** (no un tipo de cuenta): tabla `goals` (§5.12), endpoints `/goals` (§7.8), cálculo de progreso/estado en `calculations.service` (CAL-007) y validación de la cuenta origen vía orquestador. **No suman al patrimonio neto** (son un "sobre virtual" cuyo dinero ya está en la cuenta origen). En el cliente aparecen como **Metas**, bloque y ruta propios (`/goals/detail`), distintos de **Cuentas** (`/accounts/detail`).
 - `seed` de datos de demo (incluye metas con cuenta origen).
-- **Aceptación**: FR-OBJ-001..004, FRD §12.
+- **Aceptación**: FR-OBJ-001..005, FRD §2.6.
 
 ### Tanda 7 — Asistente IA — ◐ Parcial
 - `assistant` + `ai`: conversaciones, mensajes con stream SSE (contrato §7.16), contexto mínimo, metadatos, insuficiencia.
-- **Aceptación**: HU-006, FR-IA-001..011, NFR-SEG-011/012.
+- **Aceptación**: HU-006, FR-IA-001/002, FR-IA-008..014, NFR-SEG-011/012.
 
 ### Tanda 8 — Endurecimiento — ⬜ Pendiente
 - Tests e2e P0, rate limiting completo, timeout en salidas externas, logging seguro, validación de host.

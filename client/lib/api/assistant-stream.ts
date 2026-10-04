@@ -1,5 +1,5 @@
 import { mockApi } from "@/lib/mocks/api";
-import { API_BASE_URL, refreshAuthSession } from "./client";
+import { API_BASE_URL, authHeaders, refreshAuthSession } from "./client";
 import type {
   AssistantActionError,
   AssistantActionProposal,
@@ -39,9 +39,11 @@ const parseFrame = (frame: string): { event: string; data: string } => {
 export const streamAssistantMessage = async (
   input: AssistantMessageInput,
   handlers: AssistantStreamHandlers,
+  options?: { signal?: AbortSignal },
 ): Promise<void> => {
   if (USE_MOCKS && !ASSISTANT_LIVE) {
     const reply = await mockApi.sendMessage(input);
+    if (options?.signal?.aborted) return;
     handlers.onMeta?.({
       conversationId: reply.conversationId,
       period: input.period,
@@ -50,6 +52,7 @@ export const streamAssistantMessage = async (
     });
     const words = reply.answer.split(" ");
     for (let index = 0; index < words.length; index += 1) {
+      if (options?.signal?.aborted) return;
       handlers.onToken?.(
         `${words[index]}${index < words.length - 1 ? " " : ""}`,
       );
@@ -62,11 +65,13 @@ export const streamAssistantMessage = async (
     return;
   }
 
-  const send = () =>
-    fetch(`${API_BASE_URL}/assistant/messages`, {
+  const send = async () => {
+    const auth = await authHeaders();
+    return fetch(`${API_BASE_URL}/assistant/messages`, {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...auth },
+      signal: options?.signal,
       body: JSON.stringify({
         question: input.question,
         conversationId: input.conversationId ?? null,
@@ -74,6 +79,7 @@ export const streamAssistantMessage = async (
         currency: input.currency,
       }),
     });
+  };
 
   let response = await send();
   if (response.status === 401) {

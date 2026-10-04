@@ -3,10 +3,13 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { ValuationSource } from "../../common/types/financial-enums";
 import { numericTransformer } from "../../common/transformers/numeric.transformer";
+import { Asset } from "./asset.entity";
 
 @Entity("valuations")
 export class Valuation {
@@ -16,6 +19,10 @@ export class Valuation {
   @Index()
   @Column({ name: "asset_id", type: "uuid" })
   assetId: string;
+
+  @ManyToOne(() => Asset, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "asset_id" })
+  asset: Asset;
 
   @Column({
     type: "numeric",

@@ -3,11 +3,14 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
 import { AccountType } from "../../common/types/financial-enums";
 import { numericTransformer } from "../../common/transformers/numeric.transformer";
+import { User } from "../../users/entities/user.entity";
 
 @Entity("accounts")
 export class Account {
@@ -17,6 +20,10 @@ export class Account {
   @Index()
   @Column({ name: "user_id", type: "uuid" })
   userId: string;
+
+  @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "user_id" })
+  user: User;
 
   @Column({ type: "text" })
   name: string;

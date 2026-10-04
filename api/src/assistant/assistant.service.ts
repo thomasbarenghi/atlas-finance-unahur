@@ -32,6 +32,9 @@ export interface ConversationResponse {
   createdAt: string;
 }
 
+export const ASSISTANT_DISCLAIMER =
+  "Respuesta informativa calculada a partir de tus datos; no constituye asesoramiento financiero.";
+
 export type AssistantEvent =
   | {
       type: "meta";
@@ -40,6 +43,7 @@ export type AssistantEvent =
         period: { from: string; to: string };
         currency: string;
         sources: string[];
+        disclaimer: string;
       };
     }
   | { type: "token"; data: { delta: string } }
@@ -331,6 +335,7 @@ export class AssistantService {
         period: context.period,
         currency: context.currency,
         sources: context.sources,
+        disclaimer: ASSISTANT_DISCLAIMER,
       },
     };
 

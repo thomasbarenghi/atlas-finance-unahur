@@ -99,6 +99,32 @@ export class PositionsService {
     return response;
   }
 
+  async archivePosition(
+    userId: string,
+    id: string,
+  ): Promise<PositionResponseDto> {
+    return this.setArchived(userId, id, true);
+  }
+
+  async restorePosition(
+    userId: string,
+    id: string,
+  ): Promise<PositionResponseDto> {
+    return this.setArchived(userId, id, false);
+  }
+
+  private async setArchived(
+    userId: string,
+    id: string,
+    archived: boolean,
+  ): Promise<PositionResponseDto> {
+    const position = await this.findOwnedPosition(userId, id);
+    position.archived = archived;
+    const saved = await this.positionsRepository.save(position);
+    const [response] = await this.derive([saved]);
+    return response;
+  }
+
   async deletePosition(userId: string, id: string): Promise<void> {
     const result = await this.positionsRepository.delete({ id, userId });
     if (!result.affected) {
@@ -135,6 +161,7 @@ export class PositionsService {
           quoteDate: null,
           quoteProvider: null,
           isStale: false,
+          archived: position.archived,
         };
       }
       const valuation = this.calculationsService.calculatePositionValue(
@@ -157,6 +184,7 @@ export class PositionsService {
         quoteDate: quote.fetchedAt.toISOString(),
         quoteProvider: quote.provider,
         isStale: now - quote.fetchedAt.getTime() > staleMs,
+        archived: position.archived,
       };
     });
   }

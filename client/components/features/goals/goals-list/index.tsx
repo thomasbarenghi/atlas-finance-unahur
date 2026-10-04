@@ -16,6 +16,7 @@ export const GoalsList = ({
   isLoading,
   emptyTitle = "Todavía no tenés metas",
   emptyDescription = "Creá un objetivo de ahorro y seguí su progreso.",
+  emptyAction,
 }: GoalsListProps) => {
   return (
     <DataList
@@ -27,6 +28,7 @@ export const GoalsList = ({
           icon={Target}
           title={emptyTitle}
           description={emptyDescription}
+          action={emptyAction}
         />
       }
       renderItem={(goal) => {

@@ -12,7 +12,7 @@ Entry point for AI agents working in this repository. **Read this file first**, 
    - `client/.agents/skills/quality-rules/SKILL.md` and `client/.agents/skills/test-quality/SKILL.md`
    - `api/.agents/skills/quality-rules/SKILL.md` and `api/.agents/skills/test-quality/SKILL.md`
    - **Global:** `.agents/skills/push-ready/SKILL.md` — load whenever the user asks to verify/commit/push changes.
-4. **If a change crosses apps** (e.g. a new endpoint), update **both** sides and keep the REST contract in sync (`docs/backend.md` §7).
+4. **If a change crosses apps** (e.g. a new endpoint), update **both** sides and keep the REST contract in sync (`docs/architecture/backend.md` §7).
 
 ## Repository layout
 
@@ -20,7 +20,7 @@ Entry point for AI agents working in this repository. **Read this file first**, 
 atlas-finance-unahur/
 ├── client/     # Next.js 16 app + Capacitor Android (AGENTS.md + skills inside)
 ├── api/        # NestJS API (AGENTS.md + skills inside)
-├── docs/       # FRD, frontend.md, backend.md (Spanish)
+├── docs/       # documentation (Spanish): specification/, architecture/, archive/
 ├── .agents/    # global skills (e.g. push-ready)
 ├── scripts/    # root tooling
 ├── .husky/     # git hooks (pre-commit, pre-push)
@@ -31,9 +31,9 @@ atlas-finance-unahur/
 ## Source of truth
 
 - `README.md` — overview, stack, quick start, demo credentials.
-- `docs/FRD_Gestor_Financiero_v0.1.docx.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
-- `docs/frontend.md` — client site map, structure, auth, charts, AI, Capacitor.
-- `docs/backend.md` — API architecture, data model, REST contract, integrations, security.
+- `docs/specification/FRD_Gestor_Financiero_v0.2.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
+- `docs/architecture/frontend.md` — client site map, structure, auth, charts, AI, Capacitor.
+- `docs/architecture/backend.md` — API architecture, data model, REST contract, integrations, security.
 
 Do not contradict these docs. If code and docs disagree, align them in the same change.
 

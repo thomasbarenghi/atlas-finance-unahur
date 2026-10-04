@@ -144,6 +144,20 @@ if [ "$MODE" = "run" ]; then
   pick_device "$EMU_ARG" "$DEV_ARG"
 fi
 
+# --- Env nativo --------------------------------------------------------------
+# Next.js no lee `.env.native`; lo exportamos al shell (tiene prioridad sobre
+# `.env.local`, que apunta a localhost) solo para el build de Android.
+NATIVE_ENV_FILE=".env.native"
+if [ -f "$NATIVE_ENV_FILE" ]; then
+  echo "▶ Cargando variables de $NATIVE_ENV_FILE..."
+  set -a
+  # shellcheck disable=SC1090
+  . "$NATIVE_ENV_FILE"
+  set +a
+else
+  echo "⚠ No existe $NATIVE_ENV_FILE; se usará la config de entorno por defecto." >&2
+fi
+
 echo "▶ Build web (Next.js static export → out/)..."
 npm run build
 

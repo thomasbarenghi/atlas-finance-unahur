@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Goal } from "@/lib/api/types";
 
 export interface GoalsListProps {
@@ -6,4 +7,5 @@ export interface GoalsListProps {
   isLoading?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
+  emptyAction?: ReactNode;
 }

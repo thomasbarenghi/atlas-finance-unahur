@@ -6,10 +6,12 @@ import { Check, LayoutGrid, Pencil, Wallet } from "lucide-react";
 import { CategoryDonut } from "@/components/charts/category-donut";
 import { IncomeExpenseChart } from "@/components/charts/income-expense-chart";
 import { EmptyState } from "@/components/common/empty-state";
+import { ErrorState } from "@/components/common/error-state";
 import { PageHeader } from "@/components/common/page-header";
 import { PeriodSelector } from "@/components/common/period-selector";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BudgetAlerts } from "@/components/features/dashboard/budget-alerts";
 import { BudgetUsage } from "@/components/features/dashboard/budget-usage";
 import { NetWorthHero } from "@/components/features/dashboard/net-worth-hero";
 import { WidgetPicker } from "@/components/features/dashboard/widget-picker";
@@ -84,6 +86,15 @@ export const ReportsView = () => {
 
   const data = dashboardQuery.data;
 
+  if (dashboardQuery.isError) {
+    return (
+      <ErrorState
+        title="No pudimos cargar tus reportes"
+        onRetry={() => dashboardQuery.refetch()}
+      />
+    );
+  }
+
   if (dashboardQuery.isLoading || !data) {
     return <ReportsSkeleton />;
   }
@@ -118,6 +129,23 @@ export const ReportsView = () => {
 
   const budgetPeriod = `${range.to.slice(0, 7)}-01`;
 
+  const INCOME_PALETTE = [
+    "#22c55e",
+    "#0ea5e9",
+    "#a855f7",
+    "#f59e0b",
+    "#ef4444",
+    "#14b8a6",
+    "#6366f1",
+    "#eab308",
+  ];
+  const incomeByCategory = data.cashflow.income.map((item, index) => ({
+    categoryId: item.name,
+    name: item.name,
+    color: INCOME_PALETTE[index % INCOME_PALETTE.length],
+    value: item.value,
+  }));
+
   const widgetContent: Record<DashboardWidgetId, ReactNode> = {
     netWorth: (
       <NetWorthHero
@@ -144,12 +172,34 @@ export const ReportsView = () => {
         <CategoryDonut data={data.expensesByCategory} currency={currency} />
       </WidgetCard>
     ),
+    incomeDonut: (
+      <WidgetCard
+        title="Ingresos por categoría"
+        hint="Distribución del ingreso."
+      >
+        <CategoryDonut
+          data={incomeByCategory}
+          currency={currency}
+          valueLabel="Ingreso"
+          emptyTitle="Sin ingresos en el período"
+          emptyDescription="Cuando registres ingresos por categoría vas a ver su distribución."
+        />
+      </WidgetCard>
+    ),
     budgetUsage: (
       <WidgetCard
         title={`Presupuesto de ${formatMonthName(budgetPeriod)}`}
         hint="Mes actual · no depende del período global."
       >
         <BudgetUsage period={budgetPeriod} />
+      </WidgetCard>
+    ),
+    budgetAlerts: (
+      <WidgetCard
+        title="Presupuestos con alerta"
+        hint="Cercanos al límite o excedidos."
+      >
+        <BudgetAlerts alerts={data.budgetAlerts} />
       </WidgetCard>
     ),
   };

@@ -25,9 +25,12 @@ atlas-finance-unahur/
 
 ## Documentation
 
-- [`docs/FRD_Gestor_Financiero_v0.1.docx.md`](docs/FRD_Gestor_Financiero_v0.1.docx.md) — functional requirements, user stories, calculation rules, NFRs.
-- [`docs/frontend.md`](docs/frontend.md) — site map, per-page behavior, file structure, auth, charts, AI, Capacitor, work plan.
-- [`docs/backend.md`](docs/backend.md) — architecture, data model, REST contract (DTOs/enums/errors), integrations, security, seed, env.
+- [`docs/specification/FRD_Gestor_Financiero_v0.2.md`](docs/specification/FRD_Gestor_Financiero_v0.2.md) — functional requirements, user stories, calculation rules, NFRs.
+- [`docs/specification/BRD_Gestor_Financiero_v0.2.md`](docs/specification/BRD_Gestor_Financiero_v0.2.md) — business requirements, business rules, cases, glossary.
+- [`docs/architecture/frontend.md`](docs/architecture/frontend.md) — site map, per-page behavior, file structure, auth, charts, AI, Capacitor, work plan.
+- [`docs/architecture/backend.md`](docs/architecture/backend.md) — architecture, data model, REST contract (DTOs/enums/errors), integrations, security, seed, env.
+
+The full index — including the archived audits — is in [`docs/README.md`](docs/README.md).
 
 ## Agent guidance
 

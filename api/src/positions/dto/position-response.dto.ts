@@ -13,4 +13,5 @@ export interface PositionResponseDto {
   quoteDate: string | null;
   quoteProvider: string | null;
   isStale: boolean;
+  archived: boolean;
 }

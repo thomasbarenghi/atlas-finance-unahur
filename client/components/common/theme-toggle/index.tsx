@@ -9,11 +9,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/use-auth";
 import { useMounted } from "@/hooks/use-mounted";
+import type { Theme } from "@/lib/api/types";
+import { useUpdateMe } from "@/lib/query/users";
 
 export const ThemeToggle = () => {
   const { theme, setTheme } = useTheme();
+  const { user } = useAuth();
+  const updateMe = useUpdateMe();
   const mounted = useMounted();
+
+  const changeTheme = (next: Theme) => {
+    setTheme(next);
+    if (user) {
+      updateMe.mutate({ theme: next });
+    }
+  };
 
   return (
     <DropdownMenu>
@@ -29,13 +41,13 @@ export const ThemeToggle = () => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>
+        <DropdownMenuItem onClick={() => changeTheme("light")}>
           <Sun /> Claro
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>
+        <DropdownMenuItem onClick={() => changeTheme("dark")}>
           <Moon /> Oscuro
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>
+        <DropdownMenuItem onClick={() => changeTheme("system")}>
           <Monitor /> Sistema
         </DropdownMenuItem>
       </DropdownMenuContent>

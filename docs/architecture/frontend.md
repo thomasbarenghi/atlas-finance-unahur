@@ -3,7 +3,7 @@
 > **Audiencia:** agentes de IA que implementarán el frontend.
 > **Stack:** Next.js 16 (App Router) · TypeScript (strict) · Tailwind CSS 4 · shadcn/ui · Outfit (títulos) + Nunito (cuerpo) · Recharts · TanStack Query · React Hook Form + Zod · lucide-react · Capacitor 8 (Android; iOS pendiente).
 > **Backend:** consume una API REST NestJS (ver `backend.md`). La URL base se inyecta por variable de entorno.
-> **Referencia funcional:** `FRD_Gestor_Financiero_v0.1.docx.md`. Todo requisito citado (FR-*, HU-*, CAL-*, NFR-*) corresponde a ese documento.
+> **Referencia funcional:** `../specification/FRD_Gestor_Financiero_v0.2.md`. Todo requisito citado (FR-*, HU-*, CAL-*, NFR-*) corresponde a ese documento.
 
 ---
 
@@ -146,53 +146,54 @@ Vista de aterrizaje **"Tu resumen"**, un resumen real (no un tablero de análisi
 
 - **Patrimonio neto** (FR-DAS-001/002): `NetWorthHero` a **ancho completo** con valor, variación vs. período anterior (`TrendBadge`), mini-stats (Ingresos/Gastos/Ahorro/Tasa) y sparkline con **escala adaptativa** (min/max + padding) y **tooltip**. El patrimonio usa la **misma fórmula que Reportes y Patrimonio** (cuentas + activos + inversiones financieras − deudas).
 - Sin acciones rápidas: el inicio prioriza el resumen (patrimonio neto → cuentas → metas → patrimonio). Las altas se hacen desde cada sección o el `+` de la barra inferior.
-- **Cuentas y Metas** (`AccountsSection`): son **entidades separadas** (`accounts` y `goals`). Se **separan en dos bloques** con `SectionHeader` y `+` propios: **Cuentas** (`AccountsList` sobre `useAccounts`, ruta `/accounts/detail`) y **Metas** (`GoalsList` sobre `useGoals`, ruta propia `/goals/detail`, §4.7). Las metas **no suman al patrimonio neto** (el dinero ya está en su cuenta origen). Las metas muestran acumulado/objetivo, cuenta origen, `Progress`, `%`, **faltante** ("Faltan $X"), **fecha objetivo** ("Objetivo: ene 2027") y **ahorro mensual necesario** cuando hay fecha; `progressPct`/`status` los devuelve el backend (CAL-007). Las cuentas con saldo negativo muestran "Saldo negativo". Botones `+` (`AccountTypePicker` → `AccountFormDialog` para cuentas; `GoalFormDialog` para metas) y las filas navegan al detalle correspondiente (§4.3.1 / §4.7).
+- **Cuentas y Metas** (`AccountsSection`): son **entidades separadas** (`accounts` y `goals`). Se **separan en dos bloques** con `SectionHeader` y `+` propios: **Cuentas** (`AccountsList` sobre `useAccounts`, ruta `/accounts/detail`) y **Metas** (`GoalsList` sobre `useGoals`, ruta propia `/goals/detail`, §4.7). Las metas **no suman al patrimonio neto** ni admiten movimientos propios (FR-OBJ-005: el dinero ya está en su cuenta origen). Las metas muestran acumulado/objetivo, cuenta origen, `Progress`, `%`, **faltante** ("Faltan $X"), **fecha objetivo** ("Objetivo: ene 2027") y **ahorro mensual necesario** cuando hay fecha; `progressPct`/`status` los devuelve el backend (CAL-007). Las cuentas con saldo negativo muestran "Saldo negativo". Botones `+` (`AccountTypePicker` → `AccountFormDialog` para cuentas; `GoalFormDialog` para metas) y las filas navegan al detalle correspondiente (§4.3.1 / §4.7).
 - **Patrimonio** (`InvestmentsSection`, debajo de Metas): renombrada desde "Inversiones" porque agrupa **Activos**, **Inversiones financieras** (posiciones tipo BTC) y **Deudas**. Cada grupo es una lista de items (`AssetsList` / `PositionsList` / `DebtsList`); el `+` abre `InvestmentTypePicker` (Activo / Inversión / Deuda) y **cada fila navega a su página de detalle** (`/patrimony/.../detail`), con menú `...` para acciones rápidas (editar/valuaciones/archivar/eliminar). El `SectionHeader` incluye el CTA **"Ver reportes"** → `/reports/investments` (evolución, composición y KPIs del patrimonio). Los formularios y el `ValuationSheet` viven acá; ya no hay página `/assets`.
-- **Filtro de período** (FR-DAS-007): `PeriodSelector` dentro del contenido de la página. La **moneda de visualización** es la base del usuario (sin selector en la UI).
+- **Filtro de período** (FR-DAS-007): `PeriodSelector` dentro del contenido de la página; cambia el período de los indicadores y de los reportes. La **moneda de visualización** es la **base** del usuario (`DisplayCurrencyProvider`), se cambia en **Ajustes** (`/settings` → `PATCH /users/me`) y **no existe un selector de moneda por vista**.
 - **Estados vacíos** (FR-DAS-008): `EmptyState` reutilizable.
 
 > El tablero de widgets y gráficos de análisis (FR-DAS-003..006, FR-REP-*) ahora vive en **`/reports`** (§4.8).
 
 > Ver **§4.8.1** para los widgets y su personalización (movidos a `/reports`).
 
-### 4.3 Cuentas — SC-003 (FR-CUE-001..005)
+### 4.3 Cuentas — SC-003 (FR-CUE-001..006)
 
-El **listado de cuentas vive en el inicio** (`/dashboard`, §4.2); se eliminó la página `/accounts` con buscador y filtros. Las cuentas se muestran como **lista de items** (`DataList` + `DataListItem`, genéricos reutilizables). La **creación** arranca con un **selector de tipo en grilla** (`AccountTypePicker`: Efectivo, Bancaria, Billetera, Tarjeta, Otra y **Objetivo**); al elegir un tipo se abre el `AccountFormDialog` con ese tipo precargado (nombre, tipo, moneda, saldo inicial, observaciones, FR-CUE-001/002).
+El **listado de cuentas vive en el inicio** (`/dashboard`, §4.2); se eliminó la página `/accounts` con buscador y filtros. Las cuentas se muestran como **lista de items** (`DataList` + `DataListItem`, genéricos reutilizables). La **creación** arranca con un **selector de tipo en grilla** (`AccountTypePicker`: Efectivo, Bancaria, Billetera, Tarjeta y Otra); al elegir un tipo se abre el `AccountFormDialog` con ese tipo precargado (nombre, tipo, moneda, saldo inicial, observaciones, FR-CUE-001/002).
 
-El **formulario** (`AccountFormDialog`) es un editor visual: hero con ícono del tipo y **nombre editables**, chips de **tipo** (scroll horizontal) y **campos que varían según el tipo** (cuenta común: saldo + moneda + observaciones; objetivo: monto asignado, monto objetivo, moneda, fecha límite y cuenta origen; tarjeta: saldo como deuda). Al **editar** suma un toggle **"Cuenta archivada"**.
+El **formulario** (`AccountFormDialog`) es un editor visual: hero con ícono del tipo y **nombre editables**, chips de **tipo** (scroll horizontal) y **campos que varían según el tipo** (cuenta común: saldo + moneda + observaciones; tarjeta: saldo como deuda). Al **editar** suma un toggle **"Cuenta archivada"**.
 
 El formulario de cuentas ya **no incluye metas**: los tipos son `cash`, `bank`, `wallet`, `card` y `other`. Las metas se crean/editan con su propio `GoalFormDialog` (§4.7). **Saldo actual** lo devuelve el backend; el front solo lo muestra (FR-CUE-004).
 
 #### 4.3.1 `/accounts/detail?id=<id>` — Detalle de cuenta
 
 - **Encabezado** (`PageHeader`): botón atrás (móvil), nombre de la cuenta y acciones: editar (`Pencil`) y menú con archivar/restaurar.
-- **Hero**: ícono por tipo, saldo actual grande y `StatusBadge` (activa/archivada; en objetivos, el estado de la meta).
+- **Hero**: ícono por tipo, saldo actual grande y `StatusBadge` (activa/archivada).
 - **Stats**: saldo inicial, ingresos y gastos del período global (`usePeriod`).
 - **Movimientos**: `TransactionList` (lista de items reutilizable) con los movimientos de la cuenta en el período; al tocar uno se abre el `Dialog` de edición.
-- **Cuenta objetivo**: en lugar de stats/movimientos muestra acumulado, objetivo, faltante, `Progress` de avance, y la **cuenta origen** ("Vive en …") con acceso a su detalle.
-- **Editar** reutiliza `AccountFormDialog` (con los campos de objetivo cuando corresponde); **archivar/restaurar** usa `AlertDialog` de confirmación (FR-CUE-003/005).
+- **Cuenta objetivo**: ya no es un tipo de cuenta; el detalle de una meta (acumulado, objetivo, faltante, `Progress` de avance y cuenta origen) vive en `/goals/detail` (§4.7).
+- **Editar** reutiliza `AccountFormDialog` (con el switch **"Cuenta archivada"**); **archivar/restaurar** usa `AlertDialog` de confirmación (FR-CUE-003/005/006).
+- **Restaurar una cuenta archivada** (FR-CUE-006): se dispara desde el detalle con `RowActionsMenu` → **Restaurar** (`ArchiveRestore`), o con el switch **"Cuenta archivada"** del formulario de edición. El `ConfirmActionDialog` aclara que "volverá a estar disponible para nuevos movimientos"; `useRestoreAccount` llama `POST /accounts/:id/restore` e invalida cuentas, movimientos y dashboard. La cuenta conserva su historial y su saldo, y mientras está archivada se muestra igual en el inicio y en el detalle con `StatusBadge` **"Archivada"** (`AccountsList`), aunque no admite nuevos movimientos (FR-CUE-005).
 - La ruta usa `?id=` en vez de `/accounts/:id` para ser compatible con el **static export** de Next/Capacitor; el id se lee con `useQueryParam`.
 
-### 4.4 `/transactions` — SC-004 (FR-TRX-001..010)
+### 4.4 `/transactions` — SC-004 (FR-TRX-001..008)
 
 - **Lista de items** (`TransactionList`) con paginación (NFR-PR-002) y menú por fila (editar/eliminar): ícono por tipo, descripción, `fecha · categoría · cuenta` y monto (color por signo). Cada fila abre la edición. **Las transferencias se colapsan en una sola fila** (`collapseTransfers` por `transferGroupId`, conservando la pata origen): subtítulo `fecha · Transferencia · Cuenta origen → destino` y monto **neutro** (sin verde/rojo); no afectan ingresos, gastos, ahorro ni patrimonio.
-- **Búsqueda** (FR-TRX-006/007): único control de filtrado, `Input` tipo pill con debounce sobre descripción/notas. Se quitaron los filtros de tipo/fecha/cuenta/categoría.
+- **Búsqueda** (FR-TRX-006): único control de filtrado, `Input` tipo pill con debounce sobre descripción/notas. Se quitaron los filtros de tipo/fecha/cuenta/categoría, así que hoy el cliente **no** cubre el filtrado que pide `FR-TRX-006` (P0) más allá del texto.
 - **CTA de alta**: botón `+ Nuevo movimiento` en desktop (ícono en mobile, donde la barra inferior ya aporta el `+` central).
 - **Alta/edición** como editor moderno estilo app (`Dialog` + `Form`, FR-TRX-001/002/003): **segmented de tipo** (Gasto/Ingreso/Transferencia), filas de cuenta y categoría, **teclado numérico** (`AmountKeypad`) con operaciones `+ − × ÷`, **cálculo en vivo** (el resultado se muestra mientras se escribe, sin botón `=`), monto grande con signo por tipo y saldo disponible, fecha + comentario. El monto se evalúa con `lib/amount-expression.ts` (sin `eval`) y se valida `> 0`. Si es transferencia, selector origen/destino que excluye la otra cuenta elegida (FR-TRX-004).
 - **Eliminar** con `AlertDialog` de confirmación.
 - **Categorías personalizadas** (FR-TRX-008): gestión en el mismo módulo (ver §4.11).
 - **CSV** (FR-TRX-009, P2) y **recurrentes** (FR-TRX-010, P2): marcados como fases futuras.
 
-### 4.5 `/budgets` — SC-005 (FR-PRE-001..007)
+### 4.5 `/budgets` — SC-005 (FR-PRE-001..006)
 
 - **Resumen mensual** (`BudgetsSummary`): `Presupuesto total`, `Gastado`, `Disponible` y `Categorías excedidas` antes del grid.
 - **Listado por período** (selector de mes): cada tarjeta = categoría con `BudgetProgress` y `StatusBadge` de estado, ordenadas por **gravedad** (`Excedido → Advertencia → Disponible`, luego mayor consumo). La tarjeta entera abre el detalle (chevron); muestra "Se renueva" si el presupuesto es recurrente. La edición/eliminación se hacen desde el detalle.
 - **Métricas por presupuesto** (FR-PRE-002/004): límite, gasto acumulado, disponible/excedido y % consumido (sin límite visual a 100%: muestra 120%).
 - **Estados** (FR-PRE-003): `Disponible` (verde), `Advertencia` (ámbar), `Excedido` (rojo) en la barra **y** badge textual (NFR-UA-005). Un excedido dice **"Excedido por $X"**, nunca "Disponible" negativo. La tarjeta indica "Restan N días" para el mes en curso.
-- **Crear** (FR-PRE-001): categoría + mes + límite + moneda, con **Renovación automática** (FR-PRE-007): el presupuesto se repite cada mes con el mismo límite sin recrearlo.
+- **Crear** (FR-PRE-001): categoría + mes + límite + moneda, con **Renovación automática** (FR-PRE-007, fuera de la v0.2 publicada): el presupuesto se repite cada mes con el mismo límite sin recrearlo.
 - **Copiar mes anterior** (FR-PRE-005, P1): botón "Copiar del mes anterior".
 - **Editar/eliminar** con confirmación (FR-PRE-006).
-- **Detalle** (`/budgets/detail?id=&period=`, FR-PRE-008): encabezado con categoría y mes; resumen de consumo; **Ritmo del mes** (promedio diario, proyección de cierre, disponible por día, días restantes y aviso de posible exceso); y los **movimientos de la categoría** que componen el presupuesto. Abre la edición del presupuesto.
+- **Detalle** (`/budgets/detail?id=&period=`, FR-PRE-008, fuera de la v0.2 publicada): encabezado con categoría y mes; resumen de consumo; **Ritmo del mes** (promedio diario, proyección de cierre, disponible por día, días restantes y aviso de posible exceso); y los **movimientos de la categoría** que componen el presupuesto. Abre la edición del presupuesto.
 
 ### 4.6 Inversiones — SC-006 (FR-ACT-001..008)
 
@@ -217,19 +218,20 @@ Página de análisis del patrimonio ("Patrimonio", "Evolución y composición de
 - **Inversiones financieras** (`InvestmentsSummary`): valor actual, capital invertido y resultado; por posición muestra **cantidad y moneda original** (`0,05 BTC · US$ 3.200`) y la **conversión** a la moneda base (`≈ ARS $3.200.000`); la cotización desactualizada se identifica por posición (`WarningBadge` con **antigüedad visible** "hace 2 h" y detalle "Última cotización: …") además del resumen inferior.
 - **Pendiente (contrato)**: evolución del precio de cada posición y de la reducción de deuda (requieren historial en el backend; hoy solo hay valuaciones de activos). `debtsDeltaPct` se calcula con la serie de deuda del mock.
 
-### 4.7 Objetivos — SC-007 (FR-OBJ-001..004)
+### 4.7 Objetivos — SC-007 (FR-OBJ-001..005)
 
 Los objetivos son un **módulo propio** (`goals`, `lib/query/goals.ts`), no un tipo de cuenta. Viven en el bloque **Metas** del inicio (§4.2), separado de **Cuentas**. Tienen su **propia página de detalle** en `/goals/detail?id=` (no bajo `/accounts/detail`): `GoalDetailView` reutiliza `PatrimonyHero` y `DetailMetric`; el progreso (`goalProgress` en `lib/goal.ts`) parte de `progressPct`/`status` que devuelve el backend (CAL-007) y calcula solo el faltante y el ahorro mensual necesario.
 
 - **Fila de meta** (`GoalsList`, bloque Metas): nombre, acumulado vs. monto objetivo, cuenta origen ("vive en …" abreviado), `Progress` de avance (CAL-007), `%`, faltante, **fecha objetivo** y **ahorro mensual necesario** (`lib/goal.ts`) y `StatusBadge`; navega al **detalle de la meta** (`/goals/detail`). El botón "Ver cuenta" enlaza a la cuenta origen real (`/accounts/detail`).
 - **Estados** (FR-OBJ-004): `Pendiente`, `En curso`, `Alcanzado`, `Vencido` con `Badge` (el `status` lo calcula el backend).
 - **Crear/editar** (FR-OBJ-001/003) con `GoalFormDialog` desde el `+` de Metas: nombre, monto asignado, monto objetivo, moneda, fecha límite y cuenta origen. Archivar/restaurar se hace desde el detalle o el formulario (endpoints `/goals/:id/archive` y `/goals/:id/restore`).
+- **Cuenta de origen** (FR-OBJ-005): el `GoalFormDialog` asocia la meta a una **cuenta de origen** (`sourceAccountId`; el select solo ofrece cuentas activas) y el detalle la muestra en la sección **"Origen del ahorro"** ("Vive en …") con el botón **Ver cuenta** → `/accounts/detail`. La fila de `GoalsList` la muestra abreviada. El objetivo **no admite movimientos propios** (no tiene listado ni alta de movimientos) y **no se suma al patrimonio neto** (`CAL-001`/RN-002): el dinero ya está en su cuenta de origen.
 
-### 4.8 `/reports` — SC-008 (FR-REP-001..007)
+### 4.8 `/reports` — SC-008 (FR-REP-001..004)
 
-Tablero **personalizable por widgets** (base que antes vivía en el inicio) + análisis del período. Selector de período/moneda en el header.
+Tablero **personalizable por widgets** (base que antes vivía en el inicio) + análisis del período. `PeriodSelector` en el contenido; la moneda de visualización es la base del usuario (`DisplayCurrencyProvider`), sin selector por vista (FR-DAS-007).
 
-- **Resumen del período** (`ReportsSummary`, siempre arriba): tira compacta con **Ingresos, Gastos, Ahorro y Tasa de ahorro**, con variación vs. período anterior en los cuatro (la tasa de ahorro en **puntos porcentuales**, "+3,2 pp"). Lo primero que se ve es "cuánto entró, cuánto salió, cuánto ahorré". Los cuatro KPIs aparecen **una sola vez** (el widget de patrimonio no los repite).
+- **Resumen del período** (`ReportsSummary`, siempre arriba): tira compacta con **Ingresos, Gastos, Ahorro y Tasa de ahorro**, con variación vs. período anterior en los cuatro; la **tasa de ahorro** se muestra en **puntos porcentuales** (`savingsRateDeltaPp`, "+3,2 pp", `deltaUnit: "points"` en `StatTiles`) según `CAL-010`, y el resto en porcentaje. Lo primero que se ve es "cuánto entró, cuánto salió, cuánto ahorré". Los cuatro KPIs aparecen **una sola vez** (el widget de patrimonio no los repite).
 - **Cambios destacados** (`HighlightsCard`): bloque compacto de insights calculados comparando el período actual con el anterior (variación de gastos, ahorro y la categoría de mayor cambio), sin IA. Se ubica **debajo de los gráficos** (después del tablero de widgets).
 - **Widgets** (FR-DAS-002..006, FR-REP-002/003/004/005), en orden por defecto: **patrimonio neto**, **ingresos vs. gastos**, **gastos por categoría** y **presupuesto mensual y su uso**. Se movieron **inversiones** y **composición de activos** al reporte de patrimonio (§4.6.1); se eliminaron **comparación de gastos** (redundante con *ingresos vs. gastos*) y **alertas de presupuesto** (redundante con *presupuesto mensual*).
 - **Período**: `PeriodSelector` dentro del contenido; el encabezado muestra el rango en lenguaje de usuario (`describePeriod`, p. ej. "Últimos 6 meses · 1 abr – 12 sep 2026"). El **widget de presupuesto** explicita que es del **mes actual** y no depende del período global ("Presupuesto de septiembre · Mes actual · no depende del período global").
@@ -249,17 +251,17 @@ Tablero **personalizable por widgets** (base que antes vivía en el inicio) + an
 - **Picker "Widgets"**: mostrar/ocultar y "Restablecer diseño".
 - En 2 columnas, un span 3 se limita a 2.
 
-### 4.9 `/assistant` — SC-009 (FR-IA-001..011)
+### 4.9 `/assistant` — SC-009 (FR-IA-001..014)
 
-Ver §10. En **mobile** es la página `/assistant` (ítem `Asistente` de la barra inferior), integrada como el resto: **`PageHeader` estándar** arriba (sin botón atrás, porque es una pestaña raíz de la barra) con las acciones **nueva conversación (`+`)** e **historial** con el mismo estilo de botón de los demás headers (controlan el chat y su `Sheet`), **contenedor de mensajes con scroll propio** (`ScrollArea`) y **input + enviar pegados a la barra inferior, sin borde superior**. Para eso el shell de `(app)` usa `h-dvh` + scroll interno de `<main>`, así la ventana no scrollea en esta página. En **desktop**, un **widget flotante** (botón abajo a la derecha) presente en `(app)` que oculta el FAB en `/assistant`. Estado vacío diseñado (**hero con ícono, título y tarjetas de preguntas sugeridas**), `Alert` de alcance y disclaimer de no-asesoramiento.
+Ver §10. En **mobile** es la página `/assistant` (ítem `Asistente` de la barra inferior), integrada como el resto: **`PageHeader` estándar** arriba (sin botón atrás, porque es una pestaña raíz de la barra) con las acciones **nueva conversación (`+`)** e **historial** con el mismo estilo de botón de los demás headers (controlan el chat y su `Sheet`), **contenedor de mensajes con scroll propio** (`ScrollArea`) y **input + enviar pegados a la barra inferior, sin borde superior**. Para eso el shell de `(app)` usa `h-dvh` + scroll interno de `<main>`, así la ventana no scrollea en esta página. En **desktop**, un **widget flotante** (botón abajo a la derecha) presente en `(app)` que oculta el FAB en `/assistant`. Estado vacío diseñado (**hero con ícono, título y tarjetas de preguntas sugeridas**), `Alert` de alcance y disclaimer de no-asesoramiento. Las acciones de escritura que propone el asistente se confirman paso a paso en el chat con **token de un solo uso** (FR-IA-012) y el **historial** de conversaciones se consulta o elimina desde el `Sheet` **Historial** (FR-IA-009/014); la entrada por voz vive en el mismo input (FR-IA-013).
 
 ### 4.10 `/profile` — SC-010 (perfil) y `/settings` (ajustes)
 
 - **`/profile`** (`ProfileMenu`): tarjeta de perfil (avatar con iniciales, nombre, email), secciones que no están en la tab bar (**Presupuestos, Categorías**), **Tema** (abre un `OptionSheet`), acceso a **Ajustes** (`/settings`) y **Cerrar sesión**. Es el ítem `Perfil` de la barra inferior.
-- **`/settings`** (Ajustes): preferencias restantes. En mobile, un menú de filas (`SettingsMenu`: Moneda base, Asistente IA; Moneda abre un **bottom sheet** de opciones); en desktop, el formulario (`SettingsForm`).
+- **`/settings`** (Ajustes): preferencias restantes. En mobile, un menú de filas (`SettingsMenu`: Moneda base, Asistente IA; Moneda abre un **bottom sheet** de opciones); en desktop, el formulario (`SettingsForm`). La **moneda base** se elige acá (FR-AUT-005) y define la moneda de visualización del dashboard y los reportes (FR-DAS-007).
 - **Perfil:** `PATCH /users/me` con nombre (email no editable en esta versión).
 - **Tema** (FR-AUT-006): selector claro/oscuro/automático en **Perfil** (`ProfileMenu`, vía `OptionSheet`); se persiste con `PATCH /users/me { theme }` (además de `next-themes` local). El `ThemeToggle` del header desktop sigue como atajo.
-- **Privacidad:** habilitar/deshabilitar IA con `PATCH /users/me { aiEnabled }` (FR-IA-001), habilitar las **acciones destructivas** del asistente (`assistantDestructiveEnabled`, default `false`) y borrar historial del asistente (`DELETE /assistant/conversations`, FR-IA-009, `AlertDialog`).
+- **Privacidad:** habilitar/deshabilitar IA con `PATCH /users/me { aiEnabled }` (FR-IA-001), habilitar las **acciones destructivas** del asistente (`assistantDestructiveEnabled`, default `false`) y borrar el historial del asistente del servidor (`DELETE /assistant/conversations` vía `useClearConversations`, FR-IA-009/014, `ConfirmDialog`); el historial local se elimina conversación por conversación desde el `Sheet` de **Historial** (§10).
 - **Sesión:** cerrar sesión (`POST /auth/logout`, FR-AUT-002).
 
 ### 4.11 Gestión de categorías (compartida) — FR-TRX-008
@@ -324,7 +326,7 @@ client/
 │   ├── period.ts / period-stats.ts / dashboard-widgets.ts / goal.ts / labels.ts
 │   ├── sections.ts / forms.ts / storage.ts
 │   ├── amount-expression.ts
-│   ├── api/                       # client, types, session, endpoints, errors, assistant-stream
+│   ├── api/                       # client, types, session, token-store, endpoints, errors, assistant-stream
 │   ├── query/                     # hooks de TanStack Query por dominio (+ keys.ts)
 │   ├── validation/                # schemas Zod por formulario
 │   ├── native/                    # puente a plugins Capacitor
@@ -430,25 +432,25 @@ npx shadcn@latest add breadcrumb avatar
 - Base URL desde `process.env.NEXT_PUBLIC_API_URL` (p. ej. `http://localhost:3001/api` en dev; URL pública HTTPS en producción/nativo).
 - Normaliza errores a `ApiError { statusCode, code, message, fieldErrors? }` (catálogo en `backend.md` §7.17).
 - Expone `get<T>`, `post<T>`, `patch<T>`, `del<T>` tipadas y un helper `apiFetch` de bajo nivel (usado por el parser SSE de §10).
-- **Estado actual (fase mock).** Mientras el backend no exponga los recursos restantes, `lib/api/endpoints.ts` resuelve todo contra `lib/mocks` salvo que `NEXT_PUBLIC_USE_MOCKS=false`. Por eso hoy el cliente **no inyecta `Authorization: Bearer` ni reintenta refresh**: ante un `401` lanza `UnauthorizedError` y el `AuthGuard`/provider redirigen a `/login`. El refresh automático + Bearer nativo es el objetivo al conectar el backend real (§8).
-- `lib/mocks/api.ts` es el **único** consumidor de `sessionStore`; no hay lógica de tokens en el cliente web todavía.
+- **Doble transporte (web/nativo).** En web se sigue usando la cookie `HttpOnly` (`credentials: "include"`, sin tokens en JS). En nativo, `lib/api/token-store.ts` guarda los tokens y `authHeaders()` inyecta `Authorization: Bearer <accessToken>` en cada request; ante un `401` (fuera de `/auth/login` y `/auth/register`) `refreshAuthSession()` hace `POST /auth/refresh` enviando `{ refreshToken }` en el body, guarda el par rotado y reintenta una vez. Si el refresh falla, limpia los tokens (el `AuthGuard` redirige a `/login`).
+- `lib/mocks/api.ts` es el **único** consumidor de `sessionStore` (mock); el flujo real de tokens vive en `lib/api/token-store.ts`.
 
 ### 7.2 Sesión (`lib/api/session.ts`)
 
-**Estado actual (fase mock).** El archivo implementa solo un `sessionStore` que persiste el `userId` del usuario demo/autenticado en `localStorage` (`atlassfin.session.userId`), y lo usan los mocks para resolver `/auth/me`. No guarda tokens. La interfaz `SessionStore` de abajo es el **objetivo** para el backend real:
+`lib/api/session.ts` mantiene el `sessionStore` que persiste el `userId` en `localStorage` (`atlassfin.session.userId`); lo usan **solo los mocks** para resolver `/auth/me`. La sesión real va por cookie (web) o por tokens (nativo).
+
+**Nativo — `lib/api/token-store.ts`.** El access token vive en memoria y el refresh token se persiste con `@capacitor/preferences`; `ensureTokensLoaded()` hidrata de forma perezosa antes del primer request (así `/auth/me` hace refresh si hace falta). En web es no-op total: la cookie viaja sola y no se guarda nada en JS.
 
 ```ts
-// web: la cookie HttpOnly viaja sola, no guardamos nada en JS.
-// nativo (Capacitor): access/refresh token en almacenamiento seguro.
-export interface SessionStore {
-  getAccessToken(): Promise<string | null>;
-  setTokens(t: { accessToken: string; refreshToken: string }): Promise<void>;
-  clear(): Promise<void>;
-}
+export const ensureTokensLoaded = (): Promise<void>;
+export const getAccessToken = (): string | null;
+export const getRefreshToken = (): string | null;
+export const setTokens = (t: { accessToken: string; refreshToken: string }): void;
+export const clearTokens = (): void;
 ```
 
-- Web: `credentials: "include"`; `setTokens`/`clear` no operan (o solo guardan `user` en memoria).
-- Nativo: usa `@capacitor/preferences` para el refresh y un plugin de keychain (p. ej. `capacitor-secure-storage-plugin`) para el access token.
+- `setTokens` se llama en `useLogin`/`useRegister`; `clearTokens` en `useLogout` y cuando el refresh falla.
+- Endurecimiento pendiente: mover el access token a un keychain (`capacitor-secure-storage-plugin`) en lugar de memoria.
 
 ### 7.3 Tipos (`lib/api/types.ts`)
 
@@ -557,56 +559,49 @@ La analítica es el diferenciador. Directrices:
   - Progreso → `Progress` (presupuestos, objetivos).
 - **Datos tabulados**: cada gráfico tiene su tabla equivalente para NFR-UA-004.
 - **Período de página**: el `PeriodSelector` vive en el contenido de `dashboard`, `reports` y `reports/investments` (FR-DAS-007). Presupuestos tiene su propio selector de mes y Movimientos su búsqueda; así el alcance de cada filtro es explícito.
-- **Moneda**: la moneda de visualización es la **base** del usuario (`DisplayCurrencyProvider`), persistida con `PATCH /users/me` y editada en Ajustes. Los montos llegan calculados por el backend (FR-DAS-007, CAL-008); el front no convierte ni ofrece cambio rápido de moneda.
+- **Moneda**: la moneda de visualización es la **base** del usuario (`DisplayCurrencyProvider`), persistida con `PATCH /users/me` y editada en Ajustes. Los montos llegan calculados por el backend en moneda base (FR-DAS-007); el front no convierte ni ofrece cambio rápido de moneda.
 
 ---
 
 ## 10. Asistente de IA (distintivo)
 
-Implementación de la UI conversacional (SC-009, FR-IA-001..011). El backend es quien interactúa con el proveedor de IA (DeepSeek); el front solo presenta la conversación.
+Implementación de la UI conversacional (SC-009, FR-IA-001..014). El backend es quien interactúa con el proveedor de IA (DeepSeek); el front solo presenta la conversación.
 
 - **Ubicación**: en **desktop** es un widget flotante (FAB abajo a la derecha + panel flotante); en **mobile** es una **página propia** (`/assistant`), accesible desde el ítem **`Asistente`** de la barra inferior (sin FAB ni overlay). Componente `components/features/assistant/assistant-widget` (solo desktop) + `assistant-chat`; el estado del panel vive en `AssistantPanelProvider`.
 - **Separación**: la orquestación del chat (envío, streaming, grabación/transcripción) vive en el hook privado `assistant-chat/hooks/use-assistant-conversation`; `AssistantChat` queda como presentación. El historial local persiste vía `AssistantChatProvider`.
 - **Flujo**:
   1. Si la IA está deshabilitada (`user.aiEnabled === false`, FR-IA-001), mostrar `Alert` con CTA a `/settings`.
-  2. `POST /assistant/messages` con `{ question, conversationId, period, currency }`; el backend responde `text/event-stream` con los eventos `meta`, `token`, `action_proposal`, `done`, `error` (ver `backend.md` §7.16).
+  2. `POST /assistant/messages` con `{ question, conversationId, period, currency }`; el backend responde `text/event-stream` con los eventos `meta`, `token`, `action_proposal`, `action_error`, `done`, `error` (ver `backend.md` §7.16).
   3. UI muestra estado de carga mientras llega el stream; los `delta` se acumulan en la burbuja del asistente en vivo.
 - **Acciones**: el asistente puede **gestionar** todos los dominios (cuentas, categorías, movimientos, transferencias, presupuestos, activos/valuaciones, deudas, inversiones y metas). Las lecturas se ejecutan solas; cada mutación llega como `event: action_proposal` y el chat muestra **una tarjeta por acción** (`assistant-action-card`) con vista previa y botones **Confirmar/Cancelar**. Las acciones de una misma respuesta comparten `planId` y traen `step`, así que se muestran numeradas (**Paso N**) y las posteriores quedan **bloqueadas** hasta que se ejecute la anterior (evita confirmar algo cuya dependencia no existe todavía; las pendientes de resolución se marcan como tales). Confirmar llama a `POST /assistant/actions/:id/confirm` (con el token) y muestra el resultado; al ejecutarse se invalidan las queries afectadas. Si una acción falla, llega `event: action_error` o el resultado `failed` y la tarjeta ofrece **Reintentar**. Las acciones destructivas (eliminar) solo aparecen si el usuario las habilitó en Ajustes.
-- **Transporte**: usar `fetch` + `ReadableStream`, **no `EventSource`** (no permite `Authorization` ni body). Implementado en `lib/api/assistant-stream.ts` (`streamAssistantMessage`) con callbacks `onMeta`/`onToken`/`onProposal`/`onDone`/`onError`. El `conversationId` devuelto en `meta` se reutiliza para preguntas siguientes.
+- **Confirmación explícita** (FR-IA-012): toda escritura propuesta exige confirmar la tarjeta; la propuesta trae `token` de **un solo uso** y `expiresAt` (vencimiento). El orden dentro del plan se resuelve en `isActionLocked` (`use-assistant-conversation`): un paso cuyo predecesor del mismo `planId` no está `executed`/`cancelled`/`failed` queda deshabilitado con el aviso "Confirmá primero el paso anterior". El token **nunca se persiste**: `AssistantChatProvider` lo vacía antes de escribir en `localStorage` y, al rehidratar, las acciones que seguían pendientes pasan a `failed` ("volvé a pedir la acción"), para no ofrecer un botón sin token válido. La confirmación (o cancelación) se envía al servidor con el token (`POST /assistant/actions/:id/confirm|cancel`, body `{ token }`), que registra la ejecución.
+- **Transporte**: usar `fetch` + `ReadableStream`, **no `EventSource`** (no permite `Authorization` ni body). Implementado en `lib/api/assistant-stream.ts` (`streamAssistantMessage`) con callbacks `onMeta`/`onToken`/`onProposal`/`onActionError`/`onDone`/`onError`. El `conversationId` devuelto en `meta` se reutiliza para preguntas siguientes.
 - **Render**: la respuesta se acumula desde los `delta` y se renderiza **Markdown de forma segura** con `components/common/markdown-text` (produce elementos React para negrita/cursiva/código/listas; **nunca** usa `dangerouslySetInnerHTML`, NFR-SEG-006). El front marca la respuesta como informativa (FR-IA-008). El `ScrollArea` de la conversación usa `min-h-0` para poder scrollear dentro del panel.
-- **Audio**: disponible **solo en web**. El botón de micrófono graba con `MediaRecorder` (`useAudioRecorder`) y transcribe con Web Speech API (`useSpeechRecognition`); si hay transcripción, la pregunta entra al **stream normal** del asistente (LLM + tools); sin transcripción se muestra un aviso local. En Android el dictado está deshabilitado por ahora (`canUseAudio === false`): el WebView no expone Web Speech y el reconocedor nativo de Google corta por silencio y hace un beep por inicio.
-- **Historial** (FR-IA-009): la conversación **no se pierde** al cerrar el panel; vive en `AssistantChatProvider` y se persiste en `localStorage` (`atlassfin.assistant.threads.v2`). El header del chat tiene **Nueva conversación** (empieza en blanco) y **Historial** (un `Sheet` con las conversaciones anteriores para retomar o eliminar). En modo live el backend además persiste en `ai_conversations` (`GET/DELETE /assistant/conversations`).
+- **Audio / voz** (FR-IA-013): disponible **solo en las plataformas compatibles (web)**. El botón de micrófono graba con `MediaRecorder` (`useAudioRecorder`) y transcribe con Web Speech API (`useSpeechRecognition`); si hay transcripción, la pregunta entra al **stream normal** del asistente (LLM + tools); sin transcripción se muestra un aviso local (`NO_TRANSCRIPT_MESSAGE`). En Android el dictado está deshabilitado por ahora (`canUseAudio === false`, porque `useSpeechRecognition` detecta `Capacitor.isNativePlatform()`): el WebView no expone Web Speech y el reconocedor nativo de Google corta por silencio y hace un beep por inicio.
+- **Historial** (FR-IA-009/014): la conversación **no se pierde** al cerrar el panel; vive en `AssistantChatProvider` y se persiste en `localStorage` (`atlassfin.assistant.threads.v2`, vía `lib/storage.ts`). El header del chat tiene **Nueva conversación** (empieza en blanco) y **Historial** (`AssistantHistorySheet`, un `Sheet` con las conversaciones anteriores para retomar o eliminar una por una). En modo live el backend además persiste en `ai_conversations`; el front consume `DELETE /assistant/conversations` (`useClearConversations`, botón **Borrar historial** en Ajustes con `ConfirmDialog`), mientras que `GET /assistant/conversations` todavía no alimenta la UI (el historial visible es el local).
 - **Límites**: si llega `done` con `insufficient: true`, mostrar el mensaje sin fallar (FR-IA-011); si llega `error`, mostrar aviso genérico y permitir reintento.
 - **Seguridad de prompts**: el front **nunca** concatena datos del usuario con instrucciones de sistema; envía solo la pregunta y el período (FR-IA-010).
-- **Modo mock**: con `NEXT_PUBLIC_USE_MOCKS` (default) el asistente responde desde `lib/mocks`, simulando el stream por palabras y sin llamar a DeepSeek; sirve para desarrollo sin API.
+- **Modo mock**: con `NEXT_PUBLIC_USE_MOCKS` (default) el asistente responde desde `lib/mocks`, simulando el stream por palabras y sin llamar a DeepSeek; sirve para desarrollo sin API. El mock simula también las propuestas, pero `confirmAction`/`cancelAction` **no ejecutan nada** (devuelven `ACTION_NOT_ALLOWED`): la ejecución real necesita el backend.
 - **Modo en vivo (`NEXT_PUBLIC_ASSISTANT_LIVE=true`)**: aunque el resto siga mockeado, el asistente hace el `POST /assistant/messages` real contra `NEXT_PUBLIC_API_URL` y responde con DeepSeek. La ruta del API es pública-condicionada a desarrollo (usa el usuario demo); en producción requiere sesión.
 
 ```ts
 // lib/api/assistant-stream.ts — parser SSE basado en fetch (soporta cookie y Bearer)
-export type AssistantEvent =
-  | { type: "meta"; data: AssistantStreamMeta }
-  | { type: "token"; data: { delta: string } }
-  | { type: "action"; data: AssistantAction }
-  | { type: "done"; data: { conversationId: string; insufficient: boolean } }
-  | { type: "error"; data: { code: string; message: string } };
-
-export async function* postAssistantStream(
-  body: { question: string; conversationId: string | null; period?: { from: string; to: string }; currency?: string },
-  signal?: AbortSignal,
-): AsyncGenerator<AssistantEvent> {
-  const res = await apiFetch("/assistant/messages", { method: "POST", body, signal, stream: true });
-  const reader = res.body!.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const blocks = buffer.split("\n\n");
-    buffer = blocks.pop() ?? "";
-    for (const block of blocks) yield parseSseBlock(block);
-  }
+export interface AssistantStreamHandlers {
+  onMeta?: (meta: AssistantStreamMeta) => void;
+  onToken?: (delta: string) => void;
+  onProposal?: (proposal: AssistantActionProposal) => void;
+  onActionError?: (error: AssistantActionError) => void;
+  onDone?: (result: { conversationId: string; insufficient: boolean }) => void;
+  onError?: (message: string) => void;
 }
+
+export const streamAssistantMessage = (
+  input: AssistantMessageInput, // { question, conversationId?, period?, currency? }
+  handlers: AssistantStreamHandlers,
+): Promise<void> => {
+  // Lee el body con ReadableStream y despacha los frames SSE:
+  // meta, token, action_proposal, action_error, done y error.
+};
 ```
 
 ---
@@ -649,6 +644,7 @@ export const formatPercent = (v: number, locale: string = DEFAULT_LOCALE) =>
 | NFR-CAL-002 (temas) | Tokens light/dark sin pérdida de contraste. |
 | NFR-CAL-003 (localización) | `Intl` + `date-fns` (§11). |
 | NFR-CAL-005 (datos demo) | Consumir el seed del backend; ningún dato real. |
+| NFR-CAL-006 (app Android con Capacitor) | El mismo build estático (`output: "export"`) corre embebido en el shell Android (§14); sesión persistente con `lib/api/token-store.ts` + `@capacitor/preferences` (Bearer + refresh por body) y safe-areas (`env(safe-area-inset-bottom)`) en la barra inferior y los bottom sheets, con las barras del sistema pintadas por el plugin `NativeBars`. iOS diferido. |
 
 ---
 
@@ -669,7 +665,7 @@ export const formatPercent = (v: number, locale: string = DEFAULT_LOCALE) =>
 
 ## 14. Empaquetado móvil con Capacitor
 
-El mismo código web se empaqueta en apps iOS/Android con Capacitor. No hay fork de UI: se reutiliza 100% de `app/`, `components/`, `lib/`.
+El mismo código web se empaqueta en apps iOS/Android con Capacitor (**NFR-CAL-006**: Android en esta versión; iOS diferido). No hay fork de UI: se reutiliza 100% de `app/`, `components/`, `lib/`.
 
 ### 14.1 Configuración de build estático
 
@@ -693,35 +689,37 @@ npm run android                     # build web + sync + instala/lanza (scripts/
 > Requisitos Android: **Node 22+** (lo exige Capacitor 8), **JDK 21** (`.sdkmanrc`) y Android SDK. El helper `scripts/android.sh` los configura y ofrece `--list`, build de APK y `--run` (emulador/dispositivo).
 
 - `webDir` apunta a `out/` (salida del `output: "export"`).
-- `capacitor.config.ts` define `appId`, `appName`, `webDir` y `server` (URL para live-reload en desarrollo).
+- `capacitor.config.ts` define `appId` (`com.atlassfin.app`), `appName` (`Atlass Fin`) y `webDir` (`out/`); el live-reload vía `server.url` no está configurado hoy.
 
 ### 14.2 URL de la API y CORS
 
 - **Web dev**: `NEXT_PUBLIC_API_URL=http://localhost:3001/api`.
-- **Nativo**: la API debe ser alcanzable por el dispositivo (URL HTTPS pública, p. ej. `https://api.example.com/api`); `localhost` no sirve. El valor se fija por build/entorno.
-- El backend debe habilitar CORS para el origen nativo (`capacitor://localhost` en iOS, `http://localhost` en Android) o, mejor, no exigir cookies y validar por `Authorization: Bearer`.
+- **Nativo**: la API debe ser alcanzable por el dispositivo (URL HTTPS pública, p. ej. `https://api.example.com/api`); `localhost` no sirve. El valor se fija con `client/.env.native` (git-ignored); `scripts/android.sh` lo exporta antes de `npm run build`, por lo que pisa a `.env.local`.
+- El backend debe habilitar CORS para el origen nativo (`capacitor://localhost` en iOS; `https://localhost` en Android con Capacitor 8, `http://localhost` en versiones previas). Se configura con `CORS_ORIGIN_NATIVE` (`capacitor://localhost,http://localhost,https://localhost`); la auth nativa no depende de cookies.
+- CORS con credenciales exige origen exacto (no `*`): el `Origin` del webview Android es `https://localhost`, por lo que debe estar en la lista o el preflight falla.
 
 ### 14.3 Autenticación en nativo
 
-- Las cookies `HttpOnly` no son confiables en el webview; se usa el flujo Bearer (ver §8 y §7.2).
-- `session.ts` guarda el access token en keychain (`capacitor-secure-storage-plugin`) y el refresh token en `@capacitor/preferences`.
-- El `AuthGuard` y el interceptor de `401`/refresh son idénticos a web; solo cambia la fuente del token.
+- Las cookies `HttpOnly` no son confiables en el webview (contexto cross-site); se usa el flujo Bearer (ver §7.1/§7.2 y `backend.md` §7.2).
+- `lib/api/token-store.ts`: access token en memoria, refresh token persistido con `@capacitor/preferences`. `lib/api/client.ts` inyecta `Authorization: Bearer` y, ante `401`, refresca con `{ refreshToken }` en el body (el API acepta body o cookie) para rotar el par.
+- El `AuthGuard` y el manejo de `401` son idénticos a web; solo cambia la fuente del token (cookie vs Bearer).
 
 ### 14.4 Plugins de plataforma
 
 | Necesidad | Plugin |
 | :--- | :--- |
-| Almacenamiento seguro de tokens | `capacitor-secure-storage-plugin` |
-| Refresh token persistente | `@capacitor/preferences` |
+| Refresh token persistente | `@capacitor/preferences` (instalado) |
+| Access token en keychain (endurecimiento pendiente) | `capacitor-secure-storage-plugin` |
 | Exportar CSV en móvil | `@capacitor/filesystem` + `@capacitor/share` |
 | Barra de estado / navigation bar | Plugin nativo propio `NativeBars` (status + navigation) + safe-areas CSS `env(safe-area-inset-*)` |
-| Backend local en dev | `server.url` en `capacitor.config.ts` |
+| Backend en dev | `NEXT_PUBLIC_API_URL` desde `.env.native` (lo exporta `scripts/android.sh` antes del build) |
+| Live-reload en dev (no configurado hoy) | `server.url` en `capacitor.config.ts` |
 
 ### 14.5 Consideraciones
 
 - **SSE del asistente** funciona en el webview; asegurar CORS del endpoint y timeout/cancel en el cliente (NFR-PR-004).
 - **Descargas**: en web el CSV se baja como blob; en nativo se escribe con `Filesystem` y se comparte con `Share`.
-- **Safe areas / notch**: aplicar `env(safe-area-inset-top/bottom)` en el layout móvil.
+- **Safe areas / notch** (NFR-CAL-006): la barra inferior (`mobile-tab-bar`) y los bottom sheets (`ResponsiveDialogContent`) aplican `env(safe-area-inset-bottom)`; arriba no hace falta `safe-area-inset-top` porque el proyecto Android desactiva el edge-to-edge (`android:windowOptOutEdgeToEdgeEnforcement`) y la status/navigation bar las pinta `NativeBars`.
 - **Barras del sistema**: `components/layout/native-system-bars` (montado en el layout raíz) llama `useNativeSystemBars(resolvedTheme === "dark")`; en nativo invoca el plugin `NativeBars` (`lib/native/system-bars.ts`) que pinta la **status bar** (blanco/negro) y la **navigation bar** (transparente) con íconos claros/oscuros según el tema. Android: `NativeBarsPlugin.java` + registro en `MainActivity.java` + `android:windowOptOutEdgeToEdgeEnforcement` en `styles.xml`. (En web es no-op.)
 - **Sin APIs server-only**: no usar `cookies()`, `headers()`, Server Actions ni Route Handlers en el flujo de datos (ya excluidos por convención, §13).
 
@@ -746,7 +744,7 @@ Progresivo y validable al final de cada tanda. Cada tanda deja la app compilando
 - **Aceptación**: registro/login/logout + edición de preferencias funcionales; rutas protegidas; navegación desktop/móvil correcta.
 
 ### Tanda 2 — Cuentas y Movimientos — ✅ Hecho
-- **Cuentas** viven en `/dashboard` (`AccountsSection` → `AccountsList`), con detalle en `/accounts/detail`. Las **Metas** tienen su propio bloque (`GoalsList`), hook (`useGoals`) y detalle (`/goals/detail`, §4.7): **entidad separada** (`goals`), no una cuenta.
+- **Cuentas** viven en `/dashboard` (`AccountsSection` → `AccountsList`), con detalle en `/accounts/detail`; archivar y **restaurar** conservando el historial (FR-CUE-003/005/006). Las **Metas** tienen su propio bloque (`GoalsList`), hook (`useGoals`) y detalle (`/goals/detail`, §4.7): **entidad separada** (`goals`), no una cuenta.
 - Movimientos con búsqueda, paginación, transferencia (colapsada a una fila) y CRUD en `/transactions`.
 - `Amount`, `CategoryBadge`, `StatusBadge`, `DataList` / `DataListItem`.
 - **Aceptación**: HU-001 y HU-002 completas.
@@ -767,13 +765,14 @@ Progresivo y validable al final de cada tanda. Cada tanda deja la app compilando
 - **Aceptación**: HU-004, HU-005 (FR-ACT-001..008, FR-MER-005).
 
 ### Tanda 6 — Objetivos y Reportes — ✅ Hecho
-- **Separación Metas/Cuentas**: los objetivos son un **módulo propio** (`goals`, `backend.md` §5.12/§7.8), con **bloque Metas** aparte de **Cuentas**, ruta propia `/goals/detail`, hooks `lib/query/goals.ts` y `progressPct`/`status` calculados por el backend (CAL-007). No suman al patrimonio neto.
+- **Separación Metas/Cuentas**: los objetivos son un **módulo propio** (`goals`, `backend.md` §5.12/§7.8), con **bloque Metas** aparte de **Cuentas**, ruta propia `/goals/detail`, hooks `lib/query/goals.ts`, **cuenta de origen** (FR-OBJ-005) y `progressPct`/`status` calculados por el backend (CAL-007). No admiten movimientos propios ni suman al patrimonio neto.
 - Reportes con widgets personalizables, `ReportsTabs` (General | Patrimonio) y filtros del período.
-- **Aceptación**: FR-OBJ-001..004, FR-REP-001..006 (export CSV/PDF pendientes de contrato).
+- **Aceptación**: FR-OBJ-001..005, FR-REP-001..004 (export CSV/PDF pendientes de contrato).
 
 ### Tanda 7 — Asistente IA + Configuración — ✅ Hecho (mock)
 - Chat con streaming (`fetch` + `ReadableStream`, eventos SSE), cancelar, historial; configuración (perfil, moneda, tema, IA, privacidad) vía `PATCH /users/me`.
-- **Aceptación**: HU-006 (FR-IA-001..011), FR-AUT-005/006.
+- Confirmación explícita de escrituras con token de un solo uso, vencimiento y orden por plan (FR-IA-012), entrada por voz en plataformas compatibles (FR-IA-013) e historial de conversaciones local (`localStorage`) más borrado en el servidor en modo live (FR-IA-009/014).
+- **Aceptación**: HU-006 (FR-IA-001..014), FR-AUT-005/006.
 
 ### Tanda 8 — Pulido y NFRs — ◐ Parcial
 - A11y, responsive 360px, estados vacíos, loading skeletons, dark mode completo.
@@ -782,10 +781,10 @@ Progresivo y validable al final de cada tanda. Cada tanda deja la app compilando
 - **Aceptación**: cumplimiento de NFR-UA/PR/CAL del §12.
 
 ### Tanda 9 — Empaquetado móvil (Capacitor) — ◐ Parcial
-- Android (hecho): `@capacitor/core`, `cli`, `android`, `capacitor.config.ts` y `cap add android`; helper `scripts/android.sh` (`npm run android`).
+- Android (hecho, NFR-CAL-006): `@capacitor/core`, `cli`, `android`, `capacitor.config.ts` y `cap add android`; helper `scripts/android.sh` (`npm run android`).
 - iOS (pendiente): `@capacitor/ios` + `cap add ios`.
-- `session.ts` nativo: keychain + preferences; verificar login/logout con Bearer.
-- Plugins de plataforma: export CSV vía `Filesystem` + `Share`, `StatusBar`/safe-areas.
+- Sesión nativa (hecho): `lib/api/token-store.ts` + `@capacitor/preferences`, Bearer y refresh por body en `lib/api/client.ts`; keychain del access token como endurecimiento pendiente.
+- Plugins de plataforma: export CSV vía `Filesystem` + `Share`, y barras del sistema/safe-areas con `NativeBars` (`lib/native/system-bars.ts`) + `env(safe-area-inset-bottom)`.
 - **Aceptación**: la app corre en Android (y luego iOS) contra la API, con sesión persistente y export funcionando.
 
 > **Nota**: las funcionalidades P2 (CSV import FR-TRX-009, recurrentes FR-TRX-010, PDF FR-REP-007) quedan fuera de la entrega inicial y se planifican aparte.
@@ -802,7 +801,7 @@ Decisiones vigentes del cliente (para poder desarrollar sin API):
 - **Persistencia de UI en `localStorage`**: tema (next-themes), sesión mock, y **layout del dashboard** (`atlassfin.dashboard.layout.v7`).
 - **Moneda**: la moneda de visualización es la **base** del usuario (`DisplayCurrencyProvider`), editada en `/settings`; ya no hay selector de moneda en el header.
 - **Dashboard**: personalizable por widgets (drag & drop, ocultar, ancho por `maxSpan`); `netWorth` default 3/3; masonry medido con `ResizeObserver`. Ver §4.2.1.
-- **Asistente**: widget flotante (no sidebar), streaming SSE, audio con `MediaRecorder` + Web Speech opcional. Ver §10.
+- **Asistente**: widget flotante (no sidebar), streaming SSE, audio con `MediaRecorder` + Web Speech opcional (solo web), confirmación de escrituras con token de un solo uso y orden por plan, e historial local de conversaciones. Ver §10.
 - **DeepSeek**: el proveedor se conecta **desde el backend** (`api/`, `shared/ai/ai.service.ts`) con `AI_API_KEY` server-side; documentado en `backend.md` §7.16/§9.2/§12. Nunca se expone la key en el cliente.
 - **Asistente en vivo con datos mockeados**: `NEXT_PUBLIC_ASSISTANT_LIVE=true` mantiene los mocks para todo el resto (login, cuentas, dashboard) pero manda **solo el asistente** al API real para usar DeepSeek. El API expone `POST /assistant/messages` como público-condicionado: en desarrollo, sin JWT usa el usuario demo (`AI_DEV_USER_EMAIL`, default `demo@atlassfin.app`); en producción exige sesión. Requiere correr migración + seed del API y `AI_API_KEY`.
 - **Modales responsivos**: los formularios usan `ResponsiveDialogContent` (`components/common/responsive-dialog`): `Dialog` centrado en desktop y **bottom sheet** en mobile (`< md`: `bottom-0`, ancho completo, esquinas superiores redondeadas, safe-area). Los `AlertDialog` de confirmación (`ConfirmDialog`) quedan centrados.

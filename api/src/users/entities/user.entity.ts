@@ -21,7 +21,7 @@ export class User {
   @Column({ name: "password_hash", type: "text" })
   passwordHash: string;
 
-  @Column({ name: "base_currency", type: "char", length: 3, default: "USD" })
+  @Column({ name: "base_currency", type: "char", length: 3, default: "ARS" })
   baseCurrency: string;
 
   @Column({ type: "text", default: "system" })
@@ -36,6 +36,16 @@ export class User {
     default: false,
   })
   assistantDestructiveEnabled: boolean;
+
+  @Column({ name: "reset_token_hash", type: "text", nullable: true })
+  resetTokenHash: string | null;
+
+  @Column({
+    name: "reset_token_expires_at",
+    type: "timestamptz",
+    nullable: true,
+  })
+  resetTokenExpiresAt: Date | null;
 
   @CreateDateColumn({ name: "created_at", type: "timestamptz" })
   createdAt: Date;

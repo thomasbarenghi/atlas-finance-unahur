@@ -33,6 +33,7 @@ const definition = (
 const action = (overrides: Partial<AssistantAction> = {}): AssistantAction => ({
   id: "action-1",
   userId: "user-1",
+  user,
   conversationId: "conv-1",
   planId: "plan-1",
   step: 1,

@@ -470,6 +470,17 @@ export const runSeed = async (dataSource: DataSource): Promise<void> => {
           sources: ["assets", "valuations", "debts"],
         },
       }),
+      conversationRepo.create({
+        userId: user.id,
+        question: "¿Cómo vengo con el presupuesto de supermercado?",
+        answer:
+          "El presupuesto de Supermercado está en advertencia: ya consumiste la mayor parte del límite mensual.",
+        contextMeta: {
+          period: periodMeta,
+          currency: "ARS",
+          sources: ["budgets", "transactions", "categories"],
+        },
+      }),
     ]);
 
     logger.log(`Seeded demo data for ${DEMO_EMAIL}`);

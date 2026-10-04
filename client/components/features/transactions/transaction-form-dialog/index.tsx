@@ -372,6 +372,24 @@ export const TransactionFormDialog = ({
           )}
         />
       </div>
+
+      <FormField
+        control={form.control}
+        name="notes"
+        render={({ field }) => (
+          <FormItem>
+            <FormControl>
+              <Input
+                placeholder="Notas (opcional)"
+                className="h-10"
+                {...field}
+                value={field.value ?? ""}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     </FormDialog>
   );
 };

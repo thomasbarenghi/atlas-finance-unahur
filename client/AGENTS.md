@@ -10,9 +10,9 @@ Atlass Fin web app: a personal-finance client (accounts, transactions, budgets, 
 
 ## Source of truth (READMEs / docs)
 
-- `../docs/frontend.md` — site map, per-page features, file structure, auth, charts, AI, Capacitor, batches plan.
-- `../docs/backend.md` — REST contract (DTOs, enums, errors, streaming) this client consumes.
-- `../docs/FRD_Gestor_Financiero_v0.1.docx.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
+- `../docs/architecture/frontend.md` — site map, per-page features, file structure, auth, charts, AI, Capacitor, batches plan.
+- `../docs/architecture/backend.md` — REST contract (DTOs, enums, errors, streaming) this client consumes.
+- `../docs/specification/FRD_Gestor_Financiero_v0.2.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
 
 ## Skills (load before coding)
 
@@ -45,7 +45,7 @@ Run `format:check`, `lint`, `typecheck`, and `build` before considering a task d
 3. **Named exports and arrow functions only**, except Next.js special files (`page.tsx`, `layout.tsx`, etc.) — see the quality skill.
 4. **No direct `fetch` in components.** Data goes through `lib/query/*`; HTTP through `lib/api/client.ts`.
 5. **`lib/` is portable.** It must not import `next/*` or components, so it can be reused on native.
-6. **Match the backend contract.** JSON is `camelCase`; dates `YYYY-MM-DD`; timestamps ISO 8601 UTC; decimals are `number`. Types in `lib/api/types.ts` mirror `../docs/backend.md` §7.13–§7.18.
+6. **Match the backend contract.** JSON is `camelCase`; dates `YYYY-MM-DD`; timestamps ISO 8601 UTC; decimals are `number`. Types in `lib/api/types.ts` mirror `../docs/architecture/backend.md` §7.13–§7.18.
 7. **No secrets.** Only `NEXT_PUBLIC_*` public env; never hardcode tokens/keys.
 8. **No real financial data.** Use the backend seed; demo login `demo@atlassfin.app` / `Demo1234!`.
 
@@ -70,4 +70,4 @@ client/
 ## Navigation behavior
 
 - Desktop (≥ `md`): fixed sidebar.
-- Mobile: bottom app-style bar with 5 items (`Home`, `Transactions`, central `+`, `Reports`, `Settings`); `Settings` is the hub for the remaining sections and preferences (theme is changed from `Profile`). Same behavior in browser and Capacitor.
+- Mobile: bottom app-style bar with 4 items (`Home`, `Transactions`, central `+`, `Reports`, `Profile`); the `+` opens the quick-create picker and `Settings`/`Profile` are the hub for the remaining sections and preferences (theme is changed from `Profile`). Same behavior in browser and Capacitor.

@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { PiggyBank, Plus } from "lucide-react";
+import { Copy, PiggyBank, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
@@ -18,8 +19,9 @@ import {
   monthInputValue,
   monthStartFromInput,
 } from "@/lib/format";
+import { getErrorMessage } from "@/lib/api/errors";
 import { buildMonthOptions } from "@/lib/period";
-import { useBudgets } from "@/lib/query/budgets";
+import { useBudgets, useCopyPreviousBudgets } from "@/lib/query/budgets";
 import { BudgetCard } from "@/components/features/budgets/budget-card";
 import { BudgetFormDialog } from "@/components/features/budgets/budget-form-dialog";
 import {
@@ -34,8 +36,24 @@ export const BudgetsView = () => {
   const period = monthStartFromInput(month);
 
   const budgetsQuery = useBudgets(period);
+  const copyPreviousBudgets = useCopyPreviousBudgets();
 
   const [createOpen, setCreateOpen] = useState(false);
+
+  const handleCopyPrevious = async () => {
+    try {
+      const copies = await copyPreviousBudgets.mutateAsync({ period });
+      toast.success(
+        copies.length > 0
+          ? `Se copiaron ${copies.length} presupuesto(s)`
+          : "No había presupuestos para copiar",
+      );
+    } catch (error) {
+      toast.error(
+        getErrorMessage(error, "No se pudieron copiar los presupuestos"),
+      );
+    }
+  };
 
   const budgets = useMemo(() => budgetsQuery.data ?? [], [budgetsQuery.data]);
   const sortedBudgets = useMemo(
@@ -74,6 +92,13 @@ export const BudgetsView = () => {
             ))}
           </SelectContent>
         </Select>
+        <Button
+          variant="outline"
+          onClick={handleCopyPrevious}
+          disabled={copyPreviousBudgets.isPending}
+        >
+          <Copy /> <span className="hidden sm:inline">Copiar mes anterior</span>
+        </Button>
       </div>
 
       {budgets.length > 0 ? <BudgetsSummary budgets={budgets} /> : null}

@@ -127,16 +127,16 @@ Location rules:
   It has no repository and no entity of its own: it coordinates primary services from other
   domains.
 - **Exception — documented modules.** When the composite use case already maps to a documented
-  module/route (e.g. transfers under `/transactions` in `../docs/backend.md` §7.4), the
+  module/route (e.g. transfers under `/transactions` in `../docs/architecture/backend.md` §7.4), the
   orchestrator MAY live inside that module as `<domain>.orchestrator.ts` instead of a new
   top-level domain. Only create a top-level orchestration domain when the use case introduces a
-  new resource, and register it in `../docs/backend.md` §4/§7 and `AGENTS.md` so the docs stay
+  new resource, and register it in `../docs/architecture/backend.md` §4/§7 and `AGENTS.md` so the docs stay
   aligned.
 - Code used by more than one domain (guards, decorators, filters, errors, constants) goes in
   `common/` (or `shared/` for cross-domain providers).
 - The file name reflects its role: `.controller.ts`, `.service.ts`, `.orchestrator.ts`,
   `.module.ts`.
-- Entities live in `<domain>/entities/`, matching the layout in `../docs/backend.md` §4.
+- Entities live in `<domain>/entities/`, matching the layout in `../docs/architecture/backend.md` §4.
 
 ## Anti-patterns (MUST avoid)
 
@@ -153,7 +153,7 @@ Location rules:
   still apply. This skill only adds the orchestrator layer and the no-service-to-service rule.
 - **`test-quality`**: unit-test orchestrators with mocked primary services; unit-test primary
   services with mocked repositories; integration-test the transactional path against the test DB.
-- **`../docs/backend.md`**: the REST contract (§7) and module layout (§4) remain the source of
+- **`../docs/architecture/backend.md`**: the REST contract (§7) and module layout (§4) remain the source of
   truth. If a design here conflicts with those docs, the docs win and the design is adjusted.
 
 ## Checklist

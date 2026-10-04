@@ -281,31 +281,34 @@ export class DashboardService {
 
     const staleMs = this.config.get("market", { infer: true }).quoteStaleMs;
     const now = Date.now();
-    const derivedPositions = positions.map((position) => {
-      const quote = quotes
-        .filter(
-          (item) =>
-            item.symbol === position.symbol &&
-            item.currency === position.currency,
-        )
-        .sort((a, b) => b.fetchedAt.getTime() - a.fetchedAt.getTime())[0];
-      const valuation = quote
-        ? this.calculations.calculatePositionValue(
-            position.quantity,
-            position.avgCost,
-            quote.price,
+    const derivedPositions = positions
+      .filter((position) => !position.archived)
+      .map((position) => {
+        const quote = quotes
+          .filter(
+            (item) =>
+              item.symbol === position.symbol &&
+              item.currency === position.currency,
           )
-        : null;
-      return {
-        position,
-        quote,
-        costBasis: valuation?.costBasis ?? position.quantity * position.avgCost,
-        currentValue: valuation?.currentValue ?? null,
-        profitLoss: valuation?.profitLoss ?? null,
-        profitLossPct: valuation?.profitLossPct ?? null,
-        isStale: quote ? now - quote.fetchedAt.getTime() > staleMs : false,
-      };
-    });
+          .sort((a, b) => b.fetchedAt.getTime() - a.fetchedAt.getTime())[0];
+        const valuation = quote
+          ? this.calculations.calculatePositionValue(
+              position.quantity,
+              position.avgCost,
+              quote.price,
+            )
+          : null;
+        return {
+          position,
+          quote,
+          costBasis:
+            valuation?.costBasis ?? position.quantity * position.avgCost,
+          currentValue: valuation?.currentValue ?? null,
+          profitLoss: valuation?.profitLoss ?? null,
+          profitLossPct: valuation?.profitLossPct ?? null,
+          isStale: quote ? now - quote.fetchedAt.getTime() > staleMs : false,
+        };
+      });
 
     const positionsValue = derivedPositions.reduce(
       (total, item) =>
@@ -462,6 +465,7 @@ export class DashboardService {
             profitLossPct: item.profitLossPct,
             isStale: item.isStale,
             quoteDate: item.quote?.fetchedAt.toISOString() ?? null,
+            quoteProvider: item.quote?.provider ?? null,
           }))
           .sort((first, second) => second.value - first.value),
       },

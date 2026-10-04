@@ -101,9 +101,15 @@ export class TransactionsService {
       return this.createTransfer(userId, dto);
     }
 
-    if (dto.categoryId) {
-      await this.assertCategoryUsable(userId, dto.categoryId);
+    if (!dto.categoryId) {
+      throw new ApiException(
+        ErrorCode.VALIDATION_ERROR,
+        HttpStatus.BAD_REQUEST,
+        "Elegí una categoría",
+        { categoryId: ["La categoría es obligatoria para ingresos y gastos"] },
+      );
     }
+    await this.assertCategoryUsable(userId, dto.categoryId);
 
     const transaction = this.transactionsRepository.create({
       userId,
@@ -152,6 +158,14 @@ export class TransactionsService {
       transaction.categoryId = dto.categoryId;
     }
     if (dto.type !== undefined) transaction.type = dto.type;
+    if (transaction.type !== "transfer" && !transaction.categoryId) {
+      throw new ApiException(
+        ErrorCode.VALIDATION_ERROR,
+        HttpStatus.BAD_REQUEST,
+        "Elegí una categoría",
+        { categoryId: ["La categoría es obligatoria para ingresos y gastos"] },
+      );
+    }
     if (dto.amount !== undefined) transaction.amount = Math.abs(dto.amount);
     if (dto.currency !== undefined)
       transaction.currency = dto.currency.toUpperCase();

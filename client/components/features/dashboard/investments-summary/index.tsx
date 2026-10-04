@@ -154,6 +154,12 @@ export const InvestmentsSummary = ({
                             value={position.originalValue}
                             currency={position.originalCurrency}
                           />
+                          {position.quoteProvider ? (
+                            <>
+                              <span aria-hidden>·</span>
+                              <span>{position.quoteProvider}</span>
+                            </>
+                          ) : null}
                         </>
                       ) : (
                         <span>· sin cotización</span>

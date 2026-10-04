@@ -38,6 +38,7 @@ export const TransactionList = ({
   pagination,
   onSelect,
   onDelete,
+  emptyAction,
 }: TransactionListProps) => {
   const rows = useMemo(() => collapseTransfers(transactions), [transactions]);
 
@@ -52,6 +53,7 @@ export const TransactionList = ({
           icon={ArrowLeftRight}
           title="Sin movimientos"
           description="No hay ingresos, gastos ni transferencias en este período."
+          action={emptyAction}
         />
       }
       renderItem={(transaction) => {

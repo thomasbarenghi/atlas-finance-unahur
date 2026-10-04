@@ -20,7 +20,7 @@ export class FxRateProvider {
     const market = this.config.get("market", { infer: true });
     const response = await axios.get<FawazResponse>(
       `${market.fxUrl}/${PIVOT_CODE}.json`,
-      { timeout: market.timeoutMs },
+      { timeout: market.timeoutMs, maxRedirects: 0 },
     );
 
     const pivotRates = response.data[PIVOT_CODE] as

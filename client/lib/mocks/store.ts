@@ -461,6 +461,7 @@ const createInitialState = (): MockState => {
       quoteDate: null,
       quoteProvider: null,
       isStale: false,
+      archived: false,
     },
     {
       id: mockId(),
@@ -478,6 +479,7 @@ const createInitialState = (): MockState => {
       quoteDate: null,
       quoteProvider: null,
       isStale: false,
+      archived: false,
     },
   ];
 
