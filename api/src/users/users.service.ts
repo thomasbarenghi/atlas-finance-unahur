@@ -21,6 +21,13 @@ export class UsersService {
     return toUserResponse(await this.findOwned(userId));
   }
 
+  async findByEmail(email: string): Promise<UserResponseDto | null> {
+    const user = await this.usersRepository.findOneBy({
+      email: email.toLowerCase(),
+    });
+    return user ? toUserResponse(user) : null;
+  }
+
   async updateMe(userId: string, dto: UpdateUserDto): Promise<UserResponseDto> {
     const user = await this.findOwned(userId);
 

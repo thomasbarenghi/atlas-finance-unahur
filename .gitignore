@@ -5,6 +5,7 @@ node_modules/
 dist/
 out/
 build/
+_build/
 coverage/
 
 # Husky internals (auto-generated)

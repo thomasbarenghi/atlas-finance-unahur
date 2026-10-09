@@ -2,7 +2,7 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import { AddToPositionDto } from "../../../positions/dto/add-to-position.dto";
 import { CreatePositionDto } from "../../../positions/dto/create-position.dto";
 import { UpdatePositionDto } from "../../../positions/dto/update-position.dto";
-import { PositionsService } from "../../../positions/positions.service";
+import { PositionsOrchestrator } from "../../../positions/positions.orchestrator";
 import { ApiException } from "../../../common/errors/api.exception";
 import { ErrorCode } from "../../../common/errors/error-codes";
 import { ReferenceResolver } from "../reference-resolver.service";
@@ -28,7 +28,7 @@ const positionEntity = (position: {
 @Injectable()
 export class PositionTools {
   constructor(
-    private readonly positions: PositionsService,
+    private readonly positions: PositionsOrchestrator,
     private readonly resolver: ReferenceResolver,
   ) {}
 

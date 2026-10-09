@@ -179,6 +179,12 @@ api/
 │   ├── calculations/                # reglas CAL-001..007 y CAL-010
 │   │   ├── calculations.module.ts
 │   │   └── calculations.service.ts
+│   ├── account-balances/            # read model compartido: saldo de cuenta (accounts + transactions)
+│   │   ├── account-balances.module.ts
+│   │   └── account-balances.service.ts
+│   ├── asset-debt-links/            # read model compartido: vínculo activo↔deuda
+│   │   ├── asset-debt-links.module.ts
+│   │   └── asset-debt-links.service.ts
 │   ├── fx/                          # tasas de cambio + conversión
 │   │   ├── fx.module.ts
 │   │   ├── fx.service.ts
@@ -204,12 +210,21 @@ api/
 
 ```
 <feature>/
-├── <feature>.module.ts     # importa TypeOrmModule.forFeature([entidades]) + deps
-├── <feature>.controller.ts # rutas REST, decoradores de auth/ownership
-├── <feature>.service.ts    # casos de uso (un método por caso de uso)
-├── dto/                    # create-*.dto.ts, update-*.dto.ts, query-*.dto.ts
-└── entities/               # entidades TypeORM
+├── <feature>.module.ts         # importa TypeOrmModule.forFeature([entidades propias]) + deps
+├── <feature>.controller.ts     # rutas REST, decoradores de auth/ownership
+├── <feature>.service.ts        # casos de uso de un solo dominio (un método por caso de uso)
+├── <feature>.orchestrator.ts   # casos de uso compuestos (coordinan otros dominios); sin queries
+├── dto/                        # create-*.dto.ts, update-*.dto.ts, query-*.dto.ts
+└── entities/                   # entidades TypeORM del dominio
 ```
+
+**Regla de módulos (ver `api/.agents/skills/orchestrator-domain-architecture`):**
+
+- Un **servicio primario** accede **solo a su propio repositorio/entidad** y reutiliza los proveedores compartidos (`calculations`, `fx`, `market`, `ai`, `mail`). Nunca llama a otro servicio primario.
+- Los casos de uso que **cruzan dominios** se implementan en un `<feature>.orchestrator.ts` que coordina los servicios implicados y devuelve DTOs de respuesta; el orquestador **no** ejecuta queries.
+- Dos valores derivados cruzados se centralizan en proveedores de `shared/` para evitar ciclos de módulos: `account-balances` (saldo = `accounts` + `transactions`) y `asset-debt-links` (vínculo `debt.asset_id`).
+- Orquestadores actuales: `transactions`, `budgets`, `positions`, `debts`, `dashboard`, `reports` y `goals`. Los módulos `accounts`, `assets`, `categories`, `quotes` y `users` son CRUD de un solo dominio (controller → servicio). El armado de contexto del asistente (`assistant-context.service.ts`) también inyecta servicios, no repositorios.
+- **Excepción acotada:** `auth` comparte el agregado de identidad `users` (registro, credenciales y recuperación) con `users`; es la autoridad de credenciales y accede al `User` directamente. El resto de los dominios consume usuarios vía `UsersService`.
 
 ---
 
@@ -946,13 +961,13 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 
 - `shared/ai/ai.service.ts` (`AiModule`): cliente del proveedor (DeepSeek/OpenAI-compatible) con `axios` `responseType: "stream"`, timeout de `AI_TIMEOUT_MS` y aborto; expone `streamChat(messages)` como `AsyncGenerator<string>`. Mapea fallas a `AI_UNAVAILABLE` (NFR-SEG-009).
 - `shared/calculations/calculations.service.ts` (`CalculationsModule`): fuente única de las reglas CAL-001..004 (flujo del período, gastos del mes, consumo/estado de presupuesto, saldo actual por movimientos, última valuación por activo y patrimonio neto). El asistente la reutiliza en lugar de repetir fórmulas. Cubierta por pruebas unitarias.
-- `assistant/assistant-context.service.ts`: arma el **contexto mínimo** del usuario consultando sus entidades (transacciones del período, top categorías de gasto, presupuestos del mes, patrimonio estimado con valuaciones/deudas/posiciones y saldos actuales `initial_balance + Σ movimientos`) usando `calculations.service`, y produce un resumen textual. *Deviación conocida:* hoy consulta repositorios directamente porque los dominios de finanzas del API todavía son esqueletos (solo entidades); cuando existan los servicios primarios, este armado debe moverse a un orquestador que los coordine (ver `orchestrator-domain-architecture`).
+- `assistant/assistant-context.service.ts`: arma el **contexto mínimo** del usuario consultando los **servicios** de cada dominio (transacciones del período, top categorías de gasto, presupuestos del mes proyectados por su orquestador, patrimonio estimado con valuaciones/deudas/posiciones y saldos actuales de cuentas) usando `calculations.service`, y produce un resumen textual. No consulta repositorios directamente: cada dato proviene del servicio dueño (ver `orchestrator-domain-architecture`).
 - `assistant/assistant.service.ts`: `assertAiEnabled`, persistencia en `ai_conversations` y `answer()` como generador de eventos (`meta`/`token`/`action_proposal`/`done`). Coordina lecturas y propone mutaciones vía `ToolRegistry` + `PendingActionsService`; `POST /assistant/actions/:id/{confirm,cancel}` ejecuta o cancela. El **prompt de sistema es fijo** y declara explícitamente el alcance: solo un resumen agregado del período indicado, sin detalle de movimientos ni historial de otros períodos; ante preguntas fuera de ese alcance debe aclararlo (FR-IA-010/011).
 - `assistant/assistant.controller.ts`: `POST /assistant/messages` (SSE), `GET /assistant/conversations` (paginado), `GET/DELETE /assistant/conversations/:id`, `DELETE /assistant/conversations`. Si `aiEnabled === false` responde `403 AI_DISABLED` en JSON (no abre el stream).
 - **Acceso dev del stream**: `POST /assistant/messages` está marcado `@Public()` pero resuelve el usuario así: si hay sesión válida la usa; si no, y `NODE_ENV !== "production"`, cae al usuario demo `AI_DEV_USER_EMAIL`; en producción sin sesión responde `401 UNAUTHENTICATED`. Permite probar el asistente con el cliente en modo mock sin implementar todo el auth. Los endpoints de historial siguen requiriendo JWT.
 - El cliente consume el stream en `client/lib/api/assistant-stream.ts` (mock con `NEXT_PUBLIC_USE_MOCKS`).
 
-> Estado: los dominios de finanzas (auth, users, accounts, categories, transactions, budgets, assets/valuations, debts, positions, quotes, dashboard y reports) ya exponen sus servicios y endpoints, por lo que el asistente es ejecutable end-to-end con sesión válida. La key `AI_API_KEY` va en `api/.env`. El armado de contexto sigue leyendo repositorios directamente (ver nota anterior) y debe migrarse a un orquestador cuando se refactorice.
+> Estado: los dominios de finanzas (auth, users, accounts, categories, transactions, budgets, assets/valuations, debts, positions, quotes, dashboard y reports) ya exponen sus servicios y endpoints, por lo que el asistente es ejecutable end-to-end con sesión válida. La key `AI_API_KEY` va en `api/.env`. El armado de contexto consume los servicios de cada dominio (no repositorios) respetando la arquitectura de orquestadores.
 
 ### 9.3 Servicio de correo (actor "Servicio de correo")
 - Envío de enlace de recuperación con token temporal. Ante falla, informa que no pudo enviarse y permite reintento (dependencia §2.5 del FRD).

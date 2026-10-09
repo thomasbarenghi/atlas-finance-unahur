@@ -1,14 +1,14 @@
 import { Controller, Get, Query } from "@nestjs/common";
 import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
-import { DashboardService } from "./dashboard.service";
+import { DashboardOrchestrator } from "./dashboard.orchestrator";
 import { DashboardQueryDto } from "./dto/dashboard-query.dto";
 import { DashboardData } from "./dto/dashboard-response.dto";
 
 @ApiTags("dashboard")
 @Controller("dashboard")
 export class DashboardController {
-  constructor(private readonly dashboardService: DashboardService) {}
+  constructor(private readonly dashboardOrchestrator: DashboardOrchestrator) {}
 
   @Get()
   @ApiOperation({ summary: "Resumen financiero agregado del período" })
@@ -17,6 +17,6 @@ export class DashboardController {
     @CurrentUser("id") userId: string,
     @Query() query: DashboardQueryDto,
   ): Promise<DashboardData> {
-    return this.dashboardService.getDashboard(userId, query);
+    return this.dashboardOrchestrator.getDashboard(userId, query);
   }
 }

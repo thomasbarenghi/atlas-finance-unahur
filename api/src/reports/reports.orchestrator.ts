@@ -1,13 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { IsNull, Repository } from "typeorm";
-import { BudgetsService } from "../budgets/budgets.service";
-import { Category } from "../categories/entities/category.entity";
-import { DashboardService } from "../dashboard/dashboard.service";
+import { BudgetsOrchestrator } from "../budgets/budgets.orchestrator";
+import { CategoriesService } from "../categories/categories.service";
 import { DashboardQueryDto } from "../dashboard/dto/dashboard-query.dto";
+import { DashboardOrchestrator } from "../dashboard/dashboard.orchestrator";
 import { FxService } from "../fx/fx.service";
-import { Transaction } from "../transactions/entities/transaction.entity";
-import { User } from "../users/entities/user.entity";
+import { TransactionsService } from "../transactions/transactions.service";
+import { UsersService } from "../users/users.service";
 
 export interface ReportSummary {
   from: string;
@@ -41,17 +39,19 @@ export interface BudgetReportRow {
   status: string;
 }
 
+/**
+ * Read-model orchestrator for the reports domain (FR-REP-001..006). It composes
+ * the dashboard aggregation with budgets, transactions, categories and users,
+ * and holds no database queries.
+ */
 @Injectable()
-export class ReportsService {
+export class ReportsOrchestrator {
   constructor(
-    @InjectRepository(User)
-    private readonly usersRepository: Repository<User>,
-    @InjectRepository(Transaction)
-    private readonly transactionsRepository: Repository<Transaction>,
-    @InjectRepository(Category)
-    private readonly categoriesRepository: Repository<Category>,
-    private readonly dashboardService: DashboardService,
-    private readonly budgetsService: BudgetsService,
+    private readonly dashboardOrchestrator: DashboardOrchestrator,
+    private readonly budgetsOrchestrator: BudgetsOrchestrator,
+    private readonly transactionsService: TransactionsService,
+    private readonly categoriesService: CategoriesService,
+    private readonly usersService: UsersService,
     private readonly fxService: FxService,
   ) {}
 
@@ -59,7 +59,10 @@ export class ReportsService {
     userId: string,
     query: DashboardQueryDto,
   ): Promise<ReportSummary> {
-    const dashboard = await this.dashboardService.getDashboard(userId, query);
+    const dashboard = await this.dashboardOrchestrator.getDashboard(
+      userId,
+      query,
+    );
     return {
       from: dashboard.period.from,
       to: dashboard.period.to,
@@ -75,16 +78,17 @@ export class ReportsService {
     userId: string,
     query: DashboardQueryDto,
   ): Promise<ReportByCategoryRow[]> {
-    const user = await this.usersRepository.findOneByOrFail({ id: userId });
+    const user = await this.usersService.getById(userId);
     const currency = (query.currency ?? user.baseCurrency).toUpperCase();
-    const dashboard = await this.dashboardService.getDashboard(userId, query);
+    const dashboard = await this.dashboardOrchestrator.getDashboard(
+      userId,
+      query,
+    );
     const { from, to } = dashboard.period;
 
     const [transactions, categories] = await Promise.all([
-      this.transactionsRepository.find({ where: { userId } }),
-      this.categoriesRepository.find({
-        where: [{ userId }, { userId: IsNull() }],
-      }),
+      this.transactionsService.listOwnedTransactions(userId),
+      this.categoriesService.listCategories(userId),
     ]);
     const nameById = new Map(
       categories.map((category) => [category.id, category.name]),
@@ -139,7 +143,10 @@ export class ReportsService {
     userId: string,
     query: DashboardQueryDto,
   ): Promise<NetWorthPoint[]> {
-    const dashboard = await this.dashboardService.getDashboard(userId, query);
+    const dashboard = await this.dashboardOrchestrator.getDashboard(
+      userId,
+      query,
+    );
     return dashboard.netWorthSeries.map((point) => ({
       date: point.date,
       netWorth: point.value,
@@ -147,7 +154,7 @@ export class ReportsService {
   }
 
   async budgets(userId: string, period?: string): Promise<BudgetReportRow[]> {
-    const budgets = await this.budgetsService.listBudgets(userId, period);
+    const budgets = await this.budgetsOrchestrator.listBudgets(userId, period);
     return budgets.map((budget) => ({
       budgetId: budget.id,
       categoryName: budget.category.name,
@@ -159,7 +166,10 @@ export class ReportsService {
   }
 
   async investments(userId: string, query: DashboardQueryDto) {
-    const dashboard = await this.dashboardService.getDashboard(userId, query);
+    const dashboard = await this.dashboardOrchestrator.getDashboard(
+      userId,
+      query,
+    );
     return dashboard.investments;
   }
 
@@ -184,10 +194,8 @@ export class ReportsService {
     }
 
     const filters: DashboardQueryDto = query;
-    const transactions = await this.transactionsRepository.find({
-      where: { userId },
-      order: { date: "DESC", createdAt: "DESC" },
-    });
+    const transactions =
+      await this.transactionsService.listOwnedTransactions(userId);
     const rows = [
       [
         "Fecha",
@@ -201,6 +209,7 @@ export class ReportsService {
         "Notas",
       ],
       ...transactions
+        .sort((first, second) => second.date.localeCompare(first.date))
         .filter(
           (transaction) =>
             (!filters.from || transaction.date >= filters.from) &&

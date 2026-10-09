@@ -2,7 +2,7 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import { CreateBudgetDto } from "../../../budgets/dto/create-budget.dto";
 import { CopyBudgetsDto } from "../../../budgets/dto/copy-budgets.dto";
 import { UpdateBudgetDto } from "../../../budgets/dto/update-budget.dto";
-import { BudgetsService } from "../../../budgets/budgets.service";
+import { BudgetsOrchestrator } from "../../../budgets/budgets.orchestrator";
 import { ApiException } from "../../../common/errors/api.exception";
 import { ErrorCode } from "../../../common/errors/error-codes";
 import { UsersService } from "../../../users/users.service";
@@ -28,7 +28,7 @@ const budgetEntity = (budget: {
 @Injectable()
 export class BudgetTools {
   constructor(
-    private readonly budgets: BudgetsService,
+    private readonly budgets: BudgetsOrchestrator,
     private readonly users: UsersService,
     private readonly resolver: ReferenceResolver,
   ) {}

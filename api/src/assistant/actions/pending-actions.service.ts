@@ -13,9 +13,18 @@ import type {
   PreparedAction,
   ToolDefinition,
 } from "../tools/tool.types";
-import { User } from "../../users/entities/user.entity";
 import { ActionResultDto } from "./action-result.dto";
 import { AssistantAction } from "../entities/assistant-action.entity";
+
+/**
+ * Minimal user shape the action pipeline needs. Using an explicit contract (the
+ * user DTO satisfies it) keeps this service decoupled from the users domain's
+ * entity/repository.
+ */
+export interface AssistantUser {
+  id: string;
+  assistantDestructiveEnabled: boolean;
+}
 
 const hashToken = (token: string): string =>
   createHash("sha256").update(token).digest("hex");
@@ -28,7 +37,7 @@ const tokenMatches = (token: string, storedHash: string | null): boolean => {
 };
 
 export interface ProposeActionInput {
-  user: User;
+  user: AssistantUser;
   conversationId: string | null;
   definition: ToolDefinition;
   rawArgs: Record<string, unknown>;
@@ -91,7 +100,7 @@ export class PendingActionsService {
   }
 
   async confirm(
-    user: User,
+    user: AssistantUser,
     actionId: string,
     token: string,
   ): Promise<ActionResultDto> {
@@ -178,7 +187,7 @@ export class PendingActionsService {
   }
 
   async cancel(
-    user: User,
+    user: AssistantUser,
     actionId: string,
     token: string,
   ): Promise<ActionResultDto> {
@@ -229,7 +238,7 @@ export class PendingActionsService {
    * respuesta al usuario.
    */
   async recordRead(
-    user: User,
+    user: AssistantUser,
     conversationId: string,
     definition: ToolDefinition,
     args: Record<string, unknown>,
@@ -292,7 +301,7 @@ export class PendingActionsService {
   }
 
   private async resolveDeferred(
-    user: User,
+    user: AssistantUser,
     definition: ToolDefinition,
     action: AssistantAction,
   ): Promise<void> {
@@ -325,7 +334,7 @@ export class PendingActionsService {
   }
 
   private async run(
-    user: User,
+    user: AssistantUser,
     definition: ToolDefinition,
     action: AssistantAction,
   ): Promise<ActionResultDto> {

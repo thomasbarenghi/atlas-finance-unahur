@@ -8,8 +8,6 @@
 | :--- | :--- |
 | [`BRD_Gestor_Financiero_v0.2.md`](specification/BRD_Gestor_Financiero_v0.2.md) | Requerimientos de negocio: reglas de negocio (`RN-*`), casos de estudio, criterios de bondad, glosario. |
 | [`FRD_Gestor_Financiero_v0.2.md`](specification/FRD_Gestor_Financiero_v0.2.md) | **Fuente de verdad funcional.** Requerimientos funcionales (`FR-*`), no funcionales (`NFR-*`), reglas de cálculo (`CAL-*`), historias de usuario (`HU-*`) y pantallas (`SC-*`). |
-| [`FRD_v0.2_requerimientos_cambiados.md`](specification/FRD_v0.2_requerimientos_cambiados.md) | Delta de la v0.2: requerimientos agregados y modificados respecto de la v0.1. |
-| [`FRD_Gestor_Financiero_v0.2_cambios_propuestos.md`](specification/FRD_Gestor_Financiero_v0.2_cambios_propuestos.md) | Justificación del delta y cambios de secciones que no son requerimientos (stack, pantallas, entidades). |
 
 > **Identificadores estables.** Los IDs no se renumeran entre versiones: la numeración puede presentar huecos y los números ausentes corresponden a requerimientos fuera del alcance de la versión. La v0.1 quedó reemplazada por la v0.2.
 

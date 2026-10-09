@@ -1,11 +1,11 @@
 import { AccountsService } from "../../accounts/accounts.service";
 import { AssetsService } from "../../assets/assets.service";
-import { BudgetsService } from "../../budgets/budgets.service";
+import { BudgetsOrchestrator } from "../../budgets/budgets.orchestrator";
 import { CategoriesService } from "../../categories/categories.service";
 import { ApiException } from "../../common/errors/api.exception";
 import { DebtsService } from "../../debts/debts.service";
 import { GoalsService } from "../../goals/goals.service";
-import { PositionsService } from "../../positions/positions.service";
+import { PositionsOrchestrator } from "../../positions/positions.orchestrator";
 import { ReferenceResolver } from "./reference-resolver.service";
 
 interface AccountStub {
@@ -23,9 +23,9 @@ const buildResolver = (
     { listCategories: jest.fn() } as unknown as CategoriesService,
     { listAssets: jest.fn() } as unknown as AssetsService,
     { listDebts: jest.fn() } as unknown as DebtsService,
-    { listPositions: jest.fn() } as unknown as PositionsService,
+    { listPositions: jest.fn() } as unknown as PositionsOrchestrator,
     { listGoals: jest.fn() } as unknown as GoalsService,
-    { listBudgets: jest.fn() } as unknown as BudgetsService,
+    { listBudgets: jest.fn() } as unknown as BudgetsOrchestrator,
   );
 
   return { resolver, listAccounts };

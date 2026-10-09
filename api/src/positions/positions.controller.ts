@@ -14,18 +14,18 @@ import { AddToPositionDto } from "./dto/add-to-position.dto";
 import { CreatePositionDto } from "./dto/create-position.dto";
 import { PositionResponseDto } from "./dto/position-response.dto";
 import { UpdatePositionDto } from "./dto/update-position.dto";
-import { PositionsService } from "./positions.service";
+import { PositionsOrchestrator } from "./positions.orchestrator";
 
 @ApiTags("positions")
 @Controller("positions")
 export class PositionsController {
-  constructor(private readonly positionsService: PositionsService) {}
+  constructor(private readonly positionsOrchestrator: PositionsOrchestrator) {}
 
   @Get()
   @ApiOperation({ summary: "Lista posiciones con su valorización de mercado" })
   @ApiOkResponse({ description: "PositionResponseDto[]" })
   list(@CurrentUser("id") userId: string): Promise<PositionResponseDto[]> {
-    return this.positionsService.listPositions(userId);
+    return this.positionsOrchestrator.listPositions(userId);
   }
 
   @Post()
@@ -35,7 +35,7 @@ export class PositionsController {
     @CurrentUser("id") userId: string,
     @Body() dto: CreatePositionDto,
   ): Promise<PositionResponseDto> {
-    return this.positionsService.createPosition(userId, dto);
+    return this.positionsOrchestrator.createPosition(userId, dto);
   }
 
   @Post(":id/add")
@@ -49,7 +49,7 @@ export class PositionsController {
     @Param("id", new ParseUUIDPipe()) id: string,
     @Body() dto: AddToPositionDto,
   ): Promise<PositionResponseDto> {
-    return this.positionsService.addToPosition(userId, id, dto);
+    return this.positionsOrchestrator.addToPosition(userId, id, dto);
   }
 
   @Patch(":id")
@@ -60,7 +60,7 @@ export class PositionsController {
     @Param("id", new ParseUUIDPipe()) id: string,
     @Body() dto: UpdatePositionDto,
   ): Promise<PositionResponseDto> {
-    return this.positionsService.updatePosition(userId, id, dto);
+    return this.positionsOrchestrator.updatePosition(userId, id, dto);
   }
 
   @Post(":id/archive")
@@ -70,7 +70,7 @@ export class PositionsController {
     @CurrentUser("id") userId: string,
     @Param("id", new ParseUUIDPipe()) id: string,
   ): Promise<PositionResponseDto> {
-    return this.positionsService.archivePosition(userId, id);
+    return this.positionsOrchestrator.archivePosition(userId, id);
   }
 
   @Post(":id/restore")
@@ -80,7 +80,7 @@ export class PositionsController {
     @CurrentUser("id") userId: string,
     @Param("id", new ParseUUIDPipe()) id: string,
   ): Promise<PositionResponseDto> {
-    return this.positionsService.restorePosition(userId, id);
+    return this.positionsOrchestrator.restorePosition(userId, id);
   }
 
   @Delete(":id")
@@ -89,6 +89,6 @@ export class PositionsController {
     @CurrentUser("id") userId: string,
     @Param("id", new ParseUUIDPipe()) id: string,
   ): Promise<void> {
-    return this.positionsService.deletePosition(userId, id);
+    return this.positionsOrchestrator.deletePosition(userId, id);
   }
 }

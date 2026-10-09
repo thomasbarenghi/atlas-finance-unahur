@@ -3,14 +3,11 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
-import { Transaction } from "../transactions/entities/transaction.entity";
+import { AccountBalancesService } from "../shared/account-balances/account-balances.service";
 import { AccountResponseDto } from "./dto/account-response.dto";
 import { CreateAccountDto } from "./dto/create-account.dto";
 import { UpdateAccountDto } from "./dto/update-account.dto";
 import { Account } from "./entities/account.entity";
-
-const signedAmount = (transaction: Transaction): number =>
-  transaction.type === "expense" ? -transaction.amount : transaction.amount;
 
 const toAccountResponse = (
   account: Account,
@@ -33,30 +30,15 @@ export class AccountsService {
   constructor(
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
-    @InjectRepository(Transaction)
-    private readonly transactionsRepository: Repository<Transaction>,
+    private readonly balances: AccountBalancesService,
   ) {}
 
   async listAccounts(userId: string): Promise<AccountResponseDto[]> {
-    const [accounts, transactions] = await Promise.all([
-      this.accountsRepository.find({
-        where: { userId },
-        order: { createdAt: "ASC" },
-      }),
-      this.transactionsRepository.find({
-        where: { userId },
-        select: ["accountId", "type", "amount"],
-      }),
-    ]);
-
-    const totals = new Map<string, number>();
-    for (const transaction of transactions) {
-      totals.set(
-        transaction.accountId,
-        (totals.get(transaction.accountId) ?? 0) + signedAmount(transaction),
-      );
-    }
-
+    const accounts = await this.accountsRepository.find({
+      where: { userId },
+      order: { createdAt: "ASC" },
+    });
+    const totals = await this.balances.signedTotalsByAccount(userId);
     return accounts.map((account) =>
       toAccountResponse(
         account,
@@ -65,9 +47,19 @@ export class AccountsService {
     );
   }
 
+  async listOwnedAccounts(userId: string): Promise<Account[]> {
+    return this.accountsRepository.find({
+      where: { userId },
+      order: { createdAt: "ASC" },
+    });
+  }
+
   async getAccount(userId: string, id: string): Promise<AccountResponseDto> {
     const account = await this.findOwnedAccount(userId, id);
-    return toAccountResponse(account, await this.balanceOf(userId, account));
+    return toAccountResponse(
+      account,
+      await this.balances.currentBalanceOf(account, userId),
+    );
   }
 
   async createAccount(
@@ -103,7 +95,10 @@ export class AccountsService {
     if (dto.notes !== undefined) account.notes = dto.notes?.trim() || null;
 
     const saved = await this.accountsRepository.save(account);
-    return toAccountResponse(saved, await this.balanceOf(userId, saved));
+    return toAccountResponse(
+      saved,
+      await this.balances.currentBalanceOf(saved, userId),
+    );
   }
 
   async archiveAccount(
@@ -113,7 +108,10 @@ export class AccountsService {
     const account = await this.findOwnedAccount(userId, id);
     account.archived = true;
     const saved = await this.accountsRepository.save(account);
-    return toAccountResponse(saved, await this.balanceOf(userId, saved));
+    return toAccountResponse(
+      saved,
+      await this.balances.currentBalanceOf(saved, userId),
+    );
   }
 
   async restoreAccount(
@@ -123,7 +121,10 @@ export class AccountsService {
     const account = await this.findOwnedAccount(userId, id);
     account.archived = false;
     const saved = await this.accountsRepository.save(account);
-    return toAccountResponse(saved, await this.balanceOf(userId, saved));
+    return toAccountResponse(
+      saved,
+      await this.balances.currentBalanceOf(saved, userId),
+    );
   }
 
   async assertAccountUsable(
@@ -139,17 +140,6 @@ export class AccountsService {
       );
     }
     return account;
-  }
-
-  private async balanceOf(userId: string, account: Account): Promise<number> {
-    const transactions = await this.transactionsRepository.find({
-      where: { userId, accountId: account.id },
-      select: ["type", "amount"],
-    });
-    return transactions.reduce(
-      (total, transaction) => total + signedAmount(transaction),
-      account.initialBalance,
-    );
   }
 
   private async findOwnedAccount(userId: string, id: string): Promise<Account> {

@@ -1,20 +1,21 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { InjectRepository } from "@nestjs/typeorm";
-import { In, IsNull, Repository } from "typeorm";
+import { AccountsService } from "../accounts/accounts.service";
 import { Account } from "../accounts/entities/account.entity";
-import { AppConfig } from "../config/configuration";
-import { BudgetsService } from "../budgets/budgets.service";
-import { Category } from "../categories/entities/category.entity";
 import { Asset } from "../assets/entities/asset.entity";
 import { Valuation } from "../assets/entities/valuation.entity";
-import { Debt } from "../debts/entities/debt.entity";
-import { Position } from "../positions/entities/position.entity";
-import { Quote } from "../quotes/entities/quote.entity";
-import { CalculationsService } from "../shared/calculations/calculations.service";
+import { AssetsService } from "../assets/assets.service";
+import { BudgetsOrchestrator } from "../budgets/budgets.orchestrator";
+import { CategoriesService } from "../categories/categories.service";
+import { AppConfig } from "../config/configuration";
+import { DebtsService } from "../debts/debts.service";
 import { FxService } from "../fx/fx.service";
+import { PositionsService } from "../positions/positions.service";
+import { QuotesService } from "../quotes/quotes.service";
+import { CalculationsService } from "../shared/calculations/calculations.service";
 import { Transaction } from "../transactions/entities/transaction.entity";
-import { User } from "../users/entities/user.entity";
+import { TransactionsService } from "../transactions/transactions.service";
+import { UsersService } from "../users/users.service";
 import { DashboardQueryDto } from "./dto/dashboard-query.dto";
 import { DashboardData } from "./dto/dashboard-response.dto";
 
@@ -24,30 +25,26 @@ const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
 const signedAmount = (transaction: Transaction): number =>
   transaction.type === "expense" ? -transaction.amount : transaction.amount;
 
+/**
+ * Read-model orchestrator for the dashboard (FR-DAS-001..008). It coordinates
+ * the primary services of every finance domain and holds no database queries;
+ * each domain exposes its own data and this class aggregates it. CAL-001 and
+ * CAL-010 are assembled here reusing `calculations.service` (see backend.md §8).
+ */
 @Injectable()
-export class DashboardService {
+export class DashboardOrchestrator {
   constructor(
-    @InjectRepository(User)
-    private readonly usersRepository: Repository<User>,
-    @InjectRepository(Account)
-    private readonly accountsRepository: Repository<Account>,
-    @InjectRepository(Transaction)
-    private readonly transactionsRepository: Repository<Transaction>,
-    @InjectRepository(Category)
-    private readonly categoriesRepository: Repository<Category>,
-    @InjectRepository(Asset)
-    private readonly assetsRepository: Repository<Asset>,
-    @InjectRepository(Valuation)
-    private readonly valuationsRepository: Repository<Valuation>,
-    @InjectRepository(Debt)
-    private readonly debtsRepository: Repository<Debt>,
-    @InjectRepository(Position)
-    private readonly positionsRepository: Repository<Position>,
-    @InjectRepository(Quote)
-    private readonly quotesRepository: Repository<Quote>,
+    private readonly usersService: UsersService,
+    private readonly accountsService: AccountsService,
+    private readonly transactionsService: TransactionsService,
+    private readonly categoriesService: CategoriesService,
+    private readonly assetsService: AssetsService,
+    private readonly debtsService: DebtsService,
+    private readonly positionsService: PositionsService,
+    private readonly quotesService: QuotesService,
+    private readonly budgetsOrchestrator: BudgetsOrchestrator,
     private readonly calculations: CalculationsService,
     private readonly fxService: FxService,
-    private readonly budgetsService: BudgetsService,
     private readonly config: ConfigService<AppConfig, true>,
   ) {}
 
@@ -55,7 +52,7 @@ export class DashboardService {
     userId: string,
     query: DashboardQueryDto,
   ): Promise<DashboardData> {
-    const user = await this.usersRepository.findOneByOrFail({ id: userId });
+    const user = await this.usersService.getById(userId);
     const today = toIsoDate(new Date());
     const to = query.to ?? today;
     const from =
@@ -70,28 +67,20 @@ export class DashboardService {
       categories,
       accounts,
       assets,
+      valuations,
       debts,
       positions,
       quotes,
     ] = await Promise.all([
-      this.transactionsRepository.find({ where: { userId } }),
-      this.categoriesRepository.find({
-        where: [{ userId }, { userId: IsNull() }],
-      }),
-      this.accountsRepository.find({ where: { userId } }),
-      this.assetsRepository.find({ where: { userId } }),
-      this.debtsRepository.find({ where: { userId } }),
-      this.positionsRepository.find({ where: { userId } }),
-      this.quotesRepository.find(),
+      this.transactionsService.listOwnedTransactions(userId),
+      this.categoriesService.listCategories(userId),
+      this.accountsService.listOwnedAccounts(userId),
+      this.assetsService.listOwnedAssets(userId),
+      this.assetsService.listValuationsForUser(userId),
+      this.debtsService.listOwnedDebts(userId),
+      this.positionsService.listOwnedPositions(userId),
+      this.quotesService.listLatestQuoteEntities(),
     ]);
-
-    const assetIds = assets.map((asset) => asset.id);
-    const valuations =
-      assetIds.length > 0
-        ? await this.valuationsRepository.find({
-            where: { assetId: In(assetIds) },
-          })
-        : [];
 
     const convert = await this.fxService.getConverter();
     const money = (amount: number, source: string): number =>
@@ -379,7 +368,7 @@ export class DashboardService {
     ].filter((item) => item.value !== 0);
 
     const budgetAlerts = (
-      await this.budgetsService.listBudgetAlerts(userId, to.slice(0, 7))
+      await this.budgetsOrchestrator.listBudgetAlerts(userId, to.slice(0, 7))
     ).map((budget) => ({
       budgetId: budget.id,
       categoryName: budget.category.name,

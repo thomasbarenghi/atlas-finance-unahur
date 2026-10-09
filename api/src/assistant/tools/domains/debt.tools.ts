@@ -4,7 +4,7 @@ import {
   DEBT_TYPE_VALUES,
 } from "../../../debts/dto/create-debt.dto";
 import { UpdateDebtDto } from "../../../debts/dto/update-debt.dto";
-import { DebtsService } from "../../../debts/debts.service";
+import { DebtsOrchestrator } from "../../../debts/debts.orchestrator";
 import { ApiException } from "../../../common/errors/api.exception";
 import { ErrorCode } from "../../../common/errors/error-codes";
 import { UsersService } from "../../../users/users.service";
@@ -41,7 +41,7 @@ const isUnlink = (value: unknown): boolean => {
 @Injectable()
 export class DebtTools {
   constructor(
-    private readonly debts: DebtsService,
+    private readonly debts: DebtsOrchestrator,
     private readonly users: UsersService,
     private readonly resolver: ReferenceResolver,
   ) {}

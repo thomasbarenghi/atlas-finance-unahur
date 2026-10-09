@@ -94,7 +94,7 @@ demo@atlassfin.app / Demo1234!
 - **Market quotes:** limited crypto catalog with caching, staleness flag, and last valid price on provider failure.
 - **Goals:** target amount, progress, and status.
 - **Reports:** summary, breakdown by category, net-worth evolution, budget compliance, CSV export.
-- **AI assistant (distinctive):** opt-in conversational answers built only from the user's own, pre-calculated, minimal context — it never creates, edits, or deletes data.
+- **AI assistant (distinctive):** opt-in conversational answers built only from the user's own, pre-calculated, minimal context. It can also propose **scoped write actions** (create/edit/archive your own data) through typed tools; every write requires explicit confirmation (one-time token + expiry + plan order), destructive actions are opt-in, and each execution is audited. It still does not connect to banks, move money, or give financial advice.
 
 ## Testing
 

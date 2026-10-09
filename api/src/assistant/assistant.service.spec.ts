@@ -5,7 +5,8 @@ import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
 import type { AppConfig } from "../config/configuration";
 import type { AiService, AiStreamChunk } from "../shared/ai/ai.service";
-import { User } from "../users/entities/user.entity";
+import type { UserResponseDto } from "../users/dto/user-response.dto";
+import { UsersService } from "../users/users.service";
 import { PendingActionsService } from "./actions/pending-actions.service";
 import { AssistantContextService } from "./assistant-context.service";
 import { AssistantEvent, AssistantService } from "./assistant.service";
@@ -17,7 +18,7 @@ const user = {
   id: "user-1",
   aiEnabled: true,
   assistantDestructiveEnabled: false,
-} as User;
+} as UserResponseDto;
 
 const preview = { title: "Acción", summary: "resumen", fields: [] };
 
@@ -41,9 +42,10 @@ const buildHarness = (
   streamChat: () => AsyncGenerator<AiStreamChunk>,
   getDefinition: (name: string) => ToolDefinition | undefined,
 ): Harness => {
-  const usersRepository = {
-    findOneBy: jest.fn().mockResolvedValue(user),
-  } as unknown as Repository<User>;
+  const usersService = {
+    getById: jest.fn().mockResolvedValue(user),
+    findByEmail: jest.fn().mockResolvedValue(user),
+  } as unknown as UsersService;
 
   const conversationsRepository = {
     findOneBy: jest.fn().mockResolvedValue(null),
@@ -101,8 +103,8 @@ const buildHarness = (
   } as unknown as AiService;
 
   const service = new AssistantService(
-    usersRepository,
     conversationsRepository,
+    usersService,
     contextService,
     aiService,
     registry,

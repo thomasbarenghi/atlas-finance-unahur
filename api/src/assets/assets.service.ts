@@ -3,7 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
-import { Debt } from "../debts/entities/debt.entity";
+import { AssetDebtLinksService } from "../shared/asset-debt-links/asset-debt-links.service";
 import {
   AssetResponseDto,
   ValuationResponseDto,
@@ -31,8 +31,7 @@ export class AssetsService {
     private readonly assetsRepository: Repository<Asset>,
     @InjectRepository(Valuation)
     private readonly valuationsRepository: Repository<Valuation>,
-    @InjectRepository(Debt)
-    private readonly debtsRepository: Repository<Debt>,
+    private readonly links: AssetDebtLinksService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -42,6 +41,26 @@ export class AssetsService {
       order: { createdAt: "ASC" },
     });
     return this.derive(userId, assets);
+  }
+
+  async listOwnedAssets(userId: string): Promise<Asset[]> {
+    return this.assetsRepository.find({
+      where: { userId },
+      order: { createdAt: "ASC" },
+    });
+  }
+
+  async listValuationsForUser(userId: string): Promise<Valuation[]> {
+    const assets = await this.assetsRepository.find({
+      where: { userId },
+      select: ["id"],
+    });
+    const assetIds = assets.map((asset) => asset.id);
+    if (assetIds.length === 0) return [];
+    return this.valuationsRepository.find({
+      where: { assetId: In(assetIds) },
+      order: { date: "ASC" },
+    });
   }
 
   async getAsset(userId: string, id: string): Promise<AssetResponseDto> {
@@ -134,25 +153,28 @@ export class AssetsService {
     return toValuationResponse(valuation);
   }
 
+  async assertOwnedAsset(userId: string, id: string): Promise<void> {
+    await this.findOwnedAsset(userId, id);
+  }
+
   private async derive(
     userId: string,
     assets: Asset[],
   ): Promise<AssetResponseDto[]> {
     if (assets.length === 0) return [];
     const assetIds = assets.map((asset) => asset.id);
-    const [valuations, debts] = await Promise.all([
+    const [valuations, debtLinks] = await Promise.all([
       this.valuationsRepository.find({
         where: { assetId: In(assetIds) },
         order: { date: "DESC" },
       }),
-      this.debtsRepository.find({ where: { userId } }),
+      this.links.debtIdByAsset(userId),
     ]);
 
     return assets.map((asset) => {
       const latest = valuations.find(
         (valuation) => valuation.assetId === asset.id,
       );
-      const debt = debts.find((item) => item.assetId === asset.id);
       return {
         id: asset.id,
         name: asset.name,
@@ -163,7 +185,7 @@ export class AssetsService {
           latest?.date ?? asset.createdAt.toISOString().slice(0, 10),
         archived: asset.archived,
         notes: asset.notes,
-        debtId: debt?.id ?? null,
+        debtId: debtLinks.get(asset.id) ?? null,
         createdAt: asset.createdAt.toISOString(),
         updatedAt: asset.updatedAt.toISOString(),
       };

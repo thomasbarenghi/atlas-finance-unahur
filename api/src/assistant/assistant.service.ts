@@ -8,9 +8,13 @@ import { Paginated, PaginationDto } from "../common/dto/pagination.dto";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
 import { AiMessage, AiService, AiToolCall } from "../shared/ai/ai.service";
-import { User } from "../users/entities/user.entity";
+import { UserResponseDto } from "../users/dto/user-response.dto";
+import { UsersService } from "../users/users.service";
 import { ActionResultDto } from "./actions/action-result.dto";
-import { PendingActionsService } from "./actions/pending-actions.service";
+import {
+  AssistantUser,
+  PendingActionsService,
+} from "./actions/pending-actions.service";
 import { AssistantContextService } from "./assistant-context.service";
 import { AssistantMessageDto } from "./dto/assistant-message.dto";
 import { AiConversation } from "./entities/ai-conversation.entity";
@@ -181,10 +185,9 @@ export class AssistantService {
   private readonly logger = new Logger(AssistantService.name);
 
   constructor(
-    @InjectRepository(User)
-    private readonly usersRepository: Repository<User>,
     @InjectRepository(AiConversation)
     private readonly conversationsRepository: Repository<AiConversation>,
+    private readonly usersService: UsersService,
     private readonly contextService: AssistantContextService,
     private readonly aiService: AiService,
     private readonly registry: ToolRegistry,
@@ -205,7 +208,7 @@ export class AssistantService {
     }
 
     const email = this.config.get("ai", { infer: true }).devUserEmail;
-    const user = await this.usersRepository.findOneBy({ email });
+    const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new ApiException(
         ErrorCode.NOT_FOUND,
@@ -216,15 +219,8 @@ export class AssistantService {
     return user.id;
   }
 
-  async assertAiEnabled(userId: string): Promise<User> {
-    const user = await this.usersRepository.findOneBy({ id: userId });
-    if (!user) {
-      throw new ApiException(
-        ErrorCode.NOT_FOUND,
-        HttpStatus.NOT_FOUND,
-        "El usuario no existe",
-      );
-    }
+  async assertAiEnabled(userId: string): Promise<UserResponseDto> {
+    const user = await this.usersService.getById(userId);
     if (!user.aiEnabled) {
       throw new ApiException(
         ErrorCode.AI_DISABLED,
@@ -459,7 +455,7 @@ export class AssistantService {
    * original.
    */
   private async runToolCalls(
-    user: User,
+    user: AssistantUser,
     conversationId: string,
     calls: AiToolCall[],
     proposals: ActionProposal[],
@@ -497,7 +493,7 @@ export class AssistantService {
   }
 
   private async runTool(
-    user: User,
+    user: AssistantUser,
     conversationId: string,
     call: AiToolCall,
     proposals: ActionProposal[],

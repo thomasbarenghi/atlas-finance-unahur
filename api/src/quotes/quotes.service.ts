@@ -48,6 +48,11 @@ export class QuotesService {
     }));
   }
 
+  async listLatestQuoteEntities(): Promise<Quote[]> {
+    const quotes = await this.quotesRepository.find();
+    return this.latestPerPair(quotes);
+  }
+
   async upsertQuotes(quotes: QuoteUpsert[]): Promise<number> {
     if (quotes.length === 0) return 0;
     const fetchedAt = new Date();

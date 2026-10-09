@@ -1,14 +1,14 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { AccountsService } from "../../accounts/accounts.service";
 import { AssetsService } from "../../assets/assets.service";
-import { BudgetsService } from "../../budgets/budgets.service";
+import { BudgetsOrchestrator } from "../../budgets/budgets.orchestrator";
 import { CategoriesService } from "../../categories/categories.service";
 import { ApiException } from "../../common/errors/api.exception";
 import { ErrorCode } from "../../common/errors/error-codes";
 import type { CategoryType } from "../../common/types/financial-enums";
 import { DebtsService } from "../../debts/debts.service";
 import { GoalsService } from "../../goals/goals.service";
-import { PositionsService } from "../../positions/positions.service";
+import { PositionsOrchestrator } from "../../positions/positions.orchestrator";
 import { isUuid, requireString } from "./tool-input";
 
 interface Identified {
@@ -29,9 +29,9 @@ export class ReferenceResolver {
     private readonly categories: CategoriesService,
     private readonly assets: AssetsService,
     private readonly debts: DebtsService,
-    private readonly positions: PositionsService,
+    private readonly positions: PositionsOrchestrator,
     private readonly goals: GoalsService,
-    private readonly budgets: BudgetsService,
+    private readonly budgets: BudgetsOrchestrator,
   ) {}
 
   async resolveAccountId(userId: string, reference: unknown): Promise<string> {

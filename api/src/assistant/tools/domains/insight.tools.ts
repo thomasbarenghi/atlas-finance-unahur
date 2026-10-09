@@ -1,16 +1,16 @@
 import { Injectable } from "@nestjs/common";
 import { DashboardQueryDto } from "../../../dashboard/dto/dashboard-query.dto";
-import { DashboardService } from "../../../dashboard/dashboard.service";
+import { DashboardOrchestrator } from "../../../dashboard/dashboard.orchestrator";
 import { QuotesService } from "../../../quotes/quotes.service";
-import { ReportsService } from "../../../reports/reports.service";
+import { ReportsOrchestrator } from "../../../reports/reports.orchestrator";
 import { jsonSchema, optionalString, validateToolArgs } from "../tool-input";
 import type { ToolDefinition, ToolHandlerResult } from "../tool.types";
 
 @Injectable()
 export class InsightTools {
   constructor(
-    private readonly dashboard: DashboardService,
-    private readonly reports: ReportsService,
+    private readonly dashboard: DashboardOrchestrator,
+    private readonly reports: ReportsOrchestrator,
     private readonly quotes: QuotesService,
   ) {}
 

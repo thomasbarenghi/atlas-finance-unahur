@@ -1,8 +1,4 @@
-import { ConfigService } from "@nestjs/config";
 import { Repository } from "typeorm";
-import { AppConfig } from "../config/configuration";
-import { Quote } from "../quotes/entities/quote.entity";
-import { CalculationsService } from "../shared/calculations/calculations.service";
 import { Position } from "./entities/position.entity";
 import { PositionsService } from "./positions.service";
 
@@ -26,24 +22,7 @@ const buildService = () => {
     save,
   } as unknown as Repository<Position>;
 
-  const quotesRepository = {
-    find: jest.fn().mockResolvedValue([]),
-  } as unknown as Repository<Quote>;
-
-  const calculationsService = {
-    calculatePositionValue: jest.fn(),
-  } as unknown as CalculationsService;
-
-  const config = {
-    get: jest.fn().mockReturnValue(3_600_000),
-  } as unknown as ConfigService<AppConfig, true>;
-
-  const service = new PositionsService(
-    positionsRepository,
-    quotesRepository,
-    calculationsService,
-    config,
-  );
+  const service = new PositionsService(positionsRepository);
 
   return { service, positionsRepository, findOneBy, save };
 };

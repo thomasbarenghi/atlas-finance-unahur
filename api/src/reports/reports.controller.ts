@@ -9,14 +9,14 @@ import {
   BudgetReportRow,
   NetWorthPoint,
   ReportByCategoryRow,
+  ReportsOrchestrator,
   ReportSummary,
-  ReportsService,
-} from "./reports.service";
+} from "./reports.orchestrator";
 
 @ApiTags("reports")
 @Controller("reports")
 export class ReportsController {
-  constructor(private readonly reportsService: ReportsService) {}
+  constructor(private readonly reportsOrchestrator: ReportsOrchestrator) {}
 
   @Get("summary")
   @ApiOperation({ summary: "Resumen financiero del período" })
@@ -25,7 +25,7 @@ export class ReportsController {
     @CurrentUser("id") userId: string,
     @Query() query: DashboardQueryDto,
   ): Promise<ReportSummary> {
-    return this.reportsService.summary(userId, query);
+    return this.reportsOrchestrator.summary(userId, query);
   }
 
   @Get("by-category")
@@ -35,7 +35,7 @@ export class ReportsController {
     @CurrentUser("id") userId: string,
     @Query() query: DashboardQueryDto,
   ): Promise<ReportByCategoryRow[]> {
-    return this.reportsService.byCategory(userId, query);
+    return this.reportsOrchestrator.byCategory(userId, query);
   }
 
   @Get("net-worth")
@@ -45,7 +45,7 @@ export class ReportsController {
     @CurrentUser("id") userId: string,
     @Query() query: DashboardQueryDto,
   ): Promise<NetWorthPoint[]> {
-    return this.reportsService.netWorth(userId, query);
+    return this.reportsOrchestrator.netWorth(userId, query);
   }
 
   @Get("budgets")
@@ -55,7 +55,7 @@ export class ReportsController {
     @CurrentUser("id") userId: string,
     @Query() query: BudgetReportQueryDto,
   ): Promise<BudgetReportRow[]> {
-    return this.reportsService.budgets(userId, query.period);
+    return this.reportsOrchestrator.budgets(userId, query.period);
   }
 
   @Get("investments")
@@ -65,7 +65,7 @@ export class ReportsController {
     @CurrentUser("id") userId: string,
     @Query() query: DashboardQueryDto,
   ): Promise<DashboardData["investments"]> {
-    return this.reportsService.investments(userId, query);
+    return this.reportsOrchestrator.investments(userId, query);
   }
 
   @Get("export")
@@ -75,7 +75,7 @@ export class ReportsController {
     @Query() query: ExportQueryDto,
     @Res({ passthrough: true }) response: Response,
   ): Promise<string> {
-    const csv = await this.reportsService.exportCsv(
+    const csv = await this.reportsOrchestrator.exportCsv(
       userId,
       query,
       query.type ?? "transactions",
