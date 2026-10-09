@@ -7,6 +7,7 @@ import {
 import { UpdateAccountDto } from "../../../accounts/dto/update-account.dto";
 import { UsersService } from "../../../users/users.service";
 import { ReferenceResolver } from "../reference-resolver.service";
+import { definedPreviewFields } from "../preview";
 import {
   jsonSchema,
   optionalString,
@@ -164,10 +165,7 @@ export class AccountTools {
               summary: "Se actualizarán los datos de la cuenta.",
               fields: [
                 { label: "Cuenta", value: await this.accountLabel(userId, id) },
-                ...Object.entries(dto).map(([key, value]) => ({
-                  label: key,
-                  value: String(value),
-                })),
+                ...definedPreviewFields(dto),
               ],
             },
           };

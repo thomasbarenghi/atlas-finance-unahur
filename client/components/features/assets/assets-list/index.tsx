@@ -11,7 +11,11 @@ import { formatDate } from "@/lib/format";
 import { ASSET_TYPE_LABELS } from "@/lib/labels";
 import type { AssetsListProps } from "./assets-list.types";
 
-export const AssetsList = ({ assets, isLoading }: AssetsListProps) => {
+export const AssetsList = ({
+  assets,
+  isLoading,
+  emptyAction,
+}: AssetsListProps) => {
   return (
     <DataList
       data={assets}
@@ -23,6 +27,7 @@ export const AssetsList = ({ assets, isLoading }: AssetsListProps) => {
           icon={Package}
           title="Todavía no tenés activos"
           description="Cargá tus bienes e inversiones para ver tu patrimonio."
+          action={emptyAction}
         />
       }
       renderItem={(asset) => (

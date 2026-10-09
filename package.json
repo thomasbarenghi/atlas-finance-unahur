@@ -14,9 +14,12 @@
     "typecheck": "sh scripts/run-in-projects.sh typecheck",
     "test": "sh scripts/run-in-projects.sh test",
     "test:e2e": "sh scripts/run-in-projects.sh test:e2e",
-    "build": "sh scripts/run-in-projects.sh build"
+    "build": "sh scripts/run-in-projects.sh build",
+    "fix:lockfiles": "node scripts/fix-lockfiles-registry.mjs",
+    "check:lockfiles": "node scripts/fix-lockfiles-registry.mjs --check"
   },
   "devDependencies": {
     "husky": "^9.1.7"
-  }
+  },
+  "packageManager": "pnpm@10.13.1+sha512.37ebf1a5c7a30d5fabe0c5df44ee8da4c965ca0c5af3dbab28c3a1681b70a256218d05c81c9c0dcf767ef6b8551eb5b960042b9ed4300c59242336377e01cfad"
 }

@@ -63,6 +63,7 @@ export class CryptoQuoteProvider {
       {
         params: { symbol: binancePairFor(code, QUOTE_ASSET) },
         timeout: market.timeoutMs,
+        maxRedirects: 0,
       },
     );
 

@@ -70,7 +70,15 @@ export const InvestmentsSection = () => {
 
       <div className="flex flex-col gap-2">
         <h3 className="text-muted-foreground text-xs font-medium">Activos</h3>
-        <AssetsList assets={assets} isLoading={assetsQuery.isLoading} />
+        <AssetsList
+          assets={assets}
+          isLoading={assetsQuery.isLoading}
+          emptyAction={
+            <Button size="sm" onClick={() => setAssetOpen(true)}>
+              <Plus /> Cargar un activo
+            </Button>
+          }
+        />
       </div>
 
       <div className="flex flex-col gap-2">
@@ -80,6 +88,11 @@ export const InvestmentsSection = () => {
         <PositionsList
           positions={positions}
           isLoading={positionsQuery.isLoading}
+          emptyAction={
+            <Button size="sm" onClick={() => setPositionOpen(true)}>
+              <Plus /> Cargar una inversión
+            </Button>
+          }
         />
       </div>
 
@@ -89,6 +102,11 @@ export const InvestmentsSection = () => {
           debts={debts}
           assets={assets}
           isLoading={debtsQuery.isLoading}
+          emptyAction={
+            <Button size="sm" onClick={() => setDebtOpen(true)}>
+              <Plus /> Cargar una deuda
+            </Button>
+          }
         />
       </div>
 

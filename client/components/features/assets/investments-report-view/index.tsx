@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AllocationList } from "@/components/common/allocation-list";
+import { ErrorState } from "@/components/common/error-state";
 import { PageHeader } from "@/components/common/page-header";
 import { PeriodSelector } from "@/components/common/period-selector";
 import { SectionCard } from "@/components/common/section-card";
@@ -9,6 +10,7 @@ import { StatTiles, type StatTile } from "@/components/common/stat-tiles";
 import { TimeSeriesChart } from "@/components/common/time-series-chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestmentsSummary } from "@/components/features/dashboard/investments-summary";
+import { MarketQuotes } from "@/components/features/assets/market-quotes";
 import { ReportsTabs } from "@/components/features/reports/reports-tabs";
 import { useDisplayCurrency } from "@/hooks/use-display-currency";
 import { usePeriod } from "@/hooks/use-period";
@@ -54,6 +56,15 @@ export const InvestmentsReportView = () => {
   });
 
   const data = dashboardQuery.data;
+
+  if (dashboardQuery.isError) {
+    return (
+      <ErrorState
+        title="No pudimos cargar el patrimonio"
+        onRetry={() => dashboardQuery.refetch()}
+      />
+    );
+  }
 
   if (dashboardQuery.isLoading || !data) {
     return (
@@ -227,6 +238,13 @@ export const InvestmentsReportView = () => {
           positions={data.investments.positions}
           currency={currency}
         />
+      </SectionCard>
+
+      <SectionCard
+        title="Cotizaciones de mercado"
+        description="Catálogo de criptomonedas con proveedor y fecha de actualización."
+      >
+        <MarketQuotes />
       </SectionCard>
     </div>
   );

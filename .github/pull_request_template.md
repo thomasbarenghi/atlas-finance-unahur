@@ -30,7 +30,7 @@
 - [ ] Tests added/updated per the `test-quality` skill.
 - [ ] `npm run lint`, `npm run typecheck`, `npm run build` (and `npm run test`) pass locally.
 - [ ] Documentation updated when behavior or contracts changed (`docs/*`, `README.md`, `AGENTS.md`, skills).
-- [ ] Backend contract kept in sync (`docs/backend.md` §7) when endpoints/DTOs changed.
+- [ ] Backend contract kept in sync (`docs/architecture/backend.md` §7) when endpoints/DTOs changed.
 - [ ] No secrets, tokens, or real financial data committed.
 - [ ] Accessibility considered for UI changes (focus, labels, not color-only).
 - [ ] Screenshots / recording attached for user-facing changes.

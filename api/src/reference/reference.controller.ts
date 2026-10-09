@@ -1,10 +1,21 @@
 import { Controller, Get } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiOkResponse,
+  ApiOperation,
+  ApiProperty,
+  ApiTags,
+} from "@nestjs/swagger";
 import { AppConfig } from "../config/configuration";
 
-export interface CurrenciesResponse {
+export class CurrenciesResponse {
+  @ApiProperty({ example: "ARS" })
   default: string;
+
+  @ApiProperty({
+    type: [String],
+    example: ["ARS", "USD", "EUR", "BRL", "UYU"],
+  })
   supported: string[];
 }
 
@@ -15,7 +26,7 @@ export class ReferenceController {
 
   @Get()
   @ApiOperation({ summary: "Monedas soportadas" })
-  @ApiOkResponse({ description: "{ default, supported }" })
+  @ApiOkResponse({ type: CurrenciesResponse })
   list(): CurrenciesResponse {
     return {
       default: this.config.get("defaultCurrency", { infer: true }),

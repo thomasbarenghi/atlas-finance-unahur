@@ -1,15 +1,13 @@
-import { HttpStatus, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { HttpStatus, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
 import { AppConfig } from "../config/configuration";
-import { Quote } from "../quotes/entities/quote.entity";
-import { CalculationsService } from "../shared/calculations/calculations.service";
-import { CreatePositionDto } from "./dto/create-position.dto";
+import { CurrencyService } from "../shared/currency/currency.service";
 import { AddToPositionDto } from "./dto/add-to-position.dto";
-import { PositionResponseDto } from "./dto/position-response.dto";
+import { CreatePositionDto } from "./dto/create-position.dto";
 import { UpdatePositionDto } from "./dto/update-position.dto";
 import { Position } from "./entities/position.entity";
 
@@ -18,18 +16,15 @@ export class PositionsService {
   constructor(
     @InjectRepository(Position)
     private readonly positionsRepository: Repository<Position>,
-    @InjectRepository(Quote)
-    private readonly quotesRepository: Repository<Quote>,
-    private readonly calculationsService: CalculationsService,
+    private readonly currency: CurrencyService,
     private readonly config: ConfigService<AppConfig, true>,
   ) {}
 
-  async listPositions(userId: string): Promise<PositionResponseDto[]> {
-    const positions = await this.positionsRepository.find({
+  async listOwnedPositions(userId: string): Promise<Position[]> {
+    return this.positionsRepository.find({
       where: { userId },
       order: { symbol: "ASC" },
     });
-    return this.derive(positions);
   }
 
   async listDistinctSymbols(): Promise<string[]> {
@@ -40,49 +35,50 @@ export class PositionsService {
     return rows.map((row) => row.symbol);
   }
 
+  async getOwnedPosition(userId: string, id: string): Promise<Position> {
+    return this.findOwnedPosition(userId, id);
+  }
+
   async createPosition(
     userId: string,
     dto: CreatePositionDto,
-  ): Promise<PositionResponseDto> {
-    const position = await this.positionsRepository.save(
+  ): Promise<Position> {
+    return this.positionsRepository.save(
       this.positionsRepository.create({
         userId,
-        symbol: dto.symbol.toUpperCase(),
+        symbol: this.assertSymbolSupported(dto.symbol),
         instrument: dto.instrument.trim(),
         quantity: dto.quantity,
         avgCost: dto.avgCost,
-        currency: dto.currency.toUpperCase(),
+        currency: this.currency.assertSupported(dto.currency),
       }),
     );
-    const [response] = await this.derive([position]);
-    return response;
   }
 
   async updatePosition(
     userId: string,
     id: string,
     dto: UpdatePositionDto,
-  ): Promise<PositionResponseDto> {
+  ): Promise<Position> {
     const position = await this.findOwnedPosition(userId, id);
 
-    if (dto.symbol !== undefined) position.symbol = dto.symbol.toUpperCase();
+    if (dto.symbol !== undefined)
+      position.symbol = this.assertSymbolSupported(dto.symbol);
     if (dto.instrument !== undefined)
       position.instrument = dto.instrument.trim();
     if (dto.quantity !== undefined) position.quantity = dto.quantity;
     if (dto.avgCost !== undefined) position.avgCost = dto.avgCost;
     if (dto.currency !== undefined)
-      position.currency = dto.currency.toUpperCase();
+      position.currency = this.currency.assertSupported(dto.currency);
 
-    const saved = await this.positionsRepository.save(position);
-    const [response] = await this.derive([saved]);
-    return response;
+    return this.positionsRepository.save(position);
   }
 
   async addToPosition(
     userId: string,
     id: string,
     dto: AddToPositionDto,
-  ): Promise<PositionResponseDto> {
+  ): Promise<Position> {
     const position = await this.findOwnedPosition(userId, id);
     const addedQuantity = dto.amount / dto.unitPrice;
     const newQuantity = position.quantity + addedQuantity;
@@ -94,9 +90,15 @@ export class PositionsService {
     position.quantity = newQuantity;
     position.avgCost = newAvgCost;
 
-    const saved = await this.positionsRepository.save(position);
-    const [response] = await this.derive([saved]);
-    return response;
+    return this.positionsRepository.save(position);
+  }
+
+  async archivePosition(userId: string, id: string): Promise<Position> {
+    return this.setArchived(userId, id, true);
+  }
+
+  async restorePosition(userId: string, id: string): Promise<Position> {
+    return this.setArchived(userId, id, false);
   }
 
   async deletePosition(userId: string, id: string): Promise<void> {
@@ -110,65 +112,28 @@ export class PositionsService {
     }
   }
 
-  private async derive(positions: Position[]): Promise<PositionResponseDto[]> {
-    if (positions.length === 0) return [];
-    const quotes = await this.quotesRepository.find();
-    const staleMs = this.config.get("market", { infer: true }).quoteStaleMs;
-    const now = Date.now();
-
-    return positions.map((position) => {
-      const costBasis = position.quantity * position.avgCost;
-      const quote = this.pickQuote(quotes, position.symbol, position.currency);
-      if (!quote) {
-        return {
-          id: position.id,
-          symbol: position.symbol,
-          instrument: position.instrument,
-          quantity: position.quantity,
-          avgCost: position.avgCost,
-          currency: position.currency,
-          currentPrice: null,
-          currentValue: null,
-          costBasis,
-          profitLoss: null,
-          profitLossPct: null,
-          quoteDate: null,
-          quoteProvider: null,
-          isStale: false,
-        };
-      }
-      const valuation = this.calculationsService.calculatePositionValue(
-        position.quantity,
-        position.avgCost,
-        quote.price,
-      );
-      return {
-        id: position.id,
-        symbol: position.symbol,
-        instrument: position.instrument,
-        quantity: position.quantity,
-        avgCost: position.avgCost,
-        currency: position.currency,
-        currentPrice: quote.price,
-        currentValue: valuation.currentValue,
-        costBasis: valuation.costBasis,
-        profitLoss: valuation.profitLoss,
-        profitLossPct: valuation.profitLossPct,
-        quoteDate: quote.fetchedAt.toISOString(),
-        quoteProvider: quote.provider,
-        isStale: now - quote.fetchedAt.getTime() > staleMs,
-      };
-    });
+  private async setArchived(
+    userId: string,
+    id: string,
+    archived: boolean,
+  ): Promise<Position> {
+    const position = await this.findOwnedPosition(userId, id);
+    position.archived = archived;
+    return this.positionsRepository.save(position);
   }
 
-  private pickQuote(
-    quotes: Quote[],
-    symbol: string,
-    currency: string,
-  ): Quote | undefined {
-    return quotes
-      .filter((quote) => quote.symbol === symbol && quote.currency === currency)
-      .sort((a, b) => b.fetchedAt.getTime() - a.fetchedAt.getTime())[0];
+  private assertSymbolSupported(symbol: string): string {
+    const normalized = symbol.trim().toUpperCase();
+    const supported = this.config.get("market", { infer: true }).symbols;
+    if (!supported.includes(normalized)) {
+      throw new ApiException(
+        ErrorCode.VALIDATION_ERROR,
+        HttpStatus.BAD_REQUEST,
+        "Ese símbolo no está en el catálogo de mercado",
+        { symbol: [`Símbolos disponibles: ${supported.join(", ")}`] },
+      );
+    }
+    return normalized;
   }
 
   private async findOwnedPosition(

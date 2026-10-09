@@ -1,5 +1,10 @@
 export type DashboardWidgetId =
-  "netWorth" | "incomeExpense" | "categoryDonut" | "budgetUsage";
+  | "netWorth"
+  | "incomeExpense"
+  | "categoryDonut"
+  | "incomeDonut"
+  | "budgetUsage"
+  | "budgetAlerts";
 
 export interface DashboardLayout {
   columns: DashboardWidgetId[][];
@@ -38,10 +43,24 @@ export const DASHBOARD_WIDGETS: DashboardWidgetDefinition[] = [
     maxSpan: 1,
   },
   {
+    id: "incomeDonut",
+    label: "Ingresos por categoría",
+    description: "Distribución del ingreso en el período.",
+    weight: 5,
+    maxSpan: 1,
+  },
+  {
     id: "budgetUsage",
     label: "Presupuesto mensual",
     description: "Uso actual de tus presupuestos del mes.",
     weight: 4,
+    maxSpan: 1,
+  },
+  {
+    id: "budgetAlerts",
+    label: "Alertas de presupuesto",
+    description: "Presupuestos cercanos al límite o excedidos.",
+    weight: 3,
     maxSpan: 1,
   },
 ];
@@ -74,7 +93,9 @@ const DEFAULT_SPANS: Record<DashboardWidgetId, number> = {
   netWorth: 3,
   incomeExpense: 1,
   categoryDonut: 1,
+  incomeDonut: 1,
   budgetUsage: 1,
+  budgetAlerts: 1,
 };
 
 const defaultSpans = (): Record<DashboardWidgetId, number> => ({

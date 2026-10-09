@@ -10,7 +10,12 @@ import { StatusBadge } from "@/components/common/status-badge";
 import { DEBT_TYPE_LABELS } from "@/lib/labels";
 import type { DebtsListProps } from "./debts-list.types";
 
-export const DebtsList = ({ debts, assets, isLoading }: DebtsListProps) => {
+export const DebtsList = ({
+  debts,
+  assets,
+  isLoading,
+  emptyAction,
+}: DebtsListProps) => {
   const assetNameById = new Map(assets.map((asset) => [asset.id, asset.name]));
 
   return (
@@ -24,6 +29,7 @@ export const DebtsList = ({ debts, assets, isLoading }: DebtsListProps) => {
           icon={CreditCard}
           title="Todavía no tenés deudas"
           description="Registrá préstamos, hipotecas o tarjetas para descontarlas del patrimonio."
+          action={emptyAction}
         />
       }
       renderItem={(debt) => {

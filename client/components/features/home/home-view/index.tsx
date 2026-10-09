@@ -1,5 +1,6 @@
 "use client";
 
+import { ErrorState } from "@/components/common/error-state";
 import { PageHeader } from "@/components/common/page-header";
 import { PeriodSelector } from "@/components/common/period-selector";
 import { NetWorthHero } from "@/components/features/dashboard/net-worth-hero";
@@ -28,7 +29,9 @@ export const HomeView = () => {
 
       <PeriodSelector />
 
-      {dashboardQuery.isLoading || !data ? (
+      {dashboardQuery.isError ? (
+        <ErrorState onRetry={() => dashboardQuery.refetch()} />
+      ) : dashboardQuery.isLoading || !data ? (
         <Skeleton className="h-56 w-full" />
       ) : (
         <NetWorthHero

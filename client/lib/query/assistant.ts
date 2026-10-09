@@ -16,3 +16,12 @@ export const useClearConversations = () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations }),
   });
 };
+
+export const useDeleteConversation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: assistantEndpoints.deleteConversation,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations }),
+  });
+};

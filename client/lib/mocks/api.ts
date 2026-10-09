@@ -591,6 +591,7 @@ export const mockApi = {
       id: mockId(),
       userId: user.id,
       ...input,
+      initialBalance: input.initialBalance ?? 0,
       notes: input.notes ?? null,
       currentBalance: 0,
       archived: false,
@@ -1175,6 +1176,7 @@ export const mockApi = {
       quoteDate: null,
       quoteProvider: null,
       isStale: false,
+      archived: false,
     };
     mockState.positions.push(position);
     return derivePosition(position);
@@ -1202,6 +1204,28 @@ export const mockApi = {
     );
     if (!position) fail(404, "NOT_FOUND", "La posición no existe");
     mockState.positions = mockState.positions.filter((item) => item.id !== id);
+  },
+
+  async archivePosition(id: string): Promise<Position> {
+    await delay();
+    const user = requireUser();
+    const position = mockState.positions.find(
+      (item) => item.id === id && item.userId === user.id,
+    );
+    if (!position) fail(404, "NOT_FOUND", "La posición no existe");
+    position.archived = true;
+    return derivePosition(position);
+  },
+
+  async restorePosition(id: string): Promise<Position> {
+    await delay();
+    const user = requireUser();
+    const position = mockState.positions.find(
+      (item) => item.id === id && item.userId === user.id,
+    );
+    if (!position) fail(404, "NOT_FOUND", "La posición no existe");
+    position.archived = false;
+    return derivePosition(position);
   },
 
   async listQuotes(): Promise<Quote[]> {
@@ -1246,12 +1270,20 @@ export const mockApi = {
     };
   },
 
-  async listConversations(): Promise<Conversation[]> {
+  async listConversations(): Promise<Paginated<Conversation>> {
     await delay();
     const user = requireUser();
-    return mockState.conversations.filter(
+    const items = mockState.conversations.filter(
       (conversation) => conversation.userId === user.id,
     );
+    const pageSize = items.length > 0 ? items.length : 20;
+    return {
+      items,
+      page: 1,
+      pageSize,
+      total: items.length,
+      totalPages: 1,
+    };
   },
 
   async deleteConversations(): Promise<void> {
@@ -1259,6 +1291,15 @@ export const mockApi = {
     const user = requireUser();
     mockState.conversations = mockState.conversations.filter(
       (conversation) => conversation.userId !== user.id,
+    );
+  },
+
+  async deleteConversation(id: string): Promise<void> {
+    await delay();
+    const user = requireUser();
+    mockState.conversations = mockState.conversations.filter(
+      (conversation) =>
+        conversation.userId !== user.id || conversation.id !== id,
     );
   },
 
@@ -1408,7 +1449,7 @@ export const mockApi = {
       .sort((a, b) => b.value - a.value);
 
     const derivedPositions = mockState.positions
-      .filter((position) => position.userId === user.id)
+      .filter((position) => position.userId === user.id && !position.archived)
       .map(derivePosition);
     const positionsValue = derivedPositions.reduce(
       (sum, position) =>
@@ -1647,6 +1688,7 @@ export const mockApi = {
           .length,
         positions: derivedPositions
           .map((position) => ({
+            id: position.id,
             symbol: position.symbol,
             instrument: position.instrument,
             quantity: position.quantity,
@@ -1662,6 +1704,7 @@ export const mockApi = {
             profitLossPct: position.profitLossPct,
             isStale: position.isStale,
             quoteDate: position.quoteDate,
+            quoteProvider: position.quoteProvider,
           }))
           .sort((a, b) => b.value - a.value),
       },

@@ -44,6 +44,8 @@ export const CategoriesList = ({
           trailing={
             category.isSystem ? (
               <Badge variant="secondary">Sistema</Badge>
+            ) : category.archived ? (
+              <Badge variant="outline">Archivada</Badge>
             ) : undefined
           }
           trailingAction={
@@ -60,6 +62,7 @@ export const CategoriesList = ({
                     label: "Archivar",
                     icon: Archive,
                     variant: "destructive",
+                    hidden: category.archived,
                     onSelect: () => onArchive(category),
                   },
                 ]}

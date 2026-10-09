@@ -18,7 +18,7 @@ If this skill conflicts with an example elsewhere, this skill wins and the examp
 
 When adding or changing a feature:
 
-1. **Model first.** Update the entity + migration and the DTO contract (must match `backend.md` §7.13–§7.18).
+1. **Model first.** Update the entity and the DTO contract (must match `backend.md` §7.13–§7.18). The entity is the schema source: there are no migrations, so a model change means recreating the DB and re-seeding (`npm run db:reset`).
 2. **DTOs at the boundary.** Define `Create`/`Update`/`Query`/`Response` DTOs with `class-validator`.
 3. **Service use case.** Implement one method per use case; reuse `calculations.service` and `fx` instead of new formulas.
 4. **Thin controller.** Wire routes, `@CurrentUser()`, and DTOs; no logic.
@@ -112,10 +112,10 @@ async createAccount(userId: string, dto: CreateAccountDto): Promise<AccountRespo
 ## 6. Entities and repositories
 
 - Entities extend a common base when possible; use `uuid` PKs (`@PrimaryGeneratedColumn("uuid")`).
-- Column names are `snake_case`; enforce `UNIQUE`/FK constraints in the entity and in a migration.
+- Column names are `snake_case`; enforce `UNIQUE`/FK constraints in the entity (the entity is the schema source; there are no migrations).
 - Numeric money columns use `numeric(18,4)` (quantities/quotes `numeric(18,8)`) and a read transformer so the API returns `number` (see §9).
 - Enums are stored as `text`; validate at the DTO/application layer against the allowed values in `backend.md` §7.14.
-- Repositories are injected via `@InjectRepository`; no raw SQL outside repos/migrations.
+- Repositories are injected via `@InjectRepository`; no raw SQL outside repositories (the `database` maintenance module is the only exception).
 - Every query that returns user data MUST filter by the authenticated `user_id`.
 
 ## 7. Ownership and security
@@ -202,5 +202,5 @@ export function toAccountResponse(a: Account): AccountResponseDto {
 
 ## Exceptions
 
-- Framework bootstrap (`main.ts`) and TypeORM config/migrations/seed follow their tool's required format.
+- Framework bootstrap (`main.ts`) and TypeORM config/seed follow their tool's required format.
 - Generated files (e.g. OpenAPI artifacts) are exempt; regenerate them.

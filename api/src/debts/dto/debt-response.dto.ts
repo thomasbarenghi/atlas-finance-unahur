@@ -1,7 +1,7 @@
 import { DebtType } from "../../common/types/financial-enums";
 import { Debt } from "../entities/debt.entity";
 
-export interface DebtResponseDto {
+export class DebtResponseDto {
   id: string;
   name: string;
   type: DebtType;

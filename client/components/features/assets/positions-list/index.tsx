@@ -6,11 +6,16 @@ import { DataList } from "@/components/common/data-list";
 import { DataListItem } from "@/components/common/data-list-item";
 import { EmptyState } from "@/components/common/empty-state";
 import { IconBadge } from "@/components/common/icon-badge";
+import { StatusBadge } from "@/components/common/status-badge";
 import { formatPercentPoints } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { PositionsListProps } from "./positions-list.types";
 
-export const PositionsList = ({ positions, isLoading }: PositionsListProps) => {
+export const PositionsList = ({
+  positions,
+  isLoading,
+  emptyAction,
+}: PositionsListProps) => {
   return (
     <DataList
       data={positions}
@@ -22,6 +27,7 @@ export const PositionsList = ({ positions, isLoading }: PositionsListProps) => {
           icon={TrendingUp}
           title="Todavía no tenés inversiones"
           description="Cargá un instrumento y su costo promedio para valuarlo."
+          action={emptyAction}
         />
       }
       renderItem={(position) => {
@@ -58,6 +64,9 @@ export const PositionsList = ({ positions, isLoading }: PositionsListProps) => {
                     {positive ? "+" : ""}
                     {formatPercentPoints(position.profitLossPct)}
                   </span>
+                ) : null}
+                {position.archived ? (
+                  <StatusBadge variant="account" archived />
                 ) : null}
               </span>
             }

@@ -14,11 +14,22 @@ import {
   useDeleteTransaction,
   useTransactions,
 } from "@/lib/query/transactions";
-import { TransactionFilters } from "@/components/features/transactions/transaction-filters";
+import {
+  TransactionFilters,
+  type TransactionFilterState,
+} from "@/components/features/transactions/transaction-filters";
 import { TransactionFormDialog } from "@/components/features/transactions/transaction-form-dialog";
 import { TransactionList } from "@/components/features/transactions/transaction-list";
 
 const PAGE_SIZE = 10;
+
+const EMPTY_FILTERS: TransactionFilterState = {
+  type: "",
+  accountId: "",
+  categoryId: "",
+  from: "",
+  to: "",
+};
 
 export const TransactionsView = () => {
   const accountsQuery = useAccounts();
@@ -27,6 +38,7 @@ export const TransactionsView = () => {
 
   const [searchInput, setSearchInput] = useState("");
   const search = useDebounce(searchInput, 300);
+  const [filters, setFilters] = useState<TransactionFilterState>(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -40,6 +52,11 @@ export const TransactionsView = () => {
 
   const queryFilters = {
     search: search || undefined,
+    type: filters.type || undefined,
+    accountId: filters.accountId || undefined,
+    categoryId: filters.categoryId || undefined,
+    from: filters.from || undefined,
+    to: filters.to || undefined,
     page,
     pageSize: PAGE_SIZE,
   };
@@ -87,6 +104,18 @@ export const TransactionsView = () => {
           setSearchInput(value);
           setPage(1);
         }}
+        filters={filters}
+        onFilterChange={(patch) => {
+          setFilters((previous) => ({ ...previous, ...patch }));
+          setPage(1);
+        }}
+        onClear={() => {
+          setSearchInput("");
+          setFilters(EMPTY_FILTERS);
+          setPage(1);
+        }}
+        accounts={accounts}
+        categories={categories}
       />
 
       <TransactionList
@@ -96,6 +125,11 @@ export const TransactionsView = () => {
         categoryById={categoryById}
         onSelect={setEditTarget}
         onDelete={deleteAction.request}
+        emptyAction={
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus /> Nuevo movimiento
+          </Button>
+        }
         pagination={
           response
             ? {

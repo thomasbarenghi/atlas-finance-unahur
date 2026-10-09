@@ -21,13 +21,16 @@ atlas-finance-unahur/
 | Layer | Technologies |
 | :--- | :--- |
 | Client | Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · shadcn/ui · Outfit + Nunito · Recharts · TanStack Query · React Hook Form + Zod · lucide-react · Capacitor 8 (Android) |
-| API | NestJS (modular monolith) · TypeScript · PostgreSQL (Supabase) · TypeORM · JWT (HttpOnly cookie + Bearer) · class-validator · argon2 · Swagger |
+| API | NestJS (modular monolith) · TypeScript · PostgreSQL (Supabase) · TypeORM · JWT (HttpOnly cookie + Bearer) · class-validator · argon2 · Swagger/OpenAPI · Scalar |
 
 ## Documentation
 
-- [`docs/FRD_Gestor_Financiero_v0.1.docx.md`](docs/FRD_Gestor_Financiero_v0.1.docx.md) — functional requirements, user stories, calculation rules, NFRs.
-- [`docs/frontend.md`](docs/frontend.md) — site map, per-page behavior, file structure, auth, charts, AI, Capacitor, work plan.
-- [`docs/backend.md`](docs/backend.md) — architecture, data model, REST contract (DTOs/enums/errors), integrations, security, seed, env.
+- [`docs/specification/FRD_Gestor_Financiero_v0.2.md`](docs/specification/FRD_Gestor_Financiero_v0.2.md) — functional requirements, user stories, calculation rules, NFRs.
+- [`docs/specification/BRD_Gestor_Financiero_v0.2.md`](docs/specification/BRD_Gestor_Financiero_v0.2.md) — business requirements, business rules, cases, glossary.
+- [`docs/architecture/frontend.md`](docs/architecture/frontend.md) — site map, per-page behavior, file structure, auth, charts, AI, Capacitor, work plan.
+- [`docs/architecture/backend.md`](docs/architecture/backend.md) — architecture, data model, REST contract (DTOs/enums/errors), integrations, security, seed, env.
+
+The full index — including the archived audits — is in [`docs/README.md`](docs/README.md).
 
 ## Agent guidance
 
@@ -54,10 +57,14 @@ Skills are written in English; functional documentation is in Spanish.
 cd api
 cp .env.example .env          # set DATABASE_URL, JWT secrets, etc.
 npm install
-npm run migration:run         # create the schema
-npm run seed                  # idempotent demo data
-npm run start:dev             # http://localhost:3001/api  (Swagger at /api/docs)
+npm run db:reset              # drop/recreate the schema from entities + seed demo data
+npm run start:dev             # http://localhost:3001/api  (Scalar at /api/reference, Swagger at /api/docs)
 ```
+
+> **No migrations by design.** The schema is derived from the TypeORM entities
+> (`synchronize: true`). When the model changes we **recreate the database and
+> re-seed** instead of writing a migration. See
+> [`docs/architecture/backend.md`](docs/architecture/backend.md) §11.1.
 
 ### Client
 
@@ -76,9 +83,16 @@ npm run android               # build + install + launch on a device/emulator
 
 ### Demo credentials
 
-```
-demo@atlassfin.app / Demo1234!
-```
+All demo users share the password `Demo1234!`:
+
+| Email | Scenario |
+| :--- | :--- |
+| `demo@atlassfin.app` | Full dataset: accounts, 4 months of movements, budgets, assets, debts, positions, goals and AI history. |
+| `sin-datos@atlassfin.app` | Empty user (no financial data) to exercise empty states. |
+| `ana@atlassfin.app` | Second user in USD (dark theme, destructive assistant actions enabled) for isolation/permissions. |
+
+The seed is deterministic: the same emails, entities and scenarios are produced
+every time. See [`docs/architecture/backend.md`](docs/architecture/backend.md) §11.
 
 ## Features
 
@@ -91,13 +105,13 @@ demo@atlassfin.app / Demo1234!
 - **Market quotes:** limited crypto catalog with caching, staleness flag, and last valid price on provider failure.
 - **Goals:** target amount, progress, and status.
 - **Reports:** summary, breakdown by category, net-worth evolution, budget compliance, CSV export.
-- **AI assistant (distinctive):** opt-in conversational answers built only from the user's own, pre-calculated, minimal context — it never creates, edits, or deletes data.
+- **AI assistant (distinctive):** opt-in conversational answers built only from the user's own, pre-calculated, minimal context. It can also propose **scoped write actions** (create/edit/archive your own data) through typed tools; every write requires explicit confirmation (one-time token + expiry + plan order), destructive actions are opt-in, and each execution is audited. It still does not connect to banks, move money, or give financial advice.
 
 ## Testing
 
 ```bash
-# Client (Vitest + React Testing Library + MSW + Playwright) — setup pending
-cd client && npm run test && npm run test:e2e
+# Client (Vitest + React Testing Library + MSW) — Playwright E2E pending
+cd client && npm run test
 
 # API (Jest + Supertest)
 cd api && npm run test && npm run test:e2e

@@ -1,5 +1,11 @@
 import { Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
-import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
+import { ApiErrors } from "../common/decorators/api-errors.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { CreateGoalDto } from "./dto/create-goal.dto";
 import { GoalResponseDto } from "./dto/goal-response.dto";
@@ -8,6 +14,8 @@ import { GoalsOrchestrator } from "./goals.orchestrator";
 import { GoalsService } from "./goals.service";
 
 @ApiTags("goals")
+@ApiBearerAuth()
+@ApiErrors(400, 401, 404, 409)
 @Controller("goals")
 export class GoalsController {
   constructor(
@@ -17,14 +25,14 @@ export class GoalsController {
 
   @Get()
   @ApiOperation({ summary: "Lista las metas del usuario" })
-  @ApiOkResponse({ description: "GoalResponseDto[]" })
+  @ApiOkResponse({ type: [GoalResponseDto] })
   list(@CurrentUser("id") userId: string): Promise<GoalResponseDto[]> {
     return this.goalsService.listGoals(userId);
   }
 
   @Post()
   @ApiOperation({ summary: "Crea una meta de ahorro" })
-  @ApiOkResponse({ description: "GoalResponseDto" })
+  @ApiOkResponse({ type: GoalResponseDto })
   create(
     @CurrentUser("id") userId: string,
     @Body() dto: CreateGoalDto,
@@ -34,7 +42,7 @@ export class GoalsController {
 
   @Get(":id")
   @ApiOperation({ summary: "Obtiene una meta del usuario" })
-  @ApiOkResponse({ description: "GoalResponseDto" })
+  @ApiOkResponse({ type: GoalResponseDto })
   get(
     @CurrentUser("id") userId: string,
     @Param("id") id: string,
@@ -44,7 +52,7 @@ export class GoalsController {
 
   @Patch(":id")
   @ApiOperation({ summary: "Edita una meta del usuario" })
-  @ApiOkResponse({ description: "GoalResponseDto" })
+  @ApiOkResponse({ type: GoalResponseDto })
   update(
     @CurrentUser("id") userId: string,
     @Param("id") id: string,
@@ -55,7 +63,7 @@ export class GoalsController {
 
   @Post(":id/archive")
   @ApiOperation({ summary: "Archiva una meta" })
-  @ApiOkResponse({ description: "GoalResponseDto" })
+  @ApiOkResponse({ type: GoalResponseDto })
   archive(
     @CurrentUser("id") userId: string,
     @Param("id") id: string,
@@ -65,7 +73,7 @@ export class GoalsController {
 
   @Post(":id/restore")
   @ApiOperation({ summary: "Restaura una meta archivada" })
-  @ApiOkResponse({ description: "GoalResponseDto" })
+  @ApiOkResponse({ type: GoalResponseDto })
   restore(
     @CurrentUser("id") userId: string,
     @Param("id") id: string,

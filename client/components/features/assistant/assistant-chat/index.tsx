@@ -64,6 +64,7 @@ export const AssistantChat = ({
     setInput,
     isBusy,
     submit,
+    cancelStream,
     recorder,
     canUseAudio,
     startRecording,
@@ -270,14 +271,26 @@ export const AssistantChat = ({
                   <Mic />
                 </Button>
               ) : null}
-              <Button
-                type="submit"
-                size="icon"
-                aria-label="Enviar pregunta"
-                disabled={isBusy || !input.trim()}
-              >
-                <Send />
-              </Button>
+              {isBusy ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="Detener respuesta"
+                  onClick={cancelStream}
+                >
+                  <Square />
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  size="icon"
+                  aria-label="Enviar pregunta"
+                  disabled={!input.trim()}
+                >
+                  <Send />
+                </Button>
+              )}
             </>
           )}
         </form>

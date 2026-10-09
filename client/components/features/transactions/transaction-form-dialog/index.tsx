@@ -110,10 +110,12 @@ export const TransactionFormDialog = ({
       account.id !== accountId &&
       (!selectedAccount || account.currency === selectedAccount.currency),
   );
+  const categoryType = type === "income" ? "income" : "expense";
   const categoryOptions = sortCategories(
     categories.filter(
       (category) =>
-        category.type === (type === "income" ? "income" : "expense"),
+        category.type === categoryType &&
+        (!category.archived || category.id === transaction?.categoryId),
     ),
   );
   const evaluated =
@@ -372,6 +374,24 @@ export const TransactionFormDialog = ({
           )}
         />
       </div>
+
+      <FormField
+        control={form.control}
+        name="notes"
+        render={({ field }) => (
+          <FormItem>
+            <FormControl>
+              <Input
+                placeholder="Notas (opcional)"
+                className="h-10"
+                {...field}
+                value={field.value ?? ""}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     </FormDialog>
   );
 };

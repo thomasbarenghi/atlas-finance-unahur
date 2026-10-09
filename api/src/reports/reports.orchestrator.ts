@@ -1,0 +1,213 @@
+import { Injectable } from "@nestjs/common";
+import { BudgetsOrchestrator } from "../budgets/budgets.orchestrator";
+import { CategoriesService } from "../categories/categories.service";
+import { DashboardQueryDto } from "../dashboard/dto/dashboard-query.dto";
+import { DashboardOrchestrator } from "../dashboard/dashboard.orchestrator";
+import { FxService } from "../fx/fx.service";
+import { TransactionsService } from "../transactions/transactions.service";
+import { UsersService } from "../users/users.service";
+import {
+  BudgetReportRow,
+  NetWorthPoint,
+  ReportByCategoryRow,
+  ReportSummary,
+} from "./dto/reports-response.dto";
+
+/**
+ * Read-model orchestrator for the reports domain (FR-REP-001..006). It composes
+ * the dashboard aggregation with budgets, transactions, categories and users,
+ * and holds no database queries.
+ */
+@Injectable()
+export class ReportsOrchestrator {
+  constructor(
+    private readonly dashboardOrchestrator: DashboardOrchestrator,
+    private readonly budgetsOrchestrator: BudgetsOrchestrator,
+    private readonly transactionsService: TransactionsService,
+    private readonly categoriesService: CategoriesService,
+    private readonly usersService: UsersService,
+    private readonly fxService: FxService,
+  ) {}
+
+  async summary(
+    userId: string,
+    query: DashboardQueryDto,
+  ): Promise<ReportSummary> {
+    const dashboard = await this.dashboardOrchestrator.getDashboard(
+      userId,
+      query,
+    );
+    return {
+      from: dashboard.period.from,
+      to: dashboard.period.to,
+      currency: dashboard.currency,
+      income: dashboard.kpis.income,
+      expenses: dashboard.kpis.expenses,
+      savings: dashboard.kpis.savings,
+      netWorth: dashboard.kpis.netWorth,
+    };
+  }
+
+  async byCategory(
+    userId: string,
+    query: DashboardQueryDto,
+  ): Promise<ReportByCategoryRow[]> {
+    const user = await this.usersService.getById(userId);
+    const currency = (query.currency ?? user.baseCurrency).toUpperCase();
+    const dashboard = await this.dashboardOrchestrator.getDashboard(
+      userId,
+      query,
+    );
+    const { from, to } = dashboard.period;
+
+    const [transactions, categories] = await Promise.all([
+      this.transactionsService.listOwnedTransactions(userId),
+      this.categoriesService.listCategories(userId),
+    ]);
+    const nameById = new Map(
+      categories.map((category) => [category.id, category.name]),
+    );
+    const convert = await this.fxService.getConverter();
+
+    const totals = new Map<
+      string,
+      { type: "income" | "expense"; value: number }
+    >();
+    for (const transaction of transactions) {
+      if (transaction.type === "transfer") continue;
+      if (transaction.date < from || transaction.date > to) continue;
+      const key = `${transaction.type}:${transaction.categoryId ?? "other"}`;
+      const current = totals.get(key) ?? { type: transaction.type, value: 0 };
+      current.value += convert(
+        transaction.amount,
+        transaction.currency,
+        currency,
+      );
+      totals.set(key, current);
+    }
+
+    const expenseTotal = [...totals.values()]
+      .filter((item) => item.type === "expense")
+      .reduce((total, item) => total + item.value, 0);
+    const incomeTotal = [...totals.values()]
+      .filter((item) => item.type === "income")
+      .reduce((total, item) => total + item.value, 0);
+
+    return [...totals.entries()]
+      .map(([key, item]) => {
+        const categoryId = key.split(":")[1];
+        const base = item.type === "expense" ? expenseTotal : incomeTotal;
+        return {
+          categoryId,
+          name:
+            categoryId === "other"
+              ? item.type === "income"
+                ? "Otros ingresos"
+                : "Sin categoría"
+              : (nameById.get(categoryId) ?? "Sin categoría"),
+          type: item.type,
+          value: item.value,
+          pct: base > 0 ? (item.value / base) * 100 : 0,
+        };
+      })
+      .sort((first, second) => second.value - first.value);
+  }
+
+  async netWorth(
+    userId: string,
+    query: DashboardQueryDto,
+  ): Promise<NetWorthPoint[]> {
+    const dashboard = await this.dashboardOrchestrator.getDashboard(
+      userId,
+      query,
+    );
+    return dashboard.netWorthSeries.map((point) => ({
+      date: point.date,
+      netWorth: point.value,
+    }));
+  }
+
+  async budgets(userId: string, period?: string): Promise<BudgetReportRow[]> {
+    const budgets = await this.budgetsOrchestrator.listBudgets(userId, period);
+    return budgets.map((budget) => ({
+      budgetId: budget.id,
+      categoryName: budget.category.name,
+      limit: budget.limit,
+      spent: budget.spent,
+      consumedPct: budget.consumedPct,
+      status: budget.status,
+    }));
+  }
+
+  async investments(userId: string, query: DashboardQueryDto) {
+    const dashboard = await this.dashboardOrchestrator.getDashboard(
+      userId,
+      query,
+    );
+    return dashboard.investments;
+  }
+
+  async exportCsv(
+    userId: string,
+    query: DashboardQueryDto,
+    type: string,
+  ): Promise<string> {
+    if (type === "summary") {
+      const summary = await this.summary(userId, query);
+      const rows = [
+        ["Campo", "Valor"],
+        ["Desde", summary.from],
+        ["Hasta", summary.to],
+        ["Moneda", summary.currency],
+        ["Ingresos", String(summary.income)],
+        ["Gastos", String(summary.expenses)],
+        ["Ahorro", String(summary.savings)],
+        ["Patrimonio neto", String(summary.netWorth)],
+      ];
+      return rows.map((row) => row.map(escapeCsv).join(",")).join("\n");
+    }
+
+    const filters: DashboardQueryDto = query;
+    const transactions =
+      await this.transactionsService.listOwnedTransactions(userId);
+    const rows = [
+      [
+        "Fecha",
+        "Tipo",
+        "Descripcion",
+        "Monto",
+        "Moneda",
+        "Cuenta",
+        "Cuenta destino",
+        "Categoria",
+        "Notas",
+      ],
+      ...transactions
+        .sort((first, second) => second.date.localeCompare(first.date))
+        .filter(
+          (transaction) =>
+            (!filters.from || transaction.date >= filters.from) &&
+            (!filters.to || transaction.date <= filters.to),
+        )
+        .map((transaction) => [
+          transaction.date,
+          transaction.type,
+          transaction.description,
+          String(transaction.amount),
+          transaction.currency,
+          transaction.accountId,
+          transaction.transferAccountId ?? "",
+          transaction.categoryId ?? "",
+          transaction.notes ?? "",
+        ]),
+    ];
+    return rows.map((row) => row.map(escapeCsv).join(",")).join("\n");
+  }
+}
+
+const escapeCsv = (value: string): string => {
+  if (/[",\n]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+};

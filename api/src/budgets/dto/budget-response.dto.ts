@@ -1,12 +1,12 @@
 import { BudgetStatus } from "../../common/types/financial-enums";
 
-export interface BudgetCategoryDto {
+export class BudgetCategoryDto {
   id: string;
   name: string;
   color: string;
 }
 
-export interface BudgetResponseDto {
+export class BudgetResponseDto {
   id: string;
   categoryId: string;
   category: BudgetCategoryDto;

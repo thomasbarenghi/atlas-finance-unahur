@@ -2,10 +2,11 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import { AddToPositionDto } from "../../../positions/dto/add-to-position.dto";
 import { CreatePositionDto } from "../../../positions/dto/create-position.dto";
 import { UpdatePositionDto } from "../../../positions/dto/update-position.dto";
-import { PositionsService } from "../../../positions/positions.service";
+import { PositionsOrchestrator } from "../../../positions/positions.orchestrator";
 import { ApiException } from "../../../common/errors/api.exception";
 import { ErrorCode } from "../../../common/errors/error-codes";
 import { ReferenceResolver } from "../reference-resolver.service";
+import { definedPreviewFields } from "../preview";
 import { jsonSchema, optionalString, validateToolArgs } from "../tool-input";
 import type {
   AssistantActionEntity,
@@ -28,7 +29,7 @@ const positionEntity = (position: {
 @Injectable()
 export class PositionTools {
   constructor(
-    private readonly positions: PositionsService,
+    private readonly positions: PositionsOrchestrator,
     private readonly resolver: ReferenceResolver,
   ) {}
 
@@ -212,10 +213,7 @@ export class PositionTools {
               summary: "Se actualizarán los datos de la inversión.",
               fields: [
                 { label: "Inversión", value: await this.label(userId, id) },
-                ...Object.entries(dto).map(([key, value]) => ({
-                  label: key,
-                  value: String(value),
-                })),
+                ...definedPreviewFields(dto),
               ],
             },
           };
@@ -275,6 +273,98 @@ export class PositionTools {
             ok: true,
             summary: "Eliminé la inversión.",
             data: { id },
+          };
+        },
+      },
+      {
+        name: "archivePosition",
+        title: "Archivar inversión",
+        description:
+          "Archiva una inversión del usuario. Consérvala si querés que deje de sumar al patrimonio sin perder su historial.",
+        classification: "sensitive",
+        parameters: jsonSchema(
+          {
+            position: {
+              type: "string",
+              description: "Inversión (id, símbolo o instrumento).",
+            },
+          },
+          ["position"],
+        ),
+        prepare: async (userId, args): Promise<PreparedAction> => {
+          const id = await this.resolver.resolvePositionId(
+            userId,
+            args.position,
+          );
+          return {
+            args: { position: id },
+            summary: `Archivar la inversión ${await this.label(userId, id)}`,
+            preview: {
+              title: "Archivar inversión",
+              summary:
+                "La inversión quedará archivada y dejará de sumar al patrimonio, conservando su historial.",
+              fields: [
+                { label: "Inversión", value: await this.label(userId, id) },
+              ],
+            },
+          };
+        },
+        execute: async (userId, args): Promise<ToolHandlerResult> => {
+          const id = await this.resolver.resolvePositionId(
+            userId,
+            args.position,
+          );
+          const position = await this.positions.archivePosition(userId, id);
+          return {
+            ok: true,
+            summary: `Archivé la inversión ${position.symbol}.`,
+            data: { position },
+            entity: positionEntity(position),
+          };
+        },
+      },
+      {
+        name: "restorePosition",
+        title: "Restaurar inversión",
+        description: "Restaura una inversión archivada del usuario.",
+        classification: "sensitive",
+        parameters: jsonSchema(
+          {
+            position: {
+              type: "string",
+              description: "Inversión (id, símbolo o instrumento).",
+            },
+          },
+          ["position"],
+        ),
+        prepare: async (userId, args): Promise<PreparedAction> => {
+          const id = await this.resolver.resolvePositionId(
+            userId,
+            args.position,
+          );
+          return {
+            args: { position: id },
+            summary: `Restaurar la inversión ${await this.label(userId, id)}`,
+            preview: {
+              title: "Restaurar inversión",
+              summary: "La inversión volverá a sumar al patrimonio.",
+              fields: [
+                { label: "Inversión", value: await this.label(userId, id) },
+              ],
+            },
+          };
+        },
+        execute: async (userId, args): Promise<ToolHandlerResult> => {
+          const id = await this.resolver.resolvePositionId(
+            userId,
+            args.position,
+          );
+          const position = await this.positions.restorePosition(userId, id);
+          return {
+            ok: true,
+            summary: `Restauré la inversión ${position.symbol}.`,
+            data: { position },
+            entity: positionEntity(position),
           };
         },
       },

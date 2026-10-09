@@ -1,8 +1,13 @@
-import { ConfigService } from "@nestjs/config";
 import { Repository } from "typeorm";
-import { AppConfig } from "../config/configuration";
-import { Quote } from "../quotes/entities/quote.entity";
-import { CalculationsService } from "../shared/calculations/calculations.service";
+import {
+  mockConfig,
+  mockCurrency,
+  mockRepository,
+} from "../../test/unit/mocks";
+
+const MARKET_SYMBOLS = ["BTC", "ETH", "USDT", "USDC", "SOL", "BNB"];
+const marketConfig = () =>
+  mockConfig({ market: { symbols: MARKET_SYMBOLS } }) as any;
 import { Position } from "./entities/position.entity";
 import { PositionsService } from "./positions.service";
 
@@ -26,23 +31,10 @@ const buildService = () => {
     save,
   } as unknown as Repository<Position>;
 
-  const quotesRepository = {
-    find: jest.fn().mockResolvedValue([]),
-  } as unknown as Repository<Quote>;
-
-  const calculationsService = {
-    calculatePositionValue: jest.fn(),
-  } as unknown as CalculationsService;
-
-  const config = {
-    get: jest.fn().mockReturnValue(3_600_000),
-  } as unknown as ConfigService<AppConfig, true>;
-
   const service = new PositionsService(
     positionsRepository,
-    quotesRepository,
-    calculationsService,
-    config,
+    mockCurrency() as any,
+    marketConfig(),
   );
 
   return { service, positionsRepository, findOneBy, save };
@@ -72,5 +64,126 @@ describe("PositionsService.addToPosition", () => {
         unitPrice: 2525,
       }),
     ).rejects.toThrow(/no existe/);
+  });
+});
+
+const position = (overrides: Record<string, unknown> = {}) => ({
+  id: "p1",
+  userId: "u1",
+  symbol: "ETH",
+  instrument: "Ethereum",
+  quantity: 1,
+  avgCost: 100,
+  currency: "USD",
+  archived: false,
+  createdAt: new Date("2026-01-01T00:00:00.000Z"),
+  updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+  ...overrides,
+});
+
+const buildRepository = () => {
+  const repository = mockRepository();
+  repository.create.mockImplementation((value: any) => position(value));
+  repository.save.mockImplementation(async (value: any) => position(value));
+  const service = new PositionsService(
+    repository as any,
+    mockCurrency() as any,
+    marketConfig(),
+  );
+  return { service, repository };
+};
+
+describe("PositionsService CRUD", () => {
+  it("lists owned positions", async () => {
+    const { service, repository } = buildRepository();
+    repository.find.mockResolvedValue([position()]);
+    await expect(service.listOwnedPositions("u1")).resolves.toHaveLength(1);
+  });
+
+  it("lists distinct symbols", async () => {
+    const { service, repository } = buildRepository();
+    const qb = {
+      select: jest.fn().mockReturnThis(),
+      getRawMany: jest
+        .fn()
+        .mockResolvedValue([{ symbol: "BTC" }, { symbol: "ETH" }]),
+    };
+    repository.createQueryBuilder.mockReturnValue(qb);
+    await expect(service.listDistinctSymbols()).resolves.toEqual([
+      "BTC",
+      "ETH",
+    ]);
+  });
+
+  it("gets an owned position and rejects a missing one", async () => {
+    const { service, repository } = buildRepository();
+    repository.findOneBy.mockResolvedValue(position());
+    await expect(service.getOwnedPosition("u1", "p1")).resolves.toMatchObject({
+      id: "p1",
+    });
+
+    repository.findOneBy.mockResolvedValue(null);
+    await expect(service.getOwnedPosition("u1", "x")).rejects.toMatchObject({
+      response: { code: "NOT_FOUND" },
+    });
+  });
+
+  it("creates a position uppercasing symbol and currency", async () => {
+    const { service, repository } = buildRepository();
+    await service.createPosition("u1", {
+      symbol: "btc",
+      instrument: "Bitcoin",
+      quantity: 1,
+      avgCost: 100,
+      currency: "usd",
+    });
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ symbol: "BTC", currency: "USD" }),
+    );
+  });
+
+  it("rejects a symbol outside the market catalog (FR-MER-001)", async () => {
+    const { service, repository } = buildRepository();
+    await expect(
+      service.createPosition("u1", {
+        symbol: "DOGE",
+        instrument: "Dogecoin",
+        quantity: 1,
+        avgCost: 1,
+        currency: "USD",
+      }),
+    ).rejects.toMatchObject({
+      response: { code: "VALIDATION_ERROR" },
+    });
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it("updates the provided fields", async () => {
+    const { service, repository } = buildRepository();
+    repository.findOneBy.mockResolvedValue(position());
+    const updated = await service.updatePosition("u1", "p1", {
+      symbol: "sol",
+      quantity: 5,
+      currency: "eur",
+    } as any);
+    expect(updated).toMatchObject({ symbol: "SOL", currency: "EUR" });
+  });
+
+  it("archives and restores a position", async () => {
+    const { service, repository } = buildRepository();
+    repository.findOneBy.mockResolvedValue(position());
+    expect((await service.archivePosition("u1", "p1")).archived).toBe(true);
+    expect((await service.restorePosition("u1", "p1")).archived).toBe(false);
+  });
+
+  it("deletes a position and rejects a missing one", async () => {
+    const { service, repository } = buildRepository();
+    await service.deletePosition("u1", "p1");
+    expect(repository.delete).toHaveBeenCalledWith({ id: "p1", userId: "u1" });
+
+    repository.delete.mockResolvedValue({ affected: 0 });
+    await expect(service.deletePosition("u1", "x")).rejects.toMatchObject({
+      response: { code: "NOT_FOUND" },
+    });
   });
 });

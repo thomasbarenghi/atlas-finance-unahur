@@ -12,7 +12,7 @@
 
 El sistema pasó de un asistente **de solo lectura + 2 tools de cuentas** (`assistant-tools.service.ts`, eliminado) a un **catálogo de 41 tools tipadas y clasificadas** (`read` / `write_safe` / `sensitive` / `destructive`), con **confirmación de doble fase** (propuesta → token de un solo uso → ejecución), resolución de referencias por nombre, agrupación en *planes* con `planId`+`step`, memoria conversacional y auditoría en `assistant_actions`.
 
-La cobertura funcional es **alta**: prácticamente todo el CRUD existente en el backend tiene una tool que reutiliza el **mismo servicio de dominio** que el REST (no hay lógica financiera duplicada en el asistente, que era el objetivo central del diseño en `docs/exploracion_acciones_asistente_ia.md`). Las operaciones destructivas son *opt-in* (`assistantDestructiveEnabled`) y están bloqueadas en tres capas.
+La cobertura funcional es **alta**: prácticamente todo el CRUD existente en el backend tiene una tool que reutiliza el **mismo servicio de dominio** que el REST (no hay lógica financiera duplicada en el asistente, que era el objetivo central del diseño en `docs/archive/exploracion_acciones_asistente_ia.md`). Las operaciones destructivas son *opt-in* (`assistantDestructiveEnabled`) y están bloqueadas en tres capas.
 
 Sin embargo, la auditoría detecta que **la composición multi-acción real tiene fallas de arquitectura** (orden de plan sólo en el cliente, deadlock en pasos fallidos, ausencia de idempotencia real, escrituras compuestas no atómicas), **varias capacidades del backend no son alcanzables por el agente** (`updateTransaction` parcial, sin tools de reportes/dashboard, `addToPosition` sin endpoint REST), y **la cobertura de tests es muy baja para el tamaño del catálogo** (0 tests de los 41 handlers y 0 de `PendingActionsService`).
 
@@ -55,7 +55,7 @@ users ──1:N── accounts ──1:N── transactions (account_id)
 
 CRUD de cuentas (crear/editar/archivar/restaurar/detalle), movimientos (crear/editar/eliminar, transferencias colapsadas, búsqueda), categorías propias (crear/editar/archivar), presupuestos (crear/editar/eliminar/copiar mes anterior/recurrentes/detalle), activos (crear/editar/archivar + historial de valuaciones), deudas (crear/editar/archivar, vincular activo), posiciones (crear/editar/eliminar), metas (crear/editar/archivar/restaurar/aportes), reportes y dashboard, ajustes (moneda base, tema, IA on/off, destructivas on/off, borrar historial), perfil.
 
-`docs/frontend.md` §§4.1–4.11 y `docs/backend.md` §7 confirman esta superficie; el mapeo endpoint↔UI es 1:1 salvo `addToPosition`.
+`docs/architecture/frontend.md` §§4.1–4.11 y `docs/architecture/backend.md` §7 confirman esta superficie; el mapeo endpoint↔UI es 1:1 salvo `addToPosition`.
 
 ---
 
@@ -277,7 +277,7 @@ Leyenda: ✅ completa · ◐ parcial · ❌ ausente. "Agente" = existe tool.
 
 ## 14. Reliability & Idempotency
 
-- **Doble ejecución:** mitigada por `status` + lock pesimista + token, no por *idempotency keys* (que el diseño original pedía: `exploracion_acciones_asistente_ia.md` R4). Dos propuestas idénticas generadas por el modelo siguen siendo dos acciones válidas → **duplicados posibles** si el usuario confirma ambas.
+- **Doble ejecución:** mitigada por `status` + lock pesimista + token, no por *idempotency keys* (que el diseño original pedía: `docs/archive/exploracion_acciones_asistente_ia.md` R4). Dos propuestas idénticas generadas por el modelo siguen siendo dos acciones válidas → **duplicados posibles** si el usuario confirma ambas.
 - **Reintento de `failed`:** permitido (`confirm` acepta `status === "failed"`, `pending-actions.service.ts:110-140`). Para `createAsset` (dos escrituras no atómicas) un fallo parcial + reintento puede duplicar el activo o dejar valuación huérfana.
 - **Propuestas creadas sin entrega:** las acciones se persisten durante el stream y se emiten **al final** (`assistant.service.ts:318-320`). Si el stream falla antes, quedan `proposed` en DB, invisibles para el usuario, y expiran por TTL.
 - **Persistencia del turno al final**: si el cliente corta, no se guarda conversación; las acciones ya creadas quedan huérfanas.

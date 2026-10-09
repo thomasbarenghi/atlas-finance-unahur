@@ -1,81 +1,93 @@
 import { Controller, Get, Query, Res } from "@nestjs/common";
-import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import { Response } from "express";
+import { ApiErrors } from "../common/decorators/api-errors.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { DashboardQueryDto } from "../dashboard/dto/dashboard-query.dto";
-import { DashboardData } from "../dashboard/dto/dashboard-response.dto";
-import { BudgetReportQueryDto, ExportQueryDto } from "./dto/reports-query.dto";
+import { DashboardInvestments } from "../dashboard/dto/dashboard-response.dto";
 import {
   BudgetReportRow,
   NetWorthPoint,
   ReportByCategoryRow,
   ReportSummary,
-  ReportsService,
-} from "./reports.service";
+} from "./dto/reports-response.dto";
+import { BudgetReportQueryDto, ExportQueryDto } from "./dto/reports-query.dto";
+import { ReportsOrchestrator } from "./reports.orchestrator";
 
 @ApiTags("reports")
+@ApiBearerAuth()
+@ApiErrors(400, 401)
 @Controller("reports")
 export class ReportsController {
-  constructor(private readonly reportsService: ReportsService) {}
+  constructor(private readonly reportsOrchestrator: ReportsOrchestrator) {}
 
   @Get("summary")
   @ApiOperation({ summary: "Resumen financiero del período" })
-  @ApiOkResponse({ description: "ReportSummary" })
+  @ApiOkResponse({ type: ReportSummary })
   summary(
     @CurrentUser("id") userId: string,
     @Query() query: DashboardQueryDto,
   ): Promise<ReportSummary> {
-    return this.reportsService.summary(userId, query);
+    return this.reportsOrchestrator.summary(userId, query);
   }
 
   @Get("by-category")
   @ApiOperation({ summary: "Desglose de ingresos y gastos por categoría" })
-  @ApiOkResponse({ description: "ReportByCategoryRow[]" })
+  @ApiOkResponse({ type: [ReportByCategoryRow] })
   byCategory(
     @CurrentUser("id") userId: string,
     @Query() query: DashboardQueryDto,
   ): Promise<ReportByCategoryRow[]> {
-    return this.reportsService.byCategory(userId, query);
+    return this.reportsOrchestrator.byCategory(userId, query);
   }
 
   @Get("net-worth")
   @ApiOperation({ summary: "Evolución del patrimonio neto" })
-  @ApiOkResponse({ description: "NetWorthPoint[]" })
+  @ApiOkResponse({ type: [NetWorthPoint] })
   netWorth(
     @CurrentUser("id") userId: string,
     @Query() query: DashboardQueryDto,
   ): Promise<NetWorthPoint[]> {
-    return this.reportsService.netWorth(userId, query);
+    return this.reportsOrchestrator.netWorth(userId, query);
   }
 
   @Get("budgets")
   @ApiOperation({ summary: "Cumplimiento de presupuestos del período" })
-  @ApiOkResponse({ description: "BudgetReportRow[]" })
+  @ApiOkResponse({ type: [BudgetReportRow] })
   budgets(
     @CurrentUser("id") userId: string,
     @Query() query: BudgetReportQueryDto,
   ): Promise<BudgetReportRow[]> {
-    return this.reportsService.budgets(userId, query.period);
+    return this.reportsOrchestrator.budgets(userId, query.period);
   }
 
   @Get("investments")
   @ApiOperation({ summary: "Rendimiento nominal de inversiones" })
-  @ApiOkResponse({ description: "DashboardData['investments']" })
+  @ApiOkResponse({ type: DashboardInvestments })
   investments(
     @CurrentUser("id") userId: string,
     @Query() query: DashboardQueryDto,
-  ): Promise<DashboardData["investments"]> {
-    return this.reportsService.investments(userId, query);
+  ): Promise<DashboardInvestments> {
+    return this.reportsOrchestrator.investments(userId, query);
   }
 
   @Get("export")
   @ApiOperation({ summary: "Exporta movimientos o resumen en CSV" })
+  @ApiOkResponse({
+    description: "Archivo CSV",
+    content: { "text/csv": { schema: { type: "string" } } },
+  })
   async export(
     @CurrentUser("id") userId: string,
     @Query() query: ExportQueryDto,
     @Res({ passthrough: true }) response: Response,
   ): Promise<string> {
-    const csv = await this.reportsService.exportCsv(
+    const csv = await this.reportsOrchestrator.exportCsv(
       userId,
       query,
       query.type ?? "transactions",

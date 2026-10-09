@@ -1,12 +1,12 @@
 import { UserResponseDto } from "../../users/dto/user-response.dto";
 
-export interface AuthResponse {
+export class AuthResponse {
   user: UserResponseDto;
   accessToken: string;
   refreshToken: string;
 }
 
-export interface TokenPair {
+export class TokenPair {
   accessToken: string;
   refreshToken: string;
 }

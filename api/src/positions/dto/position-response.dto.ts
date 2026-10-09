@@ -1,4 +1,4 @@
-export interface PositionResponseDto {
+export class PositionResponseDto {
   id: string;
   symbol: string;
   instrument: string;
@@ -13,4 +13,5 @@ export interface PositionResponseDto {
   quoteDate: string | null;
   quoteProvider: string | null;
   isStale: boolean;
+  archived: boolean;
 }

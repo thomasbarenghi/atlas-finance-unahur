@@ -49,6 +49,17 @@ export interface MailConfig {
   from: string;
 }
 
+export interface DevConfig {
+  /**
+   * Whether the destructive dev endpoints are enabled. Fail-closed: it is only
+   * true when `NODE_ENV` is *explicitly* `development` or `test`, never from the
+   * defaulted `nodeEnv` (so a production deploy missing `NODE_ENV` stays safe).
+   */
+  databaseResetEnabled: boolean;
+  /** Shared secret required by the dev-only database endpoints when set. */
+  databaseToken: string | null;
+}
+
 export interface AppConfig {
   nodeEnv: string;
   port: number;
@@ -59,6 +70,7 @@ export interface AppConfig {
   market: MarketConfig;
   ai: AiConfig;
   mail: MailConfig;
+  dev: DevConfig;
   resetTokenTtl: number;
   budgetWarningThreshold: number;
   supportedCurrencies: string[];
@@ -104,7 +116,11 @@ export const configuration = (): AppConfig => ({
   },
   cors: {
     origin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
-    native: toList(process.env.CORS_ORIGIN_NATIVE, ["capacitor://localhost"]),
+    native: toList(process.env.CORS_ORIGIN_NATIVE, [
+      "capacitor://localhost",
+      "http://localhost",
+      "https://localhost",
+    ]),
   },
   market: {
     enabled: toBoolean(
@@ -149,6 +165,12 @@ export const configuration = (): AppConfig => ({
     user: process.env.SMTP_USER || null,
     pass: process.env.SMTP_PASS || null,
     from: process.env.MAIL_FROM ?? "no-reply@example.com",
+  },
+  dev: {
+    databaseResetEnabled: ["development", "test"].includes(
+      process.env.NODE_ENV ?? "",
+    ),
+    databaseToken: process.env.DEV_DATABASE_TOKEN || null,
   },
   resetTokenTtl: toNumber(process.env.RESET_TOKEN_TTL, 3600),
   budgetWarningThreshold: toNumber(process.env.BUDGET_WARNING_THRESHOLD, 0.8),

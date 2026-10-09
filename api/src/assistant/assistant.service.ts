@@ -8,14 +8,21 @@ import { Paginated, PaginationDto } from "../common/dto/pagination.dto";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
 import { AiMessage, AiService, AiToolCall } from "../shared/ai/ai.service";
-import { User } from "../users/entities/user.entity";
+import { claimsUnproposedAction } from "./action-claim-guard";
+import { UserResponseDto } from "../users/dto/user-response.dto";
+import { UsersService } from "../users/users.service";
 import { ActionResultDto } from "./actions/action-result.dto";
-import { PendingActionsService } from "./actions/pending-actions.service";
+import {
+  AssistantUser,
+  PendingActionsService,
+} from "./actions/pending-actions.service";
 import { AssistantContextService } from "./assistant-context.service";
 import { AssistantMessageDto } from "./dto/assistant-message.dto";
+import { ConversationResponse } from "./dto/conversation-response.dto";
 import { AiConversation } from "./entities/ai-conversation.entity";
 import { appendTurn, toHistoryMessages } from "./conversation-history";
 import { normalizeReference } from "./tools/reference-resolver.service";
+import { definedPreviewFields } from "./tools/preview";
 import { parseToolArgs } from "./tools/tool-input";
 import { ToolRegistry } from "./tools/tool-registry.service";
 import {
@@ -24,13 +31,8 @@ import {
   ToolDefinition,
 } from "./tools/tool.types";
 
-export interface ConversationResponse {
-  id: string;
-  question: string;
-  answer: string;
-  contextMeta: Record<string, unknown>;
-  createdAt: string;
-}
+export const ASSISTANT_DISCLAIMER =
+  "Respuesta informativa calculada a partir de tus datos; no constituye asesoramiento financiero.";
 
 export type AssistantEvent =
   | {
@@ -40,6 +42,7 @@ export type AssistantEvent =
         period: { from: string; to: string };
         currency: string;
         sources: string[];
+        disclaimer: string;
       };
     }
   | { type: "token"; data: { delta: string } }
@@ -78,6 +81,14 @@ interface PlanContext {
 
 const MAX_TOOL_STEPS = 5;
 
+const ACTION_CLAIM_RECOVERY_PROMPT =
+  "Revisión interna: tu respuesta anterior afirma que propusiste (o que quedó " +
+  "lista para confirmar) una acción, pero no llamaste a su herramienta, así que " +
+  "no existe ninguna tarjeta para esa acción. Si querías proponerla, llamá AHORA " +
+  "a la herramienta correspondiente con sus argumentos. Si no correspondía, " +
+  "reescribí tu respuesta sin afirmar que quedó pendiente o lista para confirmar. " +
+  "No repitas acciones que ya estén propuestas.";
+
 const stableStringify = (value: unknown): string => {
   if (Array.isArray(value)) {
     return `[${value.map(stableStringify).join(",")}]`;
@@ -95,55 +106,13 @@ const stableStringify = (value: unknown): string => {
 const proposalKey = (toolName: string, args: Record<string, unknown>): string =>
   `${toolName}:${stableStringify(args)}`;
 
-const DEFERRED_FIELD_LABELS: Record<string, string> = {
-  account: "Cuenta",
-  accountId: "Cuenta",
-  fromAccount: "Cuenta origen",
-  toAccount: "Cuenta destino",
-  category: "Categoría",
-  categoryId: "Categoría",
-  asset: "Activo",
-  debt: "Deuda",
-  position: "Inversión",
-  goal: "Meta",
-  budgetId: "Presupuesto",
-  transactionId: "Movimiento",
-  name: "Nombre",
-  amount: "Monto",
-  balance: "Saldo",
-  limit: "Límite",
-  date: "Fecha",
-  targetDate: "Fecha objetivo",
-  targetAmount: "Objetivo",
-  savedAmount: "Acumulado",
-  sourceAccount: "Cuenta origen",
-  sourceAccountId: "Cuenta origen",
-  currency: "Moneda",
-  description: "Descripción",
-  unitPrice: "Precio unitario",
-  value: "Valor",
-  period: "Período",
-  sourcePeriod: "Período origen",
-  type: "Tipo",
-  initialBalance: "Saldo inicial",
-  initialValue: "Valor inicial",
-  quantity: "Cantidad",
-  avgCost: "Costo promedio",
-  symbol: "Símbolo",
-  instrument: "Instrumento",
-  notes: "Notas",
-  recurring: "Renovación",
-  icon: "Ícono",
-  color: "Color",
-};
-
 const SYSTEM_PROMPT = [
   "Sos el asistente financiero de Atlass Fin.",
   "Respondés en español, de forma breve y clara, usando SOLO los datos provistos o los que obtengas con tus herramientas.",
   "Recibís, además del resumen del período, los turnos previos de esta conversación como contexto: usalos para entender referencias como 'eso', 'el iPhone' o 'la cuenta que te dije'.",
   "Si el usuario describe una compra, un pago o una adquisición, es un GASTO; no lo interpretes como ingreso salvo que diga explícitamente que recibió dinero.",
   "Tenés un resumen agregado del período indicado y herramientas para consultar y GESTIONAR los datos del usuario: cuentas, categorías, movimientos, transferencias, presupuestos, activos y valuaciones, deudas, inversiones y metas.",
-  "Podés proponer varias acciones en la misma respuesta: el sistema genera una tarjeta por cada una y las ordena. Si una acción depende de otra (por ejemplo, una deuda vinculada a un activo que todavía no existe), proponé primero la creación y después la que depende; la referencia se resuelve cuando confirmás la primera.",
+  "Podés proponer varias acciones en la misma respuesta: el sistema genera una tarjeta por cada una y las ordena. Si una acción depende de otra (por ejemplo, una deuda vinculada a un activo que todavía no existe), proponé primero la creación y después la que depende; la referencia se resuelve cuando confirmás la primera. Llamá a las tools de TODAS las acciones del plan en el mismo turno; no anuncies una acción como propuesta si no llamaste a su herramienta.",
   "Si el usuario corrige algo ya registrado, usá las herramientas de edición (update*, createValuation) y NO crees un registro nuevo con el mismo nombre.",
   "Si registrás un activo y sus deudas por separado, verificá que el total de las deudas explique el valor del activo; si falta dinero, preguntá de dónde sale antes de proponer.",
   "Si te falta un dato para una acción, no frenes las demás: proponé ya las que podés (llamando a sus tools) y pedí solo el dato faltante para el resto.",
@@ -177,10 +146,9 @@ export class AssistantService {
   private readonly logger = new Logger(AssistantService.name);
 
   constructor(
-    @InjectRepository(User)
-    private readonly usersRepository: Repository<User>,
     @InjectRepository(AiConversation)
     private readonly conversationsRepository: Repository<AiConversation>,
+    private readonly usersService: UsersService,
     private readonly contextService: AssistantContextService,
     private readonly aiService: AiService,
     private readonly registry: ToolRegistry,
@@ -201,7 +169,7 @@ export class AssistantService {
     }
 
     const email = this.config.get("ai", { infer: true }).devUserEmail;
-    const user = await this.usersRepository.findOneBy({ email });
+    const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new ApiException(
         ErrorCode.NOT_FOUND,
@@ -212,15 +180,8 @@ export class AssistantService {
     return user.id;
   }
 
-  async assertAiEnabled(userId: string): Promise<User> {
-    const user = await this.usersRepository.findOneBy({ id: userId });
-    if (!user) {
-      throw new ApiException(
-        ErrorCode.NOT_FOUND,
-        HttpStatus.NOT_FOUND,
-        "El usuario no existe",
-      );
-    }
+  async assertAiEnabled(userId: string): Promise<UserResponseDto> {
+    const user = await this.usersService.getById(userId);
     if (!user.aiEnabled) {
       throw new ApiException(
         ErrorCode.AI_DISABLED,
@@ -331,6 +292,7 @@ export class AssistantService {
         period: context.period,
         currency: context.currency,
         sources: context.sources,
+        disclaimer: ASSISTANT_DISCLAIMER,
       },
     };
 
@@ -358,8 +320,13 @@ export class AssistantService {
     };
     let answer = "";
     let sentProposals = 0;
+    let recoveryAttempted = false;
 
-    for (let step = 0; step < MAX_TOOL_STEPS; step += 1) {
+    for (
+      let step = 0;
+      step < MAX_TOOL_STEPS + (recoveryAttempted ? 1 : 0);
+      step += 1
+    ) {
       const pendingToolCalls: AiToolCall[] = [];
 
       for await (const chunk of this.aiService.streamChat(messages, {
@@ -373,7 +340,22 @@ export class AssistantService {
         }
       }
 
-      if (pendingToolCalls.length === 0) break;
+      if (pendingToolCalls.length === 0) {
+        if (!recoveryAttempted) {
+          const activeTools =
+            await this.pendingActions.listActiveToolNames(conversationId);
+          if (claimsUnproposedAction(answer, activeTools)) {
+            recoveryAttempted = true;
+            messages.push({ role: "assistant", content: answer });
+            messages.push({
+              role: "user",
+              content: ACTION_CLAIM_RECOVERY_PROMPT,
+            });
+            continue;
+          }
+        }
+        break;
+      }
 
       messages.push({
         role: "assistant",
@@ -454,7 +436,7 @@ export class AssistantService {
    * original.
    */
   private async runToolCalls(
-    user: User,
+    user: AssistantUser,
     conversationId: string,
     calls: AiToolCall[],
     proposals: ActionProposal[],
@@ -492,7 +474,7 @@ export class AssistantService {
   }
 
   private async runTool(
-    user: User,
+    user: AssistantUser,
     conversationId: string,
     call: AiToolCall,
     proposals: ActionProposal[],
@@ -683,19 +665,7 @@ export class AssistantService {
       title: definition.title,
       summary:
         "Pendiente: se resolverá cuando confirmes la acción de la que depende.",
-      fields: Object.entries(args)
-        .filter(
-          ([, value]) => value !== undefined && value !== null && value !== "",
-        )
-        .map(([key, value]) => ({
-          label: DEFERRED_FIELD_LABELS[key] ?? key,
-          value:
-            typeof value === "string" ||
-            typeof value === "number" ||
-            typeof value === "boolean"
-              ? String(value)
-              : JSON.stringify(value),
-        })),
+      fields: definedPreviewFields(args),
     };
   }
 

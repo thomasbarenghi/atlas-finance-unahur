@@ -3,8 +3,11 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
+import { User } from "../../users/entities/user.entity";
 
 export interface StoredConversationMessage {
   role: "user" | "assistant";
@@ -19,6 +22,10 @@ export class AiConversation {
   @Index()
   @Column({ name: "user_id", type: "uuid" })
   userId: string;
+
+  @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "user_id" })
+  user: User;
 
   @Column({ type: "text" })
   question: string;
