@@ -382,6 +382,26 @@ describe("TransactionsService", () => {
     ).resolves.toEqual(new Map());
   });
 
+  it("ignores future-dated movements when summing the current month", async () => {
+    jest.useFakeTimers({ now: new Date("2026-03-15T12:00:00.000Z") });
+    try {
+      const { service, repository } = build();
+      repository.find.mockResolvedValue([
+        { categoryId: "c1", amount: 100, date: "2026-03-10" },
+        { categoryId: "c1", amount: 70, date: "2026-03-20" },
+      ]);
+
+      const map = await service.expensesByCategoryMonth(
+        "u1",
+        ["2026-03"],
+        ["c1"],
+      );
+      expect(map.get("c1:2026-03")).toBe(100);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it("creates a transfer carrying notes", async () => {
     const { service, dataSource } = build();
     const save = jest.fn(async (entity: any) => entity);

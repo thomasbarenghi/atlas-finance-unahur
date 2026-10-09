@@ -323,6 +323,8 @@ Tablas derivadas de las entidades principales del FRD (§3.2) más las necesaria
 
 > **Renovación automática (FR-PRE-007):** un presupuesto con `recurring = true` actúa como plantilla desde su `period` en adelante. Al listar un mes, el API proyecta la plantilla vigente de cada categoría (la más reciente con `period <= mes`) salvo que exista un presupuesto explícito para ese `mes` + categoría, que la reemplaza. El `spent`/`status` proyectado se calcula con las transacciones del mes consultado. Desactivar `recurring` detiene la renovación a partir del mes de la plantilla.
 
+> **Mes actual:** para el mes en curso el `spent` solo cuenta movimientos con fecha **≤ hoy** (un gasto con fecha futura todavía no se considera gastado), de modo que el presupuesto sea consistente con los reportes del período. Los meses pasados cuentan el mes completo.
+
 ### 5.7 `assets` (FR-ACT-001..007)
 | Columna | Tipo | Notas |
 | :--- | :--- | :--- |
