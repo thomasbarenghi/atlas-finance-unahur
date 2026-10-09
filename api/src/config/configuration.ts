@@ -1,6 +1,10 @@
 export interface DatabaseConfig {
   url: string;
   ssl: boolean;
+  /** Máximo de conexiones del pool de `pg` por instancia. */
+  poolMax: number;
+  /** Tiempo máximo de espera para obtener una conexión del pool (ms). */
+  connectionTimeoutMs: number;
 }
 
 export interface JwtConfig {
@@ -16,7 +20,7 @@ export interface CookieConfig {
 }
 
 export interface CorsConfig {
-  origin: string;
+  origins: string[];
   native: string[];
 }
 
@@ -113,6 +117,8 @@ export const configuration = (): AppConfig => ({
   database: {
     url: process.env.DATABASE_URL ?? "",
     ssl: toBoolean(process.env.DB_SSL, false),
+    poolMax: toNumber(process.env.DB_POOL_MAX, 5),
+    connectionTimeoutMs: toNumber(process.env.DB_CONNECTION_TIMEOUT_MS, 15000),
   },
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET ?? "",
@@ -126,7 +132,7 @@ export const configuration = (): AppConfig => ({
       "lax") as CookieConfig["sameSite"],
   },
   cors: {
-    origin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
+    origins: toList(process.env.CORS_ORIGIN, ["http://localhost:3000"]),
     native: toList(process.env.CORS_ORIGIN_NATIVE, [
       "capacitor://localhost",
       "http://localhost",

@@ -1130,6 +1130,8 @@ PORT=3001
 # Base de datos (Supabase / Postgres)
 DATABASE_URL=postgresql://user:pass@host:5432/db
 DB_SSL=true
+DB_POOL_MAX=5                  # conexiones por instancia (chico en serverless)
+DB_CONNECTION_TIMEOUT_MS=15000 # espera máx. por una conexión libre
 
 # JWT
 JWT_ACCESS_SECRET=change-me
@@ -1142,7 +1144,7 @@ COOKIE_SECURE=false            # true en producción
 COOKIE_SAME_SITE=lax
 
 # Frontend (CORS)
-CORS_ORIGIN=http://localhost:3000
+CORS_ORIGIN=http://localhost:3000   # admite varios orígenes separados por coma
 CORS_ORIGIN_NATIVE=capacitor://localhost,http://localhost,https://localhost   # orígenes nativos de Capacitor
 
 # Mercado (proveedores gratis, sin API key ni atribución)
@@ -1193,6 +1195,13 @@ DEV_DATABASE_TOKEN=
 REQUIRE_USER_APPROVAL=false     # true: los registros quedan pendientes hasta que un admin los apruebe
 ADMIN_API_KEY=                  # clave de los endpoints /api/admin/* (header x-admin-key); vacío = deshabilitados
 ```
+
+### 12.1 Pool de conexiones (Supabase)
+
+- El driver `pg` configura el pool con `DB_POOL_MAX` (default 5) y `DB_CONNECTION_TIMEOUT_MS` (default 15000); las conexiones ociosas se liberan a los 10 s.
+- **Producción con Supabase:** el *session pooler* (puerto 5432) aplica un límite de clientes (p. ej. `pool_size: 15`). Con serverless (Vercel) cada instancia abre su propio pool; si entre todas superan el límite, las consultas nuevas fallan con `EMAXCONNSESSION ... max clients reached` → `500`. El **dashboard** es el más sensible porque ejecuta varias consultas en paralelo (`Promise.all`), mientras que endpoints chicos como `/accounts` (una consulta) suelen seguir andando.
+  - **Recomendado:** usar la cadena del **transaction pooler** de Supabase (puerto `6543`) para el `DATABASE_URL` del API y mantener `DB_POOL_MAX` chico (2–3).
+  - Alternativa mínima: bajar `DB_POOL_MAX` (p. ej. `2`) en el entorno de Vercel.
 
 ---
 
