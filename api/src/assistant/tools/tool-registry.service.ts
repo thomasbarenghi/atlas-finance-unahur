@@ -2,7 +2,7 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import { ApiException } from "../../common/errors/api.exception";
 import { ErrorCode } from "../../common/errors/error-codes";
 import type { AiTool, AiToolCall } from "../../shared/ai/ai.service";
-import { User } from "../../users/entities/user.entity";
+import { AssistantUser } from "../actions/pending-actions.service";
 import { AccountTools } from "./domains/account.tools";
 import { AssetTools } from "./domains/asset.tools";
 import { BudgetTools } from "./domains/budget.tools";
@@ -63,7 +63,7 @@ export class ToolRegistry {
    * Catálogo legible de tools disponibles agrupadas por dominio, para inyectar
    * en el prompt y dar al modelo un índice organizado del catálogo.
    */
-  catalog(user: User): string {
+  catalog(user: AssistantUser): string {
     const groups = new Map<string, ToolDefinition[]>();
     for (const definition of this.list(user)) {
       const group = definition.group ?? "General";
@@ -79,7 +79,7 @@ export class ToolRegistry {
       .join("\n");
   }
 
-  toAiTools(user: User): AiTool[] {
+  toAiTools(user: AssistantUser): AiTool[] {
     return this.list(user).map((definition) => ({
       type: "function",
       function: {
@@ -112,7 +112,7 @@ export class ToolRegistry {
     };
   }
 
-  private list(user: User): ToolDefinition[] {
+  private list(user: AssistantUser): ToolDefinition[] {
     return [...this.definitions.values()].filter(
       (definition) =>
         definition.classification !== DESTRUCTIVE ||

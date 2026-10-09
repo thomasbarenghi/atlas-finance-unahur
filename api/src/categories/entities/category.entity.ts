@@ -1,5 +1,13 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from "typeorm";
 import { CategoryType } from "../../common/types/financial-enums";
+import { User } from "../../users/entities/user.entity";
 
 @Entity("categories")
 export class Category {
@@ -9,6 +17,10 @@ export class Category {
   @Index()
   @Column({ name: "user_id", type: "uuid", nullable: true })
   userId: string | null;
+
+  @ManyToOne(() => User, { onDelete: "SET NULL", nullable: true })
+  @JoinColumn({ name: "user_id" })
+  user: User | null;
 
   @Column({ type: "text" })
   name: string;

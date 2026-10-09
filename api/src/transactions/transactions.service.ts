@@ -1,12 +1,10 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { randomUUID } from "crypto";
-import { DataSource, Repository } from "typeorm";
-import { Account } from "../accounts/entities/account.entity";
+import { DataSource, In, Repository } from "typeorm";
 import { Paginated } from "../common/dto/pagination.dto";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
-import { Category } from "../categories/entities/category.entity";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
 import { QueryTransactionsDto } from "./dto/query-transactions.dto";
 import {
@@ -21,10 +19,6 @@ export class TransactionsService {
   constructor(
     @InjectRepository(Transaction)
     private readonly transactionsRepository: Repository<Transaction>,
-    @InjectRepository(Account)
-    private readonly accountsRepository: Repository<Account>,
-    @InjectRepository(Category)
-    private readonly categoriesRepository: Repository<Category>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -83,6 +77,33 @@ export class TransactionsService {
     };
   }
 
+  async listOwnedTransactions(userId: string): Promise<Transaction[]> {
+    return this.transactionsRepository.find({ where: { userId } });
+  }
+
+  async expensesByCategoryMonth(
+    userId: string,
+    months: string[],
+    categoryIds: string[],
+  ): Promise<Map<string, number>> {
+    const result = new Map<string, number>();
+    if (months.length === 0 || categoryIds.length === 0) return result;
+
+    const transactions = await this.transactionsRepository.find({
+      where: { userId, type: "expense", categoryId: In(categoryIds) },
+      select: ["categoryId", "amount", "date"],
+    });
+    const monthSet = new Set(months);
+    for (const transaction of transactions) {
+      if (!transaction.categoryId) continue;
+      const month = transaction.date.slice(0, 7);
+      if (!monthSet.has(month)) continue;
+      const key = `${transaction.categoryId}:${month}`;
+      result.set(key, (result.get(key) ?? 0) + transaction.amount);
+    }
+    return result;
+  }
+
   async getTransaction(
     userId: string,
     id: string,
@@ -94,15 +115,17 @@ export class TransactionsService {
     userId: string,
     dto: CreateTransactionDto,
   ): Promise<TransactionResponseDto> {
-    const account = await this.assertAccountUsable(userId, dto.accountId);
-    this.assertCurrencyMatches(account, dto.currency);
-
     if (dto.type === "transfer") {
       return this.createTransfer(userId, dto);
     }
 
-    if (dto.categoryId) {
-      await this.assertCategoryUsable(userId, dto.categoryId);
+    if (!dto.categoryId) {
+      throw new ApiException(
+        ErrorCode.VALIDATION_ERROR,
+        HttpStatus.BAD_REQUEST,
+        "Elegí una categoría",
+        { categoryId: ["La categoría es obligatoria para ingresos y gastos"] },
+      );
     }
 
     const transaction = this.transactionsRepository.create({
@@ -134,24 +157,17 @@ export class TransactionsService {
       return this.updateTransfer(userId, transaction, dto);
     }
 
-    if (dto.accountId) {
-      const account = await this.assertAccountUsable(userId, dto.accountId);
-      this.assertCurrencyMatches(account, dto.currency ?? transaction.currency);
-      transaction.accountId = dto.accountId;
-    } else if (dto.currency !== undefined) {
-      const account = await this.assertAccountUsable(
-        userId,
-        transaction.accountId,
-      );
-      this.assertCurrencyMatches(account, dto.currency);
-    }
-    if (dto.categoryId !== undefined) {
-      if (dto.categoryId) {
-        await this.assertCategoryUsable(userId, dto.categoryId);
-      }
-      transaction.categoryId = dto.categoryId;
-    }
+    if (dto.accountId) transaction.accountId = dto.accountId;
+    if (dto.categoryId !== undefined) transaction.categoryId = dto.categoryId;
     if (dto.type !== undefined) transaction.type = dto.type;
+    if (transaction.type !== "transfer" && !transaction.categoryId) {
+      throw new ApiException(
+        ErrorCode.VALIDATION_ERROR,
+        HttpStatus.BAD_REQUEST,
+        "Elegí una categoría",
+        { categoryId: ["La categoría es obligatoria para ingresos y gastos"] },
+      );
+    }
     if (dto.amount !== undefined) transaction.amount = Math.abs(dto.amount);
     if (dto.currency !== undefined)
       transaction.currency = dto.currency.toUpperCase();
@@ -197,11 +213,6 @@ export class TransactionsService {
         { transferAccountId: ["Debe ser distinta de la cuenta origen"] },
       );
     }
-    const destinationAccount = await this.assertAccountUsable(
-      userId,
-      dto.transferAccountId,
-    );
-    this.assertCurrencyMatches(destinationAccount, dto.currency);
 
     const transferGroupId = randomUUID();
     const amount = Math.abs(dto.amount);
@@ -263,13 +274,6 @@ export class TransactionsService {
         { transferAccountId: ["Debe ser distinta de la cuenta origen"] },
       );
     }
-    const currency = (dto.currency ?? outbound.currency).toUpperCase();
-    const [originAccount, destinationAccount] = await Promise.all([
-      this.assertAccountUsable(userId, origin),
-      this.assertAccountUsable(userId, destination),
-    ]);
-    this.assertCurrencyMatches(originAccount, currency);
-    this.assertCurrencyMatches(destinationAccount, currency);
 
     const amount =
       dto.amount !== undefined
@@ -315,57 +319,5 @@ export class TransactionsService {
       );
     }
     return transaction;
-  }
-
-  private async assertAccountUsable(
-    userId: string,
-    accountId: string,
-  ): Promise<Account> {
-    const account = await this.accountsRepository.findOneBy({
-      id: accountId,
-      userId,
-    });
-    if (!account) {
-      throw new ApiException(
-        ErrorCode.NOT_FOUND,
-        HttpStatus.NOT_FOUND,
-        "La cuenta no existe",
-      );
-    }
-    if (account.archived) {
-      throw new ApiException(
-        ErrorCode.ACCOUNT_ARCHIVED,
-        HttpStatus.CONFLICT,
-        "La cuenta está archivada",
-      );
-    }
-    return account;
-  }
-
-  private assertCurrencyMatches(account: Account, currency: string): void {
-    if (account.currency.toUpperCase() !== currency.toUpperCase()) {
-      throw new ApiException(
-        ErrorCode.VALIDATION_ERROR,
-        HttpStatus.BAD_REQUEST,
-        "La moneda del movimiento debe coincidir con la de la cuenta",
-        { currency: ["Debe coincidir con la moneda de la cuenta"] },
-      );
-    }
-  }
-
-  private async assertCategoryUsable(
-    userId: string,
-    categoryId: string,
-  ): Promise<void> {
-    const category = await this.categoriesRepository.findOneBy({
-      id: categoryId,
-    });
-    if (!category || (category.userId !== userId && category.userId !== null)) {
-      throw new ApiException(
-        ErrorCode.NOT_FOUND,
-        HttpStatus.NOT_FOUND,
-        "La categoría no existe",
-      );
-    }
   }
 }

@@ -2,9 +2,13 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { User } from "../../users/entities/user.entity";
 import type {
   ActionClass,
   ActionPreview,
@@ -16,8 +20,13 @@ export class AssistantAction {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
+  @Index()
   @Column({ name: "user_id", type: "uuid" })
   userId: string;
+
+  @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "user_id" })
+  user: User;
 
   @Column({ name: "conversation_id", type: "uuid", nullable: true })
   conversationId: string | null;

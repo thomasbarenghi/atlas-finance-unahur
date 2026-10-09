@@ -4,11 +4,12 @@ import {
   DEBT_TYPE_VALUES,
 } from "../../../debts/dto/create-debt.dto";
 import { UpdateDebtDto } from "../../../debts/dto/update-debt.dto";
-import { DebtsService } from "../../../debts/debts.service";
+import { DebtsOrchestrator } from "../../../debts/debts.orchestrator";
 import { ApiException } from "../../../common/errors/api.exception";
 import { ErrorCode } from "../../../common/errors/error-codes";
 import { UsersService } from "../../../users/users.service";
 import { ReferenceResolver } from "../reference-resolver.service";
+import { definedPreviewFields } from "../preview";
 import { jsonSchema, optionalString, validateToolArgs } from "../tool-input";
 import type {
   AssistantActionEntity,
@@ -41,7 +42,7 @@ const isUnlink = (value: unknown): boolean => {
 @Injectable()
 export class DebtTools {
   constructor(
-    private readonly debts: DebtsService,
+    private readonly debts: DebtsOrchestrator,
     private readonly users: UsersService,
     private readonly resolver: ReferenceResolver,
   ) {}
@@ -161,10 +162,7 @@ export class DebtTools {
               summary: "Se actualizarán los datos de la deuda.",
               fields: [
                 { label: "Deuda", value: await this.label(userId, id) },
-                ...Object.entries(dto).map(([key, value]) => ({
-                  label: key,
-                  value: String(value),
-                })),
+                ...definedPreviewFields(dto),
               ],
             },
           };

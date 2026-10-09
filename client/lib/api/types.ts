@@ -171,6 +171,7 @@ export interface Position {
   quoteDate: string | null;
   quoteProvider: string | null;
   isStale: boolean;
+  archived: boolean;
 }
 
 export interface Quote {
@@ -187,6 +188,7 @@ export type NetWorthCompositionKind =
   "property" | "vehicle" | "asset" | "investment" | "cash" | "account";
 
 export interface DashboardInvestmentPosition {
+  id: string;
   symbol: string;
   instrument: string;
   quantity: number;
@@ -198,6 +200,7 @@ export interface DashboardInvestmentPosition {
   profitLossPct: number | null;
   isStale: boolean;
   quoteDate: string | null;
+  quoteProvider: string | null;
 }
 
 export interface DashboardData {
@@ -390,7 +393,7 @@ export interface CreateAccountInput {
   name: string;
   type: AccountType;
   currency: string;
-  initialBalance: number;
+  initialBalance?: number;
   notes?: string | null;
 }
 

@@ -3,11 +3,15 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { Asset } from "../../assets/entities/asset.entity";
 import { DebtType } from "../../common/types/financial-enums";
 import { numericTransformer } from "../../common/transformers/numeric.transformer";
+import { User } from "../../users/entities/user.entity";
 
 @Entity("debts")
 export class Debt {
@@ -17,6 +21,10 @@ export class Debt {
   @Index()
   @Column({ name: "user_id", type: "uuid" })
   userId: string;
+
+  @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "user_id" })
+  user: User;
 
   @Column({ type: "text" })
   name: string;
@@ -43,6 +51,10 @@ export class Debt {
 
   @Column({ name: "asset_id", type: "uuid", nullable: true })
   assetId: string | null;
+
+  @ManyToOne(() => Asset, { onDelete: "SET NULL", nullable: true })
+  @JoinColumn({ name: "asset_id" })
+  asset: Asset | null;
 
   @CreateDateColumn({ name: "created_at", type: "timestamptz" })
   createdAt: Date;

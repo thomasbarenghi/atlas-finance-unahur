@@ -1,7 +1,7 @@
 import type { Theme } from "../../common/types/financial-enums";
 import { User } from "../entities/user.entity";
 
-export interface UserResponseDto {
+export class UserResponseDto {
   id: string;
   name: string;
   email: string;

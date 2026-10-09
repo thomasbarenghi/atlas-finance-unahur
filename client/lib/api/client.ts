@@ -1,3 +1,10 @@
+import {
+  clearTokens,
+  ensureTokensLoaded,
+  getAccessToken,
+  getRefreshToken,
+  setTokens,
+} from "./token-store";
 import type { ApiError as ApiErrorShape } from "./types";
 
 export class ApiError extends Error {
@@ -23,6 +30,12 @@ export class UnauthorizedError extends ApiError {
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 
+export const authHeaders = async (): Promise<Record<string, string>> => {
+  await ensureTokensLoaded();
+  const token = getAccessToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 export interface ApiFetchOptions {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
@@ -35,43 +48,72 @@ const NO_REFRESH_PATHS = ["/auth/login", "/auth/register"];
 
 let refreshPromise: Promise<boolean> | null = null;
 
-export const refreshAuthSession = async (): Promise<boolean> => {
-  if (!refreshPromise) {
-    refreshPromise = fetch(`${API_BASE_URL}/auth/refresh`, {
+const performRefresh = async (): Promise<boolean> => {
+  await ensureTokensLoaded();
+  const refreshToken = getRefreshToken();
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: "{}",
-    })
-      .then((response) => response.ok)
-      .catch(() => false)
-      .finally(() => {
-        refreshPromise = null;
+      body: JSON.stringify(refreshToken ? { refreshToken } : {}),
+    });
+    if (!response.ok) {
+      if (refreshToken) clearTokens();
+      return false;
+    }
+    const tokens = (await response.json().catch(() => null)) as {
+      accessToken?: string;
+      refreshToken?: string;
+    } | null;
+    if (tokens?.accessToken && tokens.refreshToken) {
+      setTokens({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
       });
+    }
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const refreshAuthSession = (): Promise<boolean> => {
+  if (!refreshPromise) {
+    refreshPromise = performRefresh().finally(() => {
+      refreshPromise = null;
+    });
   }
   return refreshPromise;
 };
 
-const request = (path: string, options: ApiFetchOptions): Promise<Response> => {
+const request = async (
+  path: string,
+  options: ApiFetchOptions,
+): Promise<Response> => {
   const { method = "GET", body, signal, headers } = options;
   const isFormData =
     typeof FormData !== "undefined" && body instanceof FormData;
+  const auth = await authHeaders();
   return fetch(`${API_BASE_URL}${path}`, {
     method,
     credentials: "include",
     headers: isFormData
-      ? headers
-      : { "Content-Type": "application/json", ...headers },
+      ? { ...auth, ...headers }
+      : { "Content-Type": "application/json", ...auth, ...headers },
     body:
       body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
     signal,
   });
 };
 
+const readErrorPayload = async (
+  response: Response,
+): Promise<ApiErrorShape | null> =>
+  (await response.json().catch(() => null)) as ApiErrorShape | null;
+
 const toApiError = async (response: Response): Promise<ApiError> => {
-  const payload = (await response
-    .json()
-    .catch(() => null)) as ApiErrorShape | null;
+  const payload = await readErrorPayload(response);
   return new ApiError(
     payload ?? {
       statusCode: response.status,
@@ -108,6 +150,12 @@ export const apiFetch = async <T>(
   }
 
   if (response.status === 401) {
+    // Preserve specific server errors (e.g. INVALID_CREDENTIALS on login) while
+    // keeping the generic session message for plain unauthenticated responses.
+    const payload = await readErrorPayload(response);
+    if (payload && payload.code !== "UNAUTHENTICATED") {
+      throw new ApiError(payload);
+    }
     throw new UnauthorizedError();
   }
 

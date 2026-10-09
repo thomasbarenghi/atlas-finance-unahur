@@ -11,6 +11,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { AssistantThread } from "@/hooks/use-assistant-chat";
+import { formatDateTime } from "@/lib/format";
+import { useConversations, useDeleteConversation } from "@/lib/query/assistant";
 import { cn } from "@/lib/utils";
 
 export interface AssistantHistorySheetProps {
@@ -41,6 +43,9 @@ export const AssistantHistorySheet = ({
   const sorted = [...threads].sort(
     (first, second) => second.updatedAt - first.updatedAt,
   );
+  const serverQuery = useConversations();
+  const deleteConversation = useDeleteConversation();
+  const serverConversations = serverQuery.data?.items ?? [];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -69,7 +74,7 @@ export const AssistantHistorySheet = ({
               Todavía no hay conversaciones guardadas.
             </p>
           ) : (
-            <ScrollArea className="max-h-[60dvh]">
+            <ScrollArea className="max-h-[40dvh]">
               <ul className="flex flex-col gap-1 pr-2">
                 {sorted.map((thread) => (
                   <li key={thread.id} className="flex items-center gap-1">
@@ -104,6 +109,50 @@ export const AssistantHistorySheet = ({
               </ul>
             </ScrollArea>
           )}
+
+          <div className="border-t pt-3">
+            <h3 className="text-muted-foreground mb-2 text-xs font-medium">
+              Guardadas en el servidor
+            </h3>
+            {serverQuery.isLoading ? (
+              <p className="text-muted-foreground text-sm">Cargando…</p>
+            ) : serverConversations.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                Sin conversaciones en el servidor.
+              </p>
+            ) : (
+              <ScrollArea className="max-h-[30dvh]">
+                <ul className="flex flex-col gap-1 pr-2">
+                  {serverConversations.map((conversation) => (
+                    <li
+                      key={conversation.id}
+                      className="flex items-center gap-1"
+                    >
+                      <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 px-3 py-2 text-left">
+                        <span className="w-full truncate text-sm font-medium">
+                          {conversation.question}
+                        </span>
+                        <span className="text-muted-foreground text-xs">
+                          {formatDateTime(conversation.createdAt)}
+                        </span>
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Eliminar conversación del servidor"
+                        disabled={deleteConversation.isPending}
+                        onClick={() =>
+                          deleteConversation.mutate(conversation.id)
+                        }
+                      >
+                        <Trash2 />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            )}
+          </div>
         </div>
       </SheetContent>
     </Sheet>

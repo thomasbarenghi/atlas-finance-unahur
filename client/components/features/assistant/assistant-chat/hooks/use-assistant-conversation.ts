@@ -75,6 +75,7 @@ export const useAssistantConversation = () => {
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const audioUrlsRef = useRef<Set<string>>(new Set());
+  const abortRef = useRef<AbortController | null>(null);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
 
@@ -88,10 +89,14 @@ export const useAssistantConversation = () => {
 
   const failAssistant = useCallback(
     (assistantId: string, error: unknown) => {
-      const message = getErrorMessage(
-        error,
-        "El asistente no está disponible en este momento",
-      );
+      // Un fallo de red (fetch lanza TypeError) no debe exponer "Failed to fetch".
+      const message =
+        error instanceof TypeError
+          ? "El asistente no está disponible en este momento"
+          : getErrorMessage(
+              error,
+              "El asistente no está disponible en este momento",
+            );
       updateMessage(assistantId, { content: message });
       toast.error(message);
     },
@@ -101,6 +106,8 @@ export const useAssistantConversation = () => {
   const streamInto = useCallback(
     async (assistantId: string, question: string) => {
       setIsStreaming(true);
+      const controller = new AbortController();
+      abortRef.current = controller;
       let received = "";
       const actions: AssistantActionItem[] = [];
       try {
@@ -133,10 +140,20 @@ export const useAssistantConversation = () => {
               toast.error(message);
             },
           },
+          { signal: controller.signal },
         );
       } catch (error) {
-        failAssistant(assistantId, error);
+        if ((error as { name?: string })?.name === "AbortError") {
+          updateMessage(assistantId, {
+            content: received
+              ? `${received}\n\n(Respuesta detenida)`
+              : "Respuesta detenida.",
+          });
+        } else {
+          failAssistant(assistantId, error);
+        }
       } finally {
+        abortRef.current = null;
         setIsStreaming(false);
         requestAnimationFrame(scrollToBottom);
       }
@@ -169,6 +186,10 @@ export const useAssistantConversation = () => {
     },
     [isBusy, appendMessage, streamInto],
   );
+
+  const cancelStream = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
 
   const invalidateForAction = useCallback(() => {
     const keys: readonly (readonly unknown[])[] = [
@@ -318,6 +339,7 @@ export const useAssistantConversation = () => {
     setInput,
     isBusy,
     submit,
+    cancelStream,
     confirmAction,
     cancelAction,
     isActionLocked,

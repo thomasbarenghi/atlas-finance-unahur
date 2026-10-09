@@ -1,5 +1,13 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from "typeorm";
 import { numericTransformer } from "../../common/transformers/numeric.transformer";
+import { User } from "../../users/entities/user.entity";
 
 @Entity("positions")
 export class Position {
@@ -9,6 +17,10 @@ export class Position {
   @Index()
   @Column({ name: "user_id", type: "uuid" })
   userId: string;
+
+  @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "user_id" })
+  user: User;
 
   @Column({ type: "text" })
   symbol: string;

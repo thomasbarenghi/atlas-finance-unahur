@@ -14,13 +14,21 @@ import { groupSmallCategories } from "./category-donut.utils";
 export interface CategoryDonutProps {
   data: { categoryId: string; name: string; color: string; value: number }[];
   currency: string;
+  valueLabel?: string;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }
 
-const config = {
-  value: { label: "Gasto" },
-} satisfies ChartConfig;
-
-export const CategoryDonut = ({ data, currency }: CategoryDonutProps) => {
+export const CategoryDonut = ({
+  data,
+  currency,
+  valueLabel = "Gasto",
+  emptyTitle = "Sin gastos en el período",
+  emptyDescription = "Cuando registres gastos por categoría vas a ver su distribución.",
+}: CategoryDonutProps) => {
+  const config = {
+    value: { label: valueLabel },
+  } satisfies ChartConfig;
   const chartData = groupSmallCategories(data);
   const total = chartData.reduce((sum, item) => sum + item.value, 0);
 
@@ -28,8 +36,8 @@ export const CategoryDonut = ({ data, currency }: CategoryDonutProps) => {
     return (
       <EmptyState
         icon={PieChartIcon}
-        title="Sin gastos en el período"
-        description="Cuando registres gastos por categoría vas a ver su distribución."
+        title={emptyTitle}
+        description={emptyDescription}
       />
     );
   }
@@ -40,7 +48,7 @@ export const CategoryDonut = ({ data, currency }: CategoryDonutProps) => {
         <PieChart
           accessibilityLayer
           role="img"
-          aria-label="Gastos por categoría"
+          aria-label={`${valueLabel}s por categoría`}
         >
           <ChartTooltip
             content={
@@ -86,7 +94,7 @@ export const CategoryDonut = ({ data, currency }: CategoryDonutProps) => {
         ))}
       </ul>
       <ChartDataTable
-        caption="Gastos por categoría"
+        caption={`${valueLabel}s por categoría`}
         headers={["Categoría", "Monto"]}
         rows={chartData.map((item) => ({
           key: item.categoryId,

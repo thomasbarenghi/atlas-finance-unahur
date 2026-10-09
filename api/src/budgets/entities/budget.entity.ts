@@ -3,11 +3,15 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   Unique,
   UpdateDateColumn,
 } from "typeorm";
+import { Category } from "../../categories/entities/category.entity";
 import { numericTransformer } from "../../common/transformers/numeric.transformer";
+import { User } from "../../users/entities/user.entity";
 
 @Entity("budgets")
 @Unique(["userId", "categoryId", "period"])
@@ -19,8 +23,16 @@ export class Budget {
   @Column({ name: "user_id", type: "uuid" })
   userId: string;
 
+  @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "user_id" })
+  user: User;
+
   @Column({ name: "category_id", type: "uuid" })
   categoryId: string;
+
+  @ManyToOne(() => Category, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "category_id" })
+  category: Category;
 
   @Column({ type: "date" })
   period: string;

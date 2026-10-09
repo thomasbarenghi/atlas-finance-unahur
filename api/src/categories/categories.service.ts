@@ -96,6 +96,14 @@ export class CategoriesService {
         "La categoría no existe",
       );
     }
+    if (category.archived) {
+      throw new ApiException(
+        ErrorCode.CATEGORY_ARCHIVED,
+        HttpStatus.CONFLICT,
+        "La categoría está archivada",
+        { categoryId: ["La categoría está archivada"] },
+      );
+    }
     return toCategoryResponse(category);
   }
 }

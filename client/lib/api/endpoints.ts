@@ -230,6 +230,14 @@ export const positionEndpoints = {
       : patch<Position>(`/positions/${id}`, input),
   remove: (id: string): Promise<void> =>
     USE_MOCKS ? mockApi.deletePosition(id) : del<void>(`/positions/${id}`),
+  archive: (id: string): Promise<Position> =>
+    USE_MOCKS
+      ? mockApi.archivePosition(id)
+      : post<Position>(`/positions/${id}/archive`),
+  restore: (id: string): Promise<Position> =>
+    USE_MOCKS
+      ? mockApi.restorePosition(id)
+      : post<Position>(`/positions/${id}/restore`),
 };
 
 export const quoteEndpoints = {
@@ -249,14 +257,18 @@ export const dashboardEndpoints = {
 };
 
 export const assistantEndpoints = {
-  conversations: (): Promise<Conversation[]> =>
+  conversations: (): Promise<Paginated<Conversation>> =>
     USE_MOCKS
       ? mockApi.listConversations()
-      : get<Conversation[]>("/assistant/conversations"),
+      : get<Paginated<Conversation>>("/assistant/conversations"),
   clearConversations: (): Promise<void> =>
     USE_MOCKS
       ? mockApi.deleteConversations()
       : del<void>("/assistant/conversations"),
+  deleteConversation: (id: string): Promise<void> =>
+    USE_MOCKS
+      ? mockApi.deleteConversation(id)
+      : del<void>(`/assistant/conversations/${id}`),
   confirmAction: (
     actionId: string,
     token: string,

@@ -3,8 +3,11 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
+import { User } from "../../users/entities/user.entity";
 
 @Entity("sessions")
 export class Session {
@@ -14,6 +17,10 @@ export class Session {
   @Index()
   @Column({ name: "user_id", type: "uuid" })
   userId: string;
+
+  @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "user_id" })
+  user: User;
 
   @Column({ name: "refresh_token_hash", type: "text" })
   refreshTokenHash: string;

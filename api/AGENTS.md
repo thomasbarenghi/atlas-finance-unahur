@@ -6,13 +6,13 @@ Guidance for AI agents working in `api/`. Read this first, then load the relevan
 
 Atlass Fin backend: a **NestJS monolith** exposing a REST API for the web/native client in `../client/`. It owns all business logic, persistence, auth, and the market/AI/mail integrations. It organizes and explains user-entered data; it does **not** connect to banks, move money, or give financial advice.
 
-**Stack:** NestJS (modular monolith) · TypeScript strict · PostgreSQL (Supabase) · TypeORM (entities + migrations) · JWT (HttpOnly cookie + Bearer) · class-validator · argon2 · @nestjs/schedule · @nestjs/throttler · @nestjs/swagger · @nestjs/config.
+**Stack:** NestJS (modular monolith) · TypeScript strict · PostgreSQL (Supabase) · TypeORM (entities as schema source, no migrations) · JWT (HttpOnly cookie + Bearer) · class-validator · argon2 · @nestjs/schedule · @nestjs/throttler · @nestjs/swagger (OpenAPI) · @scalar/nestjs-api-reference (UI) · @nestjs/config.
 
 ## Source of truth (READMEs / docs)
 
-- `../docs/backend.md` — architecture, data model, auth, **REST contract** (DTOs, enums, errors §7.13–§7.18), calculations, integrations, security, seed, env, batches plan.
-- `../docs/frontend.md` — the consumer; useful to keep contracts aligned.
-- `../docs/FRD_Gestor_Financiero_v0.1.docx.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
+- `../docs/architecture/backend.md` — architecture, data model, auth, **REST contract** (DTOs, enums, errors §7.13–§7.18), calculations, integrations, security, seed, env, batches plan.
+- `../docs/architecture/frontend.md` — the consumer; useful to keep contracts aligned.
+- `../docs/specification/FRD_Gestor_Financiero_v0.2.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
 
 ## Skills (load before coding)
 
@@ -29,10 +29,14 @@ npm run lint
 npm run typecheck
 npm run test               # unit + integration (Jest)
 npm run test:e2e           # Supertest
-npm run migration:run      # TypeORM migrations
-npm run migration:generate -- src/database/migrations/<Name>
+npm run db:reset           # drop/recreate schema from entities + seed
+npm run db:clear           # empty all tables (keeps schema)
 npm run seed               # idempotent demo data
 ```
+
+There are **no migrations**. The schema is derived from the entities
+(`synchronize: true`); when the model changes, recreate the database and re-run
+the seed — never migrate data. See `../docs/architecture/backend.md` §11.
 
 Run `lint`, `typecheck`, `test`, and `build` before considering a task done. CI runs all four.
 
@@ -48,7 +52,7 @@ Run `lint`, `typecheck`, `test`, and `build` before considering a task done. CI 
 8. **Stable error codes** from `backend.md` §7.17; no internal details leaked (NFR-SEG-010).
 9. **Secrets only in env**; never log passwords, tokens, full prompts, or sensitive financial data (NFR-SEG-007/008).
 10. **Named exports** (NestJS convention); no `export default`.
-11. **No real financial data** in the seed; demo user `demo@atlassfin.app` / `Demo1234!`.
+11. **No real financial data** in the seed; demo users share `Demo1234!` (`demo@atlassfin.app` full dataset, `sin-datos@atlassfin.app` empty, `ana@atlassfin.app` second user in USD). Deterministic and reproducible — see `../docs/architecture/backend.md` §11.
 12. **Orchestrate across domains.** A primary service never calls another service; coordination belongs to an orchestrator (see the `orchestrator-domain-architecture` skill).
 
 ## Layout
@@ -59,7 +63,7 @@ api/
 ├── src/
 │   ├── main.ts / app.module.ts
 │   ├── config/          # env loading + validation
-│   ├── database/        # datasource + migrations
+│   ├── database/        # datasource, maintenance/dev endpoints + seeds
 │   ├── common/          # guards, decorators, filters, interceptors, dto
 │   ├── <feature>/       # auth, users, accounts, transactions, categories,
 │   │                    # budgets, assets, debts, positions, quotes, goals,

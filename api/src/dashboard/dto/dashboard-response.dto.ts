@@ -3,7 +3,8 @@ import { AssetType, BudgetStatus } from "../../common/types/financial-enums";
 export type NetWorthCompositionKind =
   "property" | "vehicle" | "asset" | "investment" | "cash" | "account";
 
-export interface DashboardInvestmentPosition {
+export class DashboardInvestmentPosition {
+  id: string;
   symbol: string;
   instrument: string;
   quantity: number;
@@ -15,9 +16,19 @@ export interface DashboardInvestmentPosition {
   profitLossPct: number | null;
   isStale: boolean;
   quoteDate: string | null;
+  quoteProvider: string | null;
 }
 
-export interface DashboardData {
+export class DashboardInvestments {
+  totalValue: number;
+  totalCost: number;
+  profitLoss: number;
+  profitLossPct: number;
+  staleQuotes: number;
+  positions: DashboardInvestmentPosition[];
+}
+
+export class DashboardData {
   period: { from: string; to: string };
   currency: string;
   kpis: {
@@ -74,14 +85,7 @@ export interface DashboardData {
     expenses: { name: string; color: string; value: number }[];
     savings: number;
   };
-  investments: {
-    totalValue: number;
-    totalCost: number;
-    profitLoss: number;
-    profitLossPct: number;
-    staleQuotes: number;
-    positions: DashboardInvestmentPosition[];
-  };
+  investments: DashboardInvestments;
   budgetAlerts: {
     budgetId: string;
     categoryName: string;

@@ -1,39 +1,34 @@
 import { Module } from "@nestjs/common";
-import { TypeOrmModule } from "@nestjs/typeorm";
-import { Account } from "../accounts/entities/account.entity";
-import { Asset } from "../assets/entities/asset.entity";
-import { Valuation } from "../assets/entities/valuation.entity";
+import { AccountsModule } from "../accounts/accounts.module";
+import { AssetsModule } from "../assets/assets.module";
 import { BudgetsModule } from "../budgets/budgets.module";
-import { Category } from "../categories/entities/category.entity";
-import { Debt } from "../debts/entities/debt.entity";
+import { CategoriesModule } from "../categories/categories.module";
+import { DebtsModule } from "../debts/debts.module";
 import { FxModule } from "../fx/fx.module";
-import { Position } from "../positions/entities/position.entity";
-import { Quote } from "../quotes/entities/quote.entity";
+import { PositionsModule } from "../positions/positions.module";
+import { QuotesModule } from "../quotes/quotes.module";
 import { CalculationsModule } from "../shared/calculations/calculations.module";
-import { Transaction } from "../transactions/entities/transaction.entity";
-import { User } from "../users/entities/user.entity";
+import { TransactionsModule } from "../transactions/transactions.module";
+import { UsersModule } from "../users/users.module";
 import { DashboardController } from "./dashboard.controller";
-import { DashboardService } from "./dashboard.service";
+import { DashboardOrchestrator } from "./dashboard.orchestrator";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      User,
-      Account,
-      Transaction,
-      Category,
-      Asset,
-      Valuation,
-      Debt,
-      Position,
-      Quote,
-    ]),
     CalculationsModule,
     FxModule,
+    UsersModule,
+    AccountsModule,
+    TransactionsModule,
+    CategoriesModule,
+    AssetsModule,
+    DebtsModule,
+    PositionsModule,
+    QuotesModule,
     BudgetsModule,
   ],
   controllers: [DashboardController],
-  providers: [DashboardService],
-  exports: [DashboardService],
+  providers: [DashboardOrchestrator],
+  exports: [DashboardOrchestrator],
 })
 export class DashboardModule {}

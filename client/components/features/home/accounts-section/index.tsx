@@ -59,7 +59,15 @@ export const AccountsSection = () => {
             </Button>
           }
         />
-        <AccountsList accounts={accounts} isLoading={accountsQuery.isLoading} />
+        <AccountsList
+          accounts={accounts}
+          isLoading={accountsQuery.isLoading}
+          emptyAction={
+            <Button size="sm" onClick={() => setPickerOpen(true)}>
+              <Plus /> Cargar una cuenta
+            </Button>
+          }
+        />
       </section>
 
       <section className="flex flex-col gap-3">
@@ -81,6 +89,11 @@ export const AccountsSection = () => {
           goals={goals}
           sourceNameById={sourceNameById}
           isLoading={goalsQuery.isLoading}
+          emptyAction={
+            <Button size="sm" onClick={openGoalForm}>
+              <Plus /> Crear una meta
+            </Button>
+          }
         />
       </section>
 

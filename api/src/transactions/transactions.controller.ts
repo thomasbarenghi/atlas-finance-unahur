@@ -9,23 +9,38 @@ import {
   Post,
   Query,
 } from "@nestjs/common";
-import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
+import { ApiErrors } from "../common/decorators/api-errors.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { Paginated } from "../common/dto/pagination.dto";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
 import { QueryTransactionsDto } from "./dto/query-transactions.dto";
-import { TransactionResponseDto } from "./dto/transaction-response.dto";
+import {
+  PaginatedTransactionsDto,
+  TransactionResponseDto,
+} from "./dto/transaction-response.dto";
 import { UpdateTransactionDto } from "./dto/update-transaction.dto";
+import { TransactionsOrchestrator } from "./transactions.orchestrator";
 import { TransactionsService } from "./transactions.service";
 
 @ApiTags("transactions")
+@ApiBearerAuth()
+@ApiErrors(400, 401, 404, 409)
 @Controller("transactions")
 export class TransactionsController {
-  constructor(private readonly transactionsService: TransactionsService) {}
+  constructor(
+    private readonly transactionsService: TransactionsService,
+    private readonly transactionsOrchestrator: TransactionsOrchestrator,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: "Lista movimientos con filtros y búsqueda" })
-  @ApiOkResponse({ description: "Paginated<TransactionResponseDto>" })
+  @ApiOkResponse({ type: PaginatedTransactionsDto })
   list(
     @CurrentUser("id") userId: string,
     @Query() filters: QueryTransactionsDto,
@@ -35,17 +50,17 @@ export class TransactionsController {
 
   @Post()
   @ApiOperation({ summary: "Crea un ingreso, gasto o transferencia" })
-  @ApiOkResponse({ description: "TransactionResponseDto" })
+  @ApiOkResponse({ type: TransactionResponseDto })
   create(
     @CurrentUser("id") userId: string,
     @Body() dto: CreateTransactionDto,
   ): Promise<TransactionResponseDto> {
-    return this.transactionsService.createTransaction(userId, dto);
+    return this.transactionsOrchestrator.createTransaction(userId, dto);
   }
 
   @Get(":id")
   @ApiOperation({ summary: "Obtiene un movimiento" })
-  @ApiOkResponse({ description: "TransactionResponseDto" })
+  @ApiOkResponse({ type: TransactionResponseDto })
   get(
     @CurrentUser("id") userId: string,
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -55,19 +70,20 @@ export class TransactionsController {
 
   @Patch(":id")
   @ApiOperation({ summary: "Edita un movimiento" })
-  @ApiOkResponse({ description: "TransactionResponseDto" })
+  @ApiOkResponse({ type: TransactionResponseDto })
   update(
     @CurrentUser("id") userId: string,
     @Param("id", new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateTransactionDto,
   ): Promise<TransactionResponseDto> {
-    return this.transactionsService.updateTransaction(userId, id, dto);
+    return this.transactionsOrchestrator.updateTransaction(userId, id, dto);
   }
 
   @Delete(":id")
   @ApiOperation({
     summary: "Elimina un movimiento (y su par si es transferencia)",
   })
+  @ApiOkResponse({ description: "Movimiento eliminado" })
   remove(
     @CurrentUser("id") userId: string,
     @Param("id", new ParseUUIDPipe()) id: string,

@@ -7,4 +7,7 @@ export interface MoneyInputProps {
   prefix?: string;
   className?: string;
   inputClassName?: string;
+  id?: string;
+  "aria-describedby"?: string;
+  "aria-invalid"?: boolean;
 }

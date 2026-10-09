@@ -5,6 +5,7 @@ node_modules/
 dist/
 out/
 build/
+_build/
 coverage/
 
 # Husky internals (auto-generated)
@@ -29,3 +30,6 @@ yarn-error.log*
 # Agent-local scratch: ignore everything except the placeholder
 agent-local/*
 !agent-local/.gitkeep
+
+# Playwright MCP test artifacts
+.playwright-mcp/

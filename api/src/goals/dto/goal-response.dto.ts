@@ -1,6 +1,6 @@
 import type { GoalStatus } from "../../common/types/financial-enums";
 
-export interface GoalResponseDto {
+export class GoalResponseDto {
   id: string;
   name: string;
   targetAmount: number;

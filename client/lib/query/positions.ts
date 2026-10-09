@@ -40,3 +40,19 @@ export const useDeletePosition = () => {
     onSuccess: () => invalidatePositionViews(queryClient),
   });
 };
+
+export const useArchivePosition = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => positionEndpoints.archive(id),
+    onSuccess: () => invalidatePositionViews(queryClient),
+  });
+};
+
+export const useRestorePosition = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => positionEndpoints.restore(id),
+    onSuccess: () => invalidatePositionViews(queryClient),
+  });
+};

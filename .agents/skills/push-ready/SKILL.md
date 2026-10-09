@@ -77,8 +77,8 @@ npm run build
 - No secrets, tokens or real financial data in the diff (NFR-SEG-007).
 - Confirm `.gitignore` still covers new artifacts (e.g. new native/build output).
 - If code contradicts `docs/*`, **align the docs in the same change**.
-  - New/changed endpoint or DTO: update `docs/backend.md` §7 and both sides.
-  - Client behavior/stack changes: update `docs/frontend.md`.
+  - New/changed endpoint or DTO: update `docs/architecture/backend.md` §7 and both sides.
+  - Client behavior/stack changes: update `docs/architecture/frontend.md`.
 - Update the relevant `AGENTS.md` / skills if conventions or commands changed.
 
 ## 4. Commit (only when instructed)

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Category, Transaction } from "@/lib/api/types";
 import type { DataListPagination } from "@/components/common/data-list";
 
@@ -9,4 +10,5 @@ export interface TransactionListProps {
   pagination?: DataListPagination;
   onSelect?: (transaction: Transaction) => void;
   onDelete?: (transaction: Transaction) => void;
+  emptyAction?: ReactNode;
 }

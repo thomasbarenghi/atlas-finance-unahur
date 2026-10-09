@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Account } from "@/lib/api/types";
 
 export interface AccountsListProps {
@@ -5,4 +6,5 @@ export interface AccountsListProps {
   isLoading?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
+  emptyAction?: ReactNode;
 }

@@ -10,7 +10,9 @@ import {
 import { QueryTransactionsDto } from "../../../transactions/dto/query-transactions.dto";
 import { UpdateTransactionDto } from "../../../transactions/dto/update-transaction.dto";
 import { TransactionsService } from "../../../transactions/transactions.service";
+import { TransactionsOrchestrator } from "../../../transactions/transactions.orchestrator";
 import { ReferenceResolver } from "../reference-resolver.service";
+import { definedPreviewFields } from "../preview";
 import {
   jsonSchema,
   optionalString,
@@ -44,6 +46,7 @@ const transactionEntity = (transaction: {
 export class TransactionTools {
   constructor(
     private readonly transactions: TransactionsService,
+    private readonly transactionsOrchestrator: TransactionsOrchestrator,
     private readonly accounts: AccountsService,
     private readonly categories: CategoriesService,
     private readonly resolver: ReferenceResolver,
@@ -91,7 +94,7 @@ export class TransactionTools {
         name: "createTransaction",
         title: "Crear movimiento",
         description:
-          "Crea un ingreso o gasto. No sirve para transferencias: para eso usá transferBetweenAccounts. Si no indicás la moneda, se toma la de la cuenta.",
+          "Crea un ingreso o gasto. No sirve para transferencias: para eso usá transferBetweenAccounts. La categoría es obligatoria para ingresos y gastos: si el usuario no la indicó, preguntala antes de proponer. Si no indicás la moneda, se toma la de la cuenta.",
         classification: "write_safe",
         parameters: jsonSchema(
           {
@@ -132,6 +135,18 @@ export class TransactionTools {
                   args.category,
                   type,
                 );
+          if (categoryId === null) {
+            throw new ApiException(
+              ErrorCode.VALIDATION_ERROR,
+              HttpStatus.BAD_REQUEST,
+              "Elegí una categoría",
+              {
+                categoryId: [
+                  "La categoría es obligatoria para ingresos y gastos",
+                ],
+              },
+            );
+          }
           const dto = await validateToolArgs(CreateTransactionDto, {
             type,
             amount: args.amount,
@@ -169,10 +184,8 @@ export class TransactionTools {
         },
         execute: async (userId, args): Promise<ToolHandlerResult> => {
           const dto = await validateToolArgs(CreateTransactionDto, args);
-          const transaction = await this.transactions.createTransaction(
-            userId,
-            dto,
-          );
+          const transaction =
+            await this.transactionsOrchestrator.createTransaction(userId, dto);
           return {
             ok: true,
             summary: `Registré "${transaction.description}" por ${transaction.amount} ${transaction.currency}.`,
@@ -241,10 +254,8 @@ export class TransactionTools {
         },
         execute: async (userId, args): Promise<ToolHandlerResult> => {
           const dto = await validateToolArgs(CreateTransactionDto, args);
-          const transaction = await this.transactions.createTransaction(
-            userId,
-            dto,
-          );
+          const transaction =
+            await this.transactionsOrchestrator.createTransaction(userId, dto);
           return {
             ok: true,
             summary: `Transferí ${Math.abs(transaction.amount)} ${transaction.currency}.`,
@@ -301,10 +312,7 @@ export class TransactionTools {
               summary: "Se actualizará el movimiento.",
               fields: [
                 { label: "Movimiento", value: id },
-                ...Object.entries(changes).map(([key, value]) => ({
-                  label: key,
-                  value: String(value),
-                })),
+                ...definedPreviewFields(changes),
               ],
             },
           };
@@ -315,11 +323,12 @@ export class TransactionTools {
             "Falta indicar el movimiento a editar.",
           );
           const changes = await this.buildUpdate(userId, args);
-          const transaction = await this.transactions.updateTransaction(
-            userId,
-            id,
-            changes,
-          );
+          const transaction =
+            await this.transactionsOrchestrator.updateTransaction(
+              userId,
+              id,
+              changes,
+            );
           return {
             ok: true,
             summary: `Actualicé "${transaction.description}".`,

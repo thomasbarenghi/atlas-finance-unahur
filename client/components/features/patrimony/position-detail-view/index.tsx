@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, TrendingDown, TrendingUp } from "lucide-react";
+import {
+  Archive,
+  Pencil,
+  RotateCcw,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
+import { toast } from "sonner";
 import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
 import {
   DetailPage,
@@ -13,12 +21,18 @@ import { EmptyState } from "@/components/common/empty-state";
 import { RowActionsMenu } from "@/components/common/row-actions-menu";
 import { SignedMoney } from "@/components/common/signed-money";
 import { TrendBadge } from "@/components/common/trend-badge";
+import { StatusBadge } from "@/components/common/status-badge";
 import { WarningBadge } from "@/components/common/warning-badge";
 import { Button } from "@/components/ui/button";
 import { useConfirmAction } from "@/hooks/use-confirm-action";
+import { getErrorMessage } from "@/lib/api/errors";
 import type { Position } from "@/lib/api/types";
 import { formatCurrency, formatDateTime, formatTimeAgo } from "@/lib/format";
-import { useDeletePosition } from "@/lib/query/positions";
+import {
+  useArchivePosition,
+  useDeletePosition,
+  useRestorePosition,
+} from "@/lib/query/positions";
 import { cn } from "@/lib/utils";
 import { PositionFormDialog } from "@/components/features/assets/position-form-dialog";
 import { PatrimonyHero } from "@/components/features/patrimony/patrimony-hero";
@@ -30,9 +44,25 @@ export const PositionDetailView = () => {
   const { position, convertedValue, displayCurrency, isLoading } =
     usePositionDetail();
   const deletePosition = useDeletePosition();
+  const archivePosition = useArchivePosition();
+  const restorePosition = useRestorePosition();
   const router = useRouter();
 
   const [editOpen, setEditOpen] = useState(false);
+
+  const toggleArchived = async (target: Position) => {
+    try {
+      if (target.archived) {
+        await restorePosition.mutateAsync(target.id);
+        toast.success("Inversión restaurada");
+      } else {
+        await archivePosition.mutateAsync(target.id);
+        toast.success("Inversión archivada");
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error, "No se pudo actualizar la inversión"));
+    }
+  };
 
   const deleteAction = useConfirmAction<Position>({
     run: (target) => deletePosition.mutateAsync(target.id),
@@ -90,6 +120,11 @@ export const PositionDetailView = () => {
                 onSelect: () => setEditOpen(true),
               },
               {
+                label: position.archived ? "Restaurar" : "Archivar",
+                icon: position.archived ? RotateCcw : Archive,
+                onSelect: () => void toggleArchived(position),
+              },
+              {
                 label: "Eliminar",
                 icon: Trash2,
                 variant: "destructive",
@@ -143,6 +178,8 @@ export const PositionDetailView = () => {
           }
         />
       ) : null}
+
+      {position.archived ? <StatusBadge variant="account" archived /> : null}
 
       {!hasQuote ? (
         <EmptyState

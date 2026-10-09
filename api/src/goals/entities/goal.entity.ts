@@ -3,10 +3,14 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { Account } from "../../accounts/entities/account.entity";
 import { numericTransformer } from "../../common/transformers/numeric.transformer";
+import { User } from "../../users/entities/user.entity";
 
 @Entity("goals")
 export class Goal {
@@ -16,6 +20,10 @@ export class Goal {
   @Index()
   @Column({ name: "user_id", type: "uuid" })
   userId: string;
+
+  @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "user_id" })
+  user: User;
 
   @Column({ type: "text" })
   name: string;
@@ -48,6 +56,10 @@ export class Goal {
   @Index()
   @Column({ name: "source_account_id", type: "uuid", nullable: true })
   sourceAccountId: string | null;
+
+  @ManyToOne(() => Account, { onDelete: "SET NULL", nullable: true })
+  @JoinColumn({ name: "source_account_id" })
+  sourceAccount: Account | null;
 
   @Column({ type: "boolean", default: false })
   archived: boolean;

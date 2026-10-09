@@ -18,6 +18,7 @@ export const AccountsList = ({
   isLoading,
   emptyTitle = "Todavía no tenés cuentas",
   emptyDescription = "Cargá tu primera cuenta para empezar a registrar movimientos.",
+  emptyAction,
 }: AccountsListProps) => {
   const ordered = [...accounts].sort(
     (a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type),
@@ -33,6 +34,7 @@ export const AccountsList = ({
           icon={Wallet}
           title={emptyTitle}
           description={emptyDescription}
+          action={emptyAction}
         />
       }
       renderItem={(account) => (

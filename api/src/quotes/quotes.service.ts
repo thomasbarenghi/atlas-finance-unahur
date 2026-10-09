@@ -3,17 +3,8 @@ import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Not, Repository } from "typeorm";
 import { AppConfig } from "../config/configuration";
+import { QuoteResponseDto } from "./dto/quote-response.dto";
 import { Quote } from "./entities/quote.entity";
-
-export interface QuoteResponseDto {
-  symbol: string;
-  price: number;
-  currency: string;
-  provider: string;
-  change24h: number | null;
-  fetchedAt: string;
-  isStale: boolean;
-}
 
 export interface QuoteUpsert {
   symbol: string;
@@ -46,6 +37,11 @@ export class QuotesService {
       fetchedAt: quote.fetchedAt.toISOString(),
       isStale: now - quote.fetchedAt.getTime() > staleMs,
     }));
+  }
+
+  async listLatestQuoteEntities(): Promise<Quote[]> {
+    const quotes = await this.quotesRepository.find();
+    return this.latestPerPair(quotes);
   }
 
   async upsertQuotes(quotes: QuoteUpsert[]): Promise<number> {

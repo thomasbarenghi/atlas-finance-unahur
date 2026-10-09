@@ -1,6 +1,6 @@
 import { AssetType, ValuationSource } from "../../common/types/financial-enums";
 
-export interface ValuationResponseDto {
+export class ValuationResponseDto {
   id: string;
   assetId: string;
   value: number;
@@ -10,7 +10,7 @@ export interface ValuationResponseDto {
   createdAt: string;
 }
 
-export interface AssetResponseDto {
+export class AssetResponseDto {
   id: string;
   name: string;
   type: AssetType;

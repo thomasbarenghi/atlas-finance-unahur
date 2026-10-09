@@ -2,11 +2,12 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import { CreateBudgetDto } from "../../../budgets/dto/create-budget.dto";
 import { CopyBudgetsDto } from "../../../budgets/dto/copy-budgets.dto";
 import { UpdateBudgetDto } from "../../../budgets/dto/update-budget.dto";
-import { BudgetsService } from "../../../budgets/budgets.service";
+import { BudgetsOrchestrator } from "../../../budgets/budgets.orchestrator";
 import { ApiException } from "../../../common/errors/api.exception";
 import { ErrorCode } from "../../../common/errors/error-codes";
 import { UsersService } from "../../../users/users.service";
 import { ReferenceResolver } from "../reference-resolver.service";
+import { definedPreviewFields } from "../preview";
 import { jsonSchema, optionalString, validateToolArgs } from "../tool-input";
 import type {
   AssistantActionEntity,
@@ -28,7 +29,7 @@ const budgetEntity = (budget: {
 @Injectable()
 export class BudgetTools {
   constructor(
-    private readonly budgets: BudgetsService,
+    private readonly budgets: BudgetsOrchestrator,
     private readonly users: UsersService,
     private readonly resolver: ReferenceResolver,
   ) {}
@@ -159,10 +160,7 @@ export class BudgetTools {
               summary: "Se actualizará el presupuesto.",
               fields: [
                 { label: "Presupuesto", value: await this.label(userId, id) },
-                ...Object.entries(dto).map(([key, value]) => ({
-                  label: key,
-                  value: String(value),
-                })),
+                ...definedPreviewFields(dto),
               ],
             },
           };
