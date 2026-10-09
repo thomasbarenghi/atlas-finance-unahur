@@ -28,6 +28,7 @@ import type {
   Position,
   Quote,
   RegisterInput,
+  RegisterResponse,
   ResetPasswordInput,
   Transaction,
   TransactionFilters,
@@ -60,10 +61,10 @@ const query = (params: object): string => {
 export const authEndpoints = {
   login: (input: LoginInput): Promise<AuthResponse> =>
     USE_MOCKS ? mockApi.login(input) : post<AuthResponse>("/auth/login", input),
-  register: (input: RegisterInput): Promise<AuthResponse> =>
+  register: (input: RegisterInput): Promise<RegisterResponse> =>
     USE_MOCKS
       ? mockApi.register(input)
-      : post<AuthResponse>("/auth/register", input),
+      : post<RegisterResponse>("/auth/register", input),
   logout: (): Promise<void> =>
     USE_MOCKS ? mockApi.logout() : post<void>("/auth/logout"),
   me: (): Promise<User> => (USE_MOCKS ? mockApi.me() : get<User>("/auth/me")),

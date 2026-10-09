@@ -1,6 +1,10 @@
 export interface DatabaseConfig {
   url: string;
   ssl: boolean;
+  /** Máximo de conexiones del pool de `pg` por instancia. */
+  poolMax: number;
+  /** Tiempo máximo de espera para obtener una conexión del pool (ms). */
+  connectionTimeoutMs: number;
 }
 
 export interface JwtConfig {
@@ -16,7 +20,7 @@ export interface CookieConfig {
 }
 
 export interface CorsConfig {
-  origin: string;
+  origins: string[];
   native: string[];
 }
 
@@ -60,6 +64,16 @@ export interface DevConfig {
   databaseToken: string | null;
 }
 
+export interface ApprovalConfig {
+  /**
+   * When true, new registrations stay `pending` and cannot sign in until an
+   * administrator approves them. Controlled from the API `.env`.
+   */
+  required: boolean;
+  /** Shared secret for the admin endpoints; when null they are disabled. */
+  adminApiKey: string | null;
+}
+
 export interface AppConfig {
   nodeEnv: string;
   port: number;
@@ -71,6 +85,7 @@ export interface AppConfig {
   ai: AiConfig;
   mail: MailConfig;
   dev: DevConfig;
+  approval: ApprovalConfig;
   resetTokenTtl: number;
   budgetWarningThreshold: number;
   supportedCurrencies: string[];
@@ -102,6 +117,8 @@ export const configuration = (): AppConfig => ({
   database: {
     url: process.env.DATABASE_URL ?? "",
     ssl: toBoolean(process.env.DB_SSL, false),
+    poolMax: toNumber(process.env.DB_POOL_MAX, 5),
+    connectionTimeoutMs: toNumber(process.env.DB_CONNECTION_TIMEOUT_MS, 15000),
   },
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET ?? "",
@@ -115,7 +132,7 @@ export const configuration = (): AppConfig => ({
       "lax") as CookieConfig["sameSite"],
   },
   cors: {
-    origin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
+    origins: toList(process.env.CORS_ORIGIN, ["http://localhost:3000"]),
     native: toList(process.env.CORS_ORIGIN_NATIVE, [
       "capacitor://localhost",
       "http://localhost",
@@ -171,6 +188,10 @@ export const configuration = (): AppConfig => ({
       process.env.NODE_ENV ?? "",
     ),
     databaseToken: process.env.DEV_DATABASE_TOKEN || null,
+  },
+  approval: {
+    required: toBoolean(process.env.REQUIRE_USER_APPROVAL, false),
+    adminApiKey: process.env.ADMIN_API_KEY || null,
   },
   resetTokenTtl: toNumber(process.env.RESET_TOKEN_TTL, 3600),
   budgetWarningThreshold: toNumber(process.env.BUDGET_WARNING_THRESHOLD, 0.8),

@@ -5,7 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
-import { Theme } from "../../common/types/financial-enums";
+import { Theme, UserApprovalStatus } from "../../common/types/financial-enums";
 
 @Entity("users")
 export class User {
@@ -29,6 +29,9 @@ export class User {
 
   @Column({ name: "ai_enabled", type: "boolean", default: false })
   aiEnabled: boolean;
+
+  @Column({ name: "approval_status", type: "text", default: "approved" })
+  approvalStatus: UserApprovalStatus;
 
   @Column({
     name: "assistant_destructive_enabled",

@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useConfirmAction } from "@/hooks/use-confirm-action";
 import { useDebounce } from "@/hooks/use-debounce";
 import type { Transaction } from "@/lib/api/types";
@@ -14,10 +15,8 @@ import {
   useDeleteTransaction,
   useTransactions,
 } from "@/lib/query/transactions";
-import {
-  TransactionFilters,
-  type TransactionFilterState,
-} from "@/components/features/transactions/transaction-filters";
+import { TransactionFiltersSheet } from "@/components/features/transactions/transaction-filters-sheet";
+import type { TransactionFilterState } from "@/components/features/transactions/transaction-filters-sheet/transaction-filters-sheet.types";
 import { TransactionFormDialog } from "@/components/features/transactions/transaction-form-dialog";
 import { TransactionList } from "@/components/features/transactions/transaction-list";
 
@@ -80,6 +79,15 @@ export const TransactionsView = () => {
     [categories],
   );
 
+  const activeFilterCount = [
+    searchInput,
+    filters.type,
+    filters.accountId,
+    filters.categoryId,
+    filters.from,
+    filters.to,
+  ].filter(Boolean).length;
+
   const response = transactionsQuery.data;
 
   return (
@@ -88,35 +96,47 @@ export const TransactionsView = () => {
         title="Movimientos"
         description="Ingresos, gastos y transferencias."
         actions={
-          <Button
-            size="icon"
-            aria-label="Nuevo movimiento"
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus />
-          </Button>
+          <>
+            <TransactionFiltersSheet
+              filters={filters}
+              onFilterChange={(patch) => {
+                setFilters((previous) => ({ ...previous, ...patch }));
+                setPage(1);
+              }}
+              onClear={() => {
+                setSearchInput("");
+                setFilters(EMPTY_FILTERS);
+                setPage(1);
+              }}
+              accounts={accounts}
+              categories={categories}
+              activeCount={activeFilterCount}
+            />
+            <Button
+              size="icon"
+              aria-label="Nuevo movimiento"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus />
+            </Button>
+          </>
         }
       />
 
-      <TransactionFilters
-        search={searchInput}
-        onSearchChange={(value) => {
-          setSearchInput(value);
-          setPage(1);
-        }}
-        filters={filters}
-        onFilterChange={(patch) => {
-          setFilters((previous) => ({ ...previous, ...patch }));
-          setPage(1);
-        }}
-        onClear={() => {
-          setSearchInput("");
-          setFilters(EMPTY_FILTERS);
-          setPage(1);
-        }}
-        accounts={accounts}
-        categories={categories}
-      />
+      <div className="relative">
+        <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+        <Input
+          value={searchInput}
+          onChange={(event) => {
+            setSearchInput(event.target.value);
+            setPage(1);
+          }}
+          placeholder="Buscar por descripción o notas"
+          maxLength={120}
+          className="bg-muted/50 h-11 rounded-full border-0 pl-9"
+          aria-label="Buscar movimientos"
+        />
+      </div>
 
       <TransactionList
         transactions={response?.items ?? []}

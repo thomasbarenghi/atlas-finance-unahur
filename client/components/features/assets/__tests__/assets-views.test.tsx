@@ -15,7 +15,7 @@ vi.mock("next/navigation", () => import("@/lib/test/next-navigation"));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 describe("AssetsList", () => {
-  it("renders assets and an empty state", () => {
+  it("renders active assets and hides archived ones behind the sheet", () => {
     const { unmount } = render(
       <AssetsList
         assets={[
@@ -25,7 +25,10 @@ describe("AssetsList", () => {
       />,
     );
     expect(screen.getByText("Depto")).toBeInTheDocument();
-    expect(screen.getByText("Archivada")).toBeInTheDocument();
+    expect(screen.queryByText("Viejo")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Ver archivados \(1\)/ }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Depto/ })).toHaveAttribute(
       "href",
       "/patrimony/assets/detail?id=a1",
@@ -38,7 +41,7 @@ describe("AssetsList", () => {
 });
 
 describe("DebtsList", () => {
-  it("links debts to their assets and shows archived state", () => {
+  it("links debts to their assets and hides archived ones", () => {
     render(
       <DebtsList
         debts={[
@@ -49,7 +52,10 @@ describe("DebtsList", () => {
       />,
     );
     expect(screen.getByText(/· Depto/)).toBeInTheDocument();
-    expect(screen.getByText("Archivada")).toBeInTheDocument();
+    expect(screen.queryByText("Vieja")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Ver archivados \(1\)/ }),
+    ).toBeInTheDocument();
   });
 
   it("shows an empty state", () => {
