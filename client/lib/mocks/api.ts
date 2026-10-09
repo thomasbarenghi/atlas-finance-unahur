@@ -591,6 +591,7 @@ export const mockApi = {
       id: mockId(),
       userId: user.id,
       ...input,
+      initialBalance: input.initialBalance ?? 0,
       notes: input.notes ?? null,
       currentBalance: 0,
       archived: false,
@@ -1269,12 +1270,20 @@ export const mockApi = {
     };
   },
 
-  async listConversations(): Promise<Conversation[]> {
+  async listConversations(): Promise<Paginated<Conversation>> {
     await delay();
     const user = requireUser();
-    return mockState.conversations.filter(
+    const items = mockState.conversations.filter(
       (conversation) => conversation.userId === user.id,
     );
+    const pageSize = items.length > 0 ? items.length : 20;
+    return {
+      items,
+      page: 1,
+      pageSize,
+      total: items.length,
+      totalPages: 1,
+    };
   },
 
   async deleteConversations(): Promise<void> {

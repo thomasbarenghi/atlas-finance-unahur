@@ -1,59 +1,93 @@
-import { AccountsService } from "../../../accounts/accounts.service";
-import { UsersService } from "../../../users/users.service";
-import { ReferenceResolver } from "../reference-resolver.service";
 import { AccountTools } from "./account.tools";
 
+const ACC = "00000000-0000-4000-8000-0000000000a1";
+
 const build = () => {
-  const createAccount = jest.fn().mockResolvedValue({
-    id: "a1",
+  const account = {
+    id: ACC,
     name: "Ahorro",
     type: "bank",
     currency: "ARS",
     initialBalance: 0,
-    currentBalance: 0,
-  });
-  const accounts = { createAccount } as unknown as AccountsService;
+    currentBalance: 100,
+    archived: false,
+  };
+  const accounts = {
+    listAccounts: jest.fn().mockResolvedValue([account]),
+    getAccount: jest.fn().mockResolvedValue(account),
+    createAccount: jest.fn().mockResolvedValue(account),
+    updateAccount: jest.fn().mockResolvedValue({ ...account, name: "Nueva" }),
+    archiveAccount: jest.fn().mockResolvedValue({ ...account, archived: true }),
+    restoreAccount: jest
+      .fn()
+      .mockResolvedValue({ ...account, archived: false }),
+  };
   const users = {
     getById: jest.fn().mockResolvedValue({ baseCurrency: "ARS" }),
-  } as unknown as UsersService;
-  const resolver = {} as unknown as ReferenceResolver;
+  };
+  const resolver = { resolveAccountId: jest.fn().mockResolvedValue(ACC) };
 
-  const tools = new AccountTools(accounts, users, resolver);
-  const createDefinition = tools
-    .definitions()
-    .find((definition) => definition.name === "createAccount");
-  if (!createDefinition?.prepare || !createDefinition.execute) {
-    throw new Error("createAccount tool not found");
-  }
-  return { createDefinition, createAccount };
+  const tools = new AccountTools(
+    accounts as any,
+    users as any,
+    resolver as any,
+  );
+  const byName = (name: string) =>
+    tools.definitions().find((definition) => definition.name === name)!;
+  return { byName, accounts, resolver };
 };
 
-describe("AccountTools.createAccount", () => {
-  it("defaults the currency to the user base currency", async () => {
-    const { createDefinition } = build();
+describe("AccountTools", () => {
+  it("lists accounts", async () => {
+    const { byName } = build();
+    expect((await byName("listAccounts").execute!("u1", {})).summary).toContain(
+      "1",
+    );
+  });
 
-    const prepared = await createDefinition.prepare!("user-1", {
+  it("defaults the currency to the user base currency", async () => {
+    const { byName } = build();
+    const prepared = await byName("createAccount").prepare!("u1", {
       name: "Ahorro",
       type: "bank",
     });
-
     expect(prepared.args.currency).toBe("ARS");
     expect(prepared.createdEntityName).toBe("Ahorro");
   });
 
-  it("executes with the prepared arguments", async () => {
-    const { createDefinition, createAccount } = build();
-    const prepared = await createDefinition.prepare!("user-1", {
+  it("executes createAccount with the prepared arguments", async () => {
+    const { byName, accounts } = build();
+    const definition = byName("createAccount");
+    const prepared = await definition.prepare!("u1", {
       name: "Ahorro",
       type: "bank",
       currency: "USD",
     });
-
-    await createDefinition.execute("user-1", prepared.args);
-
-    expect(createAccount).toHaveBeenCalledWith(
-      "user-1",
+    await definition.execute!("u1", prepared.args);
+    expect(accounts.createAccount).toHaveBeenCalledWith(
+      "u1",
       expect.objectContaining({ name: "Ahorro", currency: "USD" }),
     );
+  });
+
+  it("updates an account and rejects empty changes", async () => {
+    const { byName, accounts } = build();
+    const definition = byName("updateAccount");
+    await definition.prepare!("u1", { accountId: ACC, name: "Nueva" });
+    await expect(definition.prepare!("u1", { accountId: ACC })).rejects.toThrow(
+      /ningún cambio/,
+    );
+    await definition.execute!("u1", { accountId: ACC, name: "Nueva" });
+    expect(accounts.updateAccount).toHaveBeenCalled();
+  });
+
+  it("archives and restores an account", async () => {
+    const { byName, accounts } = build();
+    await byName("archiveAccount").prepare!("u1", { accountId: ACC });
+    await byName("archiveAccount").execute!("u1", { accountId: ACC });
+    await byName("restoreAccount").prepare!("u1", { accountId: ACC });
+    await byName("restoreAccount").execute!("u1", { accountId: ACC });
+    expect(accounts.archiveAccount).toHaveBeenCalledWith("u1", ACC);
+    expect(accounts.restoreAccount).toHaveBeenCalledWith("u1", ACC);
   });
 });

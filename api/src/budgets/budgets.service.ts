@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
+import { CurrencyService } from "../shared/currency/currency.service";
 import { CopyBudgetsDto } from "./dto/copy-budgets.dto";
 import { CreateBudgetDto } from "./dto/create-budget.dto";
 import { UpdateBudgetDto } from "./dto/update-budget.dto";
@@ -17,6 +18,7 @@ export class BudgetsService {
   constructor(
     @InjectRepository(Budget)
     private readonly budgetsRepository: Repository<Budget>,
+    private readonly currency: CurrencyService,
   ) {}
 
   async listOwnedBudgets(userId: string): Promise<Budget[]> {
@@ -46,7 +48,7 @@ export class BudgetsService {
       categoryId: dto.categoryId,
       period,
       limit: dto.limit,
-      currency: dto.currency.toUpperCase(),
+      currency: this.currency.assertSupported(dto.currency),
       recurring: dto.recurring ?? false,
     });
     return this.budgetsRepository.save(budget);
@@ -60,7 +62,7 @@ export class BudgetsService {
     const budget = await this.findOwnedBudget(userId, id);
     if (dto.limit !== undefined) budget.limit = dto.limit;
     if (dto.currency !== undefined)
-      budget.currency = dto.currency.toUpperCase();
+      budget.currency = this.currency.assertSupported(dto.currency);
     if (dto.recurring !== undefined) budget.recurring = dto.recurring;
 
     return this.budgetsRepository.save(budget);

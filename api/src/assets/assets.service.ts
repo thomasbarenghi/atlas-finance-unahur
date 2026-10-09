@@ -4,6 +4,7 @@ import { DataSource, In, Repository } from "typeorm";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
 import { AssetDebtLinksService } from "../shared/asset-debt-links/asset-debt-links.service";
+import { CurrencyService } from "../shared/currency/currency.service";
 import {
   AssetResponseDto,
   ValuationResponseDto,
@@ -32,6 +33,7 @@ export class AssetsService {
     @InjectRepository(Valuation)
     private readonly valuationsRepository: Repository<Valuation>,
     private readonly links: AssetDebtLinksService,
+    private readonly currency: CurrencyService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -74,12 +76,13 @@ export class AssetsService {
     dto: CreateAssetDto,
   ): Promise<AssetResponseDto> {
     const asset = await this.dataSource.transaction(async (manager) => {
+      const currency = this.currency.assertSupported(dto.currency);
       const created = await manager.save(
         manager.create(Asset, {
           userId,
           name: dto.name.trim(),
           type: dto.type,
-          currency: dto.currency.toUpperCase(),
+          currency,
           notes: dto.notes?.trim() || null,
         }),
       );
@@ -87,7 +90,7 @@ export class AssetsService {
         manager.create(Valuation, {
           assetId: created.id,
           value: dto.initialValue,
-          currency: dto.currency.toUpperCase(),
+          currency,
           date: dto.date,
           source: "manual",
         }),
@@ -107,7 +110,8 @@ export class AssetsService {
 
     if (dto.name !== undefined) asset.name = dto.name.trim();
     if (dto.type !== undefined) asset.type = dto.type;
-    if (dto.currency !== undefined) asset.currency = dto.currency.toUpperCase();
+    if (dto.currency !== undefined)
+      asset.currency = this.currency.assertSupported(dto.currency);
     if (dto.notes !== undefined) asset.notes = dto.notes?.trim() || null;
 
     const saved = await this.assetsRepository.save(asset);
@@ -145,7 +149,7 @@ export class AssetsService {
       this.valuationsRepository.create({
         assetId,
         value: dto.value,
-        currency: dto.currency.toUpperCase(),
+        currency: this.currency.assertSupported(dto.currency),
         date: dto.date,
         source: dto.source ?? "manual",
       }),

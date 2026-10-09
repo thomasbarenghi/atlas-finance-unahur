@@ -29,7 +29,9 @@ npm run lint:fix
 npm run typecheck
 npm run format         # Prettier (write)
 npm run format:check   # Prettier (check; runs on pre-push)
-npm run test           # Vitest (pending setup)
+npm run test           # Vitest (unit + component + integration)
+npm run test:watch     # Vitest watch mode
+npm run test:coverage  # Vitest with V8 coverage
 npm run test:e2e       # Playwright (pending setup)
 npm run android:list   # list AVDs / adb devices
 npm run android:build  # web build + cap sync + debug APK

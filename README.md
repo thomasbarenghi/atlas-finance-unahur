@@ -21,7 +21,7 @@ atlas-finance-unahur/
 | Layer | Technologies |
 | :--- | :--- |
 | Client | Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · shadcn/ui · Outfit + Nunito · Recharts · TanStack Query · React Hook Form + Zod · lucide-react · Capacitor 8 (Android) |
-| API | NestJS (modular monolith) · TypeScript · PostgreSQL (Supabase) · TypeORM · JWT (HttpOnly cookie + Bearer) · class-validator · argon2 · Swagger |
+| API | NestJS (modular monolith) · TypeScript · PostgreSQL (Supabase) · TypeORM · JWT (HttpOnly cookie + Bearer) · class-validator · argon2 · Swagger/OpenAPI · Scalar |
 
 ## Documentation
 
@@ -59,7 +59,7 @@ cp .env.example .env          # set DATABASE_URL, JWT secrets, etc.
 npm install
 npm run migration:run         # create the schema
 npm run seed                  # idempotent demo data
-npm run start:dev             # http://localhost:3001/api  (Swagger at /api/docs)
+npm run start:dev             # http://localhost:3001/api  (Scalar at /api/reference, Swagger at /api/docs)
 ```
 
 ### Client
@@ -99,8 +99,8 @@ demo@atlassfin.app / Demo1234!
 ## Testing
 
 ```bash
-# Client (Vitest + React Testing Library + MSW + Playwright) — setup pending
-cd client && npm run test && npm run test:e2e
+# Client (Vitest + React Testing Library + MSW) — Playwright E2E pending
+cd client && npm run test
 
 # API (Jest + Supertest)
 cd api && npm run test && npm run test:e2e

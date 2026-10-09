@@ -257,10 +257,10 @@ export const dashboardEndpoints = {
 };
 
 export const assistantEndpoints = {
-  conversations: (): Promise<Conversation[]> =>
+  conversations: (): Promise<Paginated<Conversation>> =>
     USE_MOCKS
       ? mockApi.listConversations()
-      : get<Conversation[]>("/assistant/conversations"),
+      : get<Paginated<Conversation>>("/assistant/conversations"),
   clearConversations: (): Promise<void> =>
     USE_MOCKS
       ? mockApi.deleteConversations()

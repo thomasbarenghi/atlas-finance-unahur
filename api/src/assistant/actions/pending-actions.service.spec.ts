@@ -70,8 +70,10 @@ const buildHarness = (
   const repository = {
     findOne: jest.fn().mockResolvedValue(stored),
     find: jest.fn().mockResolvedValue(siblings),
-    create: jest.fn((value: unknown) => value),
-    save: jest.fn((value: unknown) => Promise.resolve(value)),
+    create: jest.fn((value: any) => ({ ...value, id: value.id ?? "action-1" })),
+    save: jest.fn((value: any) =>
+      Promise.resolve({ ...value, id: value.id ?? "action-1" }),
+    ),
   };
   const manager = { getRepository: jest.fn().mockReturnValue(repository) };
   const dataSource = {
@@ -217,5 +219,211 @@ describe("PendingActionsService.confirm", () => {
     ).rejects.toMatchObject({
       response: { code: ErrorCode.ACTION_DEPENDENCY_PENDING },
     });
+  });
+});
+
+describe("PendingActionsService.propose", () => {
+  it("stores a resolved proposal with a one-time token", async () => {
+    const { service, repository } = buildHarness(action());
+    const proposal = await service.propose({
+      user: user as any,
+      conversationId: "conv-1",
+      definition: definition(),
+      rawArgs: { name: "Caja" },
+      prepared: {
+        args: { name: "Caja" },
+        summary: "s",
+        preview: { title: "t", summary: "s", fields: [] },
+      },
+      preview: { title: "t", summary: "s", fields: [] },
+      summary: "Crear cuenta",
+      planId: "plan-1",
+      step: 0,
+    });
+
+    expect(proposal.actionId).toBe("action-1");
+    expect(typeof proposal.token).toBe("string");
+    expect(proposal.pending).toBe(false);
+    expect(repository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "proposed", resolved: true }),
+    );
+  });
+
+  it("marks a proposal as pending when references are unresolved", async () => {
+    const { service } = buildHarness(action());
+    const proposal = await service.propose({
+      user: user as any,
+      conversationId: null,
+      definition: definition(),
+      rawArgs: { name: "x", asset: "Ford" },
+      prepared: null,
+      preview: { title: "t", summary: "s", fields: [] },
+      summary: "s",
+      planId: null,
+      step: 0,
+    });
+    expect(proposal.pending).toBe(true);
+  });
+});
+
+describe("PendingActionsService.confirm edge cases", () => {
+  it("rejects an unknown action", async () => {
+    const { service, repository } = buildHarness(action());
+    repository.findOne.mockResolvedValue(null);
+    await expect(
+      service.confirm(user, "missing", "good-token"),
+    ).rejects.toMatchObject({ response: { code: ErrorCode.NOT_FOUND } });
+  });
+
+  it("rejects cancelled/expired actions and definitions without execute", async () => {
+    const cancelled = buildHarness(action({ status: "cancelled" }));
+    await expect(
+      cancelled.service.confirm(user, "action-1", "good-token"),
+    ).rejects.toMatchObject({
+      response: { code: ErrorCode.ACTION_NOT_ALLOWED },
+    });
+
+    const noExecute = buildHarness(
+      action(),
+      definition({ execute: undefined }),
+    );
+    await expect(
+      noExecute.service.confirm(user, "action-1", "good-token"),
+    ).rejects.toMatchObject({
+      response: { code: ErrorCode.ACTION_NOT_ALLOWED },
+    });
+  });
+
+  it("allows destructive actions when the user opted in", async () => {
+    const execute = jest
+      .fn()
+      .mockResolvedValue({ ok: true, summary: "borrado" });
+    const { service } = buildHarness(
+      action({ classification: "destructive" }),
+      definition({ classification: "destructive", execute }),
+    );
+    const result = await service.confirm(
+      { id: "user-1", assistantDestructiveEnabled: true },
+      "action-1",
+      "good-token",
+    );
+    expect(result.status).toBe("executed");
+  });
+
+  it("skips plan ordering when the action has no plan", async () => {
+    const { service } = buildHarness(action({ planId: null }));
+    await expect(
+      service.confirm(user, "action-1", "good-token"),
+    ).resolves.toMatchObject({ status: "executed" });
+  });
+
+  it("returns a failed result when the tool throws", async () => {
+    const apiError = definition({
+      execute: () =>
+        Promise.reject(
+          new ApiException(ErrorCode.VALIDATION_ERROR, 400, "no", {
+            a: ["b"],
+          }),
+        ),
+    });
+    const { service } = buildHarness(action(), apiError);
+    const result = await service.confirm(user, "action-1", "good-token");
+    expect(result.status).toBe("failed");
+    expect(result.code).toBe(ErrorCode.VALIDATION_ERROR);
+  });
+
+  it("maps unexpected execution errors to INTERNAL_ERROR", async () => {
+    const boom = definition({
+      execute: () => Promise.reject(new Error("boom")),
+    });
+    const { service } = buildHarness(action(), boom);
+    const result = await service.confirm(user, "action-1", "good-token");
+    expect(result.status).toBe("failed");
+    expect(result.code).toBe(ErrorCode.INTERNAL_ERROR);
+  });
+
+  it("re-resolves a deferred action before executing", async () => {
+    const prepare = jest.fn().mockResolvedValue({
+      args: { name: "resolved" },
+      preview: { title: "t", summary: "s", fields: [] },
+    });
+    const { service, repository } = buildHarness(
+      action({ resolved: false, args: { name: "raw" } }),
+      definition({ prepare }),
+    );
+    await service.confirm(user, "action-1", "good-token");
+    expect(prepare).toHaveBeenCalled();
+    expect(repository.save).toHaveBeenCalled();
+  });
+
+  it("rejects a deferred action without a prepare step", async () => {
+    const { service } = buildHarness(
+      action({ resolved: false }),
+      definition({ prepare: undefined }),
+    );
+    await expect(
+      service.confirm(user, "action-1", "good-token"),
+    ).rejects.toMatchObject({
+      response: { code: ErrorCode.ACTION_NOT_ALLOWED },
+    });
+  });
+
+  it("rethrows unexpected prepare errors", async () => {
+    const { service } = buildHarness(
+      action({ resolved: false }),
+      definition({ prepare: () => Promise.reject(new Error("boom")) }),
+    );
+    await expect(
+      service.confirm(user, "action-1", "good-token"),
+    ).rejects.toThrow(/boom/);
+  });
+});
+
+describe("PendingActionsService.cancel", () => {
+  it("cancels a proposed action", async () => {
+    const { service, repository } = buildHarness(action());
+    const result = await service.cancel(user, "action-1", "good-token");
+    expect(result.status).toBe("cancelled");
+    expect(repository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "cancelled" }),
+    );
+  });
+
+  it("rejects unknown actions, invalid tokens and non-cancellable states", async () => {
+    const missing = buildHarness(action());
+    missing.repository.findOne.mockResolvedValue(null);
+    await expect(
+      missing.service.cancel(user, "action-1", "good-token"),
+    ).rejects.toMatchObject({ response: { code: ErrorCode.NOT_FOUND } });
+
+    const badToken = buildHarness(action());
+    await expect(
+      badToken.service.cancel(user, "action-1", "bad"),
+    ).rejects.toMatchObject({
+      response: { code: ErrorCode.ACTION_NOT_ALLOWED },
+    });
+
+    const executed = buildHarness(action({ status: "executed" }));
+    await expect(
+      executed.service.cancel(user, "action-1", "good-token"),
+    ).rejects.toMatchObject({
+      response: { code: ErrorCode.ACTION_NOT_ALLOWED },
+    });
+  });
+});
+
+describe("PendingActionsService.recordRead", () => {
+  it("swallows audit failures", async () => {
+    const { service, repository } = buildHarness(action());
+    repository.save.mockRejectedValue(new Error("db down"));
+    await expect(
+      service.recordRead(
+        user,
+        "conv-1",
+        definition({ name: "listAccounts", classification: "read" }),
+        {},
+        "ok",
+      ),
+    ).resolves.toBeUndefined();
   });
 });

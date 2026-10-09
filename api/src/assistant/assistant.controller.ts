@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Logger,
   Param,
   ParseUUIDPipe,
@@ -32,6 +34,7 @@ export class AssistantController {
 
   @Public()
   @UseGuards(OptionalJwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
   @Post("messages")
   async stream(
     @CurrentUser() user: AuthUser | undefined,

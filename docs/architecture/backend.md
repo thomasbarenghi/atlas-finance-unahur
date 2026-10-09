@@ -44,7 +44,7 @@ Backend monolítico que sirve una API REST para Atlass Fin. Organiza y explica l
 | Correo | Proveedor SMTP (configurable) | Recuperación de contraseña. |
 | IA | Proveedor de LLM (configurable, p. ej. OpenAI/Anthropic) | Solo contexto mínimo calculado. |
 | Rate limiting | `@nestjs/throttler` | Login, recuperación, cotizaciones, IA (NFR-SEG-010). |
-| Docs de API | `@nestjs/swagger` (OpenAPI) | Contrato consumible por el front. |
+| Docs de API | `@nestjs/swagger` (OpenAPI) + `@scalar/nestjs-api-reference` (UI) | Contrato consumible por el front; referencia interactiva en `/api/reference`. |
 | Config | `@nestjs/config` + validación de env | — |
 
 ---
@@ -101,7 +101,7 @@ Frontend (Next.js) ───▶ │  NestJS (monolito)           │
 - **`JwtAuthGuard` global** por defecto (`APP_GUARD`), con decorador `@Public()` para rutas de auth (FR-AUT-004).
 - **`OwnershipGuard` / utilidades** para verificar que el recurso pertenece al usuario autenticado antes de leerlo o modificarlo (NFR-SEG-001).
 - **`GlobalExceptionFilter`** que normaliza errores y devuelve mensajes genéricos ante fallas sensibles (NFR-SEG-010).
-- **Swagger/OpenAPI** publicado en `/api/docs` (UI) y `/api/docs-json` (spec); es el contrato del que el front puede generar tipos.
+- **Swagger/OpenAPI** publicado en `/api/docs` (UI) y `/api/docs-json` (spec), más la referencia interactiva de **Scalar** en `/api/reference`; es el contrato del que el front puede generar tipos.
 
 ---
 
@@ -185,6 +185,9 @@ api/
 │   ├── asset-debt-links/            # read model compartido: vínculo activo↔deuda
 │   │   ├── asset-debt-links.module.ts
 │   │   └── asset-debt-links.service.ts
+│   ├── currency/                    # regla de monedas soportadas (SUPPORTED_CURRENCIES)
+│   │   ├── currency.module.ts
+│   │   └── currency.service.ts
 │   ├── fx/                          # tasas de cambio + conversión
 │   │   ├── fx.module.ts
 │   │   ├── fx.service.ts
@@ -649,6 +652,8 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 | `ValuationSource` | `manual` \| `market` |
 
 - **Monedas soportadas** (configurable por env `SUPPORTED_CURRENCIES`, default): `ARS, USD, EUR, BRL, UYU`. Se exponen en `GET /currencies`.
+  - Toda entidad con dinero (cuentas, activos/valuaciones, deudas, posiciones, presupuestos, metas y movimientos) valida la moneda contra ese catálogo vía `shared/currency`; una moneda no soportada se rechaza con `VALIDATION_ERROR` (`fieldErrors.currency`).
+  - La conversión a moneda base **nunca asume una tasa 1:1**: si no existe una tasa (directa, inversa o pivote) para dos monedas distintas, `FxService` responde `VALIDATION_ERROR` en lugar de devolver un total incorrecto.
 - **Catálogo de mercado** (configurable por env `MARKET_SYMBOLS`, default): `BTC, ETH, USDT, USDC, SOL, BNB`. Solo cripto (FR-MER-001).
 - **Categorías por defecto** (semilla, `user_id = NULL`): income (`salary`, `freelance`, `other_income`), expense (`food`, `transport`, `housing`, `services`, `entertainment`, `other_expense`). Son de solo lectura; el usuario crea las suyas.
 - **Umbral de presupuesto** (`BUDGET_WARNING_THRESHOLD`, default `0.8`): `warning` si `spent >= 0.8 * limit`; `exceeded` si `spent > limit`.
@@ -909,6 +914,16 @@ event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 | :--- | :--- | :--- |
 | GET | `/currencies` | `{ "default": "ARS", "supported": ["ARS","USD","EUR","BRL","UYU"] }` (FR-AUT-005) |
 | GET | `/health` | `{ "status": "ok", "db": "up" }` — `@Public()` |
+
+### 7.19 Referencia interactiva de la API (Scalar)
+
+- **Generación:** el documento OpenAPI se construye con `@nestjs/swagger` en `src/main.ts` (mismo `DocumentBuilder`). El plugin de `@nestjs/swagger` declarado en `nest-cli.json` enriquece los DTO de `class-validator` con tipos, enums y validaciones en tiempo de compilación (`classValidatorShim`), de modo que el "try it out" tiene cuerpos de request reales.
+- **Exposición:** Swagger UI en `/api/docs`, el documento JSON en `/api/docs-json` y la referencia de **Scalar** en `/api/reference`. El front puede consumir el JSON para generar tipos.
+- **Stack:** `@scalar/nestjs-api-reference` (licencia MIT). Scalar sólo **renderiza** el documento; `@nestjs/swagger` sigue siendo la única fuente de verdad del contrato.
+- **Dependencia de red:** el middleware carga el bundle `@scalar/api-reference` desde jsDelivr (`cdn.jsdelivr.net`) en el navegador. No requiere cuenta, dependencia ni backend de Scalar Cloud. Para fijar la versión o auto-hospedarlo, pasar la opción `cdn` a `apiReference(...)`.
+- **Compatibilidad de Node:** `@scalar/nestjs-api-reference` `1.1.0+` exige **Node >= 22**. El proyecto soporta Node >= 20, por eso la dependencia se fija en `~1.0.31` (última línea compatible con Node 20). Al subir el mínimo de Node a 22, se puede actualizar a la última versión.
+- **Mantenimiento:** no hay artefactos que regenerar: al agregar o cambiar endpoints o DTOs, la referencia se actualiza en el próximo arranque. Verificación: `npm run start:dev` y abrir `/api/reference`. Al actualizar `@scalar/nestjs-api-reference`, revisar la opción `cdn` y los temas.
+- **Seguridad:** igual que Swagger, la referencia es pública (revela rutas y esquema de auth). En un despliegue real conviene publicarla sólo en entornos no productivos (por ejemplo, condicionar `SwaggerModule.setup` y `apiReference` a `NODE_ENV !== "production"`).
 
 ---
 

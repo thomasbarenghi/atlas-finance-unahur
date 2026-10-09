@@ -13,7 +13,19 @@ export const currencySchema = z
   .string()
   .regex(ISO_CURRENCY, "Elegí una moneda válida");
 
-export const dateSchema = z.string().regex(ISO_DATE, "Elegí una fecha válida");
+export const dateSchema = z
+  .string()
+  .regex(ISO_DATE, "Elegí una fecha válida")
+  .refine((value) => {
+    const [year, month, day] = value.split("-").map(Number);
+    if (!year || !month || !day) return false;
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return (
+      date.getUTCFullYear() === year &&
+      date.getUTCMonth() === month - 1 &&
+      date.getUTCDate() === day
+    );
+  }, "Elegí una fecha válida");
 
 export const moneySchema = z.coerce
   .number()

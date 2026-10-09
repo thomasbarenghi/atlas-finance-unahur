@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
+import { CurrencyService } from "../shared/currency/currency.service";
 import { AddToPositionDto } from "./dto/add-to-position.dto";
 import { CreatePositionDto } from "./dto/create-position.dto";
 import { UpdatePositionDto } from "./dto/update-position.dto";
@@ -13,6 +14,7 @@ export class PositionsService {
   constructor(
     @InjectRepository(Position)
     private readonly positionsRepository: Repository<Position>,
+    private readonly currency: CurrencyService,
   ) {}
 
   async listOwnedPositions(userId: string): Promise<Position[]> {
@@ -45,7 +47,7 @@ export class PositionsService {
         instrument: dto.instrument.trim(),
         quantity: dto.quantity,
         avgCost: dto.avgCost,
-        currency: dto.currency.toUpperCase(),
+        currency: this.currency.assertSupported(dto.currency),
       }),
     );
   }
@@ -63,7 +65,7 @@ export class PositionsService {
     if (dto.quantity !== undefined) position.quantity = dto.quantity;
     if (dto.avgCost !== undefined) position.avgCost = dto.avgCost;
     if (dto.currency !== undefined)
-      position.currency = dto.currency.toUpperCase();
+      position.currency = this.currency.assertSupported(dto.currency);
 
     return this.positionsRepository.save(position);
   }

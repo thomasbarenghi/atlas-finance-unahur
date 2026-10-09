@@ -44,7 +44,7 @@ export const FormSelectField = ({
             disabled={disabled}
           >
             <FormControl>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full" aria-label={label}>
                 <SelectValue placeholder={placeholder} />
               </SelectTrigger>
             </FormControl>

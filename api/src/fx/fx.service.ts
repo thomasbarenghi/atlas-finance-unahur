@@ -1,6 +1,8 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { HttpStatus, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { ApiException } from "../common/errors/api.exception";
+import { ErrorCode } from "../common/errors/error-codes";
 import { ExchangeRate } from "./entities/exchange-rate.entity";
 
 const PIVOT_CURRENCY = "ARS";
@@ -89,7 +91,14 @@ export class FxService implements OnModuleInit {
       if (sourcePivot !== null && targetPivot !== null && targetPivot !== 0) {
         return (amount * sourcePivot) / targetPivot;
       }
-      return amount;
+      // Never assume a 1:1 rate for an unknown pair: surface it instead of
+      // silently corrupting consolidated totals (BUG-1).
+      throw new ApiException(
+        ErrorCode.VALIDATION_ERROR,
+        HttpStatus.BAD_REQUEST,
+        `No hay tasa de cambio para convertir ${source} a ${target}`,
+        { currency: [`Sin cotización ${source}/${target}`] },
+      );
     };
   }
 

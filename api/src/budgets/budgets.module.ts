@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { CategoriesModule } from "../categories/categories.module";
 import { CalculationsModule } from "../shared/calculations/calculations.module";
+import { CurrencyModule } from "../shared/currency/currency.module";
 import { TransactionsModule } from "../transactions/transactions.module";
 import { BudgetsController } from "./budgets.controller";
 import { BudgetsOrchestrator } from "./budgets.orchestrator";
@@ -14,6 +15,7 @@ import { Budget } from "./entities/budget.entity";
     CalculationsModule,
     CategoriesModule,
     TransactionsModule,
+    CurrencyModule,
   ],
   controllers: [BudgetsController],
   providers: [BudgetsService, BudgetsOrchestrator],

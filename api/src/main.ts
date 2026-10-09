@@ -1,12 +1,10 @@
-import { Logger, ValidationPipe } from "@nestjs/common";
+import { Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import cookieParser from "cookie-parser";
+import { apiReference } from "@scalar/nestjs-api-reference";
 import { AppModule } from "./app.module";
-import { GlobalExceptionFilter } from "./common/filters/http-exception.filter";
-import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
-import { validationExceptionFactory } from "./common/pipes/validation-exception.factory";
+import { configureApp } from "./app.setup";
 import { AppConfig } from "./config/configuration";
 
 const bootstrap = async (): Promise<void> => {
@@ -14,24 +12,7 @@ const bootstrap = async (): Promise<void> => {
   const config = app.get<ConfigService<AppConfig, true>>(ConfigService);
   const logger = new Logger("Bootstrap");
 
-  app.setGlobalPrefix("api");
-  app.use(cookieParser());
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      exceptionFactory: validationExceptionFactory,
-    }),
-  );
-  app.useGlobalFilters(new GlobalExceptionFilter());
-  app.useGlobalInterceptors(new LoggingInterceptor());
-
-  const cors = config.get("cors", { infer: true });
-  app.enableCors({
-    origin: [cors.origin, ...cors.native],
-    credentials: true,
-  });
+  configureApp(app);
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle("Atlass Fin API")
@@ -45,9 +26,22 @@ const bootstrap = async (): Promise<void> => {
     jsonDocumentUrl: "api/docs-json",
   });
 
+  // Scalar renders the same OpenAPI document as an interactive reference.
+  // The document is fetched from the JSON endpoint above, so `@nestjs/swagger`
+  // stays the single source of truth for the contract.
+  app.use(
+    "/api/reference",
+    apiReference({
+      url: "/api/docs-json",
+      pageTitle: "Atlass Fin API Reference",
+    }),
+  );
+
   const port = config.get("port", { infer: true });
   await app.listen(port);
   logger.log(`API listening on http://localhost:${port}/api`);
+  logger.log(`API reference (Scalar): http://localhost:${port}/api/reference`);
+  logger.log(`OpenAPI document: http://localhost:${port}/api/docs-json`);
 };
 
 void bootstrap();

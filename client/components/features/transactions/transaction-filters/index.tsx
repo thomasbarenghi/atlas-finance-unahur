@@ -50,6 +50,7 @@ export const TransactionFilters = ({
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Buscar por descripción o notas"
+          maxLength={120}
           className="bg-muted/50 h-11 rounded-full border-0 pl-9"
           aria-label="Buscar movimientos"
         />

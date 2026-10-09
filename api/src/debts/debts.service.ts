@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
+import { CurrencyService } from "../shared/currency/currency.service";
 import { CreateDebtDto } from "./dto/create-debt.dto";
 import { DebtResponseDto, toDebtResponse } from "./dto/debt-response.dto";
 import { UpdateDebtDto } from "./dto/update-debt.dto";
@@ -13,6 +14,7 @@ export class DebtsService {
   constructor(
     @InjectRepository(Debt)
     private readonly debtsRepository: Repository<Debt>,
+    private readonly currency: CurrencyService,
   ) {}
 
   async listDebts(userId: string): Promise<DebtResponseDto[]> {
@@ -40,7 +42,7 @@ export class DebtsService {
         name: dto.name.trim(),
         type: dto.type,
         balance: dto.balance,
-        currency: dto.currency.toUpperCase(),
+        currency: this.currency.assertSupported(dto.currency),
         date: dto.date,
         assetId: dto.assetId ?? null,
       }),
@@ -58,7 +60,8 @@ export class DebtsService {
     if (dto.name !== undefined) debt.name = dto.name.trim();
     if (dto.type !== undefined) debt.type = dto.type;
     if (dto.balance !== undefined) debt.balance = dto.balance;
-    if (dto.currency !== undefined) debt.currency = dto.currency.toUpperCase();
+    if (dto.currency !== undefined)
+      debt.currency = this.currency.assertSupported(dto.currency);
     if (dto.date !== undefined) debt.date = dto.date;
     if (dto.assetId !== undefined) debt.assetId = dto.assetId;
 

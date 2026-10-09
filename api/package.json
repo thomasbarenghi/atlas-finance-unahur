@@ -18,7 +18,7 @@
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:e2e": "jest --config ./test/jest-e2e.json --passWithNoTests",
+    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand --passWithNoTests",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts",
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
@@ -36,6 +36,7 @@
     "@nestjs/swagger": "^11.0.0",
     "@nestjs/throttler": "^6.0.0",
     "@nestjs/typeorm": "^11.0.0",
+    "@scalar/nestjs-api-reference": "~1.0.31",
     "argon2": "^0.41.1",
     "axios": "^1.7.9",
     "class-transformer": "^0.5.1",
@@ -82,7 +83,29 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
-    "collectCoverageFrom": ["**/*.(t|j)s"],
+    "collectCoverageFrom": [
+      "**/*.(t|j)s",
+      "!**/*.spec.ts",
+      "!**/*.module.ts",
+      "!**/*.entity.ts",
+      "!**/*.controller.ts",
+      "!**/dto/**",
+      "!**/database/migrations/**",
+      "!**/database/seeds/**",
+      "!**/database/data-source.ts",
+      "!main.ts",
+      "!app.module.ts",
+      "!app.setup.ts",
+      "!**/common/types/**"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "statements": 90,
+        "branches": 90,
+        "functions": 90,
+        "lines": 90
+      }
+    },
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   },

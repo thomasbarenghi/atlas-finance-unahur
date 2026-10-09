@@ -392,7 +392,7 @@ export interface CreateAccountInput {
   name: string;
   type: AccountType;
   currency: string;
-  initialBalance: number;
+  initialBalance?: number;
   notes?: string | null;
 }
 

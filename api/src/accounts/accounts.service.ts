@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
 import { AccountBalancesService } from "../shared/account-balances/account-balances.service";
+import { CurrencyService } from "../shared/currency/currency.service";
 import { AccountResponseDto } from "./dto/account-response.dto";
 import { CreateAccountDto } from "./dto/create-account.dto";
 import { UpdateAccountDto } from "./dto/update-account.dto";
@@ -31,6 +32,7 @@ export class AccountsService {
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
     private readonly balances: AccountBalancesService,
+    private readonly currency: CurrencyService,
   ) {}
 
   async listAccounts(userId: string): Promise<AccountResponseDto[]> {
@@ -70,7 +72,7 @@ export class AccountsService {
       userId,
       name: dto.name.trim(),
       type: dto.type,
-      currency: dto.currency.toUpperCase(),
+      currency: this.currency.assertSupported(dto.currency),
       initialBalance: dto.initialBalance ?? 0,
       notes: dto.notes?.trim() || null,
     });
@@ -88,7 +90,7 @@ export class AccountsService {
     if (dto.name !== undefined) account.name = dto.name.trim();
     if (dto.type !== undefined) account.type = dto.type;
     if (dto.currency !== undefined)
-      account.currency = dto.currency.toUpperCase();
+      account.currency = this.currency.assertSupported(dto.currency);
     if (dto.initialBalance !== undefined) {
       account.initialBalance = dto.initialBalance;
     }

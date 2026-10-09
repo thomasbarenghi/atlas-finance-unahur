@@ -51,9 +51,9 @@ export const LoginForm = () => {
         render={({ field }) => (
           <FormItem>
             <FormLabel>Email</FormLabel>
-            <FormControl>
-              <div className="relative">
-                <Mail className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <div className="relative">
+              <Mail className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+              <FormControl>
                 <Input
                   type="email"
                   autoComplete="email"
@@ -61,8 +61,8 @@ export const LoginForm = () => {
                   className="bg-muted/50 h-11 rounded-2xl border-0 pl-10"
                   {...field}
                 />
-              </div>
-            </FormControl>
+              </FormControl>
+            </div>
             <FormMessage />
           </FormItem>
         )}
@@ -73,17 +73,17 @@ export const LoginForm = () => {
         render={({ field }) => (
           <FormItem>
             <FormLabel>Contraseña</FormLabel>
-            <FormControl>
-              <div className="relative">
-                <Lock className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <div className="relative">
+              <Lock className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+              <FormControl>
                 <Input
                   type="password"
                   autoComplete="current-password"
                   className="bg-muted/50 h-11 rounded-2xl border-0 pl-10"
                   {...field}
                 />
-              </div>
-            </FormControl>
+              </FormControl>
+            </div>
             <FormMessage />
           </FormItem>
         )}

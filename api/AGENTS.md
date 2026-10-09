@@ -6,7 +6,7 @@ Guidance for AI agents working in `api/`. Read this first, then load the relevan
 
 Atlass Fin backend: a **NestJS monolith** exposing a REST API for the web/native client in `../client/`. It owns all business logic, persistence, auth, and the market/AI/mail integrations. It organizes and explains user-entered data; it does **not** connect to banks, move money, or give financial advice.
 
-**Stack:** NestJS (modular monolith) · TypeScript strict · PostgreSQL (Supabase) · TypeORM (entities + migrations) · JWT (HttpOnly cookie + Bearer) · class-validator · argon2 · @nestjs/schedule · @nestjs/throttler · @nestjs/swagger · @nestjs/config.
+**Stack:** NestJS (modular monolith) · TypeScript strict · PostgreSQL (Supabase) · TypeORM (entities + migrations) · JWT (HttpOnly cookie + Bearer) · class-validator · argon2 · @nestjs/schedule · @nestjs/throttler · @nestjs/swagger (OpenAPI) · @scalar/nestjs-api-reference (UI) · @nestjs/config.
 
 ## Source of truth (READMEs / docs)
 

@@ -45,7 +45,7 @@ export const AssistantHistorySheet = ({
   );
   const serverQuery = useConversations();
   const deleteConversation = useDeleteConversation();
-  const serverConversations = serverQuery.data ?? [];
+  const serverConversations = serverQuery.data?.items ?? [];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
+import { CurrencyService } from "../shared/currency/currency.service";
 import { CalculationsService } from "../shared/calculations/calculations.service";
 import { CreateGoalDto } from "./dto/create-goal.dto";
 import { GoalResponseDto } from "./dto/goal-response.dto";
@@ -15,6 +16,7 @@ export class GoalsService {
     @InjectRepository(Goal)
     private readonly goalsRepository: Repository<Goal>,
     private readonly calculationsService: CalculationsService,
+    private readonly currency: CurrencyService,
   ) {}
 
   private toResponse(goal: Goal): GoalResponseDto {
@@ -62,7 +64,7 @@ export class GoalsService {
       name: dto.name.trim(),
       targetAmount: dto.targetAmount,
       savedAmount: dto.savedAmount ?? 0,
-      currency: dto.currency.toUpperCase(),
+      currency: this.currency.assertSupported(dto.currency),
       targetDate: dto.targetDate ?? null,
       sourceAccountId: dto.sourceAccountId ?? null,
     });
@@ -79,7 +81,8 @@ export class GoalsService {
     if (dto.name !== undefined) goal.name = dto.name.trim();
     if (dto.targetAmount !== undefined) goal.targetAmount = dto.targetAmount;
     if (dto.savedAmount !== undefined) goal.savedAmount = dto.savedAmount;
-    if (dto.currency !== undefined) goal.currency = dto.currency.toUpperCase();
+    if (dto.currency !== undefined)
+      goal.currency = this.currency.assertSupported(dto.currency);
     if (dto.targetDate !== undefined) goal.targetDate = dto.targetDate ?? null;
     if (dto.sourceAccountId !== undefined) {
       goal.sourceAccountId = dto.sourceAccountId ?? null;

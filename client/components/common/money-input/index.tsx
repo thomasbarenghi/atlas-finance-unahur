@@ -16,6 +16,9 @@ export const MoneyInput = ({
   prefix = "$",
   className,
   inputClassName,
+  id,
+  "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid,
 }: MoneyInputProps) => {
   const { text, handleChange, handleBlur } = useMoneyInput({
     value,
@@ -31,6 +34,9 @@ export const MoneyInput = ({
         </span>
       ) : null}
       <Input
+        id={id}
+        aria-describedby={ariaDescribedBy}
+        aria-invalid={ariaInvalid}
         inputMode="decimal"
         autoComplete="off"
         value={text}
