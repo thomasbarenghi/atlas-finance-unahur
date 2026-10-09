@@ -2,7 +2,6 @@ import { Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import { apiReference } from "@scalar/nestjs-api-reference";
 import { AppModule } from "./app.module";
 import { configureApp } from "./app.setup";
 import { getApiOverview } from "./common/openapi/api-overview";
@@ -56,18 +55,39 @@ const bootstrap = async (): Promise<void> => {
   // Scalar renders the same OpenAPI document as an interactive reference.
   // The document is fetched from the JSON endpoint above, so `@nestjs/swagger`
   // stays the single source of truth for the contract.
-  app.use(
-    "/api/reference",
-    apiReference({
-      url: "/api/docs-json",
-      pageTitle: "Atlass Fin API Reference",
-    }),
-  );
+  //
+  // Scalar is loaded lazily on purpose: its transitive dependency
+  // `@scalar/core` is ESM-only, and `require()`-ing it from this CommonJS
+  // bundle fails on runtimes without `require(esm)` (ERR_REQUIRE_ESM), which
+  // would crash the whole process at boot. A docs UI must never take the API
+  // down, so on failure we log and keep the always-on Swagger UI at /api/docs.
+  let scalarReferenceEnabled = false;
+  try {
+    const { apiReference } = await import("@scalar/nestjs-api-reference");
+    app.use(
+      "/api/reference",
+      apiReference({
+        url: "/api/docs-json",
+        pageTitle: "Atlass Fin API Reference",
+      }),
+    );
+    scalarReferenceEnabled = true;
+  } catch (error) {
+    logger.warn(
+      `Scalar API reference disabled (${
+        error instanceof Error ? error.message : String(error)
+      }); use Swagger UI at /api/docs`,
+    );
+  }
 
   const port = config.get("port", { infer: true });
   await app.listen(port);
   logger.log(`API listening on http://localhost:${port}/api`);
-  logger.log(`API reference (Scalar): http://localhost:${port}/api/reference`);
+  if (scalarReferenceEnabled) {
+    logger.log(
+      `API reference (Scalar): http://localhost:${port}/api/reference`,
+    );
+  }
   logger.log(`OpenAPI document: http://localhost:${port}/api/docs-json`);
 };
 
