@@ -1,5 +1,13 @@
 import { Repository } from "typeorm";
-import { mockCurrency, mockRepository } from "../../test/unit/mocks";
+import {
+  mockConfig,
+  mockCurrency,
+  mockRepository,
+} from "../../test/unit/mocks";
+
+const MARKET_SYMBOLS = ["BTC", "ETH", "USDT", "USDC", "SOL", "BNB"];
+const marketConfig = () =>
+  mockConfig({ market: { symbols: MARKET_SYMBOLS } }) as any;
 import { Position } from "./entities/position.entity";
 import { PositionsService } from "./positions.service";
 
@@ -26,6 +34,7 @@ const buildService = () => {
   const service = new PositionsService(
     positionsRepository,
     mockCurrency() as any,
+    marketConfig(),
   );
 
   return { service, positionsRepository, findOneBy, save };
@@ -79,6 +88,7 @@ const buildRepository = () => {
   const service = new PositionsService(
     repository as any,
     mockCurrency() as any,
+    marketConfig(),
   );
   return { service, repository };
 };
@@ -130,6 +140,22 @@ describe("PositionsService CRUD", () => {
     expect(repository.create).toHaveBeenCalledWith(
       expect.objectContaining({ symbol: "BTC", currency: "USD" }),
     );
+  });
+
+  it("rejects a symbol outside the market catalog (FR-MER-001)", async () => {
+    const { service, repository } = buildRepository();
+    await expect(
+      service.createPosition("u1", {
+        symbol: "DOGE",
+        instrument: "Dogecoin",
+        quantity: 1,
+        avgCost: 1,
+        currency: "USD",
+      }),
+    ).rejects.toMatchObject({
+      response: { code: "VALIDATION_ERROR" },
+    });
+    expect(repository.save).not.toHaveBeenCalled();
   });
 
   it("updates the provided fields", async () => {

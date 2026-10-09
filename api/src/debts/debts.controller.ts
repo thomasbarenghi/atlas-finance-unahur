@@ -7,7 +7,13 @@ import {
   Patch,
   Post,
 } from "@nestjs/common";
-import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
+import { ApiErrors } from "../common/decorators/api-errors.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { CreateDebtDto } from "./dto/create-debt.dto";
 import { DebtResponseDto } from "./dto/debt-response.dto";
@@ -15,20 +21,22 @@ import { UpdateDebtDto } from "./dto/update-debt.dto";
 import { DebtsOrchestrator } from "./debts.orchestrator";
 
 @ApiTags("debts")
+@ApiBearerAuth()
+@ApiErrors(400, 401, 404, 409)
 @Controller("debts")
 export class DebtsController {
   constructor(private readonly debtsOrchestrator: DebtsOrchestrator) {}
 
   @Get()
   @ApiOperation({ summary: "Lista las deudas del usuario" })
-  @ApiOkResponse({ description: "DebtResponseDto[]" })
+  @ApiOkResponse({ type: [DebtResponseDto] })
   list(@CurrentUser("id") userId: string): Promise<DebtResponseDto[]> {
     return this.debtsOrchestrator.listDebts(userId);
   }
 
   @Post()
   @ApiOperation({ summary: "Crea una deuda" })
-  @ApiOkResponse({ description: "DebtResponseDto" })
+  @ApiOkResponse({ type: DebtResponseDto })
   create(
     @CurrentUser("id") userId: string,
     @Body() dto: CreateDebtDto,
@@ -38,7 +46,7 @@ export class DebtsController {
 
   @Patch(":id")
   @ApiOperation({ summary: "Edita una deuda (y su vínculo con un activo)" })
-  @ApiOkResponse({ description: "DebtResponseDto" })
+  @ApiOkResponse({ type: DebtResponseDto })
   update(
     @CurrentUser("id") userId: string,
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -49,7 +57,7 @@ export class DebtsController {
 
   @Post(":id/archive")
   @ApiOperation({ summary: "Archiva una deuda" })
-  @ApiOkResponse({ description: "DebtResponseDto" })
+  @ApiOkResponse({ type: DebtResponseDto })
   archive(
     @CurrentUser("id") userId: string,
     @Param("id", new ParseUUIDPipe()) id: string,

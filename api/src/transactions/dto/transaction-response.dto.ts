@@ -1,7 +1,7 @@
 import { TransactionType } from "../../common/types/financial-enums";
 import { Transaction } from "../entities/transaction.entity";
 
-export interface TransactionResponseDto {
+export class TransactionResponseDto {
   id: string;
   type: TransactionType;
   amount: number;
@@ -34,3 +34,11 @@ export const toTransactionResponse = (
   createdAt: transaction.createdAt.toISOString(),
   updatedAt: transaction.updatedAt.toISOString(),
 });
+
+export class PaginatedTransactionsDto {
+  items: TransactionResponseDto[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}

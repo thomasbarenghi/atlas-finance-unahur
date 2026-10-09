@@ -8,6 +8,7 @@ import { GoalsOrchestrator } from "../../../goals/goals.orchestrator";
 import { GoalsService } from "../../../goals/goals.service";
 import { UsersService } from "../../../users/users.service";
 import { ReferenceResolver } from "../reference-resolver.service";
+import { definedPreviewFields } from "../preview";
 import { jsonSchema, optionalString, validateToolArgs } from "../tool-input";
 import type {
   AssistantActionEntity,
@@ -226,10 +227,7 @@ export class GoalTools {
               summary: "Se actualizará la meta.",
               fields: [
                 { label: "Meta", value: await this.label(userId, id) },
-                ...Object.entries(dto).map(([key, value]) => ({
-                  label: key,
-                  value: String(value),
-                })),
+                ...definedPreviewFields(dto),
               ],
             },
           };

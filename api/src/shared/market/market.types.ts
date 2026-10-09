@@ -1,3 +1,5 @@
+import { ApiProperty } from "@nestjs/swagger";
+
 export interface ProviderQuote {
   symbol: string;
   price: number;
@@ -14,13 +16,21 @@ export interface ProviderRate {
   date?: string;
 }
 
-export interface MarketRefreshOutcome {
+export class MarketRefreshOutcome {
+  @ApiProperty({ example: 6 })
   updated: number;
+
+  @ApiProperty({ type: String, nullable: true, example: null })
   error: string | null;
 }
 
-export interface MarketRefreshResult {
+export class MarketRefreshResult {
+  @ApiProperty({ example: "2026-10-09T16:00:00.000Z" })
   refreshedAt: string;
+
+  @ApiProperty({ type: () => MarketRefreshOutcome })
   crypto: MarketRefreshOutcome;
+
+  @ApiProperty({ type: () => MarketRefreshOutcome })
   fx: MarketRefreshOutcome;
 }

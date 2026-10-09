@@ -80,6 +80,33 @@ describe("AssetsService", () => {
     });
   });
 
+  it("breaks same-date valuation ties by the most recently created", async () => {
+    const { service, assetsRepository, valuationsRepository } = build();
+    assetsRepository.find.mockResolvedValue([asset()]);
+    valuationsRepository.find.mockResolvedValue([
+      valuation({
+        id: "v2",
+        value: 95000,
+        date: "2026-03-01",
+        createdAt: new Date("2026-03-01T12:00:00.000Z"),
+      }),
+      valuation({
+        id: "v1",
+        value: 90000,
+        date: "2026-03-01",
+        createdAt: new Date("2026-03-01T08:00:00.000Z"),
+      }),
+    ]);
+
+    const [result] = await service.listAssets("u1");
+    expect(result.currentValue).toBe(95000);
+    expect(valuationsRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order: { date: "DESC", createdAt: "DESC" },
+      }),
+    );
+  });
+
   it("returns an empty list without querying valuations", async () => {
     const { service, assetsRepository, valuationsRepository } = build();
     assetsRepository.find.mockResolvedValue([]);

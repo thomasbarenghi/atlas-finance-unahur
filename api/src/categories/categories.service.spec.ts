@@ -117,4 +117,14 @@ describe("CategoriesService", () => {
       response: { code: ErrorCode.NOT_FOUND },
     });
   });
+
+  it("rejects using an archived category for new records", async () => {
+    const { service, repository } = build();
+    repository.findOneBy.mockResolvedValue(category({ archived: true }));
+    await expect(
+      service.assertCategoryUsable("u1", "c1"),
+    ).rejects.toMatchObject({
+      response: { code: ErrorCode.CATEGORY_ARCHIVED },
+    });
+  });
 });

@@ -36,7 +36,7 @@ describe("InvestmentsSummary", () => {
     expect(screen.getByText(/cotización desactualizada/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /BTC/ })).toHaveAttribute(
       "href",
-      "/patrimony/investments/detail?symbol=BTC&currency=USD",
+      "/patrimony/investments/detail?id=position-1",
     );
   });
 
@@ -47,6 +47,7 @@ describe("InvestmentsSummary", () => {
         staleQuotes={0}
         positions={[
           {
+            id: "position-eth",
             symbol: "ETH",
             instrument: "Ethereum",
             quantity: 1,
@@ -88,6 +89,7 @@ describe("InvestmentsSummary", () => {
         currency="ARS"
         positions={[
           {
+            id: "position-eth-2",
             symbol: "ETH",
             instrument: "Ethereum",
             quantity: 1,

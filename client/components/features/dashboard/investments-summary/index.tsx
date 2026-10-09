@@ -89,7 +89,7 @@ export const InvestmentsSummary = ({
       <div className="flex h-3 w-full overflow-hidden rounded-full">
         {positions.map((position, index) => (
           <div
-            key={`${position.symbol}-${position.originalCurrency}`}
+            key={position.id}
             style={{
               width:
                 distributionTotal > 0
@@ -109,9 +109,9 @@ export const InvestmentsSummary = ({
           const converted = position.originalCurrency !== currency && hasQuote;
 
           return (
-            <li key={`${position.symbol}-${position.originalCurrency}`}>
+            <li key={position.id}>
               <Link
-                href={`/patrimony/investments/detail?symbol=${position.symbol}&currency=${position.originalCurrency}`}
+                href={`/patrimony/investments/detail?id=${position.id}`}
                 className="hover:bg-muted/40 -mx-2 flex items-start justify-between gap-3 rounded-xl px-2 py-1 text-sm transition-colors"
               >
                 <span className="flex min-w-0 items-start gap-2">

@@ -1,6 +1,6 @@
 import { AccountType } from "../../common/types/financial-enums";
 
-export interface AccountResponseDto {
+export class AccountResponseDto {
   id: string;
   name: string;
   type: AccountType;

@@ -78,7 +78,26 @@ describe("TransactionTools", () => {
     expect(resolver.resolveCategoryId).not.toHaveBeenCalled();
   });
 
-  it("creates an expense without a category and with an explicit currency", async () => {
+  it("rejects an expense without a category", async () => {
+    const { byName } = build();
+    await expect(
+      byName("createTransaction").prepare!("u1", {
+        type: "expense",
+        amount: 50,
+        date: "2026-03-10",
+        description: "Varios",
+        account: "Caja",
+        currency: "USD",
+      }),
+    ).rejects.toMatchObject({
+      response: {
+        code: "VALIDATION_ERROR",
+        fieldErrors: { categoryId: expect.any(Array) },
+      },
+    });
+  });
+
+  it("creates an expense with a category and an explicit currency", async () => {
     const { byName } = build();
     const prepared = await byName("createTransaction").prepare!("u1", {
       type: "expense",
@@ -86,9 +105,10 @@ describe("TransactionTools", () => {
       date: "2026-03-10",
       description: "Varios",
       account: "Caja",
+      category: "Comida",
       currency: "USD",
     });
-    expect(prepared.args).toMatchObject({ categoryId: null, currency: "USD" });
+    expect(prepared.args).toMatchObject({ categoryId: CAT, currency: "USD" });
   });
 
   it("updates resolving account and category", async () => {

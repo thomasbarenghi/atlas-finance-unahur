@@ -14,7 +14,9 @@
     "typecheck": "sh scripts/run-in-projects.sh typecheck",
     "test": "sh scripts/run-in-projects.sh test",
     "test:e2e": "sh scripts/run-in-projects.sh test:e2e",
-    "build": "sh scripts/run-in-projects.sh build"
+    "build": "sh scripts/run-in-projects.sh build",
+    "fix:lockfiles": "node scripts/fix-lockfiles-registry.mjs",
+    "check:lockfiles": "node scripts/fix-lockfiles-registry.mjs --check"
   },
   "devDependencies": {
     "husky": "^9.1.7"

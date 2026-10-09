@@ -30,3 +30,6 @@ yarn-error.log*
 # Agent-local scratch: ignore everything except the placeholder
 agent-local/*
 !agent-local/.gitkeep
+
+# Playwright MCP test artifacts
+.playwright-mcp/

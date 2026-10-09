@@ -104,7 +104,7 @@ There are two kinds of domains:
 ```text
 api/src/
 ├── config/                     # env loading and validation
-├── database/                   # DataSource + migrations
+├── database/                   # DataSource + entities (synchronize) + seeds
 ├── common/                     # shared: guards, decorators, filters, interceptors, dto, errors, types, transformers
 ├── shared/                     # cross-domain providers: calculations, fx, market, ai, mail
 ├── accounts/                   # business domain

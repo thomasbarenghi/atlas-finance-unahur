@@ -37,6 +37,12 @@ const INCOME_CATEGORY = makeCategory({
   name: "Sueldo",
   type: "income",
 });
+const ARCHIVED_CATEGORY = makeCategory({
+  id: "66666666-6666-4666-8666-666666666666",
+  name: "Vieja",
+  type: "expense",
+  archived: true,
+});
 
 const openCombobox = async (
   user: ReturnType<typeof userEvent.setup>,
@@ -114,6 +120,21 @@ describe("TransactionFormDialog", () => {
       payload as unknown as Record<string, unknown>,
     );
     expect(result.errors).toEqual([]);
+  });
+
+  it("hides archived categories when creating a movement", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      categories: [EXPENSE_CATEGORY, ARCHIVED_CATEGORY, INCOME_CATEGORY],
+    });
+
+    await openCombobox(user, "Categoría");
+    expect(
+      await screen.findByRole("option", { name: "Comida" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Vieja" }),
+    ).not.toBeInTheDocument();
   });
 
   it("rejects an empty description and a zero amount without calling the API", async () => {

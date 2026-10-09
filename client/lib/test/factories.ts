@@ -259,6 +259,7 @@ export const makeDashboardData = (
     staleQuotes: 1,
     positions: [
       {
+        id: "position-1",
         symbol: "BTC",
         instrument: "Bitcoin",
         quantity: 0.05,

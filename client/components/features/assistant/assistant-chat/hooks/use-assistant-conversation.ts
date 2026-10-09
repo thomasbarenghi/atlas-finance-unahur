@@ -89,10 +89,14 @@ export const useAssistantConversation = () => {
 
   const failAssistant = useCallback(
     (assistantId: string, error: unknown) => {
-      const message = getErrorMessage(
-        error,
-        "El asistente no está disponible en este momento",
-      );
+      // Un fallo de red (fetch lanza TypeError) no debe exponer "Failed to fetch".
+      const message =
+        error instanceof TypeError
+          ? "El asistente no está disponible en este momento"
+          : getErrorMessage(
+              error,
+              "El asistente no está disponible en este momento",
+            );
       updateMessage(assistantId, { content: message });
       toast.error(message);
     },

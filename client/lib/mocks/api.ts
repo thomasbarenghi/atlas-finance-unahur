@@ -1688,6 +1688,7 @@ export const mockApi = {
           .length,
         positions: derivedPositions
           .map((position) => ({
+            id: position.id,
             symbol: position.symbol,
             instrument: position.instrument,
             quantity: position.quantity,

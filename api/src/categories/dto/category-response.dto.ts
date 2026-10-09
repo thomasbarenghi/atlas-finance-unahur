@@ -1,7 +1,7 @@
 import { CategoryType } from "../../common/types/financial-enums";
 import { Category } from "../entities/category.entity";
 
-export interface CategoryResponseDto {
+export class CategoryResponseDto {
   id: string;
   name: string;
   type: CategoryType;

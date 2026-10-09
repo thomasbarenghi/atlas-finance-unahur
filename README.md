@@ -57,10 +57,14 @@ Skills are written in English; functional documentation is in Spanish.
 cd api
 cp .env.example .env          # set DATABASE_URL, JWT secrets, etc.
 npm install
-npm run migration:run         # create the schema
-npm run seed                  # idempotent demo data
+npm run db:reset              # drop/recreate the schema from entities + seed demo data
 npm run start:dev             # http://localhost:3001/api  (Scalar at /api/reference, Swagger at /api/docs)
 ```
+
+> **No migrations by design.** The schema is derived from the TypeORM entities
+> (`synchronize: true`). When the model changes we **recreate the database and
+> re-seed** instead of writing a migration. See
+> [`docs/architecture/backend.md`](docs/architecture/backend.md) §11.1.
 
 ### Client
 
@@ -79,9 +83,16 @@ npm run android               # build + install + launch on a device/emulator
 
 ### Demo credentials
 
-```
-demo@atlassfin.app / Demo1234!
-```
+All demo users share the password `Demo1234!`:
+
+| Email | Scenario |
+| :--- | :--- |
+| `demo@atlassfin.app` | Full dataset: accounts, 4 months of movements, budgets, assets, debts, positions, goals and AI history. |
+| `sin-datos@atlassfin.app` | Empty user (no financial data) to exercise empty states. |
+| `ana@atlassfin.app` | Second user in USD (dark theme, destructive assistant actions enabled) for isolation/permissions. |
+
+The seed is deterministic: the same emails, entities and scenarios are produced
+every time. See [`docs/architecture/backend.md`](docs/architecture/backend.md) §11.
 
 ## Features
 

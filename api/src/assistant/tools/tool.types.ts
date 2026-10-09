@@ -1,13 +1,24 @@
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+
 export type ActionClass = "read" | "write_safe" | "sensitive" | "destructive";
 
 export type AssistantActionStatus =
   "proposed" | "executed" | "failed" | "cancelled" | "expired";
 
-export interface AssistantActionEntity {
+export class AssistantActionEntity {
+  @ApiProperty()
   id: string;
+
+  @ApiProperty()
   name: string;
+
+  @ApiPropertyOptional()
   type?: string;
+
+  @ApiPropertyOptional()
   currency?: string;
+
+  @ApiPropertyOptional()
   initialBalance?: number;
 }
 

@@ -6,6 +6,7 @@ import { PositionsOrchestrator } from "../../../positions/positions.orchestrator
 import { ApiException } from "../../../common/errors/api.exception";
 import { ErrorCode } from "../../../common/errors/error-codes";
 import { ReferenceResolver } from "../reference-resolver.service";
+import { definedPreviewFields } from "../preview";
 import { jsonSchema, optionalString, validateToolArgs } from "../tool-input";
 import type {
   AssistantActionEntity,
@@ -212,10 +213,7 @@ export class PositionTools {
               summary: "Se actualizarán los datos de la inversión.",
               fields: [
                 { label: "Inversión", value: await this.label(userId, id) },
-                ...Object.entries(dto).map(([key, value]) => ({
-                  label: key,
-                  value: String(value),
-                })),
+                ...definedPreviewFields(dto),
               ],
             },
           };

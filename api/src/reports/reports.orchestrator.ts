@@ -6,38 +6,12 @@ import { DashboardOrchestrator } from "../dashboard/dashboard.orchestrator";
 import { FxService } from "../fx/fx.service";
 import { TransactionsService } from "../transactions/transactions.service";
 import { UsersService } from "../users/users.service";
-
-export interface ReportSummary {
-  from: string;
-  to: string;
-  currency: string;
-  income: number;
-  expenses: number;
-  savings: number;
-  netWorth: number;
-}
-
-export interface ReportByCategoryRow {
-  categoryId: string;
-  name: string;
-  type: "income" | "expense";
-  value: number;
-  pct: number;
-}
-
-export interface NetWorthPoint {
-  date: string;
-  netWorth: number;
-}
-
-export interface BudgetReportRow {
-  budgetId: string;
-  categoryName: string;
-  limit: number;
-  spent: number;
-  consumedPct: number;
-  status: string;
-}
+import {
+  BudgetReportRow,
+  NetWorthPoint,
+  ReportByCategoryRow,
+  ReportSummary,
+} from "./dto/reports-response.dto";
 
 /**
  * Read-model orchestrator for the reports domain (FR-REP-001..006). It composes

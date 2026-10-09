@@ -233,6 +233,22 @@ export class PendingActionsService {
   }
 
   /**
+   * Devuelve los nombres de las tools con acciones propuestas vigentes de una
+   * conversación. Se usa para validar que la respuesta del modelo no mencione
+   * acciones que en realidad no fueron propuestas (propuestas fantasma).
+   */
+  async listActiveToolNames(conversationId: string | null): Promise<string[]> {
+    if (!conversationId) return [];
+    const actions = await this.actionsRepository.find({
+      where: { conversationId, status: "proposed" },
+    });
+    const now = Date.now();
+    return actions
+      .filter((action) => action.expiresAt.getTime() > now)
+      .map((action) => action.toolName);
+  }
+
+  /**
    * Registra una tool de lectura ejecutada en `assistant_actions` para
    * trazabilidad. Es best-effort: una falla de auditoría no debe romper la
    * respuesta al usuario.

@@ -6,6 +6,7 @@ import {
   UpdateUserDto,
 } from "../../../users/dto/update-user.dto";
 import { UsersService } from "../../../users/users.service";
+import { definedPreviewFields } from "../preview";
 import { jsonSchema, validateToolArgs } from "../tool-input";
 import type {
   PreparedAction,
@@ -54,10 +55,7 @@ export class ProfileTools {
             preview: {
               title: "Actualizar preferencias",
               summary: "Se actualizarán tus preferencias de perfil.",
-              fields: Object.entries(dto).map(([key, value]) => ({
-                label: key,
-                value: String(value),
-              })),
+              fields: definedPreviewFields(dto),
             },
           };
         },

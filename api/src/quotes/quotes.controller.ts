@@ -1,8 +1,17 @@
 import { Controller, Get } from "@nestjs/common";
-import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { QuoteResponseDto, QuotesService } from "./quotes.service";
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
+import { ApiErrors } from "../common/decorators/api-errors.decorator";
+import { QuoteResponseDto } from "./dto/quote-response.dto";
+import { QuotesService } from "./quotes.service";
 
 @ApiTags("quotes")
+@ApiBearerAuth()
+@ApiErrors(401)
 @Controller("quotes")
 export class QuotesController {
   constructor(private readonly quotesService: QuotesService) {}
@@ -11,7 +20,7 @@ export class QuotesController {
   @ApiOperation({
     summary: "Catálogo de cotizaciones con bandera de antigüedad",
   })
-  @ApiOkResponse({ description: "QuoteResponseDto[]" })
+  @ApiOkResponse({ type: [QuoteResponseDto] })
   list(): Promise<QuoteResponseDto[]> {
     return this.quotesService.listQuotes();
   }

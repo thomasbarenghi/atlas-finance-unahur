@@ -1,14 +1,8 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
-import { AccountsService } from "../accounts/accounts.service";
-import { AssetsService } from "../assets/assets.service";
 import { BudgetsOrchestrator } from "../budgets/budgets.orchestrator";
-import { CategoriesService } from "../categories/categories.service";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
-import { DebtsService } from "../debts/debts.service";
-import { PositionsService } from "../positions/positions.service";
-import { CalculationsService } from "../shared/calculations/calculations.service";
-import { TransactionsService } from "../transactions/transactions.service";
+import { DashboardOrchestrator } from "../dashboard/dashboard.orchestrator";
 import { UsersService } from "../users/users.service";
 import { AssistantMessageDto } from "./dto/assistant-message.dto";
 
@@ -25,21 +19,17 @@ const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
 
 /**
  * Builds the minimal, pre-calculated context sent to the LLM (FR-IA-002/003/005,
- * RN-013). It coordinates the finance services instead of querying their
- * repositories, and holds no database queries of its own.
+ * RN-013). It reuses the dashboard read model (the single source of truth for
+ * CAL-001/CAL-002 aggregation and FX conversion) instead of re-deriving
+ * formulas, so the figures it hands the model match the dashboard and reports
+ * (AGENTS rule 7: never duplicate a calculation).
  */
 @Injectable()
 export class AssistantContextService {
   constructor(
     private readonly usersService: UsersService,
-    private readonly transactionsService: TransactionsService,
-    private readonly categoriesService: CategoriesService,
+    private readonly dashboardOrchestrator: DashboardOrchestrator,
     private readonly budgetsOrchestrator: BudgetsOrchestrator,
-    private readonly accountsService: AccountsService,
-    private readonly assetsService: AssetsService,
-    private readonly debtsService: DebtsService,
-    private readonly positionsService: PositionsService,
-    private readonly calculations: CalculationsService,
   ) {}
 
   async build(
@@ -50,7 +40,9 @@ export class AssistantContextService {
     const to = dto.period?.to ?? toIsoDate(new Date());
     const from =
       dto.period?.from ??
-      toIsoDate(new Date(new Date(to).getTime() - 29 * DAY_MS));
+      toIsoDate(
+        new Date(new Date(`${to}T00:00:00.000Z`).getTime() - 29 * DAY_MS),
+      );
     if (from > to) {
       throw new ApiException(
         ErrorCode.VALIDATION_ERROR,
@@ -59,37 +51,20 @@ export class AssistantContextService {
       );
     }
     const currency = dto.currency ?? user.baseCurrency;
-    const sources = new Set<string>(["transactions"]);
 
-    const [transactions, categories] = await Promise.all([
-      this.transactionsService.listOwnedTransactions(userId),
-      this.categoriesService.listCategories(userId),
-    ]);
-    const categoryNameById = new Map(
-      categories.map((category) => [category.id, category.name]),
-    );
-    const categoryName = (id: string | null): string =>
-      (id ? categoryNameById.get(id) : undefined) ?? "Sin categoría";
-
-    const flows = this.calculations.calculatePeriodFlows(
-      transactions,
+    const dashboard = await this.dashboardOrchestrator.getDashboard(userId, {
       from,
       to,
-    );
+      currency,
+    });
+    const { kpis } = dashboard;
 
-    const periodExpensesByCategory =
-      this.calculations.calculateExpensesByCategory(transactions, from, to);
-    const topCategories = [...periodExpensesByCategory.entries()]
-      .map(([categoryId, value]) => ({
-        name: categoryName(categoryId),
-        value,
-      }))
-      .sort((first, second) => second.value - first.value)
-      .slice(0, 5);
+    const topCategories = dashboard.expensesByCategory
+      .slice(0, 5)
+      .map((item) => ({ name: item.name, value: item.value }));
 
     const month = to.slice(0, 7);
     const budgets = await this.budgetsOrchestrator.listBudgets(userId, month);
-    if (budgets.length > 0) sources.add("budgets");
     const budgetSummary = budgets.slice(0, 6).map((budget) => ({
       category: budget.category.name,
       limit: budget.limit,
@@ -97,41 +72,22 @@ export class AssistantContextService {
       consumedPct: Math.round(budget.consumedPct),
     }));
 
-    const accounts = await this.accountsService.listOwnedAccounts(userId);
-    const cash = this.calculations.calculateCashBalance(accounts, transactions);
+    const monthExpenses =
+      dashboard.incomeExpenseByMonth.find((item) => item.month === month)
+        ?.expenses ?? 0;
 
-    const assets = await this.assetsService.listOwnedAssets(userId);
-    const valuations = await this.assetsService.listValuationsForUser(userId);
-    const assetsValue = this.calculations.getLatestValuationsTotal(valuations);
-    if (assets.length > 0) sources.add("assets");
-
-    const debts = await this.debtsService.listOwnedDebts(userId);
-    const debtTotal = debts
-      .filter((debt) => !debt.archived)
-      .reduce((total, debt) => total + debt.balance, 0);
-    if (debts.length > 0) sources.add("debts");
-
-    const positions = await this.positionsService.listOwnedPositions(userId);
-    const positionsCost = this.calculations.calculatePositionsCost(positions);
-    if (positions.length > 0) sources.add("positions");
-
-    const netWorth = this.calculations.calculateNetWorth({
-      assets: assetsValue,
-      positions: positionsCost,
-      cash,
-      debts: debtTotal,
-    });
-    const monthExpenses = this.calculations.calculateMonthExpenses(
-      transactions,
-      month,
-    );
+    const sources = new Set<string>(["transactions"]);
+    if (budgets.length > 0) sources.add("budgets");
+    if (dashboard.kpis.assets !== 0) sources.add("assets");
+    if (dashboard.kpis.debts !== 0) sources.add("debts");
+    if (dashboard.investments.positions.length > 0) sources.add("positions");
 
     const summary = [
       `Fecha de hoy: ${toIsoDate(new Date())}.`,
       `Período analizado: ${from} a ${to} (moneda ${currency}).`,
-      `Ingresos del período: ${flows.income}.`,
-      `Gastos del período: ${flows.expenses}.`,
-      `Ahorro (ingresos - gastos): ${flows.savings}.`,
+      `Ingresos del período: ${kpis.income}.`,
+      `Gastos del período: ${kpis.expenses}.`,
+      `Ahorro (ingresos - gastos): ${kpis.savings}.`,
       topCategories.length > 0
         ? `Mayores gastos por categoría: ${topCategories
             .map((item) => `${item.name} ${item.value}`)
@@ -145,7 +101,7 @@ export class AssistantContextService {
             )
             .join(", ")}.`
         : "Sin presupuestos definidos para el mes.",
-      `Patrimonio neto estimado: ${netWorth}.`,
+      `Patrimonio neto estimado: ${kpis.netWorth}.`,
       `Gastos totales del mes: ${monthExpenses}.`,
     ].join("\n");
 

@@ -13,6 +13,13 @@ import {
   Res,
   UseGuards,
 } from "@nestjs/common";
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiProduces,
+  ApiTags,
+} from "@nestjs/swagger";
 import { Response } from "express";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { Public } from "../common/decorators/public.decorator";
@@ -21,11 +28,17 @@ import { Paginated, PaginationDto } from "../common/dto/pagination.dto";
 import { ApiErrorBody, ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
 import { AuthUser } from "../common/types/auth-user";
+import { ApiErrors } from "../common/decorators/api-errors.decorator";
 import { ActionResultDto } from "./actions/action-result.dto";
-import { AssistantService, ConversationResponse } from "./assistant.service";
+import { AssistantService } from "./assistant.service";
 import { AssistantMessageDto } from "./dto/assistant-message.dto";
 import { ConfirmActionDto } from "./dto/confirm-action.dto";
+import {
+  ConversationResponse,
+  PaginatedConversationsDto,
+} from "./dto/conversation-response.dto";
 
+@ApiTags("assistant")
 @Controller("assistant")
 export class AssistantController {
   private readonly logger = new Logger(AssistantController.name);
@@ -35,7 +48,16 @@ export class AssistantController {
   @Public()
   @UseGuards(OptionalJwtAuthGuard)
   @HttpCode(HttpStatus.OK)
+  @ApiProduces("text/event-stream")
   @Post("messages")
+  @ApiOperation({
+    summary: "Responde con un stream SSE calculado sobre los datos del usuario",
+  })
+  @ApiOkResponse({
+    description:
+      "Server-Sent Events: `meta`, `token`, `action_proposal`, `action_error`, `done`",
+    content: { "text/event-stream": { schema: { type: "string" } } },
+  })
   async stream(
     @CurrentUser() user: AuthUser | undefined,
     @Body() dto: AssistantMessageDto,
@@ -81,6 +103,10 @@ export class AssistantController {
   }
 
   @Get("conversations")
+  @ApiBearerAuth()
+  @ApiErrors(400, 401)
+  @ApiOperation({ summary: "Lista las conversaciones del usuario" })
+  @ApiOkResponse({ type: PaginatedConversationsDto })
   list(
     @CurrentUser() user: AuthUser,
     @Query() pagination: PaginationDto,
@@ -89,6 +115,10 @@ export class AssistantController {
   }
 
   @Get("conversations/:id")
+  @ApiBearerAuth()
+  @ApiErrors(400, 401, 404)
+  @ApiOperation({ summary: "Obtiene una conversación del usuario" })
+  @ApiOkResponse({ type: ConversationResponse })
   get(
     @CurrentUser() user: AuthUser,
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -97,6 +127,10 @@ export class AssistantController {
   }
 
   @Delete("conversations/:id")
+  @ApiBearerAuth()
+  @ApiErrors(401, 404)
+  @ApiOperation({ summary: "Elimina una conversación" })
+  @ApiOkResponse({ description: "Conversación eliminada" })
   remove(
     @CurrentUser() user: AuthUser,
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -105,11 +139,21 @@ export class AssistantController {
   }
 
   @Delete("conversations")
+  @ApiBearerAuth()
+  @ApiErrors(401)
+  @ApiOperation({ summary: "Elimina todo el historial de conversaciones" })
+  @ApiOkResponse({ description: "Historial eliminado" })
   clear(@CurrentUser() user: AuthUser): Promise<void> {
     return this.assistantService.deleteConversations(user.id);
   }
 
   @Post("actions/:id/confirm")
+  @ApiBearerAuth()
+  @ApiErrors(400, 401, 404, 409)
+  @ApiOperation({
+    summary: "Confirma y ejecuta una acción propuesta con token de un solo uso",
+  })
+  @ApiOkResponse({ type: ActionResultDto })
   confirmAction(
     @CurrentUser() user: AuthUser,
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -119,6 +163,10 @@ export class AssistantController {
   }
 
   @Post("actions/:id/cancel")
+  @ApiBearerAuth()
+  @ApiErrors(400, 401, 404, 409)
+  @ApiOperation({ summary: "Cancela una acción propuesta" })
+  @ApiOkResponse({ type: ActionResultDto })
   cancelAction(
     @CurrentUser() user: AuthUser,
     @Param("id", new ParseUUIDPipe()) id: string,

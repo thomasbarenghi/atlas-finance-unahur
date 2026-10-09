@@ -50,6 +50,18 @@ describe("BudgetsSummary", () => {
     expect(screen.getByText("1")).toBeInTheDocument();
   });
 
+  it("labels the summary as exceeded instead of a negative available", () => {
+    render(
+      <BudgetsSummary
+        budgets={[
+          makeBudget({ id: "1", limit: 50, spent: 60, status: "exceeded" }),
+        ]}
+      />,
+    );
+    expect(screen.getByText("Excedido")).toBeInTheDocument();
+    expect(screen.queryByText("Disponible")).not.toBeInTheDocument();
+  });
+
   it("renders nothing without budgets", () => {
     const { container } = render(<BudgetsSummary budgets={[]} />);
     expect(container).toBeEmptyDOMElement();

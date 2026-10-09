@@ -35,8 +35,8 @@ Backend monolítico que sirve una API REST para Atlass Fin. Organiza y explica l
 | Framework | NestJS | Monolítico, módulos por dominio. |
 | Lenguaje | TypeScript (strict) | — |
 | Base de datos | PostgreSQL | Proveedor: **Supabase** (Postgres gestionado). |
-| ORM | TypeORM | Entidades + migraciones. |
-| Migraciones | TypeORM migrations | Versionadas en `src/database/migrations`. |
+| ORM | TypeORM | Entidades como fuente de verdad del esquema (`synchronize`). |
+| Esquema | **Sin migraciones** (decisión de la etapa) | El schema se deriva de las entidades; ante un cambio se recrea la base y se corre el seed (§11.1). |
 | Auth | `@nestjs/jwt` + `passport` | JWT por cookie `HttpOnly` (web) o `Authorization: Bearer` (nativo). |
 | Validación | `class-validator` + `class-transformer` + `ValidationPipe` global | — |
 | Hash | `argon2` | Algoritmo adaptativo (NFR-SEG-003). |
@@ -56,7 +56,7 @@ Backend monolítico que sirve una API REST para Atlass Fin. Organiza y explica l
 | Estilo | Monolito modular | Suficiente para el alcance; evita complejidad de microservicios. |
 | Estructura | Convencional NestJS (module/controller/service) + DTOs y entidades | Es la estructura por defecto; clara para el agente. |
 | Casos de uso | Services de dominio con un método por caso de uso | Separación de responsabilidades; testeo unitario directo. |
-| ORM | TypeORM | Integración nativa con NestJS (`@nestjs/typeorm`), migraciones SQL controladas. |
+| ORM | TypeORM | Integración nativa con NestJS (`@nestjs/typeorm`); el esquema se sincroniza desde las entidades. |
 | Auth | JWT (access token) + sesión persistida | Permite invalidar sesión al cerrar (FR-AUT-002). Transporte por cookie o Bearer para soportar web y nativo. |
 | Transporte de token | Cookie `HttpOnly; Secure; SameSite` (web) + `Authorization: Bearer` (nativo) | Mitiga XSS y soporta clientes nativos; consistente con NFR-SEG-004. |
 | IDs | `uuid` (gen_random_uuid) | Identificadores no predecibles (NFR-SEG-005). |
@@ -116,8 +116,10 @@ api/
 │   │   ├── configuration.ts         # carga y valida env
 │   │   └── env.validation.ts
 │   ├── database/
-│   │   ├── data-source.ts           # DataSource para CLI de migraciones
-│   │   └── migrations/              # migraciones TypeORM
+│   │   ├── data-source.ts           # DataSource de los scripts (`seed`, `db:*`)
+│   │   ├── database-maintenance.service.ts  # vaciar/recrear/sembrar (dev/test)
+│   │   ├── dev-database.controller.ts       # endpoints dev de mantenimiento
+│   │   └── seeds/                   # seed determinístico + runners
 │   ├── common/
 │   │   ├── decorators/
 │   │   │   ├── public.decorator.ts
@@ -458,7 +460,7 @@ Cada acción de escritura que propone el asistente se guarda como una **acción 
 | expires_at | timestamptz | TTL (`AI_ACTION_TTL_MS`, default 120 s) |
 | created_at / updated_at | timestamptz | |
 
-> La confirmación bloquea la fila (`pessimistic_write`) y valida **estado, TTL y token**, además del **orden del plan** (no se puede ejecutar un paso mientras uno anterior del mismo `planId` no esté `executed`/`cancelled`); así se evita la doble ejecución y las dependencias fuera de orden. El **token es de un solo uso**: una vez que la acción queda `executed`, un nuevo intento responde `ACTION_ALREADY_EXECUTED`. Al vencer el TTL la acción pasa a `expired`. Las tablas/columnas se crean/actualizan con **`synchronize: true`** (no hay migración para esta funcionalidad).
+> La confirmación bloquea la fila (`pessimistic_write`) y valida **estado, TTL y token**, además del **orden del plan** (no se puede ejecutar un paso mientras uno anterior del mismo `planId` no esté `executed`/`cancelled`); así se evita la doble ejecución y las dependencias fuera de orden. El **token es de un solo uso**: una vez que la acción queda `executed`, un nuevo intento responde `ACTION_ALREADY_EXECUTED`. Al vencer el TTL la acción pasa a `expired`. Las tablas/columnas se crean/actualizan con **`synchronize: true`**, como todo el esquema (el proyecto no usa migraciones; ver §11.1).
 
 ---
 
@@ -558,6 +560,8 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 | PATCH / DELETE | `/positions/:id` | FR-ACT-007 |
 | POST | `/positions/:id/archive` | FR-ACT-007 (una posición archivada no suma al patrimonio) |
 | POST | `/positions/:id/restore` | FR-ACT-007 |
+
+> El `symbol` de una posición debe pertenecer al catálogo de mercado (`MARKET_SYMBOLS`, FR-MER-001); un símbolo fuera del catálogo se rechaza con `VALIDATION_ERROR` (`fieldErrors.symbol`).
 
 ### 7.7 Quotes
 | Método | Ruta | FR |
@@ -825,7 +829,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
   "investments": {
     "totalValue": 5680000, "totalCost": 4750000, "profitLoss": 930000, "profitLossPct": 19.6, "staleQuotes": 1,
     "positions": [{
-      "symbol": "BTC", "instrument": "Bitcoin", "quantity": 0.05,
+      "id": "uuid", "symbol": "BTC", "instrument": "Bitcoin", "quantity": 0.05,
       "originalCurrency": "USD", "originalValue": 3200, "originalCost": 2750, "originalProfitLoss": 450,
       "value": 3200000, "profitLossPct": 16.4, "isStale": false, "quoteDate": "2026-09-12T12:00:00.000Z"
     }]
@@ -902,6 +906,7 @@ event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 | `ACTION_DEPENDENCY_PENDING` | 409 | falta confirmar una acción previa del mismo plan (`planId`) |
 | `NOT_FOUND` | 404 | recurso inexistente o ajeno |
 | `ACCOUNT_ARCHIVED` | 409 | movimiento sobre cuenta archivada |
+| `CATEGORY_ARCHIVED` | 409 | movimiento/budget sobre categoría archivada |
 | `DUPLICATE_BUDGET` | 409 | presupuesto ya existe para categoría/período |
 | `EMAIL_IN_USE` | 409 | registro con email existente |
 | `RATE_LIMITED` | 429 | límite de frecuencia |
@@ -922,6 +927,8 @@ event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 - **Stack:** `@scalar/nestjs-api-reference` (licencia MIT). Scalar sólo **renderiza** el documento; `@nestjs/swagger` sigue siendo la única fuente de verdad del contrato.
 - **Dependencia de red:** el middleware carga el bundle `@scalar/api-reference` desde jsDelivr (`cdn.jsdelivr.net`) en el navegador. No requiere cuenta, dependencia ni backend de Scalar Cloud. Para fijar la versión o auto-hospedarlo, pasar la opción `cdn` a `apiReference(...)`.
 - **Compatibilidad de Node:** `@scalar/nestjs-api-reference` `1.1.0+` exige **Node >= 22**. El proyecto soporta Node >= 20, por eso la dependencia se fija en `~1.0.31` (última línea compatible con Node 20). Al subir el mínimo de Node a 22, se puede actualizar a la última versión.
+- **Overview en Markdown:** la página de inicio de la referencia (y la descripción del spec) se arma leyendo `src/common/openapi/api-overview.md` (`getApiOverview()` en `src/common/openapi/api-overview.ts`) y pasándola a `setDescription(...)`. Scalar y Swagger UI la renderizan como GitHub-flavored Markdown (tablas, alerts, bloques de código). El `.md` es la fuente de verdad del overview; el Nest CLI lo copia a `dist/` vía `assets` en `nest-cli.json`. Si falta el asset, la API arranca igual con una descripción corta de fallback.
+- **Cobertura del contrato:** cada operación declara su schema de **request** (plugin de `@nestjs/swagger`), su schema de **response** (los `*ResponseDto` son clases y se referencian con `@ApiOkResponse({ type })`), las **respuestas de error** estándar (`ErrorResponseDto` vía `@ApiErrors(...)`) y el requisito de **auth** (`@ApiBearerAuth()` en las operaciones protegidas). Los tags llevan descripción (`addTag` en `main.ts`). **Salvedad del plugin:** sólo procesa archivos `*.dto.ts` / `*.entity.ts`; un tipo de respuesta que viva en otro archivo (p. ej. `market.types.ts`, un controller) debe decorarse con `@ApiProperty` explícito o moverse a un `*.dto.ts`.
 - **Mantenimiento:** no hay artefactos que regenerar: al agregar o cambiar endpoints o DTOs, la referencia se actualiza en el próximo arranque. Verificación: `npm run start:dev` y abrir `/api/reference`. Al actualizar `@scalar/nestjs-api-reference`, revisar la opción `cdn` y los temas.
 - **Seguridad:** igual que Swagger, la referencia es pública (revela rutas y esquema de auth). En un despliegue real conviene publicarla sólo en entornos no productivos (por ejemplo, condicionar `SwaggerModule.setup` y `apiReference` a `NODE_ENV !== "production"`).
 
@@ -965,7 +972,7 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 `assistant.service.ts` + `ai.service.ts`:
 
 1. Verifica que la IA esté habilitada (FR-IA-001) y que la sesión sea válida.
-2. Calcula **localmente** totales y métricas del período (FR-IA-004) usando `calculations.service`.
+2. Calcula **localmente** totales y métricas del período (FR-IA-004) reutilizando el read model del dashboard (`DashboardOrchestrator`, que a su vez usa `calculations.service`), para no duplicar fórmulas.
 3. Construye el **contexto mínimo** (solo datos del usuario autenticado, FR-IA-002/003/007) y envía la pregunta al LLM.
 4. El prompt de sistema es fijo y **separado** de los datos del usuario, que viajan como datos no confiables (FR-IA-010). Se valida la salida antes de presentarla (NFR-SEG-012).
 5. Adjunta metadatos: período, moneda y fuentes consideradas (FR-IA-005).
@@ -976,8 +983,8 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 
 - `shared/ai/ai.service.ts` (`AiModule`): cliente del proveedor (DeepSeek/OpenAI-compatible) con `axios` `responseType: "stream"`, timeout de `AI_TIMEOUT_MS` y aborto; expone `streamChat(messages)` como `AsyncGenerator<string>`. Mapea fallas a `AI_UNAVAILABLE` (NFR-SEG-009).
 - `shared/calculations/calculations.service.ts` (`CalculationsModule`): fuente única de las reglas CAL-001..004 (flujo del período, gastos del mes, consumo/estado de presupuesto, saldo actual por movimientos, última valuación por activo y patrimonio neto). El asistente la reutiliza en lugar de repetir fórmulas. Cubierta por pruebas unitarias.
-- `assistant/assistant-context.service.ts`: arma el **contexto mínimo** del usuario consultando los **servicios** de cada dominio (transacciones del período, top categorías de gasto, presupuestos del mes proyectados por su orquestador, patrimonio estimado con valuaciones/deudas/posiciones y saldos actuales de cuentas) usando `calculations.service`, y produce un resumen textual. No consulta repositorios directamente: cada dato proviene del servicio dueño (ver `orchestrator-domain-architecture`).
-- `assistant/assistant.service.ts`: `assertAiEnabled`, persistencia en `ai_conversations` y `answer()` como generador de eventos (`meta`/`token`/`action_proposal`/`done`). Coordina lecturas y propone mutaciones vía `ToolRegistry` + `PendingActionsService`; `POST /assistant/actions/:id/{confirm,cancel}` ejecuta o cancela. El **prompt de sistema es fijo** y declara explícitamente el alcance: solo un resumen agregado del período indicado, sin detalle de movimientos ni historial de otros períodos; ante preguntas fuera de ese alcance debe aclararlo (FR-IA-010/011).
+- `assistant/assistant-context.service.ts`: arma el **contexto mínimo** del usuario reutilizando el read model del dashboard (`DashboardOrchestrator.getDashboard`) para ingresos, gastos, ahorro, gastos por categoría, patrimonio neto (CAL-001) y gastos del mes —ya convertidos a moneda base— y `BudgetsOrchestrator` para los presupuestos del mes, y produce un resumen textual. No re-deriva fórmulas ni consulta repositorios directamente: cada dato proviene del servicio/orquestador dueño (ver `orchestrator-domain-architecture`).
+- `assistant/assistant.service.ts`: `assertAiEnabled`, persistencia en `ai_conversations` y `answer()` como generador de eventos (`meta`/`token`/`action_proposal`/`done`). Coordina lecturas y propone mutaciones vía `ToolRegistry` + `PendingActionsService`; `POST /assistant/actions/:id/{confirm,cancel}` ejecuta o cancela. El **prompt de sistema es fijo** y declara explícitamente el alcance: solo un resumen agregado del período indicado, sin detalle de movimientos ni historial de otros períodos; ante preguntas fuera de ese alcance debe aclararlo (FR-IA-010/011). Además, `action-claim-guard.ts` detecta **propuestas fantasma** (el modelo narra una acción pendiente sin haber llamado a su herramienta) comparando la respuesta con las tools propuestas del turno y las pendientes vigentes de la conversación (`PendingActionsService.listActiveToolNames`), y fuerza una iteración de recuperación acotada para que el modelo proponga la acción faltante o reescriba sin afirmarla.
 - `assistant/assistant.controller.ts`: `POST /assistant/messages` (SSE), `GET /assistant/conversations` (paginado), `GET/DELETE /assistant/conversations/:id`, `DELETE /assistant/conversations`. Si `aiEnabled === false` responde `403 AI_DISABLED` en JSON (no abre el stream).
 - **Acceso dev del stream**: `POST /assistant/messages` está marcado `@Public()` pero resuelve el usuario así: si hay sesión válida la usa; si no, y `NODE_ENV !== "production"`, cae al usuario demo `AI_DEV_USER_EMAIL`; en producción sin sesión responde `401 UNAUTHENTICATED`. Permite probar el asistente con el cliente en modo mock sin implementar todo el auth. Los endpoints de historial siguen requiriendo JWT.
 - El cliente consume el stream en `client/lib/api/assistant-stream.ts` (mock con `NEXT_PUBLIC_USE_MOCKS`).
@@ -1008,22 +1015,81 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 
 ---
 
-## 11. Datos de demostración (seed)
+## 11. Base de datos y datos de demostración
 
-`seed` ejecutable (`npm run seed`) que crea un usuario ficticio y datos reproducibles (NFR-CAL-005, FRD §2.6):
+### 11.1 Estrategia: sin migraciones (decisión consciente)
 
-- Un usuario demo sin datos reales.
-- Tres cuentas en al menos dos monedas.
-- Tres meses de ingresos, gastos y transferencias.
-- Cinco categorías y cuatro presupuestos mensuales.
-- Una propiedad, un vehículo, una deuda y su historial de valuaciones.
-- Dos posiciones de cripto con cotizaciones identificadas.
-- Dos objetivos con distinto avance.
-- Preguntas de IA preparadas (gastos, presupuesto, evolución patrimonial).
+En esta etapa del proyecto **no usamos migraciones**. La decisión es deliberada, no una omisión:
 
-**Credenciales del usuario demo:** `demo@atlassfin.app` / `Demo1234!` (mostradas en el README y usadas por el front en la pantalla de login).
+> Si cambia el esquema, **no migramos** los datos existentes: vaciamos/recreamos la base y volvemos a ejecutar el seed.
 
-El seed es **idempotente** (verifica existencia antes de insertar) y no pisa datos si ya existen.
+- La **fuente de verdad del esquema son las entidades TypeORM** (`api/src/**/entities/*`).
+- `synchronize: true` crea/actualiza el esquema al iniciar la app y al correr los scripts (`database.module.ts` y `database/data-source.ts`).
+- No hay carpeta `migrations/`, ni comandos `migration:*`, ni tabla `migrations`.
+- No hay mecanismos de preservación de datos entre cambios de esquema. El dataset es descartable y reproducible.
+- Cuando el proyecto necesite entornos productivos con datos que deban conservarse, se reintroducirán migraciones explícitas y `synchronize: false`. Está fuera del alcance actual.
+
+### 11.2 Flujo de trabajo
+
+| Objetivo | Comando |
+| :--- | :--- |
+| Vaciar todas las tablas (conserva el esquema) | `npm run db:clear` |
+| Recrear el esquema desde las entidades + seed completo | `npm run db:reset` |
+| Sembrar sin tocar el esquema (idempotente) | `npm run seed` |
+
+El ciclo recomendado es:
+
+```bash
+npm run db:reset   # cambió el modelo / querés un estado limpio
+npm run start:dev  # app lista con datos de demo
+```
+
+`db:reset` está pensado para el caso "cambió el schema": fuerza `synchronize(true)` (drop + recreate de las tablas de las entidades), elimina tablas obsoletas y ejecuta el seed. `seed` por sí solo no pisa datos si el usuario demo ya existe.
+
+### 11.3 Endpoints de mantenimiento (solo desarrollo/test)
+
+El módulo `database` expone rutas destructivas para desarrollo y tests. **No existen en producción**: `DevOnlyGuard` es *fail-closed* y responde `404` salvo que `NODE_ENV` sea **explícito** `development` o `test` (un `NODE_ENV` ausente no habilita nada, aunque el `nodeEnv` por defecto de la app sea `development`). Además exige el header `x-dev-database-token` si se configura `DEV_DATABASE_TOKEN`. Los endpoints se excluyen de OpenAPI (`@ApiExcludeController`).
+
+| Método | Ruta | Efecto |
+| :--- | :--- | :--- |
+| POST | `/api/dev/database/clear` | Vacía todas las tablas de la aplicación (respeta FKs). |
+| POST | `/api/dev/database/seed` | Ejecuta el seed (idempotente). |
+| POST | `/api/dev/database/reset` | Recrea el esquema + ejecuta el seed. |
+
+Respuesta: `{ "action": "clear" | "seed" | "reset", "tables": <n>, "seeded": <bool> }`. La limpieza usa `TRUNCATE ... RESTART IDENTITY CASCADE` sobre todas las tablas de las entidades, y elimina la tabla legado `migrations` si existiera.
+
+### 11.4 Usuarios de demo (determinísticos)
+
+Todos comparten la contraseña **`Demo1234!`**:
+
+| Email | Escenario |
+| :--- | :--- |
+| `demo@atlassfin.app` | Dataset completo (ver §11.5). Moneda base ARS, IA habilitada. |
+| `sin-datos@atlassfin.app` | Usuario vacío, para estados vacíos y onboarding (FR-DAS-008). |
+| `ana@atlassfin.app` | Segundo usuario en USD (tema oscuro, acciones destructivas del asistente habilitadas) para aislamiento/permisos. |
+
+### 11.5 Qué genera el seed
+
+Datos **reproducibles** (sin información financiera real, NFR-CAL-005 / FRD §2.6). Para `demo@atlassfin.app`:
+
+- **9 categorías de sistema** (`user_id = NULL`) + 12 categorías propias (incluye una archivada).
+- **6 cuentas**: cash, bank, wallet USD, card, other y una archivada con historial.
+- **4 meses de movimientos**: sueldos, freelance, gastos por categoría, transferencias atómicas (dos patas con `transfer_group_id`), un gasto en USD, un movimiento sin categoría y un gasto histórico en la cuenta archivada.
+- **Presupuestos** que cubren los tres estados: **excedido** (Supermercado, FRD Caso 1), **advertencia** (Alquiler) y **disponible** (Transporte), más una plantilla `recurring` proyectada (FR-PRE-007).
+- **Activos** (propiedad, vehículo, inversión, efectivo, otro, archivado) con **historial de valuaciones** mensual.
+- **Deudas**: hipoteca vinculada a la propiedad, préstamo, tarjeta, una en USD y una archivada.
+- **Posiciones** BTC/ETH/SOL + una archivada, con **cotizaciones** del catálogo (BTC, ETH, SOL, BNB, USDT, USDC).
+- **Objetivos** en los cuatro estados (pendiente, en curso, alcanzado, vencido), uno sin fecha y uno archivado, con cuenta origen.
+- **Conversaciones de IA** con transcript (`messages`) y **acciones auditadas** en todos los estados (`executed`, `proposed`, `cancelled`, `expired`, `failed`).
+- **Tipos de cambio** de referencia (USD/EUR/BRL/UYU → ARS).
+
+Para `ana@atlassfin.app` genera un dataset reducido en USD (cuentas, movimientos, presupuesto recurrente, activo, deuda, posición y meta), útil para probar aislamiento y la moneda base.
+
+### 11.6 Idempotencia y reproducibilidad
+
+- El seed verifica la existencia de `demo@atlassfin.app` antes de insertar; si ya existe, no pisa datos.
+- `db:reset` siempre parte de cero y deja el mismo estado conocido: **repetir el ciclo produce resultados consistentes**.
+- Las fechas son relativas al mes en curso, por lo que el dashboard y los reportes siempre tienen datos "actuales".
 
 ---
 
@@ -1092,6 +1158,10 @@ MARKET_SYMBOLS=BTC,ETH,USDT,USDC,SOL,BNB
 
 # Cotización
 QUOTE_STALE_MS=3600000
+
+# Solo desarrollo/test: token opcional para los endpoints destructivos de
+# /api/dev/database/*. Si está vacío, el guard solo exige NODE_ENV=development|test.
+DEV_DATABASE_TOKEN=
 ```
 
 ---
@@ -1113,13 +1183,13 @@ QUOTE_STALE_MS=3600000
 
 ## 14. Plan de trabajo por tandas
 
-Cada tanda deja la API compilando (`npm run lint && npm run build`) y con migración + tests asociados. Alineado con el plan del front (`frontend.md`). El cliente puede consumir la API real con `NEXT_PUBLIC_USE_MOCKS=false`; los dominios de finanzas ya están implementados. Estado por tanda abajo.
+Cada tanda deja la API compilando (`npm run lint && npm run build`) y con entidades + tests asociados. Alineado con el plan del front (`frontend.md`). El cliente puede consumir la API real con `NEXT_PUBLIC_USE_MOCKS=false`; los dominios de finanzas ya están implementados. Estado por tanda abajo.
 
 ### Tanda 0 — Setup del proyecto — ✅ Hecho
 - Scaffold NestJS, config global (`@nestjs/config`), `ValidationPipe`, `Logger`, Swagger, prefijo `/api`, CORS, cookies.
-- TypeORM + DataSource + primeras migraciones (usuarios, sesiones, cuentas, categorías, movimientos, cotizaciones, exchange_rates).
+- TypeORM + DataSource + entidades del modelo (usuarios, sesiones, cuentas, categorías, movimientos, cotizaciones, exchange_rates).
 - `common/` (guards, decorators, filters, interceptors).
-- **Aceptación**: API levanta, migra y responde `/api/health`.
+- **Aceptación**: API levanta, sincroniza el esquema desde las entidades y responde `/api/health`.
 
 ### Tanda 1 — Autenticación — ✅ Hecho
 - `auth` + `users`: register, login, refresh, logout, me; `PATCH /users/me`; `GET /currencies`; argon2; JWT strategy; cookies + `Authorization: Bearer`; throttler en login.

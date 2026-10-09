@@ -4,7 +4,7 @@ import { DataSource } from "typeorm";
  * Global reference data that must survive between tests (FX rates are seeded on
  * module init and are not user-owned).
  */
-const PRESERVED_TABLES = ["exchange_rates", "migrations"];
+const PRESERVED_TABLES = ["exchange_rates"];
 
 /**
  * A syntactically valid v4 UUID that no test data uses, to exercise the

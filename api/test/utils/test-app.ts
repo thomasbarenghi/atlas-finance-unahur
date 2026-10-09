@@ -8,16 +8,18 @@ export interface TestContext {
   app: INestApplication;
   dataSource: DataSource;
   /**
-   * Express request handler. Handing this (instead of the raw `http.Server`) to
-   * supertest makes it spin up an ephemeral server per request, avoiding
-   * cross-app socket/port reuse between test files.
+   * HTTP server bound to an ephemeral port once per suite. Handing a bound
+   * `http.Server` to supertest makes every request reuse the same stable
+   * listener; letting supertest create an ephemeral server per request (passing
+   * the raw Express handler) produced intermittent
+   * `Parse Error: Expected HTTP/` under rapid sequential requests.
    */
   server: any;
 }
 
 /**
  * Boots the full Nest application (same modules and global configuration as
- * production) against the test database.
+ * production) against the test database and binds it to an ephemeral port.
  */
 export const createTestApp = async (
   configure?: (builder: TestingModuleBuilder) => TestingModuleBuilder,
@@ -30,11 +32,11 @@ export const createTestApp = async (
   const app = moduleRef.createNestApplication();
   configureApp(app);
   await app.init();
+  await app.listen(0);
 
   const dataSource = app.get(DataSource);
-  return { app, dataSource, server: app.getHttpAdapter().getInstance() };
+  return { app, dataSource, server: app.getHttpServer() };
 };
 
-/** Express instance of an app, for use with supertest. */
-export const httpClient = (app: INestApplication): any =>
-  app.getHttpAdapter().getInstance();
+/** Bound HTTP server of an app, for use with supertest. */
+export const httpClient = (app: INestApplication): any => app.getHttpServer();

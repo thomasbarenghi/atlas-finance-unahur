@@ -37,9 +37,7 @@ export const usePositionDetail = () => {
   const convertedValue = useMemo(() => {
     if (!position) return null;
     const match = dashboardQuery.data?.investments.positions.find(
-      (item) =>
-        item.symbol === position.symbol &&
-        item.originalCurrency === position.currency,
+      (item) => item.id === position.id,
     );
     return match?.value ?? null;
   }, [position, dashboardQuery.data]);

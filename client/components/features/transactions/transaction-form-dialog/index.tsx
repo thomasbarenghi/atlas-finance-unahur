@@ -110,10 +110,12 @@ export const TransactionFormDialog = ({
       account.id !== accountId &&
       (!selectedAccount || account.currency === selectedAccount.currency),
   );
+  const categoryType = type === "income" ? "income" : "expense";
   const categoryOptions = sortCategories(
     categories.filter(
       (category) =>
-        category.type === (type === "income" ? "income" : "expense"),
+        category.type === categoryType &&
+        (!category.archived || category.id === transaction?.categoryId),
     ),
   );
   const evaluated =

@@ -6,6 +6,7 @@ import {
 } from "../../../categories/dto/create-category.dto";
 import { UpdateCategoryDto } from "../../../categories/dto/update-category.dto";
 import { ReferenceResolver } from "../reference-resolver.service";
+import { definedPreviewFields } from "../preview";
 import { jsonSchema, validateChanges, validateToolArgs } from "../tool-input";
 import type {
   AssistantActionEntity,
@@ -130,10 +131,7 @@ export class CategoryTools {
               summary: "Se actualizarán los datos de la categoría.",
               fields: [
                 { label: "Categoría", value: await this.label(userId, id) },
-                ...Object.entries(dto).map(([key, value]) => ({
-                  label: key,
-                  value: String(value),
-                })),
+                ...definedPreviewFields(dto),
               ],
             },
           };

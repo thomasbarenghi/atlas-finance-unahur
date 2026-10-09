@@ -9,6 +9,7 @@ import { ApiException } from "../../../common/errors/api.exception";
 import { ErrorCode } from "../../../common/errors/error-codes";
 import { UsersService } from "../../../users/users.service";
 import { ReferenceResolver } from "../reference-resolver.service";
+import { definedPreviewFields } from "../preview";
 import { jsonSchema, optionalString, validateToolArgs } from "../tool-input";
 import type {
   AssistantActionEntity,
@@ -161,10 +162,7 @@ export class DebtTools {
               summary: "Se actualizarán los datos de la deuda.",
               fields: [
                 { label: "Deuda", value: await this.label(userId, id) },
-                ...Object.entries(dto).map(([key, value]) => ({
-                  label: key,
-                  value: String(value),
-                })),
+                ...definedPreviewFields(dto),
               ],
             },
           };

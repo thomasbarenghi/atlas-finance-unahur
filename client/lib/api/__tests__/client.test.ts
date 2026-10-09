@@ -132,6 +132,27 @@ describe("apiFetch", () => {
     expect(refreshCalls).toBe(0);
   });
 
+  it("preserves the structured server message on a 401", async () => {
+    server.use(
+      http.post("http://localhost/api/auth/login", () =>
+        HttpResponse.json(
+          {
+            statusCode: 401,
+            code: "INVALID_CREDENTIALS",
+            message: "Email o contraseña incorrectos",
+          },
+          { status: 401 },
+        ),
+      ),
+    );
+
+    await expect(post("/auth/login", {})).rejects.toMatchObject({
+      statusCode: 401,
+      code: "INVALID_CREDENTIALS",
+      message: "Email o contraseña incorrectos",
+    });
+  });
+
   it("exposes the ApiError shape", () => {
     const error = new ApiError({
       statusCode: 404,

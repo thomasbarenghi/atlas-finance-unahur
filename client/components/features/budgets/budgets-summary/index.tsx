@@ -25,11 +25,16 @@ export const BudgetsSummary = ({ budgets }: BudgetsSummaryProps) => {
       value: formatCurrency(totalLimit, currency),
     },
     { label: "Gastado", value: formatCurrency(totalSpent, currency) },
-    {
-      label: "Disponible",
-      value: formatCurrency(totalAvailable, currency),
-      tone: totalAvailable < 0 ? "text-destructive" : "text-foreground",
-    },
+    totalAvailable < 0
+      ? {
+          label: "Excedido",
+          value: formatCurrency(-totalAvailable, currency),
+          tone: "text-destructive",
+        }
+      : {
+          label: "Disponible",
+          value: formatCurrency(totalAvailable, currency),
+        },
     {
       label: "Categorías excedidas",
       value: String(exceededCount),

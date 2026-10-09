@@ -1,8 +1,10 @@
+import { ConfigService } from "@nestjs/config";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
+import { AppConfig } from "../config/configuration";
 import { CurrencyService } from "../shared/currency/currency.service";
 import { AddToPositionDto } from "./dto/add-to-position.dto";
 import { CreatePositionDto } from "./dto/create-position.dto";
@@ -15,6 +17,7 @@ export class PositionsService {
     @InjectRepository(Position)
     private readonly positionsRepository: Repository<Position>,
     private readonly currency: CurrencyService,
+    private readonly config: ConfigService<AppConfig, true>,
   ) {}
 
   async listOwnedPositions(userId: string): Promise<Position[]> {
@@ -43,7 +46,7 @@ export class PositionsService {
     return this.positionsRepository.save(
       this.positionsRepository.create({
         userId,
-        symbol: dto.symbol.toUpperCase(),
+        symbol: this.assertSymbolSupported(dto.symbol),
         instrument: dto.instrument.trim(),
         quantity: dto.quantity,
         avgCost: dto.avgCost,
@@ -59,7 +62,8 @@ export class PositionsService {
   ): Promise<Position> {
     const position = await this.findOwnedPosition(userId, id);
 
-    if (dto.symbol !== undefined) position.symbol = dto.symbol.toUpperCase();
+    if (dto.symbol !== undefined)
+      position.symbol = this.assertSymbolSupported(dto.symbol);
     if (dto.instrument !== undefined)
       position.instrument = dto.instrument.trim();
     if (dto.quantity !== undefined) position.quantity = dto.quantity;
@@ -116,6 +120,20 @@ export class PositionsService {
     const position = await this.findOwnedPosition(userId, id);
     position.archived = archived;
     return this.positionsRepository.save(position);
+  }
+
+  private assertSymbolSupported(symbol: string): string {
+    const normalized = symbol.trim().toUpperCase();
+    const supported = this.config.get("market", { infer: true }).symbols;
+    if (!supported.includes(normalized)) {
+      throw new ApiException(
+        ErrorCode.VALIDATION_ERROR,
+        HttpStatus.BAD_REQUEST,
+        "Ese símbolo no está en el catálogo de mercado",
+        { symbol: [`Símbolos disponibles: ${supported.join(", ")}`] },
+      );
+    }
+    return normalized;
   }
 
   private async findOwnedPosition(

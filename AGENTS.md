@@ -46,6 +46,13 @@ Hooks are installed at the root; projects are checked only if they are set up (h
 
 Root scripts (`scripts/run-in-projects.sh`) run a script across `client` and `api` and skip un-scaffolded projects. Run the same commands before considering a task done.
 
+Lockfiles must reference the **public npm registry**. If a lockfile is regenerated against a private proxy, normalize it in place (no reinstall) with:
+
+```bash
+npm run fix:lockfiles     # rewrite private-registry URLs to registry.npmjs.org
+npm run check:lockfiles   # report-only; exits 1 if any are found
+```
+
 ## Global conventions
 
 - **English** for code, filenames, endpoints, and skills; **Spanish** for user-facing copy and the `docs/` documentation.

@@ -1,10 +1,18 @@
 import { Controller, Get } from "@nestjs/common";
-import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiOkResponse,
+  ApiOperation,
+  ApiProperty,
+  ApiTags,
+} from "@nestjs/swagger";
 import { DataSource } from "typeorm";
 import { Public } from "../common/decorators/public.decorator";
 
-export interface HealthResponse {
+export class HealthResponse {
+  @ApiProperty({ enum: ["ok", "degraded"], example: "ok" })
   status: "ok" | "degraded";
+
+  @ApiProperty({ enum: ["up", "down"], example: "up" })
   db: "up" | "down";
 }
 
@@ -16,7 +24,7 @@ export class HealthController {
   @Public()
   @Get()
   @ApiOperation({ summary: "Liveness and database connectivity check" })
-  @ApiOkResponse({ description: "{ status: 'ok', db: 'up' }" })
+  @ApiOkResponse({ type: HealthResponse })
   async check(): Promise<HealthResponse> {
     try {
       await this.dataSource.query("SELECT 1");

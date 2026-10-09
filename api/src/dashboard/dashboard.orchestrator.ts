@@ -443,6 +443,7 @@ export class DashboardOrchestrator {
         staleQuotes: derivedPositions.filter((item) => item.isStale).length,
         positions: derivedPositions
           .map((item) => ({
+            id: item.position.id,
             symbol: item.position.symbol,
             instrument: item.position.instrument,
             quantity: item.position.quantity,

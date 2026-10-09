@@ -1,26 +1,34 @@
 import { Controller, Get, Query, Res } from "@nestjs/common";
-import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import { Response } from "express";
+import { ApiErrors } from "../common/decorators/api-errors.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { DashboardQueryDto } from "../dashboard/dto/dashboard-query.dto";
-import { DashboardData } from "../dashboard/dto/dashboard-response.dto";
-import { BudgetReportQueryDto, ExportQueryDto } from "./dto/reports-query.dto";
+import { DashboardInvestments } from "../dashboard/dto/dashboard-response.dto";
 import {
   BudgetReportRow,
   NetWorthPoint,
   ReportByCategoryRow,
-  ReportsOrchestrator,
   ReportSummary,
-} from "./reports.orchestrator";
+} from "./dto/reports-response.dto";
+import { BudgetReportQueryDto, ExportQueryDto } from "./dto/reports-query.dto";
+import { ReportsOrchestrator } from "./reports.orchestrator";
 
 @ApiTags("reports")
+@ApiBearerAuth()
+@ApiErrors(400, 401)
 @Controller("reports")
 export class ReportsController {
   constructor(private readonly reportsOrchestrator: ReportsOrchestrator) {}
 
   @Get("summary")
   @ApiOperation({ summary: "Resumen financiero del período" })
-  @ApiOkResponse({ description: "ReportSummary" })
+  @ApiOkResponse({ type: ReportSummary })
   summary(
     @CurrentUser("id") userId: string,
     @Query() query: DashboardQueryDto,
@@ -30,7 +38,7 @@ export class ReportsController {
 
   @Get("by-category")
   @ApiOperation({ summary: "Desglose de ingresos y gastos por categoría" })
-  @ApiOkResponse({ description: "ReportByCategoryRow[]" })
+  @ApiOkResponse({ type: [ReportByCategoryRow] })
   byCategory(
     @CurrentUser("id") userId: string,
     @Query() query: DashboardQueryDto,
@@ -40,7 +48,7 @@ export class ReportsController {
 
   @Get("net-worth")
   @ApiOperation({ summary: "Evolución del patrimonio neto" })
-  @ApiOkResponse({ description: "NetWorthPoint[]" })
+  @ApiOkResponse({ type: [NetWorthPoint] })
   netWorth(
     @CurrentUser("id") userId: string,
     @Query() query: DashboardQueryDto,
@@ -50,7 +58,7 @@ export class ReportsController {
 
   @Get("budgets")
   @ApiOperation({ summary: "Cumplimiento de presupuestos del período" })
-  @ApiOkResponse({ description: "BudgetReportRow[]" })
+  @ApiOkResponse({ type: [BudgetReportRow] })
   budgets(
     @CurrentUser("id") userId: string,
     @Query() query: BudgetReportQueryDto,
@@ -60,16 +68,20 @@ export class ReportsController {
 
   @Get("investments")
   @ApiOperation({ summary: "Rendimiento nominal de inversiones" })
-  @ApiOkResponse({ description: "DashboardData['investments']" })
+  @ApiOkResponse({ type: DashboardInvestments })
   investments(
     @CurrentUser("id") userId: string,
     @Query() query: DashboardQueryDto,
-  ): Promise<DashboardData["investments"]> {
+  ): Promise<DashboardInvestments> {
     return this.reportsOrchestrator.investments(userId, query);
   }
 
   @Get("export")
   @ApiOperation({ summary: "Exporta movimientos o resumen en CSV" })
+  @ApiOkResponse({
+    description: "Archivo CSV",
+    content: { "text/csv": { schema: { type: "string" } } },
+  })
   async export(
     @CurrentUser("id") userId: string,
     @Query() query: ExportQueryDto,

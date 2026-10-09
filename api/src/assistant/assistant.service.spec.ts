@@ -42,6 +42,7 @@ interface Harness {
   pendingActions: any;
   recordRead: jest.Mock;
   config: any;
+  listActiveToolNames: jest.Mock;
 }
 
 const buildHarness = (
@@ -97,9 +98,11 @@ const buildHarness = (
     }),
   );
   const recordRead = jest.fn().mockResolvedValue(undefined);
+  const listActiveToolNames = jest.fn().mockResolvedValue([]);
   const pendingActions = {
     propose,
     recordRead,
+    listActiveToolNames,
   } as unknown as PendingActionsService;
 
   const config = {
@@ -132,6 +135,7 @@ const buildHarness = (
     pendingActions,
     recordRead,
     config,
+    listActiveToolNames,
   };
 };
 
@@ -367,6 +371,52 @@ describe("AssistantService.answer", () => {
     await collect(service);
     // asset + one deferred debt (the second identical debt is deduplicated)
     expect(propose).toHaveBeenCalledTimes(2);
+  });
+
+  it("recovers when the answer claims an action that was never proposed", async () => {
+    const chunks: AiStreamChunk[] = [
+      toolCall("createTransaction", "call-1"),
+      {
+        type: "token",
+        delta:
+          "Te propuse registrar el gasto y también transferir 100 a Caja ARS. " +
+          "Confirmá la transferencia en la tarjeta.",
+      },
+      toolCall("transferBetweenAccounts", "call-2"),
+      {
+        type: "token",
+        delta: "Listo: ahora dejé la transferencia para confirmar.",
+      },
+    ];
+    let index = 0;
+    const streamChat = () =>
+      (async function* (): AsyncGenerator<AiStreamChunk> {
+        const chunk = chunks[Math.min(index, chunks.length - 1)];
+        index += 1;
+        yield chunk;
+      })();
+
+    const { service, propose, listActiveToolNames } = buildHarness(
+      streamChat,
+      (name) => writeDefinition({ name }),
+    );
+
+    const events = await collect(service);
+
+    // 1.ª pasada: la transferencia se anunció sin proponerse → el guard fuerza
+    // otra iteración en la que el modelo sí llama a su herramienta.
+    expect(listActiveToolNames).toHaveBeenCalled();
+    expect(propose).toHaveBeenCalledTimes(2);
+    expect(propose).toHaveBeenCalledWith(
+      expect.objectContaining({
+        definition: expect.objectContaining({
+          name: "transferBetweenAccounts",
+        }),
+      }),
+    );
+    expect(
+      events.filter((event) => event.type === "action_proposal"),
+    ).toHaveLength(2);
   });
 
   it("executes read tools and records them for audit", async () => {

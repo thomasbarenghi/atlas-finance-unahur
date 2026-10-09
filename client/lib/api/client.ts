@@ -107,10 +107,13 @@ const request = async (
   });
 };
 
+const readErrorPayload = async (
+  response: Response,
+): Promise<ApiErrorShape | null> =>
+  (await response.json().catch(() => null)) as ApiErrorShape | null;
+
 const toApiError = async (response: Response): Promise<ApiError> => {
-  const payload = (await response
-    .json()
-    .catch(() => null)) as ApiErrorShape | null;
+  const payload = await readErrorPayload(response);
   return new ApiError(
     payload ?? {
       statusCode: response.status,
@@ -147,6 +150,12 @@ export const apiFetch = async <T>(
   }
 
   if (response.status === 401) {
+    // Preserve specific server errors (e.g. INVALID_CREDENTIALS on login) while
+    // keeping the generic session message for plain unauthenticated responses.
+    const payload = await readErrorPayload(response);
+    if (payload && payload.code !== "UNAUTHENTICATED") {
+      throw new ApiError(payload);
+    }
     throw new UnauthorizedError();
   }
 

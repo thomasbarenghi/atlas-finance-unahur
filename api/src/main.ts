@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { apiReference } from "@scalar/nestjs-api-reference";
 import { AppModule } from "./app.module";
 import { configureApp } from "./app.setup";
+import { getApiOverview } from "./common/openapi/api-overview";
 import { AppConfig } from "./config/configuration";
 
 const bootstrap = async (): Promise<void> => {
@@ -16,8 +17,34 @@ const bootstrap = async (): Promise<void> => {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle("Atlass Fin API")
-    .setDescription("Atlass Fin personal finance REST API")
+    .setDescription(getApiOverview())
     .setVersion("0.1.0")
+    .addTag(
+      "auth",
+      "Registro, inicio de sesión, renovación y cierre de sesión.",
+    )
+    .addTag("users", "Perfil y preferencias del usuario autenticado.")
+    .addTag("reference", "Catálogos de referencia (monedas soportadas).")
+    .addTag(
+      "health",
+      "Estado del servicio y conectividad con la base de datos.",
+    )
+    .addTag("accounts", "Cuentas y sus saldos actuales.")
+    .addTag("categories", "Categorías de ingresos y gastos.")
+    .addTag("transactions", "Ingresos, gastos y transferencias atómicas.")
+    .addTag("budgets", "Presupuestos mensuales por categoría.")
+    .addTag("assets", "Activos y su historial de valuaciones.")
+    .addTag("debts", "Deudas y su vínculo opcional con un activo.")
+    .addTag(
+      "positions",
+      "Posiciones de inversión y su valorización de mercado.",
+    )
+    .addTag("quotes", "Cotizaciones de cripto y su antigüedad.")
+    .addTag("goals", "Objetivos de ahorro, progreso y estado.")
+    .addTag("dashboard", "KPIs y series agregadas del período.")
+    .addTag("reports", "Resúmenes, desgloses y exportación CSV.")
+    .addTag("assistant", "Asistente IA: consultas, acciones y confirmaciones.")
+    .addTag("market", "Refresco manual de cotizaciones y tipos de cambio.")
     .addCookieAuth("access_token")
     .addBearerAuth()
     .build();

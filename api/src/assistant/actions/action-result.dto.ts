@@ -1,6 +1,7 @@
-import type { ActionClass, AssistantActionEntity } from "../tools/tool.types";
+import { AssistantActionEntity } from "../tools/tool.types";
+import type { ActionClass } from "../tools/tool.types";
 
-export interface ActionResultDto {
+export class ActionResultDto {
   actionId: string;
   name: string;
   title: string;

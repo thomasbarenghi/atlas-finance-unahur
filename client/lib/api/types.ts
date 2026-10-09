@@ -188,6 +188,7 @@ export type NetWorthCompositionKind =
   "property" | "vehicle" | "asset" | "investment" | "cash" | "account";
 
 export interface DashboardInvestmentPosition {
+  id: string;
   symbol: string;
   instrument: string;
   quantity: number;

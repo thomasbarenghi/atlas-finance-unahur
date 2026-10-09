@@ -1,28 +1,28 @@
-import { ConfigService } from "@nestjs/config";
-import { AppConfig } from "../config/configuration";
 import { ErrorCode } from "../common/errors/error-codes";
-import { CalculationsService } from "../shared/calculations/calculations.service";
 import { AssistantContextService } from "./assistant-context.service";
-
-const calculations = new CalculationsService({
-  get: jest.fn(() => 0.8),
-} as unknown as ConfigService<AppConfig, true>);
 
 const build = () => {
   const usersService = {
     getById: jest.fn().mockResolvedValue({ baseCurrency: "ARS" }),
   };
-  const transactionsService = {
-    listOwnedTransactions: jest.fn().mockResolvedValue([
-      { type: "income", amount: 1000, date: "2026-03-05", categoryId: "c1" },
-      { type: "expense", amount: 400, date: "2026-03-10", categoryId: "c2" },
-    ]),
-  };
-  const categoriesService = {
-    listCategories: jest.fn().mockResolvedValue([
-      { id: "c1", name: "Sueldo" },
-      { id: "c2", name: "Comida" },
-    ]),
+  const dashboardOrchestrator = {
+    getDashboard: jest.fn().mockResolvedValue({
+      period: { from: "2026-03-01", to: "2026-03-31" },
+      currency: "ARS",
+      kpis: {
+        income: 1000,
+        expenses: 400,
+        savings: 600,
+        netWorth: 4000,
+        assets: 5000,
+        debts: 2000,
+      },
+      expensesByCategory: [
+        { categoryId: "c2", name: "Comida", color: "#000", value: 400 },
+      ],
+      incomeExpenseByMonth: [{ month: "2026-03", income: 1000, expenses: 400 }],
+      investments: { positions: [{ id: "p1" }] },
+    }),
   };
   const budgetsOrchestrator = {
     listBudgets: jest.fn().mockResolvedValue([
@@ -34,49 +34,13 @@ const build = () => {
       },
     ]),
   };
-  const accountsService = {
-    listOwnedAccounts: jest
-      .fn()
-      .mockResolvedValue([
-        { id: "a1", initialBalance: 1000, currency: "ARS", archived: false },
-      ]),
-  };
-  const assetsService = {
-    listOwnedAssets: jest
-      .fn()
-      .mockResolvedValue([{ id: "asset-1", archived: false }]),
-    listValuationsForUser: jest.fn().mockResolvedValue([
-      {
-        assetId: "asset-1",
-        value: 5000,
-        currency: "ARS",
-        date: "2026-03-01",
-      },
-    ]),
-  };
-  const debtsService = {
-    listOwnedDebts: jest
-      .fn()
-      .mockResolvedValue([{ balance: 2000, archived: false }]),
-  };
-  const positionsService = {
-    listOwnedPositions: jest
-      .fn()
-      .mockResolvedValue([{ archived: false, quantity: 1, avgCost: 100 }]),
-  };
 
   const service = new AssistantContextService(
     usersService as any,
-    transactionsService as any,
-    categoriesService as any,
+    dashboardOrchestrator as any,
     budgetsOrchestrator as any,
-    accountsService as any,
-    assetsService as any,
-    debtsService as any,
-    positionsService as any,
-    calculations,
   );
-  return { service, transactionsService, budgetsOrchestrator, assetsService };
+  return { service, dashboardOrchestrator, budgetsOrchestrator };
 };
 
 describe("AssistantContextService", () => {
@@ -102,8 +66,22 @@ describe("AssistantContextService", () => {
   });
 
   it("defaults the period and omits empty sources", async () => {
-    const { service, assetsService, budgetsOrchestrator } = build();
-    assetsService.listOwnedAssets.mockResolvedValue([]);
+    const { service, dashboardOrchestrator, budgetsOrchestrator } = build();
+    dashboardOrchestrator.getDashboard.mockResolvedValue({
+      period: { from: "2026-03-01", to: "2026-03-31" },
+      currency: "ARS",
+      kpis: {
+        income: 0,
+        expenses: 0,
+        savings: 0,
+        netWorth: 0,
+        assets: 0,
+        debts: 0,
+      },
+      expensesByCategory: [],
+      incomeExpenseByMonth: [],
+      investments: { positions: [] },
+    });
     budgetsOrchestrator.listBudgets.mockResolvedValue([]);
 
     const context = await service.build("u1", {} as any);
@@ -113,11 +91,12 @@ describe("AssistantContextService", () => {
   });
 
   it("rejects an inverted period", async () => {
-    const { service } = build();
+    const { service, dashboardOrchestrator } = build();
     await expect(
       service.build("u1", {
         period: { from: "2026-04-01", to: "2026-03-01" },
       } as any),
     ).rejects.toMatchObject({ response: { code: ErrorCode.VALIDATION_ERROR } });
+    expect(dashboardOrchestrator.getDashboard).not.toHaveBeenCalled();
   });
 });

@@ -61,7 +61,7 @@ export class AssetsService {
     if (assetIds.length === 0) return [];
     return this.valuationsRepository.find({
       where: { assetId: In(assetIds) },
-      order: { date: "ASC" },
+      order: { date: "ASC", createdAt: "ASC" },
     });
   }
 
@@ -134,7 +134,7 @@ export class AssetsService {
     await this.findOwnedAsset(userId, assetId);
     const valuations = await this.valuationsRepository.find({
       where: { assetId },
-      order: { date: "DESC" },
+      order: { date: "DESC", createdAt: "DESC" },
     });
     return valuations.map(toValuationResponse);
   }
@@ -170,7 +170,7 @@ export class AssetsService {
     const [valuations, debtLinks] = await Promise.all([
       this.valuationsRepository.find({
         where: { assetId: In(assetIds) },
-        order: { date: "DESC" },
+        order: { date: "DESC", createdAt: "DESC" },
       }),
       this.links.debtIdByAsset(userId),
     ]);

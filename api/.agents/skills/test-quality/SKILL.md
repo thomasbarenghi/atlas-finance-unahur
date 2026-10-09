@@ -99,13 +99,13 @@ describe("CalculationsService", () => {
 ## 5. Test database strategy
 
 - Use a **separate test database** (or a disposable Supabase branch/container). Never run tests against dev/prod.
-- Apply migrations before the suite; reset state between tests (truncate/recreate or wrap each test in a rolling-back transaction).
+- Create the schema from the entities before the suite (`synchronize`); reset state between tests (truncate/recreate or wrap each test in a rolling-back transaction). There are no migrations.
 - Seed only the minimum data each test needs; do not depend on leftover rows.
 - Unit tests MUST NOT require a database (mock repositories/providers).
 
 ```ts
 // test/setup-db.ts
-beforeAll(async () => { await dataSource.runMigrations(); });
+beforeAll(async () => { await dataSource.synchronize(); });
 beforeEach(async () => {
   await dataSource.query('TRUNCATE "users", "accounts", "transactions", "budgets" RESTART IDENTITY CASCADE');
 });

@@ -427,3 +427,26 @@ describe("PendingActionsService.recordRead", () => {
     ).resolves.toBeUndefined();
   });
 });
+
+describe("PendingActionsService.listActiveToolNames", () => {
+  it("returns only non-expired proposed tools", async () => {
+    const { service, repository } = buildHarness(action());
+    repository.find.mockResolvedValue([
+      action({ toolName: "createAccount" }),
+      action({
+        toolName: "transferBetweenAccounts",
+        expiresAt: new Date(Date.now() - 1_000),
+      }),
+    ]);
+
+    await expect(service.listActiveToolNames("conv-1")).resolves.toEqual([
+      "createAccount",
+    ]);
+  });
+
+  it("returns an empty list without a conversation id", async () => {
+    const { service, repository } = buildHarness(action());
+    await expect(service.listActiveToolNames(null)).resolves.toEqual([]);
+    expect(repository.find).not.toHaveBeenCalled();
+  });
+});

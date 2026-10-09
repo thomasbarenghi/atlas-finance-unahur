@@ -1,4 +1,4 @@
-export interface PositionResponseDto {
+export class PositionResponseDto {
   id: string;
   symbol: string;
   instrument: string;
