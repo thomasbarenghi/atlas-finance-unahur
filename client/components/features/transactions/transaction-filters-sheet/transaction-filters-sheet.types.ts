@@ -8,12 +8,12 @@ export interface TransactionFilterState {
   to: string;
 }
 
-export interface TransactionFiltersProps {
-  search: string;
-  onSearchChange: (value: string) => void;
+export interface TransactionFiltersSheetProps {
   filters: TransactionFilterState;
   onFilterChange: (patch: Partial<TransactionFilterState>) => void;
   onClear: () => void;
   accounts: Account[];
   categories: Category[];
+  /** Active filters (including the search text), for the trigger badge. */
+  activeCount: number;
 }
