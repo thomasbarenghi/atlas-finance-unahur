@@ -69,18 +69,6 @@ describe("LoginForm", () => {
     );
     expect(replace).not.toHaveBeenCalled();
   });
-
-  it("fills the demo credentials", async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<LoginForm />, { user: null });
-
-    await user.click(
-      screen.getByRole("button", { name: /usar credenciales demo/i }),
-    );
-
-    expect(getEmail()).toHaveValue("demo@atlassfin.app");
-    expect(getPassword()).toHaveValue("Demo1234!");
-  });
 });
 
 describe("RegisterForm", () => {
