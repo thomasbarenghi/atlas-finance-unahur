@@ -60,6 +60,16 @@ export interface DevConfig {
   databaseToken: string | null;
 }
 
+export interface ApprovalConfig {
+  /**
+   * When true, new registrations stay `pending` and cannot sign in until an
+   * administrator approves them. Controlled from the API `.env`.
+   */
+  required: boolean;
+  /** Shared secret for the admin endpoints; when null they are disabled. */
+  adminApiKey: string | null;
+}
+
 export interface AppConfig {
   nodeEnv: string;
   port: number;
@@ -71,6 +81,7 @@ export interface AppConfig {
   ai: AiConfig;
   mail: MailConfig;
   dev: DevConfig;
+  approval: ApprovalConfig;
   resetTokenTtl: number;
   budgetWarningThreshold: number;
   supportedCurrencies: string[];
@@ -171,6 +182,10 @@ export const configuration = (): AppConfig => ({
       process.env.NODE_ENV ?? "",
     ),
     databaseToken: process.env.DEV_DATABASE_TOKEN || null,
+  },
+  approval: {
+    required: toBoolean(process.env.REQUIRE_USER_APPROVAL, false),
+    adminApiKey: process.env.ADMIN_API_KEY || null,
   },
   resetTokenTtl: toNumber(process.env.RESET_TOKEN_TTL, 3600),
   budgetWarningThreshold: toNumber(process.env.BUDGET_WARNING_THRESHOLD, 0.8),

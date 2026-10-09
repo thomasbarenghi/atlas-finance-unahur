@@ -39,6 +39,7 @@ export const validateEnv = (env: RawEnv): RawEnv => {
   assertAllowed(env, "NODE_ENV", ALLOWED_NODE_ENVS);
   assertAllowed(env, "COOKIE_SAME_SITE", ALLOWED_SAME_SITE);
   assertAllowed(env, "MARKET_ENABLED", ALLOWED_BOOLEANS);
+  assertAllowed(env, "REQUIRE_USER_APPROVAL", ALLOWED_BOOLEANS);
   assertNumeric(env, "PORT");
   assertNumeric(env, "JWT_ACCESS_TTL");
   assertNumeric(env, "JWT_REFRESH_TTL_DAYS");

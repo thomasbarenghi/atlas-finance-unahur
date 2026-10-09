@@ -7,6 +7,7 @@ export type DebtType = "loan" | "mortgage" | "card" | "other";
 export type BudgetStatus = "available" | "warning" | "exceeded";
 export type GoalStatus = "pending" | "in_progress" | "achieved" | "overdue";
 export type Theme = "light" | "dark" | "system";
+export type UserApprovalStatus = "pending" | "approved" | "rejected";
 export type ValuationSource = "manual" | "market";
 
 export interface Paginated<T> {
@@ -37,6 +38,7 @@ export interface User {
   theme: Theme;
   aiEnabled: boolean;
   assistantDestructiveEnabled: boolean;
+  approvalStatus?: UserApprovalStatus;
   createdAt: string;
 }
 
@@ -45,6 +47,14 @@ export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
 }
+
+export interface PendingApprovalResponse {
+  pendingApproval: true;
+  user: User;
+  message: string;
+}
+
+export type RegisterResponse = AuthResponse | PendingApprovalResponse;
 
 export interface CurrenciesResponse {
   default: string;

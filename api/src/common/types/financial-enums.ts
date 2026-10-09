@@ -15,4 +15,6 @@ export type GoalStatus = "pending" | "in_progress" | "achieved" | "overdue";
 
 export type Theme = "light" | "dark" | "system";
 
+export type UserApprovalStatus = "pending" | "approved" | "rejected";
+
 export type ValuationSource = "manual" | "market";

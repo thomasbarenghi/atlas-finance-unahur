@@ -250,6 +250,7 @@ Tablas derivadas de las entidades principales del FRD (§3.2) más las necesaria
 | theme | text | 'light' | 'dark' | 'system' (FR-AUT-006) |
 | ai_enabled | boolean | default false (FR-IA-001) |
 | assistant_destructive_enabled | boolean | default false; habilita las acciones destructivas del asistente, de forma independiente de `ai_enabled` (FR-IA-006) |
+| approval_status | text | `pending` \| `approved` \| `rejected`; default `approved`. Con `REQUIRE_USER_APPROVAL=true`, los registros nuevos quedan `pending` hasta que un admin los apruebe (FR-AUT-001) |
 | created_at / updated_at | timestamptz | |
 
 ### 5.2 `sessions`
@@ -470,9 +471,10 @@ Cada acción de escritura que propone el asistente se guarda como una **acción 
 1. Valida nombre (2–80), email (formato, único, lowercase), contraseña. **Política de contraseña:** 8–72 caracteres, al menos una letra y un número. Rechaza campos inesperados (NFR-SEG-002).
 2. Hashea con argon2 y crea el usuario. Asigna `base_currency` (default `USD`) y crea categorías por defecto si aplica (FR-AUT-001).
 3. Crea sesión y responde `{ user }` con cookies/tokens (login automático).
+4. **Aprobación manual (opt-in):** si `REQUIRE_USER_APPROVAL=true` (API `.env`), el usuario se crea con `approval_status = "pending"` y **no** se abre sesión; la respuesta es `201 { "pendingApproval": true, "user": User, "message": "..." }`. Para poder ingresar, un administrador debe aprobarlo (`POST /api/admin/users/:id/approve`). Con el flag en `false` (default) se mantiene el login automático.
 
 ### 6.2 Login (`POST /auth/login`)
-1. Verifica credenciales; respuestas genéricas ante falla (NFR-SEG-010).
+1. Verifica credenciales; respuestas genéricas ante falla (NFR-SEG-010). Un usuario `pending` o `rejected` recibe `403 USER_PENDING_APPROVAL` / `403 USER_REJECTED` y no se emiten tokens (mismo control en `POST /auth/refresh`, que además revoca la sesión).
 2. Emite **access token** (JWT, vida corta ~15 min) y **refresh token** (opaco, hash almacenado en `sessions`).
 3. Responde `{ user, accessToken, refreshToken }` en el body (para clientes nativos que no usan cookies) y, en web, además fija cookies: `access_token` y `refresh_token` (`HttpOnly; Secure; SameSite=Lax` en producción; NFR-SEG-004). **El cliente web ignora los tokens del body y se apoya solo en la cookie**; el cliente nativo usa el body.
 4. **Doble transporte soportado**: cookie `HttpOnly` (web) o `Authorization: Bearer` (nativo). Ambos son válidos e intercambiables.
@@ -491,6 +493,11 @@ Cada acción de escritura que propone el asistente se guarda como una **acción 
 ### 6.6 Recuperación (FR-AUT-003)
 - `POST /auth/forgot-password`: genera token de uso limitado (corto, un solo uso, con expiración), envía enlace por mail (con reintento controlado).
 - `POST /auth/reset-password`: valida token, setea nueva contraseña e invalida sesiones previas.
+
+### 6.7 Aprobación manual de usuarios (opt-in)
+- Controlado **solo desde el `.env` del API**: `REQUIRE_USER_APPROVAL` (default `false`) y `ADMIN_API_KEY`.
+- Con el flag activo, cada registro queda `pending` y no puede iniciar sesión ni renovar sesión hasta ser aprobado.
+- Los endpoints `/admin/*` (sección 7.12) exigen el header `x-admin-key` = `ADMIN_API_KEY`; si la clave no está configurada, quedan deshabilitados (`404`). La comparación es en tiempo constante.
 
 ---
 
@@ -628,6 +635,21 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 // response 200 → User (mismo shape que GET /auth/me)
 ```
 
+**Admin — aprobación manual de usuarios (opt-in).** `@Public()` + `AdminGuard`; requieren el header `x-admin-key` = `ADMIN_API_KEY` (si la clave no está configurada, responden `404`).
+
+| Método | Ruta | Descripción |
+| :--- | :--- | :--- |
+| GET | `/admin/users?status=pending` | Lista usuarios; `status` opcional (`pending`/`approved`/`rejected`) |
+| POST | `/admin/users/:id/approve` | Aprueba la cuenta (habilita el login) |
+| POST | `/admin/users/:id/reject` | Rechaza la cuenta |
+
+```bash
+# Listar pendientes
+curl -H "x-admin-key: $ADMIN_API_KEY" https://HOST/api/admin/users?status=pending
+# Aprobar
+curl -X POST -H "x-admin-key: $ADMIN_API_KEY" https://HOST/api/admin/users/<uuid>/approve
+```
+
 ### 7.13 Convenciones de contrato
 
 - **Casing:** la base de datos usa `snake_case`; la **API JSON usa `camelCase`**. Las entidades TypeORM no se exponen: se serializan con DTOs/mappers (`initial_balance` → `initialBalance`).
@@ -637,7 +659,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 - **Paginación:** query `page` (default 1) y `pageSize` (default 20, máx. 100). Respuesta: `{ items, page, pageSize, total, totalPages }`. Son paginados: `/transactions` y `/assistant/conversations`. El resto de listados (`/accounts`, `/goals`, `/categories`, `/budgets`, `/assets`, `/assets/:id/valuations`, `/debts`, `/positions`, `/quotes`) devuelven un **array** completo.
 - **Filtros de query:** todos opcionales; `from`/`to` en `YYYY-MM-DD` inclusive; `search` busca en `description` y `notes` con `ILIKE`.
 - **Errores:** `{ statusCode, code, message, fieldErrors? }`; `fieldErrors` es `{ [campo]: string[] }` para validación (para mapeo a formularios). El filtro global nunca expone detalles internos (NFR-SEG-010).
-- **Auth:** cookie `HttpOnly` o `Authorization: Bearer`. Los endpoints `@Public()` son: `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/forgot-password`, `/auth/reset-password`, `/health` y los assets de Swagger.
+- **Auth:** cookie `HttpOnly` o `Authorization: Bearer`. Los endpoints `@Public()` son: `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/forgot-password`, `/auth/reset-password`, `/health`, los `/admin/*` (protegidos por `x-admin-key`) y los assets de Swagger.
 - **CORS:** con credenciales habilitadas; permitir `CORS_ORIGIN` y `CORS_ORIGIN_NATIVE` exactos (no `*`). Incluir `https://localhost` en `CORS_ORIGIN_NATIVE` para el webview de Android (Capacitor 8), además de `capacitor://localhost` (iOS) y `http://localhost` (Android previo).
 - **App Android (NFR-CAL-006):** el cliente se empaqueta con Capacitor (Android en esta versión; iOS diferido) y consume el mismo contrato REST: usa `Authorization: Bearer` y `POST /auth/refresh` para la **sesión persistente** (el refresh token se guarda en el cliente, `client/lib/api/token-store.ts`). Las **safe-areas** se resuelven en el cliente (`frontend.md`) y no modifican el contrato del backend.
 
@@ -669,6 +691,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 // POST /auth/register — body
 { "name": "Ana", "email": "ana@example.com", "password": "Secreta123" }
 // 201 → { "user": User, "accessToken": "eyJ...", "refreshToken": "opaco..." }  (y fija cookies, igual que login)
+// 201 (si REQUIRE_USER_APPROVAL=true) → { "pendingApproval": true, "user": User, "message": "..." }  (sin cookies)
 
 // POST /auth/login — body
 { "email": "ana@example.com", "password": "Secreta123" }
@@ -681,7 +704,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total }`.
 // User
 { "id": "uuid", "name": "Ana", "email": "ana@example.com",
   "baseCurrency": "ARS", "theme": "system", "aiEnabled": false,
-  "assistantDestructiveEnabled": false, "createdAt": "ISO" }
+  "assistantDestructiveEnabled": false, "approvalStatus": "approved", "createdAt": "ISO" }
 ```
 
 **Accounts**
@@ -909,6 +932,8 @@ event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 | `CATEGORY_ARCHIVED` | 409 | movimiento/budget sobre categoría archivada |
 | `DUPLICATE_BUDGET` | 409 | presupuesto ya existe para categoría/período |
 | `EMAIL_IN_USE` | 409 | registro con email existente |
+| `USER_PENDING_APPROVAL` | 403 | login/refresh de una cuenta pendiente de aprobación |
+| `USER_REJECTED` | 403 | login/refresh de una cuenta rechazada |
 | `RATE_LIMITED` | 429 | límite de frecuencia |
 | `MARKET_UNAVAILABLE` | 502 | falla del proveedor de mercado |
 | `AI_UNAVAILABLE` | 502 | falla del proveedor de IA |
@@ -1163,6 +1188,10 @@ QUOTE_STALE_MS=3600000
 # Solo desarrollo/test: token opcional para los endpoints destructivos de
 # /api/dev/database/*. Si está vacío, el guard solo exige NODE_ENV=development|test.
 DEV_DATABASE_TOKEN=
+
+# Aprobación manual de usuarios (controlado desde este .env del API)
+REQUIRE_USER_APPROVAL=false     # true: los registros quedan pendientes hasta que un admin los apruebe
+ADMIN_API_KEY=                  # clave de los endpoints /api/admin/* (header x-admin-key); vacío = deshabilitados
 ```
 
 ---

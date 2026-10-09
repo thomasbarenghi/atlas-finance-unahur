@@ -28,11 +28,16 @@ export const RegisterForm = () => {
 
   const onSubmit = async (values: RegisterFormValues) => {
     try {
-      await register.mutateAsync({
+      const result = await register.mutateAsync({
         name: values.name,
         email: values.email,
         password: values.password,
       });
+      if (!("accessToken" in result)) {
+        toast.success(result.message);
+        router.replace("/login");
+        return;
+      }
       toast.success("Cuenta creada");
       router.replace("/dashboard");
     } catch (error) {

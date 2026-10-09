@@ -122,6 +122,39 @@ describe("RegisterForm", () => {
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
   });
 
+  it("redirects to login when the account is pending approval", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(mockApi, "register").mockResolvedValue({
+      pendingApproval: true,
+      user: {
+        id: "u1",
+        name: "Ana",
+        email: "ana@example.com",
+        baseCurrency: "ARS",
+        theme: "system",
+        aiEnabled: false,
+        assistantDestructiveEnabled: false,
+        approvalStatus: "pending",
+        createdAt: new Date().toISOString(),
+      },
+      message: "Tu cuenta quedó pendiente de aprobación.",
+    });
+    renderWithProviders(<RegisterForm />, { user: null });
+
+    await user.type(screen.getByLabelText("Nombre"), "Ana");
+    await user.type(screen.getByLabelText("Email"), "ana@example.com");
+    await user.type(screen.getByLabelText("Contraseña"), "Password1");
+    await user.type(screen.getByLabelText("Confirmar contraseña"), "Password1");
+    await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        "Tu cuenta quedó pendiente de aprobación.",
+      ),
+    );
+    expect(replace).toHaveBeenCalledWith("/login");
+  });
+
   it("surfaces API field errors on the matching input", async () => {
     const user = userEvent.setup();
     vi.spyOn(mockApi, "register").mockRejectedValue(

@@ -1,4 +1,7 @@
-import type { Theme } from "../../common/types/financial-enums";
+import type {
+  Theme,
+  UserApprovalStatus,
+} from "../../common/types/financial-enums";
 import { User } from "../entities/user.entity";
 
 export class UserResponseDto {
@@ -9,6 +12,7 @@ export class UserResponseDto {
   theme: Theme;
   aiEnabled: boolean;
   assistantDestructiveEnabled: boolean;
+  approvalStatus: UserApprovalStatus;
   createdAt: string;
 }
 
@@ -20,5 +24,6 @@ export const toUserResponse = (user: User): UserResponseDto => ({
   theme: user.theme,
   aiEnabled: user.aiEnabled,
   assistantDestructiveEnabled: user.assistantDestructiveEnabled,
+  approvalStatus: user.approvalStatus,
   createdAt: user.createdAt.toISOString(),
 });
