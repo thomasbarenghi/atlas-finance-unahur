@@ -27,10 +27,7 @@ export const StatTiles = ({ stats }: StatTilesProps) => {
               )}
             >
               {stat.deltaPct >= 0 ? "+" : ""}
-              {stat.deltaUnit === "points"
-                ? `${stat.deltaPct.toFixed(1)} pp`
-                : formatPercentPoints(stat.deltaPct)}{" "}
-              vs. ant.
+              {formatPercentPoints(stat.deltaPct)} vs. ant.
             </span>
           ) : null}
         </div>

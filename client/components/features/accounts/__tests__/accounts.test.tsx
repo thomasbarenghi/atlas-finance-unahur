@@ -42,14 +42,24 @@ describe("AccountsList", () => {
     expect(screen.getByText("Saldo negativo")).toBeInTheDocument();
   });
 
-  it("shows archived accounts with a badge", () => {
+  it("hides archived accounts behind the archived sheet", async () => {
+    const user = userEvent.setup();
     render(
       <AccountsList
-        accounts={[makeAccount({ archived: true, name: "Vieja" })]}
+        accounts={[
+          makeAccount({ id: "1", name: "Activa" }),
+          makeAccount({ id: "2", archived: true, name: "Vieja" }),
+        ]}
       />,
     );
-    expect(screen.getByText("Vieja")).toBeInTheDocument();
-    expect(screen.getByText("Archivada")).toBeInTheDocument();
+
+    expect(screen.getByText("Activa")).toBeInTheDocument();
+    expect(screen.queryByText("Vieja")).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /Ver archivados \(1\)/ }),
+    );
+    expect(await screen.findByText("Vieja")).toBeInTheDocument();
   });
 
   it("shows an empty state with an action", () => {
