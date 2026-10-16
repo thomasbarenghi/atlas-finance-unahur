@@ -3,6 +3,7 @@
 | | |
 |---|---|
 | Versión | 0.3 |
+| Estado | En desarrollo — versión preliminar, no finalizada |
 | Fecha | 16/10/2026 |
 | Sponsor Operación | Secretaría Académica UNAHUR |
 | Sponsor Organización | UNAHUR |

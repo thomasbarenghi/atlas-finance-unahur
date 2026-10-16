@@ -3,6 +3,7 @@
 | | |
 |---|---|
 | Versión | 0.3 |
+| Estado | En desarrollo — versión preliminar, no finalizada |
 | Fecha | 16/10/2026 |
 | Sponsor Operación | Secretaría Académica UNAHUR |
 | Sponsor Organización | UNAHUR |
@@ -25,7 +26,7 @@
 |---|---|---|---|
 | 0.1 | 04/09/2026 | Barenghi, Thomas | Versión inicial. Especificación funcional del Gestor Financiero Personal. |
 | 0.2 | 02/10/2026 | Barenghi, Thomas | Se agregan 5 requerimientos funcionales, 1 no funcional y 1 regla de cálculo; se modifican FR-DAS-007, FR-IA-009 y CAL-001, y se actualiza la regla de negocio RN-002 (patrimonio neto). |
-| 0.3 | 16/10/2026 | Barenghi, Thomas | Se reduce el alcance del proyecto: se eliminan los módulos Presupuestos (FR-PRE), Activos, inversiones y deudas (FR-ACT), Cotizaciones de mercado (FR-MER) y Objetivos financieros (FR-OBJ). Se redefinen RN-002 y CAL-001 (patrimonio neto como suma de saldos de cuentas), se ajustan Dashboard, Reportes, entidades, pantallas y datos de demostración, y se conservan HU-001, HU-002 y HU-006. Se restringe el asistente de inteligencia artificial a solo consulta. Se quita la multimoneda (moneda única), el tema claro/oscuro, la entrada por voz y el archivado de cuentas (eliminación directa, sin restaurar); las categorías pasan a ser fijas y se elimina el tipo de cuenta tarjeta. Se eliminan además RN-007, RN-014, FR-AUT-003, FR-AUT-004, FR-TRX-006, el módulo Reportes y los requerimientos de IA FR-IA-001, FR-IA-008, FR-IA-009, FR-IA-010 y FR-IA-014, junto con el servicio de correo y la entidad Conversación IA. |
+| 0.3 | 16/10/2026 | Barenghi, Thomas | Se reduce el alcance del proyecto: se eliminan los módulos Presupuestos (FR-PRE), Activos, inversiones y deudas (FR-ACT), Cotizaciones de mercado (FR-MER) y Objetivos financieros (FR-OBJ). Se redefinen RN-002 y CAL-001 (patrimonio neto como suma de saldos de cuentas), se ajustan Dashboard, Reportes, entidades, pantallas y datos de demostración, y se conservan HU-001, HU-002 y HU-006. Se restringe el asistente de inteligencia artificial a solo consulta. Se quita la multimoneda (moneda única), el tema claro/oscuro, la entrada por voz y el archivado de cuentas (eliminación directa, sin restaurar); las categorías pasan a ser fijas y se elimina el tipo de cuenta tarjeta. Se eliminan además RN-007, RN-014, FR-AUT-003, FR-AUT-004, FR-TRX-006, el módulo Reportes y los requerimientos de IA FR-IA-001, FR-IA-008, FR-IA-009, FR-IA-010 y FR-IA-014, junto con el servicio de correo y la entidad Conversación IA. Se elimina además NFR-CAL-006 (empaquetado Android). |
 
 ## 2. Alcance
 
@@ -217,7 +218,6 @@ Para cada período seleccionado, el sistema aplica las siguientes reglas de cál
 |---|---|
 | NFR-CAL-004 | Cubrir las fórmulas financieras con pruebas unitarias y los flujos P0 con pruebas de integración. |
 | NFR-CAL-005 | La demostración utilizará datos ficticios y reproducibles, sin información financiera real. |
-| NFR-CAL-006 | Empaquetar la aplicación como app Android con Capacitor, con sesión persistente y respeto de las safe-areas. |
 
 ## 5. Pantallas de Usuario
 
