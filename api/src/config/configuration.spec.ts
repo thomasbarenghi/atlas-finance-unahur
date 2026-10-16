@@ -5,6 +5,8 @@ const KEYS = [
   "PORT",
   "DATABASE_URL",
   "DB_SSL",
+  "DB_POOL_MAX",
+  "DB_CONNECTION_TIMEOUT_MS",
   "JWT_ACCESS_SECRET",
   "JWT_REFRESH_SECRET",
   "JWT_ACCESS_TTL",
@@ -48,7 +50,12 @@ describe("configuration", () => {
     const config = configuration();
     expect(config.nodeEnv).toBe("development");
     expect(config.port).toBe(3001);
-    expect(config.database).toEqual({ url: "", ssl: false });
+    expect(config.database).toEqual({
+      url: "",
+      ssl: false,
+      poolMax: 5,
+      connectionTimeoutMs: 15000,
+    });
     expect(config.jwt.accessTtl).toBe(900);
     expect(config.jwt.refreshTtlDays).toBe(30);
     expect(config.cookie.sameSite).toBe("lax");

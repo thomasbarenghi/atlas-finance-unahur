@@ -5,6 +5,7 @@ import type {
   ForgotPasswordInput,
   LoginInput,
   RegisterInput,
+  RegisterResponse,
   ResetPasswordInput,
 } from "@/lib/api/types";
 import { queryKeys } from "./keys";
@@ -30,11 +31,13 @@ export const useLogin = () => {
 
 export const useRegister = () => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useMutation<RegisterResponse, unknown, RegisterInput>({
     mutationFn: (input: RegisterInput) => authEndpoints.register(input),
     onSuccess: (data) => {
-      setTokens(data);
-      queryClient.setQueryData(queryKeys.auth.me, data.user);
+      if ("accessToken" in data) {
+        setTokens(data);
+        queryClient.setQueryData(queryKeys.auth.me, data.user);
+      }
     },
   });
 };

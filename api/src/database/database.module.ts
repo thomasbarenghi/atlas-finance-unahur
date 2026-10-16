@@ -23,6 +23,14 @@ import { DevDatabaseController } from "./dev-database.controller";
           // No migrations by design: the schema is derived from the entities and
           // rebuilt from scratch when the model changes (see docs/backend.md §11).
           synchronize: true,
+          // Keep the per-instance pool small so a serverless deployment (Vercel)
+          // never exhausts the Supabase pooler ("max clients reached"). Requests
+          // wait for a free connection instead of failing immediately.
+          extra: {
+            max: database.poolMax,
+            connectionTimeoutMillis: database.connectionTimeoutMs,
+            idleTimeoutMillis: 10_000,
+          },
         };
       },
     }),

@@ -20,13 +20,14 @@ const buildUser = (overrides: Record<string, unknown> = {}) => ({
   theme: "system",
   aiEnabled: false,
   assistantDestructiveEnabled: false,
+  approvalStatus: "approved",
   resetTokenHash: null,
   resetTokenExpiresAt: null,
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   ...overrides,
 });
 
-const build = () => {
+const build = (approvalRequired = false) => {
   const usersRepository = {
     findOneBy: jest.fn(),
     create: jest.fn((value: any) => ({
@@ -55,6 +56,8 @@ const build = () => {
     get: jest.fn((key: string) => {
       if (key === "jwt") return { accessTtl: 900, refreshTtlDays: 30 };
       if (key === "resetTokenTtl") return 3600;
+      if (key === "approval")
+        return { required: approvalRequired, adminApiKey: null };
       return undefined;
     }),
   };
@@ -73,6 +76,7 @@ const build = () => {
     sessionsRepository,
     jwtService,
     mailService,
+    config,
   };
 };
 
@@ -101,9 +105,13 @@ describe("AuthService", () => {
         expect.objectContaining({ email: "ana@test.local", name: "Ana" }),
       );
       expect(sessionsRepository.save).toHaveBeenCalled();
-      expect(result.accessToken).toBe("access-token");
-      expect(result.refreshToken).toContain(".");
-      expect(result.user).not.toHaveProperty("passwordHash");
+      expect(result).toMatchObject({
+        accessToken: "access-token",
+        refreshToken: expect.stringContaining("."),
+      });
+      expect((result as { user: object }).user).not.toHaveProperty(
+        "passwordHash",
+      );
     });
 
     it("rejects a duplicated email", async () => {
@@ -117,6 +125,24 @@ describe("AuthService", () => {
           password: "Secreta123",
         } as any),
       ).rejects.toMatchObject({ response: { code: ErrorCode.EMAIL_IN_USE } });
+    });
+
+    it("creates a pending user without a session when approval is required", async () => {
+      const { service, usersRepository, sessionsRepository } = build(true);
+      usersRepository.findOneBy.mockResolvedValue(null);
+
+      const result = await service.register({
+        name: "Ana",
+        email: "ana@test.local",
+        password: "Secreta123",
+      } as any);
+
+      expect(usersRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ approvalStatus: "pending" }),
+      );
+      expect(sessionsRepository.save).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ pendingApproval: true });
+      expect(result).not.toHaveProperty("accessToken");
     });
   });
 
@@ -147,6 +173,27 @@ describe("AuthService", () => {
         service.login({ email: "ana@test.local", password: "bad" } as any),
       ).rejects.toMatchObject({
         response: { code: ErrorCode.INVALID_CREDENTIALS },
+      });
+    });
+
+    it("blocks pending and rejected accounts", async () => {
+      const { service, usersRepository } = build();
+      usersRepository.findOneBy.mockResolvedValue(
+        buildUser({ approvalStatus: "pending" }),
+      );
+      await expect(
+        service.login({ email: "ana@test.local", password: "p" } as any),
+      ).rejects.toMatchObject({
+        response: { code: ErrorCode.USER_PENDING_APPROVAL },
+      });
+
+      usersRepository.findOneBy.mockResolvedValue(
+        buildUser({ approvalStatus: "rejected" }),
+      );
+      await expect(
+        service.login({ email: "ana@test.local", password: "p" } as any),
+      ).rejects.toMatchObject({
+        response: { code: ErrorCode.USER_REJECTED },
       });
     });
   });
@@ -216,6 +263,21 @@ describe("AuthService", () => {
       await expect(service.refresh("s1.secret")).rejects.toMatchObject({
         response: { code: ErrorCode.SESSION_REVOKED },
       });
+    });
+
+    it("revokes the session and blocks a non-approved user", async () => {
+      const { service, sessionsRepository, usersRepository } = build();
+      sessionsRepository.findOneBy.mockResolvedValue(activeSession());
+      usersRepository.findOneBy.mockResolvedValue(
+        buildUser({ approvalStatus: "pending" }),
+      );
+
+      await expect(service.refresh("s1.secret")).rejects.toMatchObject({
+        response: { code: ErrorCode.USER_PENDING_APPROVAL },
+      });
+      expect(sessionsRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ revokedAt: expect.any(Date) }),
+      );
     });
   });
 

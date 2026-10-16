@@ -29,6 +29,7 @@ import type {
   Position,
   Quote,
   RegisterInput,
+  RegisterResponse,
   ResetPasswordInput,
   Transaction,
   TransactionFilters,
@@ -525,9 +526,7 @@ export const mockApi = {
     };
   },
 
-  async register(
-    input: RegisterInput,
-  ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+  async register(input: RegisterInput): Promise<RegisterResponse> {
     await delay();
     if (findUserByEmail(input.email)) {
       fail(409, "EMAIL_IN_USE", "Ese email ya está registrado");

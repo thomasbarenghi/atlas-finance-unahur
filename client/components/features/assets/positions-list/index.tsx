@@ -2,77 +2,87 @@
 
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { Amount } from "@/components/common/amount";
+import { ArchivedSheet } from "@/components/common/archived-sheet";
 import { DataList } from "@/components/common/data-list";
 import { DataListItem } from "@/components/common/data-list-item";
 import { EmptyState } from "@/components/common/empty-state";
 import { IconBadge } from "@/components/common/icon-badge";
-import { StatusBadge } from "@/components/common/status-badge";
+import type { Position } from "@/lib/api/types";
 import { formatPercentPoints } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { PositionsListProps } from "./positions-list.types";
+
+const renderPosition = (position: Position) => {
+  const positive = (position.profitLoss ?? 0) >= 0;
+
+  return (
+    <DataListItem
+      href={`/patrimony/investments/detail?id=${position.id}`}
+      leading={
+        <IconBadge
+          icon={positive ? TrendingUp : TrendingDown}
+          tone={positive ? "success" : "destructive"}
+        />
+      }
+      title={position.instrument}
+      subtitle={`${position.quantity} ${position.symbol}`}
+      trailing={
+        <span className="flex flex-col items-end gap-0.5">
+          {position.currentValue === null ? (
+            <span className="text-muted-foreground text-sm">—</span>
+          ) : (
+            <Amount
+              value={position.currentValue}
+              currency={position.currency}
+            />
+          )}
+          {position.profitLossPct !== null ? (
+            <span
+              className={cn(
+                "text-xs tabular-nums",
+                positive ? "text-success" : "text-destructive",
+              )}
+            >
+              {positive ? "+" : ""}
+              {formatPercentPoints(position.profitLossPct)}
+            </span>
+          ) : null}
+        </span>
+      }
+    />
+  );
+};
 
 export const PositionsList = ({
   positions,
   isLoading,
   emptyAction,
 }: PositionsListProps) => {
-  return (
-    <DataList
-      data={positions}
-      isLoading={isLoading}
-      skeletonCount={2}
-      getRowKey={(position) => position.id}
-      emptyState={
-        <EmptyState
-          icon={TrendingUp}
-          title="Todavía no tenés inversiones"
-          description="Cargá un instrumento y su costo promedio para valuarlo."
-          action={emptyAction}
-        />
-      }
-      renderItem={(position) => {
-        const positive = (position.profitLoss ?? 0) >= 0;
+  const archived = positions.filter((position) => position.archived);
 
-        return (
-          <DataListItem
-            href={`/patrimony/investments/detail?id=${position.id}`}
-            leading={
-              <IconBadge
-                icon={positive ? TrendingUp : TrendingDown}
-                tone={positive ? "success" : "destructive"}
-              />
-            }
-            title={position.instrument}
-            subtitle={`${position.quantity} ${position.symbol}`}
-            trailing={
-              <span className="flex flex-col items-end gap-0.5">
-                {position.currentValue === null ? (
-                  <span className="text-muted-foreground text-sm">—</span>
-                ) : (
-                  <Amount
-                    value={position.currentValue}
-                    currency={position.currency}
-                  />
-                )}
-                {position.profitLossPct !== null ? (
-                  <span
-                    className={cn(
-                      "text-xs tabular-nums",
-                      positive ? "text-success" : "text-destructive",
-                    )}
-                  >
-                    {positive ? "+" : ""}
-                    {formatPercentPoints(position.profitLossPct)}
-                  </span>
-                ) : null}
-                {position.archived ? (
-                  <StatusBadge variant="account" archived />
-                ) : null}
-              </span>
-            }
+  return (
+    <div className="flex flex-col gap-2">
+      <DataList
+        data={positions.filter((position) => !position.archived)}
+        isLoading={isLoading}
+        skeletonCount={2}
+        getRowKey={(position) => position.id}
+        emptyState={
+          <EmptyState
+            icon={TrendingUp}
+            title="Todavía no tenés inversiones"
+            description="Cargá un instrumento y su costo promedio para valuarlo."
+            action={emptyAction}
           />
-        );
-      }}
-    />
+        }
+        renderItem={renderPosition}
+      />
+      <ArchivedSheet
+        label="inversiones"
+        items={archived}
+        getKey={(position) => position.id}
+        renderItem={renderPosition}
+      />
+    </div>
   );
 };

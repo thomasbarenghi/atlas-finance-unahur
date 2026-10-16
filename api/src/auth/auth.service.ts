@@ -14,7 +14,11 @@ import {
   UserResponseDto,
 } from "../users/dto/user-response.dto";
 import { User } from "../users/entities/user.entity";
-import { AuthResponse, TokenPair } from "./dto/auth-response.dto";
+import {
+  AuthResponse,
+  RegisterResponse,
+  TokenPair,
+} from "./dto/auth-response.dto";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
@@ -40,7 +44,7 @@ export class AuthService {
     private readonly mailService: MailService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<AuthResponse> {
+  async register(dto: RegisterDto): Promise<RegisterResponse> {
     const email = dto.email.toLowerCase().trim();
     const existing = await this.usersRepository.findOneBy({ email });
     if (existing) {
@@ -51,6 +55,9 @@ export class AuthService {
       );
     }
 
+    const approvalRequired = this.config.get("approval", {
+      infer: true,
+    }).required;
     const passwordHash = await argon2.hash(dto.password);
     const user = await this.usersRepository.save(
       this.usersRepository.create({
@@ -60,8 +67,18 @@ export class AuthService {
         baseCurrency: "ARS",
         theme: "system",
         aiEnabled: false,
+        approvalStatus: approvalRequired ? "pending" : "approved",
       }),
     );
+
+    if (approvalRequired) {
+      return {
+        pendingApproval: true,
+        user: toUserResponse(user),
+        message:
+          "Tu cuenta quedó pendiente de aprobación. Te avisaremos cuando un administrador la habilite.",
+      };
+    }
 
     return this.createAuthResponse(user);
   }
@@ -78,6 +95,7 @@ export class AuthService {
         "Email o contraseña incorrectos",
       );
     }
+    this.assertApproved(user);
     return this.createAuthResponse(user);
   }
 
@@ -127,6 +145,11 @@ export class AuthService {
         HttpStatus.UNAUTHORIZED,
         "Sesión no válida",
       );
+    }
+    if (user.approvalStatus !== "approved") {
+      session.revokedAt = new Date();
+      await this.sessionsRepository.save(session);
+      this.assertApproved(user);
     }
 
     const rotated = await this.buildRefreshToken();
@@ -217,6 +240,23 @@ export class AuthService {
       { userId: user.id },
       { revokedAt: new Date() },
     );
+  }
+
+  private assertApproved(user: User): void {
+    if (user.approvalStatus === "pending") {
+      throw new ApiException(
+        ErrorCode.USER_PENDING_APPROVAL,
+        HttpStatus.FORBIDDEN,
+        "Tu cuenta está pendiente de aprobación",
+      );
+    }
+    if (user.approvalStatus === "rejected") {
+      throw new ApiException(
+        ErrorCode.USER_REJECTED,
+        HttpStatus.FORBIDDEN,
+        "Tu cuenta fue rechazada",
+      );
+    }
   }
 
   private async createAuthResponse(user: User): Promise<AuthResponse> {

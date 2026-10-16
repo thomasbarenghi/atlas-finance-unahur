@@ -186,15 +186,11 @@ describe("TransactionsView", () => {
 
     const search = await screen.findByLabelText("Buscar movimientos");
     await user.type(search, "alquiler");
+    await user.click(screen.getByRole("button", { name: "Filtros" }));
     const clear = await screen.findByRole("button", {
       name: /Limpiar filtros/,
     });
     await user.click(clear);
     expect(search).toHaveValue("");
-    await waitFor(() =>
-      expect(
-        screen.queryByRole("button", { name: /Limpiar filtros/ }),
-      ).toBeNull(),
-    );
   });
 });

@@ -29,7 +29,7 @@ export const configureApp = (app: INestApplication): void => {
 
   const cors = config.get("cors", { infer: true });
   app.enableCors({
-    origin: [cors.origin, ...cors.native],
+    origin: [...cors.origins, ...cors.native],
     credentials: true,
   });
 };

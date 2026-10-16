@@ -249,7 +249,6 @@ export const ReportsView = () => {
         incomeDeltaPct={data.kpis.incomeDeltaPct}
         expensesDeltaPct={data.kpis.expensesDeltaPct}
         savingsDeltaPct={data.kpis.savingsDeltaPct}
-        savingsRateDeltaPp={data.kpis.savingsRateDeltaPp}
         currency={currency}
       />
 

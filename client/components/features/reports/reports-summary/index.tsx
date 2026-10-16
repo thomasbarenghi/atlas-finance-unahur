@@ -11,7 +11,6 @@ export interface ReportsSummaryProps {
   incomeDeltaPct: number | null;
   expensesDeltaPct: number | null;
   savingsDeltaPct: number | null;
-  savingsRateDeltaPp: number | null;
   currency: string;
 }
 
@@ -19,16 +18,13 @@ const deltaForKey = (
   key: PeriodStatKey,
   props: Pick<
     ReportsSummaryProps,
-    | "incomeDeltaPct"
-    | "expensesDeltaPct"
-    | "savingsDeltaPct"
-    | "savingsRateDeltaPp"
+    "incomeDeltaPct" | "expensesDeltaPct" | "savingsDeltaPct"
   >,
 ): number | null => {
   if (key === "income") return props.incomeDeltaPct;
   if (key === "expenses") return props.expensesDeltaPct;
   if (key === "savings") return props.savingsDeltaPct;
-  return props.savingsRateDeltaPp;
+  return null;
 };
 
 export const ReportsSummary = (props: ReportsSummaryProps) => {
@@ -45,7 +41,6 @@ export const ReportsSummary = (props: ReportsSummaryProps) => {
     tone: stat.tone,
     favorable: stat.favorable,
     deltaPct: deltaForKey(stat.key, props),
-    deltaUnit: stat.key === "savingsRate" ? "points" : "percent",
   }));
 
   return <StatTiles stats={stats} />;

@@ -124,7 +124,6 @@ describe("ReportsSummary", () => {
         incomeDeltaPct={10}
         expensesDeltaPct={-5}
         savingsDeltaPct={20}
-        savingsRateDeltaPp={3}
         currency="ARS"
       />,
     );

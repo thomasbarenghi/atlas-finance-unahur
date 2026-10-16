@@ -25,7 +25,11 @@ import { AuthUser } from "../common/types/auth-user";
 import { AppConfig } from "../config/configuration";
 import { UserResponseDto } from "../users/dto/user-response.dto";
 import { AuthService } from "./auth.service";
-import { AuthResponse, TokenPair } from "./dto/auth-response.dto";
+import {
+  AuthResponse,
+  RegisterResponse,
+  TokenPair,
+} from "./dto/auth-response.dto";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
@@ -52,9 +56,11 @@ export class AuthController {
   async register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<AuthResponse> {
+  ): Promise<RegisterResponse> {
     const result = await this.authService.register(dto);
-    this.setAuthCookies(response, result);
+    if (!("pendingApproval" in result)) {
+      this.setAuthCookies(response, result);
+    }
     return result;
   }
 

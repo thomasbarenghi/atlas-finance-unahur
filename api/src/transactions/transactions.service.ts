@@ -94,10 +94,16 @@ export class TransactionsService {
       select: ["categoryId", "amount", "date"],
     });
     const monthSet = new Set(months);
+    const today = new Date().toISOString().slice(0, 10);
+    const currentMonth = today.slice(0, 7);
     for (const transaction of transactions) {
       if (!transaction.categoryId) continue;
       const month = transaction.date.slice(0, 7);
       if (!monthSet.has(month)) continue;
+      // A budget for the current month reflects spending *so far*: movements
+      // dated in the future (scheduled or demo data) are not counted yet, so the
+      // budget stays consistent with period reports up to today.
+      if (month === currentMonth && transaction.date > today) continue;
       const key = `${transaction.categoryId}:${month}`;
       result.set(key, (result.get(key) ?? 0) + transaction.amount);
     }

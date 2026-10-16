@@ -38,11 +38,6 @@ export const LoginForm = () => {
     }
   };
 
-  const fillDemo = () => {
-    form.setValue("email", "demo@atlassfin.app");
-    form.setValue("password", "Demo1234!");
-  };
-
   return (
     <FormShell form={form} onSubmit={onSubmit}>
       <FormField
@@ -95,14 +90,6 @@ export const LoginForm = () => {
       >
         {login.isPending ? <Loader2 className="animate-spin" /> : null}
         Iniciar sesión
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        className="h-11 rounded-2xl"
-        onClick={fillDemo}
-      >
-        Usar credenciales demo
       </Button>
     </FormShell>
   );

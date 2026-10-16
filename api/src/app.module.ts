@@ -4,6 +4,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { AccountsModule } from "./accounts/accounts.module";
+import { AdminModule } from "./admin/admin.module";
 import { AssetsModule } from "./assets/assets.module";
 import { AssistantModule } from "./assistant/assistant.module";
 import { AuthModule } from "./auth/auth.module";
@@ -40,6 +41,7 @@ import { UsersModule } from "./users/users.module";
     FxModule,
     AuthModule,
     UsersModule,
+    AdminModule,
     ReferenceModule,
     HealthModule,
     AssistantModule,
