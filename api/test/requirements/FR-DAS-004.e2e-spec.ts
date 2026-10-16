@@ -34,7 +34,7 @@ describe("FR-DAS-004 · Gastos por categoría", () => {
       expect.arrayContaining([
         expect.objectContaining({
           categoryId: expenseCategory.id,
-          name: "Comida",
+          name: "Supermercado",
           value: 200,
         }),
       ]),

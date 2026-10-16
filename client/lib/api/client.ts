@@ -1,10 +1,3 @@
-import {
-  clearTokens,
-  ensureTokensLoaded,
-  getAccessToken,
-  getRefreshToken,
-  setTokens,
-} from "./token-store";
 import type { ApiError as ApiErrorShape } from "./types";
 
 export class ApiError extends Error {
@@ -30,12 +23,6 @@ export class UnauthorizedError extends ApiError {
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 
-export const authHeaders = async (): Promise<Record<string, string>> => {
-  await ensureTokensLoaded();
-  const token = getAccessToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
 export interface ApiFetchOptions {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
@@ -49,30 +36,14 @@ const NO_REFRESH_PATHS = ["/auth/login", "/auth/register"];
 let refreshPromise: Promise<boolean> | null = null;
 
 const performRefresh = async (): Promise<boolean> => {
-  await ensureTokensLoaded();
-  const refreshToken = getRefreshToken();
   try {
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(refreshToken ? { refreshToken } : {}),
+      body: JSON.stringify({}),
     });
-    if (!response.ok) {
-      if (refreshToken) clearTokens();
-      return false;
-    }
-    const tokens = (await response.json().catch(() => null)) as {
-      accessToken?: string;
-      refreshToken?: string;
-    } | null;
-    if (tokens?.accessToken && tokens.refreshToken) {
-      setTokens({
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      });
-    }
-    return true;
+    return response.ok;
   } catch {
     return false;
   }
@@ -94,13 +65,12 @@ const request = async (
   const { method = "GET", body, signal, headers } = options;
   const isFormData =
     typeof FormData !== "undefined" && body instanceof FormData;
-  const auth = await authHeaders();
   return fetch(`${API_BASE_URL}${path}`, {
     method,
     credentials: "include",
     headers: isFormData
-      ? { ...auth, ...headers }
-      : { "Content-Type": "application/json", ...auth, ...headers },
+      ? { ...headers }
+      : { "Content-Type": "application/json", ...headers },
     body:
       body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
     signal,

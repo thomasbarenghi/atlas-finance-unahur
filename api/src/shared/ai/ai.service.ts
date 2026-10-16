@@ -5,57 +5,15 @@ import { ApiException } from "../../common/errors/api.exception";
 import { ErrorCode } from "../../common/errors/error-codes";
 import { AppConfig } from "../../config/configuration";
 
-export interface AiToolCall {
-  id: string;
-  type: "function";
-  function: {
-    name: string;
-    arguments: string;
-  };
-}
-
-export interface AiTool {
-  type: "function";
-  function: {
-    name: string;
-    description: string;
-    parameters: Record<string, unknown>;
-  };
-}
-
 export interface AiMessage {
-  role: "system" | "user" | "assistant" | "tool";
-  content: string | null;
-  tool_calls?: AiToolCall[];
-  tool_call_id?: string;
+  role: "system" | "user" | "assistant";
+  content: string;
 }
 
-export interface AiChatOptions {
-  tools?: AiTool[];
-}
-
-export type AiStreamChunk =
-  | { type: "token"; delta: string }
-  | { type: "tool_calls"; toolCalls: AiToolCall[] };
-
-interface ChatCompletionDelta {
-  content?: string | null;
-  tool_calls?: {
-    index?: number;
-    id?: string;
-    type?: string;
-    function?: { name?: string; arguments?: string };
-  }[];
-}
+export type AiStreamChunk = { type: "token"; delta: string };
 
 interface ChatCompletionChunk {
-  choices?: { delta?: ChatCompletionDelta }[];
-}
-
-interface PendingToolCall {
-  id: string;
-  name: string;
-  args: string;
+  choices?: { delta?: { content?: string | null } }[];
 }
 
 @Injectable()
@@ -64,10 +22,7 @@ export class AiService {
 
   constructor(private readonly config: ConfigService<AppConfig, true>) {}
 
-  async *streamChat(
-    messages: AiMessage[],
-    options: AiChatOptions = {},
-  ): AsyncGenerator<AiStreamChunk> {
+  async *streamChat(messages: AiMessage[]): AsyncGenerator<AiStreamChunk> {
     const ai = this.config.get("ai", { infer: true });
     if (!ai.apiKey) {
       throw new ApiException(
@@ -80,20 +35,14 @@ export class AiService {
     const controller = new AbortController();
 
     try {
-      const body: Record<string, unknown> = {
-        model: ai.model,
-        messages,
-        stream: true,
-        temperature: 0.3,
-      };
-      if (options.tools && options.tools.length > 0) {
-        body.tools = options.tools;
-        body.tool_choice = "auto";
-      }
-
       const response = await axios.post(
         `${ai.baseUrl}/chat/completions`,
-        body,
+        {
+          model: ai.model,
+          messages,
+          stream: true,
+          temperature: 0.3,
+        },
         {
           headers: {
             Authorization: `Bearer ${ai.apiKey}`,
@@ -107,7 +56,6 @@ export class AiService {
       );
 
       const stream = response.data as AsyncIterable<Buffer>;
-      const toolCalls = new Map<number, PendingToolCall>();
       let buffer = "";
       let finished = false;
 
@@ -127,28 +75,9 @@ export class AiService {
 
           try {
             const parsed = JSON.parse(payload) as ChatCompletionChunk;
-            const delta = parsed.choices?.[0]?.delta;
-            if (!delta) continue;
-
-            if (delta.content) {
-              yield { type: "token", delta: delta.content };
-            }
-
-            if (delta.tool_calls) {
-              for (const call of delta.tool_calls) {
-                const index = call.index ?? 0;
-                const current = toolCalls.get(index) ?? {
-                  id: "",
-                  name: "",
-                  args: "",
-                };
-                if (call.id) current.id = call.id;
-                if (call.function?.name) current.name = call.function.name;
-                if (call.function?.arguments) {
-                  current.args += call.function.arguments;
-                }
-                toolCalls.set(index, current);
-              }
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              yield { type: "token", delta: content };
             }
           } catch {
             // Ignore keep-alive or partial frames.
@@ -156,20 +85,6 @@ export class AiService {
         }
 
         if (finished) break;
-      }
-
-      if (toolCalls.size > 0) {
-        const ordered = [...toolCalls.entries()]
-          .sort(([a], [b]) => a - b)
-          .map(([index, call]) => ({
-            id: call.id || `call_${index}`,
-            type: "function" as const,
-            function: {
-              name: call.name,
-              arguments: call.args || "{}",
-            },
-          }));
-        yield { type: "tool_calls", toolCalls: ordered };
       }
     } catch (error) {
       if (error instanceof ApiException) throw error;

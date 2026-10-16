@@ -1,32 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useTheme } from "next-themes";
-import { LogOut, Moon } from "lucide-react";
-import { toast } from "sonner";
+import { LogOut } from "lucide-react";
 import { ListRow } from "@/components/common/list-row";
-import { OptionSheet } from "@/components/common/option-sheet";
 import { useAuth } from "@/hooks/use-auth";
-import { useMounted } from "@/hooks/use-mounted";
 import { useSignOut } from "@/hooks/use-sign-out";
-import type { Theme } from "@/lib/api/types";
-import { useUpdateMe } from "@/lib/query/users";
 import { SECTIONS } from "@/lib/sections";
 import { SECTION_ICONS } from "@/components/layout/section-icons";
-
-const FINANCE_LINKS = [
-  { ...SECTIONS.budgets, icon: SECTION_ICONS.budgets },
-  { ...SECTIONS.categories, icon: SECTION_ICONS.categories },
-];
-
-const THEME_OPTIONS: { value: Theme; label: string }[] = [
-  { value: "light", label: "Claro" },
-  { value: "dark", label: "Oscuro" },
-  { value: "system", label: "Automático" },
-];
-
-const themeLabel = (theme: Theme): string =>
-  THEME_OPTIONS.find((option) => option.value === theme)?.label ?? "";
 
 const initialsFrom = (name: string | undefined): string => {
   if (!name) return "?";
@@ -41,13 +20,6 @@ const initialsFrom = (name: string | undefined): string => {
 export const ProfileMenu = () => {
   const { user } = useAuth();
   const { signOut, isSigningOut } = useSignOut();
-  const mounted = useMounted();
-  const { theme, setTheme } = useTheme();
-  const updateMe = useUpdateMe();
-
-  const [themeOpen, setThemeOpen] = useState(false);
-
-  const themeValue = (theme ?? "system") as Theme;
 
   return (
     <div className="flex flex-col gap-4">
@@ -66,20 +38,7 @@ export const ProfileMenu = () => {
       </div>
 
       <section className="overflow-hidden rounded-2xl border">
-        {FINANCE_LINKS.map((item) => (
-          <div key={item.href} className="border-b last:border-b-0">
-            <ListRow {...item} />
-          </div>
-        ))}
-      </section>
-
-      <section className="overflow-hidden rounded-2xl border">
-        <ListRow
-          icon={Moon}
-          label="Tema"
-          value={mounted ? themeLabel(themeValue) : undefined}
-          onClick={() => setThemeOpen(true)}
-        />
+        <ListRow {...SECTIONS.categories} icon={SECTION_ICONS.categories} />
       </section>
 
       <section className="overflow-hidden rounded-2xl border">
@@ -99,21 +58,6 @@ export const ProfileMenu = () => {
           Cerrar sesión
         </button>
       </section>
-
-      <OptionSheet
-        open={themeOpen}
-        onOpenChange={setThemeOpen}
-        title="Tema"
-        options={THEME_OPTIONS}
-        value={themeValue}
-        onSelect={(next) => {
-          setTheme(next);
-          updateMe.mutate(
-            { theme: next },
-            { onError: () => toast.error("No se pudo guardar el tema") },
-          );
-        }}
-      />
     </div>
   );
 };

@@ -4,7 +4,7 @@ Entry point for AI agents working in this repository. **Read this file first**, 
 
 ## Before you start
 
-1. **Identify the app.** Changes live in `client/` (Next.js web + Capacitor) or `api/` (NestJS REST API). Root-level changes touch tooling, docs, or config only.
+1. **Identify the app.** Changes live in `client/` (Next.js web) or `api/` (NestJS REST API). Root-level changes touch tooling, docs, or config only.
 2. **Read that app's `AGENTS.md` in full** and follow it:
    - [ ] `client/AGENTS.md`
    - [ ] `api/AGENTS.md`
@@ -18,7 +18,7 @@ Entry point for AI agents working in this repository. **Read this file first**, 
 
 ```
 atlas-finance-unahur/
-├── client/     # Next.js 16 app + Capacitor Android (AGENTS.md + skills inside)
+├── client/     # Next.js 16 web app (AGENTS.md + skills inside)
 ├── api/        # NestJS API (AGENTS.md + skills inside)
 ├── docs/       # documentation (Spanish): specification/, architecture/, archive/
 ├── .agents/    # global skills (e.g. push-ready)
@@ -31,8 +31,9 @@ atlas-finance-unahur/
 ## Source of truth
 
 - `README.md` — overview, stack, quick start, demo credentials.
-- `docs/specification/FRD_Gestor_Financiero_v0.2.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
-- `docs/architecture/frontend.md` — client site map, structure, auth, charts, AI, Capacitor.
+- `docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
+- `docs/specification/0.3/BRD_Gestor_Financiero_v0.3.md` — business requirements (RN-*, cases, glossary).
+- `docs/architecture/frontend.md` — client site map, structure, auth, charts, AI.
 - `docs/architecture/backend.md` — API architecture, data model, REST contract, integrations, security.
 
 Do not contradict these docs. If code and docs disagree, align them in the same change.

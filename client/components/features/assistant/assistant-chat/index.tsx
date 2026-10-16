@@ -1,45 +1,31 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   ArrowUpRight,
   History,
-  Info,
   Loader2,
   MessageCircleQuestion,
-  Mic,
   Plus,
   Send,
   Sparkles,
   Square,
-  Trash2,
   X,
 } from "lucide-react";
 import { MarkdownText } from "@/components/common/markdown-text";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { useAssistantChat } from "@/hooks/use-assistant-chat";
-import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
-import { AssistantActionCard } from "../assistant-action-card";
 import { AssistantHistorySheet } from "./history-sheet";
 import { useAssistantConversation } from "./hooks/use-assistant-conversation";
 
 const SUGGESTED_QUESTIONS = [
   "¿En qué gasté más este mes?",
-  "¿Cómo van mis presupuestos?",
-  "Creá una cuenta de banco en pesos",
+  "¿Cuánto ahorré en el período?",
+  "¿Cómo fueron mis ingresos y gastos?",
 ];
-
-const formatDuration = (milliseconds: number): string => {
-  const totalSeconds = Math.floor(milliseconds / 1000);
-  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
-  const seconds = String(totalSeconds % 60).padStart(2, "0");
-  return `${minutes}:${seconds}`;
-};
 
 export interface AssistantChatProps {
   onClose?: () => void;
@@ -54,7 +40,6 @@ export const AssistantChat = ({
   historyOpen: historyOpenProp,
   onHistoryOpenChange,
 }: AssistantChatProps) => {
-  const { user } = useAuth();
   const { threads, activeThread, selectThread, deleteThread } =
     useAssistantChat();
   const {
@@ -65,41 +50,12 @@ export const AssistantChat = ({
     isBusy,
     submit,
     cancelStream,
-    recorder,
-    canUseAudio,
-    startRecording,
-    cancelRecording,
-    stopRecording,
     startNewThread,
-    confirmAction,
-    cancelAction,
-    isActionLocked,
   } = useAssistantConversation();
 
   const [internalHistoryOpen, setInternalHistoryOpen] = useState(false);
   const historyOpen = historyOpenProp ?? internalHistoryOpen;
   const setHistoryOpen = onHistoryOpenChange ?? setInternalHistoryOpen;
-
-  if (user && !user.aiEnabled) {
-    return (
-      <div className="flex h-full flex-col gap-4 p-6">
-        {showHeader ? (
-          <ScopeHeader onClose={onClose} onNewChat={startNewThread} />
-        ) : null}
-        <Alert>
-          <Info />
-          <AlertTitle>Asistente deshabilitado</AlertTitle>
-          <AlertDescription>
-            Habilitá el asistente de IA en Ajustes para hacerle preguntas sobre
-            tus datos.
-          </AlertDescription>
-        </Alert>
-        <Button asChild className="w-fit">
-          <Link href="/settings">Ir a Ajustes</Link>
-        </Button>
-      </div>
-    );
-  }
 
   return (
     <div className="flex h-full flex-col">
@@ -125,8 +81,8 @@ export const AssistantChat = ({
                   ¿En qué te ayudo?
                 </h2>
                 <p className="text-muted-foreground max-w-xs text-sm">
-                  Preguntá por tus gastos, presupuestos o patrimonio. También
-                  podés pedirle que cree, edite o elimine datos.
+                  Preguntá por tus gastos, ingresos y ahorro. El asistente solo
+                  consulta tus datos.
                 </p>
               </div>
               <div className="flex w-full max-w-sm flex-col gap-2">
@@ -161,37 +117,13 @@ export const AssistantChat = ({
                     : "bg-muted",
                 )}
               >
-                {message.audioUrl ? (
-                  <audio
-                    controls
-                    src={message.audioUrl}
-                    className="h-9 w-56 max-w-full"
-                  />
-                ) : null}
-                {message.role === "assistant" && message.actions?.length ? (
-                  <div className="flex flex-col gap-1.5">
-                    {message.actions.map((action) => (
-                      <AssistantActionCard
-                        key={action.actionId}
-                        action={action}
-                        locked={isActionLocked(action)}
-                        onConfirm={(actionId) =>
-                          confirmAction(message.id, actionId)
-                        }
-                        onCancel={(actionId) =>
-                          cancelAction(message.id, actionId)
-                        }
-                      />
-                    ))}
-                  </div>
-                ) : null}
                 {message.content ? (
                   message.role === "assistant" ? (
                     <MarkdownText content={message.content} />
                   ) : (
                     <span>{message.content}</span>
                   )
-                ) : message.role === "assistant" && !message.actions?.length ? (
+                ) : message.role === "assistant" ? (
                   <span className="text-muted-foreground flex items-center gap-2">
                     <Loader2 className="size-3.5 animate-spin" />
                     Pensando…
@@ -205,9 +137,6 @@ export const AssistantChat = ({
       </ScrollArea>
 
       <div className="flex flex-col gap-2 px-4 pt-3 pb-2">
-        {recorder.error ? (
-          <p className="text-destructive text-xs">{recorder.error}</p>
-        ) : null}
         <form
           className="flex items-end gap-2"
           onSubmit={(event) => {
@@ -215,83 +144,40 @@ export const AssistantChat = ({
             submit(input);
           }}
         >
-          {recorder.isRecording ? (
-            <>
-              <div className="flex h-9 flex-1 items-center gap-2 rounded-4xl border px-3">
-                <span className="bg-destructive size-2.5 animate-pulse rounded-full" />
-                <span className="text-sm tabular-nums">
-                  {formatDuration(recorder.elapsedMs)}
-                </span>
-                <span className="text-muted-foreground text-xs">Grabando…</span>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label="Cancelar grabación"
-                onClick={cancelRecording}
-              >
-                <Trash2 />
-              </Button>
-              <Button
-                type="button"
-                size="icon"
-                aria-label="Enviar audio"
-                onClick={stopRecording}
-              >
-                <Square />
-              </Button>
-            </>
+          <Textarea
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                submit(input);
+              }
+            }}
+            placeholder="Escribí tu pregunta…"
+            rows={1}
+            maxLength={1000}
+            className="max-h-32 min-h-9 resize-none"
+            aria-label="Pregunta para el asistente"
+          />
+          {isBusy ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Detener respuesta"
+              onClick={cancelStream}
+            >
+              <Square />
+            </Button>
           ) : (
-            <>
-              <Textarea
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    submit(input);
-                  }
-                }}
-                placeholder="Escribí tu pregunta…"
-                rows={1}
-                maxLength={1000}
-                className="max-h-32 min-h-9 resize-none"
-                aria-label="Pregunta para el asistente"
-              />
-              {canUseAudio ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Grabar audio"
-                  disabled={isBusy}
-                  onClick={startRecording}
-                >
-                  <Mic />
-                </Button>
-              ) : null}
-              {isBusy ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  aria-label="Detener respuesta"
-                  onClick={cancelStream}
-                >
-                  <Square />
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  size="icon"
-                  aria-label="Enviar pregunta"
-                  disabled={!input.trim()}
-                >
-                  <Send />
-                </Button>
-              )}
-            </>
+            <Button
+              type="submit"
+              size="icon"
+              aria-label="Enviar pregunta"
+              disabled={!input.trim()}
+            >
+              <Send />
+            </Button>
           )}
         </form>
       </div>

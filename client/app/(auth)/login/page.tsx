@@ -13,9 +13,6 @@ const LoginPage = () => {
       />
       <LoginForm />
       <div className="text-muted-foreground flex flex-col items-center gap-2 text-sm">
-        <Link href="/forgot-password" className="hover:text-foreground">
-          ¿Olvidaste tu contraseña?
-        </Link>
         <span>
           ¿No tenés cuenta?{" "}
           <Link

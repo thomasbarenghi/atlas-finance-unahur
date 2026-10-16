@@ -1,6 +1,6 @@
 import type { AccountType } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
-import { ACCOUNT_TYPE_ICONS } from "./account-icon.utils";
+import { ACCOUNT_TYPE_ICONS, DEFAULT_ACCOUNT_ICON } from "./account-icon.utils";
 
 export { ACCOUNT_TYPE_ICONS } from "./account-icon.utils";
 
@@ -10,7 +10,7 @@ export interface AccountIconProps {
 }
 
 export const AccountIcon = ({ type, className }: AccountIconProps) => {
-  const Icon = ACCOUNT_TYPE_ICONS[type];
+  const Icon = ACCOUNT_TYPE_ICONS[type] ?? DEFAULT_ACCOUNT_ICON;
 
   return (
     <span

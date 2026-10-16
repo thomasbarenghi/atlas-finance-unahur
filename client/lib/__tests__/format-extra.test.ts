@@ -43,7 +43,6 @@ describe("sections", () => {
     expect(ROOT_ROUTES).toEqual([
       "/dashboard",
       "/transactions",
-      "/reports",
       "/assistant",
       "/profile",
     ]);

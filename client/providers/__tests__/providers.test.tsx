@@ -3,20 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryProvider } from "@/providers/query-provider";
 import { PeriodProvider } from "@/providers/period-provider";
-import { DisplayCurrencyProvider } from "@/providers/display-currency-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { AppProviders } from "@/providers/app-providers";
-import { AuthContext, useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth";
 import { usePeriod } from "@/hooks/use-period";
-import { useDisplayCurrency } from "@/hooks/use-display-currency";
 import { mockApi } from "@/lib/mocks/api";
-import { makeUser } from "@/lib/test/factories";
 import { resetMockSession, seedMockSession } from "@/lib/test/mock-session";
 
 vi.mock("next/navigation", () => import("@/lib/test/next-navigation"));
-vi.mock("next-themes", () => ({
-  useTheme: () => ({ theme: "system", setTheme: vi.fn() }),
-}));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
   Toaster: () => null,
@@ -69,41 +63,6 @@ describe("PeriodProvider", () => {
 
     await user.click(screen.getByRole("button", { name: "range" }));
     expect(screen.getByTestId("from")).toHaveTextContent("2026-01-01");
-  });
-});
-
-describe("DisplayCurrencyProvider", () => {
-  const Probe = () => {
-    const { currency } = useDisplayCurrency();
-    return <span data-testid="currency">{currency}</span>;
-  };
-
-  const authValue = (baseCurrency: string | null) => ({
-    user: baseCurrency ? makeUser({ baseCurrency }) : null,
-    isLoading: false,
-    isSigningOut: false,
-    signOut: vi.fn(),
-  });
-
-  it("uses the user's base currency and falls back to ARS", () => {
-    const { unmount } = render(
-      <AuthContext.Provider value={authValue("USD")}>
-        <DisplayCurrencyProvider>
-          <Probe />
-        </DisplayCurrencyProvider>
-      </AuthContext.Provider>,
-    );
-    expect(screen.getByTestId("currency")).toHaveTextContent("USD");
-    unmount();
-
-    render(
-      <AuthContext.Provider value={authValue(null)}>
-        <DisplayCurrencyProvider>
-          <Probe />
-        </DisplayCurrencyProvider>
-      </AuthContext.Provider>,
-    );
-    expect(screen.getByTestId("currency")).toHaveTextContent("ARS");
   });
 });
 

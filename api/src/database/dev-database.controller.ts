@@ -5,7 +5,6 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
-import { ApiExcludeController } from "@nestjs/swagger";
 import { Public } from "../common/decorators/public.decorator";
 import {
   DatabaseActionSummary,
@@ -15,10 +14,8 @@ import { DevOnlyGuard } from "./dev-only.guard";
 
 /**
  * Destructive maintenance routes for local development and tests only. They are
- * hidden from the public OpenAPI document and gated by `DevOnlyGuard`, which
- * returns `404` outside development/test.
+ * gated by `DevOnlyGuard`, which returns `404` outside development/test.
  */
-@ApiExcludeController()
 @Public()
 @UseGuards(DevOnlyGuard)
 @Controller("dev/database")

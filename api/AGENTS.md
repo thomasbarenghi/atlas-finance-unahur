@@ -4,15 +4,15 @@ Guidance for AI agents working in `api/`. Read this first, then load the relevan
 
 ## Project
 
-Atlass Fin backend: a **NestJS monolith** exposing a REST API for the web/native client in `../client/`. It owns all business logic, persistence, auth, and the market/AI/mail integrations. It organizes and explains user-entered data; it does **not** connect to banks, move money, or give financial advice.
+Atlass Fin backend: a **NestJS monolith** exposing a REST API for the web/native client in `../client/`. It owns all business logic, persistence, auth, and the AI integration (read-only assistant). It organizes and explains user-entered data; it does **not** connect to banks, move money, or give financial advice.
 
-**Stack:** NestJS (modular monolith) · TypeScript strict · PostgreSQL (Supabase) · TypeORM (entities as schema source, no migrations) · JWT (HttpOnly cookie + Bearer) · class-validator · argon2 · @nestjs/schedule · @nestjs/throttler · @nestjs/swagger (OpenAPI) · @scalar/nestjs-api-reference (UI) · @nestjs/config.
+**Stack:** NestJS (modular monolith) · TypeScript strict · PostgreSQL (Supabase) · TypeORM (entities as schema source, no migrations) · JWT (HttpOnly cookie + Bearer) · class-validator · argon2 · @nestjs/config.
 
 ## Source of truth (READMEs / docs)
 
-- `../docs/architecture/backend.md` — architecture, data model, auth, **REST contract** (DTOs, enums, errors §7.13–§7.18), calculations, integrations, security, seed, env, batches plan.
+- `../docs/architecture/backend.md` — architecture, data model, auth, **REST contract** (DTOs, enums, errors §7.9–§7.13), calculations, integrations, security, seed, env, batches plan.
 - `../docs/architecture/frontend.md` — the consumer; useful to keep contracts aligned.
-- `../docs/specification/FRD_Gestor_Financiero_v0.2.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
+- `../docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
 
 ## Skills (load before coding)
 
@@ -48,11 +48,11 @@ Run `lint`, `typecheck`, `test`, and `build` before considering a task done. CI 
 4. **Never expose entities.** Map to DTOs; DB is `snake_case`, API JSON is `camelCase`; decimals serialize as `number`.
 5. **Validate everything** with `class-validator` DTOs + global `ValidationPipe` (`whitelist`, `forbidNonWhitelisted`).
 6. **Transactions for multi-row writes** (`dataSource.transaction()`), e.g. transfers (two atomic rows, `transfer_group_id`).
-7. **Calculations are centralized** in `calculations.service` (CAL-001..009). Dashboard, reports, and the AI must reuse it — never duplicate a formula.
-8. **Stable error codes** from `backend.md` §7.17; no internal details leaked (NFR-SEG-010).
+7. **Calculations are centralized** in `calculations.service` (CAL-001/002/003/010). The dashboard and the AI must reuse it — never duplicate a formula.
+8. **Stable error codes** from `backend.md` §7.17; never leak internal details.
 9. **Secrets only in env**; never log passwords, tokens, full prompts, or sensitive financial data (NFR-SEG-007/008).
 10. **Named exports** (NestJS convention); no `export default`.
-11. **No real financial data** in the seed; demo users share `Demo1234!` (`demo@atlassfin.app` full dataset, `sin-datos@atlassfin.app` empty, `ana@atlassfin.app` second user in USD). Deterministic and reproducible — see `../docs/architecture/backend.md` §11.
+11. **No real financial data** in the seed; demo users share `Demo1234!` (`demo@atlassfin.app` full dataset, `sin-datos@atlassfin.app` empty, `ana@atlassfin.app` minimal dataset for isolation). Deterministic and reproducible — see `../docs/architecture/backend.md` §11.
 12. **Orchestrate across domains.** A primary service never calls another service; coordination belongs to an orchestrator (see the `orchestrator-domain-architecture` skill).
 
 ## Layout
@@ -65,10 +65,9 @@ api/
 │   ├── config/          # env loading + validation
 │   ├── database/        # datasource, maintenance/dev endpoints + seeds
 │   ├── common/          # guards, decorators, filters, interceptors, dto
-│   ├── <feature>/       # auth, users, accounts, transactions, categories,
-│   │                    # budgets, assets, debts, positions, quotes, goals,
-│   │                    # reports, dashboard, assistant
-│   └── shared/          # calculations, fx, market, ai, mail
+│   ├── <feature>/       # auth, users, admin, accounts, transactions,
+│   │                    # categories, dashboard, assistant, health
+│   └── shared/          # calculations, account-balances, ai
 ├── test/                # e2e
 └── .env.example
 ```

@@ -10,10 +10,9 @@ import { TransactionsService } from "./transactions.service";
 
 /**
  * Composite use cases of the transactions domain that cross into accounts and
- * categories: validating that the referenced account(s) belong to the user, are
- * not archived, share the movement currency, and that the category is usable
- * (FR-TRX-004, FR-CUE-005, NFR-SEG-001). The orchestrator defines the order and
- * delegates persistence to `TransactionsService`.
+ * categories: validating that the referenced account(s) belong to the user and
+ * that the category exists (FR-TRX-004, NFR-SEG-001). The orchestrator defines
+ * the order and delegates persistence to `TransactionsService`.
  */
 @Injectable()
 export class TransactionsOrchestrator {
@@ -27,11 +26,7 @@ export class TransactionsOrchestrator {
     userId: string,
     dto: CreateTransactionDto,
   ): Promise<TransactionResponseDto> {
-    const account = await this.accountsService.assertAccountUsable(
-      userId,
-      dto.accountId,
-    );
-    this.assertCurrency(account.currency, dto.currency);
+    await this.accountsService.assertAccountOwned(userId, dto.accountId);
 
     if (dto.type === "transfer") {
       if (!dto.transferAccountId) {
@@ -50,13 +45,12 @@ export class TransactionsOrchestrator {
           { transferAccountId: ["Debe ser distinta de la cuenta origen"] },
         );
       }
-      const destination = await this.accountsService.assertAccountUsable(
+      await this.accountsService.assertAccountOwned(
         userId,
         dto.transferAccountId,
       );
-      this.assertCurrency(destination.currency, dto.currency);
     } else if (dto.categoryId) {
-      await this.categoriesService.assertCategoryUsable(userId, dto.categoryId);
+      await this.categoriesService.assertCategoryExists(dto.categoryId);
     }
 
     return this.transactionsService.createTransaction(userId, dto);
@@ -80,42 +74,18 @@ export class TransactionsOrchestrator {
           { transferAccountId: ["Debe ser distinta de la cuenta origen"] },
         );
       }
-      const currency = (dto.currency ?? existing.currency).toUpperCase();
-      const [originAccount, destinationAccount] = await Promise.all([
-        this.accountsService.assertAccountUsable(userId, origin),
-        this.accountsService.assertAccountUsable(userId, destination),
+      await Promise.all([
+        this.accountsService.assertAccountOwned(userId, origin),
+        this.accountsService.assertAccountOwned(userId, destination),
       ]);
-      this.assertCurrency(originAccount.currency, currency);
-      this.assertCurrency(destinationAccount.currency, currency);
     } else if (dto.accountId) {
-      const account = await this.accountsService.assertAccountUsable(
-        userId,
-        dto.accountId,
-      );
-      this.assertCurrency(account.currency, dto.currency ?? existing.currency);
-    } else if (dto.currency !== undefined) {
-      const account = await this.accountsService.assertAccountUsable(
-        userId,
-        existing.accountId,
-      );
-      this.assertCurrency(account.currency, dto.currency);
+      await this.accountsService.assertAccountOwned(userId, dto.accountId);
     }
 
     if (existing.type !== "transfer" && dto.categoryId) {
-      await this.categoriesService.assertCategoryUsable(userId, dto.categoryId);
+      await this.categoriesService.assertCategoryExists(dto.categoryId);
     }
 
     return this.transactionsService.updateTransaction(userId, id, dto);
-  }
-
-  private assertCurrency(accountCurrency: string, currency: string): void {
-    if (accountCurrency.toUpperCase() !== currency.toUpperCase()) {
-      throw new ApiException(
-        ErrorCode.VALIDATION_ERROR,
-        HttpStatus.BAD_REQUEST,
-        "La moneda del movimiento debe coincidir con la de la cuenta",
-        { currency: ["Debe coincidir con la moneda de la cuenta"] },
-      );
-    }
   }
 }

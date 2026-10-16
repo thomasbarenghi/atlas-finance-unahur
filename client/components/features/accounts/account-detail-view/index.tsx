@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Archive, ArchiveRestore, Pencil, Wallet } from "lucide-react";
+import { Pencil, Trash2, Wallet } from "lucide-react";
 import { Amount } from "@/components/common/amount";
 import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
 import {
@@ -11,13 +11,12 @@ import {
 } from "@/components/common/detail-page";
 import { DetailMetric } from "@/components/common/detail-metric";
 import { RowActionsMenu } from "@/components/common/row-actions-menu";
-import { StatusBadge } from "@/components/common/status-badge";
 import { Button } from "@/components/ui/button";
 import { useConfirmAction } from "@/hooks/use-confirm-action";
 import type { Account, Transaction } from "@/lib/api/types";
-import { formatDate } from "@/lib/format";
+import { CURRENCY } from "@/lib/currency";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/labels";
-import { useArchiveAccount, useRestoreAccount } from "@/lib/query/accounts";
+import { useDeleteAccount } from "@/lib/query/accounts";
 import { useCategories } from "@/lib/query/categories";
 import { AccountFormDialog } from "@/components/features/accounts/account-form-dialog";
 import { AccountIcon } from "@/components/features/accounts/account-icon";
@@ -34,25 +33,19 @@ export const AccountDetailView = () => {
     isLoadingTransactions,
     movementCount,
     summary,
-    range,
   } = useAccountDetail();
   const categoriesQuery = useCategories();
-  const archiveAccount = useArchiveAccount();
-  const restoreAccount = useRestoreAccount();
+  const deleteAccount = useDeleteAccount();
 
   const [editOpen, setEditOpen] = useState(false);
   const [editTransaction, setEditTransaction] = useState<Transaction | null>(
     null,
   );
 
-  const archiveAction = useConfirmAction<Account>({
-    run: (target) =>
-      target.archived
-        ? restoreAccount.mutateAsync(target.id)
-        : archiveAccount.mutateAsync(target.id),
-    successMessage: (target) =>
-      target.archived ? "Cuenta restaurada" : "Cuenta archivada",
-    errorMessage: "No se pudo actualizar la cuenta",
+  const deleteAction = useConfirmAction<Account>({
+    run: (target) => deleteAccount.mutateAsync(target.id),
+    successMessage: "Cuenta eliminada",
+    errorMessage: "No se pudo eliminar la cuenta",
   });
 
   const categories = useMemo(
@@ -86,7 +79,7 @@ export const AccountDetailView = () => {
   return (
     <DetailPage
       title={account.name}
-      description={`${ACCOUNT_TYPE_LABELS[account.type]} · ${account.currency}`}
+      description={ACCOUNT_TYPE_LABELS[account.type]}
       actions={
         <>
           <Button
@@ -101,18 +94,12 @@ export const AccountDetailView = () => {
             label={account.name}
             triggerLabel="Más acciones"
             actions={[
-              account.archived
-                ? {
-                    label: "Restaurar",
-                    icon: ArchiveRestore,
-                    onSelect: () => archiveAction.request(account),
-                  }
-                : {
-                    label: "Archivar",
-                    icon: Archive,
-                    variant: "destructive",
-                    onSelect: () => archiveAction.request(account),
-                  },
+              {
+                label: "Eliminar",
+                icon: Trash2,
+                variant: "destructive",
+                onSelect: () => deleteAction.request(account),
+              },
             ]}
           />
         </>
@@ -124,11 +111,10 @@ export const AccountDetailView = () => {
           <span className="text-muted-foreground text-sm">{account.name}</span>
           <Amount
             value={account.currentBalance}
-            currency={account.currency}
+            currency={CURRENCY}
             className="font-heading text-3xl font-bold sm:text-4xl"
           />
         </div>
-        <StatusBadge variant="account" archived={account.archived} />
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -137,7 +123,7 @@ export const AccountDetailView = () => {
           value={
             <Amount
               value={account.initialBalance}
-              currency={account.currency}
+              currency={CURRENCY}
               className="font-normal"
             />
           }
@@ -145,11 +131,7 @@ export const AccountDetailView = () => {
         <DetailMetric
           label="Ingresos"
           value={
-            <Amount
-              value={summary.income}
-              currency={account.currency}
-              type="income"
-            />
+            <Amount value={summary.income} currency={CURRENCY} type="income" />
           }
         />
         <DetailMetric
@@ -157,7 +139,7 @@ export const AccountDetailView = () => {
           value={
             <Amount
               value={summary.expense}
-              currency={account.currency}
+              currency={CURRENCY}
               type="expense"
             />
           }
@@ -165,18 +147,13 @@ export const AccountDetailView = () => {
       </div>
 
       <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="font-heading text-base font-semibold">
-            Movimientos
-            <span className="text-muted-foreground font-normal">
-              {" "}
-              ({movementCount})
-            </span>
-          </h2>
-          <span className="text-muted-foreground text-xs">
-            {formatDate(range.from)} – {formatDate(range.to)}
+        <h2 className="font-heading text-base font-semibold">
+          Movimientos
+          <span className="text-muted-foreground font-normal">
+            {" "}
+            ({movementCount})
           </span>
-        </div>
+        </h2>
         <TransactionList
           transactions={transactions}
           isLoading={isLoadingTransactions}
@@ -203,17 +180,12 @@ export const AccountDetailView = () => {
         categories={categories}
       />
       <ConfirmActionDialog
-        action={archiveAction}
-        title={(target) =>
-          target.archived ? "Restaurar cuenta" : "Archivar cuenta"
-        }
+        action={deleteAction}
+        title="Eliminar cuenta"
         description={(target) =>
-          target.archived
-            ? `La cuenta "${target.name}" volverá a estar disponible para nuevos movimientos.`
-            : `La cuenta "${target.name}" conservará su historial y no admitirá nuevos movimientos.`
+          `Se eliminará la cuenta "${target.name}" y todos sus movimientos. Esta acción no se puede deshacer.`
         }
-        confirmLabel={(target) => (target.archived ? "Restaurar" : "Archivar")}
-        variant={(target) => (target.archived ? "default" : "destructive")}
+        confirmLabel="Eliminar"
       />
     </DetailPage>
   );

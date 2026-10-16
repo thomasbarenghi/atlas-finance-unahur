@@ -17,9 +17,7 @@ describe("AccountFormDialog", () => {
     const createSpy = vi
       .spyOn(mockApi, "createAccount")
       .mockResolvedValue(makeAccount());
-    renderWithProviders(<AccountFormDialog open onOpenChange={vi.fn()} />, {
-      user: undefined,
-    });
+    renderWithProviders(<AccountFormDialog open onOpenChange={vi.fn()} />);
 
     await user.type(screen.getByPlaceholderText("Caja, Banco…"), "Nueva Caja");
     await user.type(screen.getByLabelText("Saldo inicial"), "1000");
@@ -32,7 +30,11 @@ describe("AccountFormDialog", () => {
       payload,
     );
     expect(result.errors).toEqual([]);
-    expect(payload).toMatchObject({ name: "Nueva Caja", initialBalance: 1000 });
+    expect(payload).toMatchObject({
+      name: "Nueva Caja",
+      type: "cash",
+      initialBalance: 1000,
+    });
   });
 
   it("rejects an empty name without calling the API", async () => {
@@ -46,7 +48,7 @@ describe("AccountFormDialog", () => {
     expect(createSpy).not.toHaveBeenCalled();
   });
 
-  it("updates an account and can archive it", async () => {
+  it("updates an account", async () => {
     const user = userEvent.setup();
     const account = makeAccount({
       id: "11111111-1111-4111-8111-111111111111",
@@ -55,9 +57,6 @@ describe("AccountFormDialog", () => {
     const updateSpy = vi
       .spyOn(mockApi, "updateAccount")
       .mockResolvedValue(makeAccount());
-    const archiveSpy = vi
-      .spyOn(mockApi, "archiveAccount")
-      .mockResolvedValue(makeAccount({ archived: true }));
     renderWithProviders(
       <AccountFormDialog open onOpenChange={vi.fn()} account={account} />,
     );
@@ -65,7 +64,6 @@ describe("AccountFormDialog", () => {
     const name = screen.getByPlaceholderText("Caja, Banco…");
     await user.clear(name);
     await user.type(name, "Renombrada");
-    await user.click(screen.getByLabelText("Archivar cuenta"));
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     await waitFor(() => expect(updateSpy).toHaveBeenCalledTimes(1));
@@ -73,6 +71,5 @@ describe("AccountFormDialog", () => {
       account.id,
       expect.objectContaining({ name: "Renombrada" }),
     );
-    await waitFor(() => expect(archiveSpy).toHaveBeenCalledWith(account.id));
   });
 });

@@ -4,15 +4,15 @@ Guidance for AI agents working in `client/`. Read this first, then load the rele
 
 ## Project
 
-Atlass Fin web app: a personal-finance client (accounts, transactions, budgets, assets, goals, reports) with rich analytics and an integrated AI assistant. It is a **pure REST client** of the NestJS API in `../api/`. The same code is packaged for **Android** with Capacitor (iOS pending).
+Atlass Fin web app: a personal-finance client (accounts, transactions with a fixed category catalog, dashboard) with rich analytics and an integrated **read-only** AI assistant. It is a **pure REST client** of the NestJS API in `../api/`.
 
-**Stack:** Next.js 16 (App Router) · TypeScript strict · Tailwind CSS 4 · shadcn/ui (preset radix-maia: green, radius large) · Outfit (headings) + Nunito (body) · Recharts · TanStack Query · React Hook Form + Zod · lucide-react · Capacitor 8 (Android).
+**Stack:** Next.js 16 (App Router) · TypeScript strict · Tailwind CSS 4 · shadcn/ui (preset radix-maia: green, radius large) · Outfit (headings) + Nunito (body) · Recharts · TanStack Query · React Hook Form + Zod · lucide-react.
 
 ## Source of truth (READMEs / docs)
 
-- `../docs/architecture/frontend.md` — site map, per-page features, file structure, auth, charts, AI, Capacitor, batches plan.
+- `../docs/architecture/frontend.md` — site map, per-page features, file structure, auth, charts, AI, batches plan.
 - `../docs/architecture/backend.md` — REST contract (DTOs, enums, errors, streaming) this client consumes.
-- `../docs/specification/FRD_Gestor_Financiero_v0.2.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
+- `../docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
 
 ## Skills (load before coding)
 
@@ -33,21 +33,18 @@ npm run test           # Vitest (unit + component + integration)
 npm run test:watch     # Vitest watch mode
 npm run test:coverage  # Vitest with V8 coverage
 npm run test:e2e       # Playwright (pending setup)
-npm run android:list   # list AVDs / adb devices
-npm run android:build  # web build + cap sync + debug APK
-npm run android        # build + pick device + install + launch
 ```
 
 Run `format:check`, `lint`, `typecheck`, and `build` before considering a task done (the pre-push hook does this).
 
 ## Hard rules (must follow)
 
-1. **Client-only / static-exportable.** No Server Components data fetching, Server Actions, Route Handlers, `middleware.ts`, `cookies()`, or `headers()` in the data flow. Pages under `(app)` are client components. This keeps the build Capacitor-ready.
+1. **Client-only / static-exportable.** No Server Components data fetching, Server Actions, Route Handlers, `middleware.ts`, `cookies()`, or `headers()` in the data flow. Pages under `(app)` are client components. This keeps the build a static export.
 2. **Logic in hooks, not in render.** Components compose; hooks/utils hold logic.
 3. **Named exports and arrow functions only**, except Next.js special files (`page.tsx`, `layout.tsx`, etc.) — see the quality skill.
 4. **No direct `fetch` in components.** Data goes through `lib/query/*`; HTTP through `lib/api/client.ts`.
-5. **`lib/` is portable.** It must not import `next/*` or components, so it can be reused on native.
-6. **Match the backend contract.** JSON is `camelCase`; dates `YYYY-MM-DD`; timestamps ISO 8601 UTC; decimals are `number`. Types in `lib/api/types.ts` mirror `../docs/architecture/backend.md` §7.13–§7.18.
+5. **`lib/` is portable.** It must not import `next/*` or components, so it stays framework-agnostic.
+6. **Match the backend contract.** JSON is `camelCase`; dates `YYYY-MM-DD`; timestamps ISO 8601 UTC; decimals are `number`. Types in `lib/api/types.ts` mirror `../docs/architecture/backend.md` §7.9–§7.13.
 7. **No secrets.** Only `NEXT_PUBLIC_*` public env; never hardcode tokens/keys.
 8. **No real financial data.** Use the backend seed; demo login `demo@atlassfin.app` / `Demo1234!`.
 
@@ -63,13 +60,11 @@ client/
 │   └── features/<f>/    # domain components composing common
 ├── hooks/               # shared hooks
 ├── lib/                 # api, query, format, validation (portable)
-├── providers/           # Query, Theme, Auth
-├── scripts/android.sh   # Android build/run helper
-├── android/             # Capacitor Android project (generated)
-└── capacitor.config.ts
+├── providers/           # Query, Auth
+└── next.config.ts       # static export (output: "export")
 ```
 
 ## Navigation behavior
 
 - Desktop (≥ `md`): fixed sidebar.
-- Mobile: bottom app-style bar with 4 items (`Home`, `Transactions`, central `+`, `Reports`, `Profile`); the `+` opens the quick-create picker and `Settings`/`Profile` are the hub for the remaining sections and preferences (theme is changed from `Profile`). Same behavior in browser and Capacitor.
+- Mobile: bottom app-style bar with 3 items (`Home`, `Assistant`, `Profile`) plus a central `+` that opens the transaction quick-create flow; `Categories` and `Settings` are reachable from `Profile`. There is no theme or currency preference.

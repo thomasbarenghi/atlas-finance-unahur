@@ -17,6 +17,7 @@ import { IconBadge, type IconBadgeTone } from "@/components/common/icon-badge";
 import { Money } from "@/components/common/money";
 import { RowActionsMenu } from "@/components/common/row-actions-menu";
 import type { TransactionType } from "@/lib/api/types";
+import { CURRENCY } from "@/lib/currency";
 import { formatDate } from "@/lib/format";
 import type { TransactionListProps } from "./transaction-list.types";
 import { collapseTransfers } from "./transaction-list.utils";
@@ -88,13 +89,13 @@ export const TransactionList = ({
               isTransfer ? (
                 <Money
                   value={Math.abs(transaction.amount)}
-                  currency={transaction.currency}
+                  currency={CURRENCY}
                   className="text-muted-foreground font-medium"
                 />
               ) : (
                 <Amount
                   value={transaction.amount}
-                  currency={transaction.currency}
+                  currency={CURRENCY}
                   type={transaction.type}
                 />
               )

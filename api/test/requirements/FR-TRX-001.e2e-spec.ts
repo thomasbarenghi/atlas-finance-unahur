@@ -1,8 +1,8 @@
 import request from "supertest";
 import { bearer, registerUser } from "../utils/auth";
 import {
+  categoryByName,
   createAccount,
-  createCategory,
   createTransaction,
   isoDate,
 } from "../utils/factories";
@@ -30,19 +30,16 @@ describe("FR-TRX-001 · Tipos de movimiento", () => {
   it("crea un ingreso y un gasto", async () => {
     const user = await registerUser(ctx.app);
     const account = await createAccount(ctx.app, user.accessToken);
-    const income = await createCategory(ctx.app, user.accessToken, {
-      name: "Sueldo",
-      type: "income",
-    });
-    const expense = await createCategory(ctx.app, user.accessToken, {
-      name: "Comida",
-      type: "expense",
-    });
+    const income = await categoryByName(ctx.app, user.accessToken, "Sueldo");
+    const expense = await categoryByName(
+      ctx.app,
+      user.accessToken,
+      "Supermercado",
+    );
 
     const gained = await createTransaction(ctx.app, user.accessToken, {
       type: "income",
       amount: 1000,
-      currency: "ARS",
       date: isoDate(),
       description: "Sueldo",
       accountId: account.id,
@@ -53,9 +50,8 @@ describe("FR-TRX-001 · Tipos de movimiento", () => {
     const spent = await createTransaction(ctx.app, user.accessToken, {
       type: "expense",
       amount: 250,
-      currency: "ARS",
       date: isoDate(),
-      description: "Comida",
+      description: "Supermercado",
       accountId: account.id,
       categoryId: expense.id,
     });
@@ -74,7 +70,6 @@ describe("FR-TRX-001 · Tipos de movimiento", () => {
     const transfer = await createTransaction(ctx.app, user.accessToken, {
       type: "transfer",
       amount: 300,
-      currency: "ARS",
       date: isoDate(),
       description: "Ahorro",
       accountId: origin.id,
@@ -95,7 +90,6 @@ describe("FR-TRX-001 · Tipos de movimiento", () => {
       .send({
         type: "refund",
         amount: 100,
-        currency: "ARS",
         date: isoDate(),
         description: "X",
         accountId: account.id,

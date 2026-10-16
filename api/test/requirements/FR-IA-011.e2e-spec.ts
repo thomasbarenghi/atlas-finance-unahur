@@ -1,11 +1,6 @@
 import { AiService } from "../../src/shared/ai/ai.service";
 import { registerUser } from "../utils/auth";
-import {
-  aiStub,
-  enableAssistant,
-  parseSse,
-  postAssistantMessage,
-} from "../utils/assistant";
+import { aiStub, parseSse, postAssistantMessage } from "../utils/assistant";
 import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
@@ -32,7 +27,6 @@ describe("FR-IA-011 · Información insuficiente", () => {
 
   it("marca insufficient=true cuando no hay respuesta verificable", async () => {
     const user = await registerUser(ctx.app);
-    await enableAssistant(ctx.app, user.accessToken);
 
     const response = await postAssistantMessage(ctx.app, user.accessToken, {});
     const done = parseSse(response.text).find((e) => e.event === "done");

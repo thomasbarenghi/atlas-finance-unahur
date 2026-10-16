@@ -4,7 +4,6 @@ import { Repository } from "typeorm";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
 import { AccountBalancesService } from "../shared/account-balances/account-balances.service";
-import { CurrencyService } from "../shared/currency/currency.service";
 import { AccountResponseDto } from "./dto/account-response.dto";
 import { CreateAccountDto } from "./dto/create-account.dto";
 import { UpdateAccountDto } from "./dto/update-account.dto";
@@ -17,10 +16,8 @@ const toAccountResponse = (
   id: account.id,
   name: account.name,
   type: account.type,
-  currency: account.currency,
   initialBalance: account.initialBalance,
   currentBalance,
-  archived: account.archived,
   notes: account.notes,
   createdAt: account.createdAt.toISOString(),
   updatedAt: account.updatedAt.toISOString(),
@@ -32,7 +29,6 @@ export class AccountsService {
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
     private readonly balances: AccountBalancesService,
-    private readonly currency: CurrencyService,
   ) {}
 
   async listAccounts(userId: string): Promise<AccountResponseDto[]> {
@@ -72,7 +68,6 @@ export class AccountsService {
       userId,
       name: dto.name.trim(),
       type: dto.type,
-      currency: this.currency.assertSupported(dto.currency),
       initialBalance: dto.initialBalance ?? 0,
       notes: dto.notes?.trim() || null,
     });
@@ -89,8 +84,6 @@ export class AccountsService {
 
     if (dto.name !== undefined) account.name = dto.name.trim();
     if (dto.type !== undefined) account.type = dto.type;
-    if (dto.currency !== undefined)
-      account.currency = this.currency.assertSupported(dto.currency);
     if (dto.initialBalance !== undefined) {
       account.initialBalance = dto.initialBalance;
     }
@@ -103,45 +96,16 @@ export class AccountsService {
     );
   }
 
-  async archiveAccount(
-    userId: string,
-    id: string,
-  ): Promise<AccountResponseDto> {
+  async deleteAccount(userId: string, id: string): Promise<void> {
     const account = await this.findOwnedAccount(userId, id);
-    account.archived = true;
-    const saved = await this.accountsRepository.save(account);
-    return toAccountResponse(
-      saved,
-      await this.balances.currentBalanceOf(saved, userId),
-    );
+    await this.accountsRepository.remove(account);
   }
 
-  async restoreAccount(
+  async assertAccountOwned(
     userId: string,
     id: string,
   ): Promise<AccountResponseDto> {
-    const account = await this.findOwnedAccount(userId, id);
-    account.archived = false;
-    const saved = await this.accountsRepository.save(account);
-    return toAccountResponse(
-      saved,
-      await this.balances.currentBalanceOf(saved, userId),
-    );
-  }
-
-  async assertAccountUsable(
-    userId: string,
-    id: string,
-  ): Promise<AccountResponseDto> {
-    const account = await this.getAccount(userId, id);
-    if (account.archived) {
-      throw new ApiException(
-        ErrorCode.ACCOUNT_ARCHIVED,
-        HttpStatus.CONFLICT,
-        "La cuenta está archivada",
-      );
-    }
-    return account;
+    return this.getAccount(userId, id);
   }
 
   private async findOwnedAccount(userId: string, id: string): Promise<Account> {

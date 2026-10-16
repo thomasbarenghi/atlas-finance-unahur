@@ -26,11 +26,6 @@ export class UpdateTransactionDto {
   amount?: number;
 
   @IsOptional()
-  @IsString()
-  @Length(3, 3)
-  currency?: string;
-
-  @IsOptional()
   @Matches(ISO_DATE, { message: "date debe ser YYYY-MM-DD" })
   @IsDateString({}, { message: "date debe ser una fecha válida" })
   date?: string;

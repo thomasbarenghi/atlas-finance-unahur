@@ -10,9 +10,6 @@ import { makeUser } from "@/lib/test/factories";
 import { renderWithProviders } from "@/lib/test/render";
 
 vi.mock("next/navigation", () => import("@/lib/test/next-navigation"));
-vi.mock("next-themes", () => ({
-  useTheme: () => ({ theme: "system", setTheme: vi.fn() }),
-}));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
@@ -45,16 +42,20 @@ describe("Sidebar", () => {
 });
 
 describe("MobileTabBar", () => {
-  it("renders the mobile items with a central create link", () => {
-    setPathname("/reports");
+  it("renders Inicio, Asistente, the create link and Perfil", () => {
+    setPathname("/assistant");
     render(<MobileTabBar />);
-    expect(screen.getByRole("link", { name: "Reportes" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Asistente" })).toHaveAttribute(
       "aria-current",
       "page",
     );
     expect(screen.getByRole("link", { name: "Movimientos" })).toHaveAttribute(
       "href",
       "/transactions",
+    );
+    expect(screen.getByRole("link", { name: "Perfil" })).toHaveAttribute(
+      "href",
+      "/profile",
     );
   });
 });

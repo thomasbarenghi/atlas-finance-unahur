@@ -1,6 +1,5 @@
 import { z } from "zod";
 import {
-  currencySchema,
   dateSchema,
   moneySchema,
   notesSchema,
@@ -11,7 +10,6 @@ export const transactionSchema = z
   .object({
     type: z.enum(["income", "expense", "transfer"]),
     amount: moneySchema.positive("El monto debe ser mayor que cero"),
-    currency: currencySchema,
     date: dateSchema,
     accountId: z.string().uuid("Elegí una cuenta"),
     transferAccountId: optionalIdSchema,

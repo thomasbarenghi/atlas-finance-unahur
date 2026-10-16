@@ -2,18 +2,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { transactionEndpoints } from "@/lib/api/endpoints";
 import type {
   CreateTransactionInput,
-  TransactionFilters,
+  TransactionListQuery,
   UpdateTransactionInput,
 } from "@/lib/api/types";
 import { queryKeys } from "./keys";
 
 export const useTransactions = (
-  filters: TransactionFilters,
+  params: TransactionListQuery,
   options?: { enabled?: boolean },
 ) =>
   useQuery({
-    queryKey: queryKeys.transactions(filters),
-    queryFn: () => transactionEndpoints.list(filters),
+    queryKey: queryKeys.transactions(params),
+    queryFn: () => transactionEndpoints.list(params),
     placeholderData: (previous) => previous,
     enabled: options?.enabled ?? true,
   });
@@ -23,7 +23,6 @@ const invalidateTransactionViews = (
 ) => {
   queryClient.invalidateQueries({ queryKey: queryKeys.transactionsBase });
   queryClient.invalidateQueries({ queryKey: queryKeys.accounts });
-  queryClient.invalidateQueries({ queryKey: queryKeys.budgetsBase });
   queryClient.invalidateQueries({ queryKey: queryKeys.dashboardBase });
 };
 

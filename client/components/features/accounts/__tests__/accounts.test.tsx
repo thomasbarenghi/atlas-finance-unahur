@@ -14,8 +14,6 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
-const ALL_TIME = { from: "2000-01-01", to: "2100-01-01" };
-
 describe("AccountsList", () => {
   it("orders accounts by type and shows balances", () => {
     render(
@@ -23,8 +21,8 @@ describe("AccountsList", () => {
         accounts={[
           makeAccount({
             id: "1",
-            name: "Visa",
-            type: "card",
+            name: "Banco",
+            type: "bank",
             currentBalance: -500,
           }),
           makeAccount({
@@ -38,28 +36,8 @@ describe("AccountsList", () => {
     );
     const rows = screen.getAllByRole("link");
     expect(rows[0]).toHaveTextContent("Caja");
-    expect(rows[1]).toHaveTextContent("Visa");
+    expect(rows[1]).toHaveTextContent("Banco");
     expect(screen.getByText("Saldo negativo")).toBeInTheDocument();
-  });
-
-  it("hides archived accounts behind the archived sheet", async () => {
-    const user = userEvent.setup();
-    render(
-      <AccountsList
-        accounts={[
-          makeAccount({ id: "1", name: "Activa" }),
-          makeAccount({ id: "2", archived: true, name: "Vieja" }),
-        ]}
-      />,
-    );
-
-    expect(screen.getByText("Activa")).toBeInTheDocument();
-    expect(screen.queryByText("Vieja")).not.toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", { name: /Ver archivados \(1\)/ }),
-    );
-    expect(await screen.findByText("Vieja")).toBeInTheDocument();
   });
 
   it("shows an empty state with an action", () => {
@@ -90,7 +68,7 @@ describe("AccountDetailView", () => {
 
   it("renders the account, metrics and movements", async () => {
     window.history.replaceState({}, "", `/accounts/detail?id=${bankId()}`);
-    renderWithProviders(<AccountDetailView />, { period: ALL_TIME });
+    renderWithProviders(<AccountDetailView />);
 
     expect((await screen.findAllByText("Banco ARS")).length).toBeGreaterThan(0);
     expect(screen.getByText("Saldo inicial")).toBeInTheDocument();
@@ -101,33 +79,33 @@ describe("AccountDetailView", () => {
 
   it("shows a not-found state for an unknown id", async () => {
     window.history.replaceState({}, "", "/accounts/detail?id=missing");
-    renderWithProviders(<AccountDetailView />, { period: ALL_TIME });
+    renderWithProviders(<AccountDetailView />);
     expect(await screen.findByText("Cuenta no encontrada")).toBeInTheDocument();
   });
 
   it("opens the edit dialog", async () => {
     const user = userEvent.setup();
     window.history.replaceState({}, "", `/accounts/detail?id=${bankId()}`);
-    renderWithProviders(<AccountDetailView />, { period: ALL_TIME });
+    renderWithProviders(<AccountDetailView />);
 
     await screen.findAllByText("Banco ARS");
     await user.click(screen.getByRole("button", { name: "Editar cuenta" }));
     expect(await screen.findByText("Editar cuenta")).toBeInTheDocument();
   });
 
-  it("archives the account through the confirm dialog", async () => {
+  it("deletes the account through the confirm dialog", async () => {
     const user = userEvent.setup();
-    const archiveSpy = vi
-      .spyOn(mockApi, "archiveAccount")
-      .mockResolvedValue({} as never);
+    const deleteSpy = vi
+      .spyOn(mockApi, "deleteAccount")
+      .mockResolvedValue(undefined);
     window.history.replaceState({}, "", `/accounts/detail?id=${bankId()}`);
-    renderWithProviders(<AccountDetailView />, { period: ALL_TIME });
+    renderWithProviders(<AccountDetailView />);
 
     await screen.findAllByText("Banco ARS");
     await user.click(screen.getByRole("button", { name: "Más acciones" }));
-    await user.click(await screen.findByRole("menuitem", { name: /Archivar/ }));
+    await user.click(await screen.findByRole("menuitem", { name: /Eliminar/ }));
     const dialog = await screen.findByRole("alertdialog");
-    await user.click(within(dialog).getByRole("button", { name: "Archivar" }));
-    await waitFor(() => expect(archiveSpy).toHaveBeenCalled());
+    await user.click(within(dialog).getByRole("button", { name: "Eliminar" }));
+    await waitFor(() => expect(deleteSpy).toHaveBeenCalled());
   });
 });

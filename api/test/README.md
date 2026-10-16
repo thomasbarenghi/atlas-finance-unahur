@@ -45,8 +45,7 @@ test/
 │   └── assistant.ts             # stub de AiService + parser SSE
 └── requirements/
     ├── FR-AUT-001.e2e-spec.ts   # un archivo por requerimiento
-    ├── CAL-010.e2e-spec.ts
-    └── NFR-SEG-010.e2e-spec.ts
+    └── CAL-010.e2e-spec.ts
 ```
 
 ## Notas

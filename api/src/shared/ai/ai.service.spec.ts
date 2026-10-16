@@ -36,43 +36,22 @@ describe("AiService", () => {
     });
   });
 
-  it("streams content tokens and assembles tool calls", async () => {
+  it("streams content tokens", async () => {
     const service = build();
     mockedAxios.post.mockResolvedValue({
       data: streamOf([
         'data: {"choices":[{"delta":{"content":"Hi "}}]}',
         'data: {"choices":[{"delta":{"content":"there"}}]}',
-        'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"createAccount","arguments":"{\\"name\\":"}}]}}]}',
-        'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\\"X\\"}"}}]}}]}',
         "data: [DONE]",
       ]),
     } as any);
 
     const events = [];
-    for await (const chunk of service.streamChat([], {
-      tools: [
-        {
-          type: "function",
-          function: { name: "x", description: "d", parameters: {} },
-        },
-      ],
-    })) {
-      events.push(chunk);
-    }
+    for await (const chunk of service.streamChat([])) events.push(chunk);
 
     expect(events).toEqual([
       { type: "token", delta: "Hi " },
       { type: "token", delta: "there" },
-      {
-        type: "tool_calls",
-        toolCalls: [
-          {
-            id: "call_1",
-            type: "function",
-            function: { name: "createAccount", arguments: '{"name":"X"}' },
-          },
-        ],
-      },
     ]);
   });
 
@@ -89,36 +68,6 @@ describe("AiService", () => {
     const events = [];
     for await (const chunk of service.streamChat([])) events.push(chunk);
     expect(events).toEqual([]);
-  });
-
-  it("defaults a missing tool call id and omits tools when none are given", async () => {
-    const service = build();
-    mockedAxios.post.mockResolvedValue({
-      data: streamOf([
-        'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"name":"x","arguments":"{}"}}]}}]}',
-        "data: [DONE]",
-      ]),
-    } as any);
-
-    const events = [];
-    for await (const chunk of service.streamChat([])) events.push(chunk);
-    expect(events).toEqual([
-      {
-        type: "tool_calls",
-        toolCalls: [
-          {
-            id: "call_0",
-            type: "function",
-            function: { name: "x", arguments: "{}" },
-          },
-        ],
-      },
-    ]);
-    expect(mockedAxios.post).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.not.objectContaining({ tools: expect.anything() }),
-      expect.anything(),
-    );
   });
 
   it("maps provider failures to AI_UNAVAILABLE", async () => {

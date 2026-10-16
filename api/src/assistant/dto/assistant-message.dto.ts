@@ -1,11 +1,5 @@
 import { Type } from "class-transformer";
-import {
-  IsOptional,
-  IsString,
-  IsUUID,
-  Length,
-  ValidateNested,
-} from "class-validator";
+import { IsOptional, IsString, Length, ValidateNested } from "class-validator";
 import { PeriodDto } from "../../common/dto/period.dto";
 
 export class AssistantMessageDto {
@@ -14,16 +8,7 @@ export class AssistantMessageDto {
   question: string;
 
   @IsOptional()
-  @IsUUID()
-  conversationId?: string | null;
-
-  @IsOptional()
   @ValidateNested()
   @Type(() => PeriodDto)
   period?: PeriodDto;
-
-  @IsOptional()
-  @IsString()
-  @Length(3, 3)
-  currency?: string;
 }

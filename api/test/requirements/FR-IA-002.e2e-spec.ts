@@ -1,11 +1,6 @@
 import { AiService } from "../../src/shared/ai/ai.service";
 import { registerUser } from "../utils/auth";
-import {
-  aiStub,
-  enableAssistant,
-  parseSse,
-  postAssistantMessage,
-} from "../utils/assistant";
+import { aiStub, parseSse, postAssistantMessage } from "../utils/assistant";
 import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
@@ -39,7 +34,6 @@ describe("FR-IA-002 · Preguntas en lenguaje natural", () => {
 
   it("emite meta, tokens y done por SSE", async () => {
     const user = await registerUser(ctx.app);
-    await enableAssistant(ctx.app, user.accessToken);
 
     const response = await postAssistantMessage(ctx.app, user.accessToken, {
       question: "¿En qué gasté más?",
@@ -53,7 +47,6 @@ describe("FR-IA-002 · Preguntas en lenguaje natural", () => {
     expect(types).toContain("done");
 
     const meta = events.find((e) => e.event === "meta");
-    expect(meta?.data.conversationId).toBeDefined();
     expect(meta?.data.sources).toEqual(expect.any(Array));
 
     const done = events.find((e) => e.event === "done");

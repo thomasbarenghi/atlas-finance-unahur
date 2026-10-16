@@ -12,7 +12,6 @@ export const ACCOUNT_TYPE_VALUES: AccountType[] = [
   "cash",
   "bank",
   "wallet",
-  "card",
   "other",
 ];
 
@@ -23,10 +22,6 @@ export class CreateAccountDto {
 
   @IsIn(ACCOUNT_TYPE_VALUES)
   type: AccountType;
-
-  @IsString()
-  @Length(3, 3)
-  currency: string;
 
   @IsOptional()
   @IsNumber()

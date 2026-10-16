@@ -142,9 +142,7 @@ describe("TransactionsView", () => {
 
   it("lists transactions and opens the create dialog", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<TransactionsView />, {
-      period: { from: "2000-01-01", to: "2100-01-01" },
-    });
+    renderWithProviders(<TransactionsView />);
 
     expect(await screen.findByText("Movimientos")).toBeInTheDocument();
     await waitFor(() =>
@@ -160,15 +158,13 @@ describe("TransactionsView", () => {
     const deleteSpy = vi
       .spyOn(mockApi, "deleteTransaction")
       .mockResolvedValue(undefined);
-    renderWithProviders(<TransactionsView />, {
-      period: { from: "2000-01-01", to: "2100-01-01" },
-    });
+    renderWithProviders(<TransactionsView />);
 
     await waitFor(() =>
-      expect(screen.getAllByText(/Compras/).length).toBeGreaterThan(0),
+      expect(screen.getAllByText(/Servicios/).length).toBeGreaterThan(0),
     );
     const menuButtons = await screen.findAllByRole("button", {
-      name: /Acciones de Compras/,
+      name: /Acciones de Servicios/,
     });
     await user.click(menuButtons[0]);
     await user.click(await screen.findByRole("menuitem", { name: /Eliminar/ }));
@@ -176,21 +172,5 @@ describe("TransactionsView", () => {
     const dialog = await screen.findByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Eliminar" }));
     await waitFor(() => expect(deleteSpy).toHaveBeenCalled());
-  });
-
-  it("clears active filters", async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<TransactionsView />, {
-      period: { from: "2000-01-01", to: "2100-01-01" },
-    });
-
-    const search = await screen.findByLabelText("Buscar movimientos");
-    await user.type(search, "alquiler");
-    await user.click(screen.getByRole("button", { name: "Filtros" }));
-    const clear = await screen.findByRole("button", {
-      name: /Limpiar filtros/,
-    });
-    await user.click(clear);
-    expect(search).toHaveValue("");
   });
 });

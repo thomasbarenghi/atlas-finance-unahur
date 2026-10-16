@@ -1,8 +1,8 @@
 import request from "supertest";
 import { bearer, registerUser } from "../utils/auth";
 import {
+  categoryByName,
   createAccount,
-  createCategory,
   createTransaction,
   isoDate,
 } from "../utils/factories";
@@ -33,19 +33,16 @@ describe("FR-CUE-004 · Saldo actual", () => {
     const account = await createAccount(ctx.app, user.accessToken, {
       initialBalance: 1000,
     });
-    const income = await createCategory(ctx.app, user.accessToken, {
-      name: "Sueldo",
-      type: "income",
-    });
-    const expense = await createCategory(ctx.app, user.accessToken, {
-      name: "Comida",
-      type: "expense",
-    });
+    const income = await categoryByName(ctx.app, user.accessToken, "Sueldo");
+    const expense = await categoryByName(
+      ctx.app,
+      user.accessToken,
+      "Supermercado",
+    );
 
     await createTransaction(ctx.app, user.accessToken, {
       type: "income",
       amount: 500,
-      currency: "ARS",
       date: isoDate(),
       description: "Sueldo",
       accountId: account.id,
@@ -54,9 +51,8 @@ describe("FR-CUE-004 · Saldo actual", () => {
     await createTransaction(ctx.app, user.accessToken, {
       type: "expense",
       amount: 200,
-      currency: "ARS",
       date: isoDate(),
-      description: "Comida",
+      description: "Supermercado",
       accountId: account.id,
       categoryId: expense.id,
     });
@@ -88,7 +84,6 @@ describe("FR-CUE-004 · Saldo actual", () => {
     await createTransaction(ctx.app, user.accessToken, {
       type: "transfer",
       amount: 300,
-      currency: "ARS",
       date: isoDate(),
       description: "Ahorro",
       accountId: origin.id,

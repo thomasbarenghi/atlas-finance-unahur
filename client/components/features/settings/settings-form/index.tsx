@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Loader2, LogOut, Trash2 } from "lucide-react";
+import { Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,23 +13,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import { FormCurrencyField } from "@/components/common/form-currency-field";
 import { FormShell } from "@/components/common/form-shell";
 import {
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
 import { useSignOut } from "@/hooks/use-sign-out";
 import { getErrorMessage } from "@/lib/api/errors";
-import { useClearConversations } from "@/lib/query/assistant";
 import { useUpdateMe } from "@/lib/query/users";
 import {
   settingsSchema,
@@ -40,28 +35,17 @@ export const SettingsForm = () => {
   const { user } = useAuth();
   const { signOut, isSigningOut } = useSignOut();
   const updateMe = useUpdateMe();
-  const clearConversations = useClearConversations();
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       name: user?.name ?? "",
-      baseCurrency: user?.baseCurrency ?? "ARS",
-      aiEnabled: user?.aiEnabled ?? false,
-      assistantDestructiveEnabled: user?.assistantDestructiveEnabled ?? false,
     },
   });
 
-  const aiEnabled = form.watch("aiEnabled");
-
   useEffect(() => {
     if (!user) return;
-    form.reset({
-      name: user.name,
-      baseCurrency: user.baseCurrency,
-      aiEnabled: user.aiEnabled,
-      assistantDestructiveEnabled: user.assistantDestructiveEnabled,
-    });
+    form.reset({ name: user.name });
   }, [user, form]);
 
   const onSubmit = async (values: SettingsFormValues) => {
@@ -80,7 +64,7 @@ export const SettingsForm = () => {
           <CardHeader>
             <CardTitle className="font-heading">Perfil</CardTitle>
             <CardDescription>
-              Tu nombre y la moneda base para consolidar tus datos.
+              Tu nombre dentro de la aplicación.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -97,66 +81,7 @@ export const SettingsForm = () => {
                 </FormItem>
               )}
             />
-            <FormCurrencyField
-              name="baseCurrency"
-              label="Moneda base"
-              fallback={user?.baseCurrency ?? "ARS"}
-            />
             <div className="text-muted-foreground text-sm">{user?.email}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-heading">Privacidad e IA</CardTitle>
-            <CardDescription>
-              El asistente usa datos mínimos y puede crear, editar o eliminar
-              datos a pedido tuyo, siempre con tu confirmación.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <FormField
-              control={form.control}
-              name="aiEnabled"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-xl border p-3">
-                  <div className="flex flex-col gap-0.5">
-                    <FormLabel>Asistente de IA</FormLabel>
-                    <FormDescription>
-                      Habilitá las respuestas conversacionales.
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="assistantDestructiveEnabled"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-xl border p-3">
-                  <div className="flex flex-col gap-0.5">
-                    <FormLabel>Acciones destructivas</FormLabel>
-                    <FormDescription>
-                      Permitir que el asistente elimine movimientos,
-                      presupuestos o inversiones, siempre con confirmación.
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      disabled={!aiEnabled}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
           </CardContent>
         </Card>
 
@@ -165,35 +90,6 @@ export const SettingsForm = () => {
           Guardar cambios
         </Button>
       </FormShell>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-heading">Asistente</CardTitle>
-          <CardDescription>
-            Eliminá el historial de conversaciones almacenado.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ConfirmDialog
-            title="Borrar historial del asistente"
-            description="Se eliminarán todas tus conversaciones. Esta acción no se puede deshacer."
-            confirmLabel="Borrar historial"
-            variant="destructive"
-            isPending={clearConversations.isPending}
-            onConfirm={() => {
-              clearConversations.mutate(undefined, {
-                onSuccess: () => toast.success("Historial eliminado"),
-                onError: () => toast.error("No se pudo borrar el historial"),
-              });
-            }}
-            trigger={
-              <Button variant="outline" className="w-fit">
-                <Trash2 /> Borrar historial
-              </Button>
-            }
-          />
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>

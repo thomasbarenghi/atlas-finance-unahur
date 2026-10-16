@@ -9,11 +9,6 @@ const user = (overrides: Partial<User> = {}): User =>
     name: "Ana",
     email: "ana@test.local",
     passwordHash: "hash",
-    baseCurrency: "ARS",
-    theme: "system",
-    aiEnabled: false,
-    assistantDestructiveEnabled: false,
-    approvalStatus: "approved",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     ...overrides,
   }) as User;
@@ -21,10 +16,7 @@ const user = (overrides: Partial<User> = {}): User =>
 const build = () => {
   const repository = mockRepository();
   repository.save.mockImplementation(async (value: any) => user(value));
-  const config = {
-    get: jest.fn(() => ["ARS", "USD", "EUR", "BRL", "UYU"]),
-  };
-  const service = new UsersService(repository as any, config as any);
+  const service = new UsersService(repository as any);
   return { service, repository };
 };
 
@@ -57,32 +49,12 @@ describe("UsersService", () => {
     await expect(service.findByEmail("x@test.local")).resolves.toBeNull();
   });
 
-  it("updates preferences and normalizes the base currency", async () => {
+  it("updates the profile name", async () => {
     const { service, repository } = build();
     repository.findOneBy.mockResolvedValue(user());
 
-    const result = await service.updateMe("u1", {
-      name: "  Ana Maria  ",
-      baseCurrency: "usd",
-      theme: "dark",
-      aiEnabled: true,
-      assistantDestructiveEnabled: true,
-    } as any);
+    const result = await service.updateMe("u1", { name: "  Ana Maria  " });
 
-    expect(result).toMatchObject({
-      name: "Ana Maria",
-      baseCurrency: "USD",
-      theme: "dark",
-      aiEnabled: true,
-      assistantDestructiveEnabled: true,
-    });
-  });
-
-  it("rejects an unsupported base currency", async () => {
-    const { service, repository } = build();
-    repository.findOneBy.mockResolvedValue(user());
-    await expect(
-      service.updateMe("u1", { baseCurrency: "GBP" } as any),
-    ).rejects.toMatchObject({ response: { code: ErrorCode.VALIDATION_ERROR } });
+    expect(result).toMatchObject({ name: "Ana Maria" });
   });
 });

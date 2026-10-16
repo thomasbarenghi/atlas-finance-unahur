@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
@@ -24,10 +24,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAuth } from "@/hooks/use-auth";
 import { getErrorMessage } from "@/lib/api/errors";
 import { evaluateAmountExpression } from "@/lib/amount-expression";
 import { sortCategories } from "@/lib/categories";
+import { CURRENCY } from "@/lib/currency";
 import { formatCurrency, todayIso } from "@/lib/format";
 import type { TransactionType } from "@/lib/api/types";
 import { TRANSACTION_TYPE_LABELS } from "@/lib/labels";
@@ -58,32 +58,20 @@ export const TransactionFormDialog = ({
   accounts,
   categories,
 }: TransactionFormDialogProps) => {
-  const { user } = useAuth();
   const createTransaction = useCreateTransaction();
   const updateTransaction = useUpdateTransaction();
   const isEditing = Boolean(transaction);
   const isPending = createTransaction.isPending || updateTransaction.isPending;
 
-  const activeAccounts = useMemo(
-    () => accounts.filter((account) => !account.archived),
-    [accounts],
-  );
+  const activeAccounts = accounts;
   const initialAccountId =
     transaction?.accountId ?? activeAccounts[0]?.id ?? "";
-  const initialAccount = activeAccounts.find(
-    (account) => account.id === initialAccountId,
-  );
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
       type: transaction?.type ?? "expense",
       amount: transaction ? Math.abs(transaction.amount) : 0,
-      currency:
-        transaction?.currency ??
-        initialAccount?.currency ??
-        user?.baseCurrency ??
-        "ARS",
       date: transaction?.date ?? todayIso(),
       accountId: initialAccountId,
       transferAccountId: transaction?.transferAccountId ?? undefined,
@@ -100,44 +88,28 @@ export const TransactionFormDialog = ({
 
   const type = useWatch({ control: form.control, name: "type" });
   const accountId = useWatch({ control: form.control, name: "accountId" });
-  const currency = useWatch({ control: form.control, name: "currency" });
 
   const selectedAccount = activeAccounts.find(
     (account) => account.id === accountId,
   );
   const destinationAccounts = activeAccounts.filter(
-    (account) =>
-      account.id !== accountId &&
-      (!selectedAccount || account.currency === selectedAccount.currency),
+    (account) => account.id !== accountId,
   );
   const categoryType = type === "income" ? "income" : "expense";
   const categoryOptions = sortCategories(
-    categories.filter(
-      (category) =>
-        category.type === categoryType &&
-        (!category.archived || category.id === transaction?.categoryId),
-    ),
+    categories.filter((category) => category.type === categoryType),
   );
   const evaluated =
     evaluateAmountExpression(expression.replace(/[+−×÷]+$/, "")) ?? 0;
   const hasOperator = /[+−×÷]/.test(expression);
 
   useEffect(() => {
-    const account = activeAccounts.find((item) => item.id === accountId);
-    if (!account) return;
-    if (form.getValues("currency") !== account.currency) {
-      form.setValue("currency", account.currency, { shouldValidate: true });
-    }
     const destinationId = form.getValues("transferAccountId");
-    if (destinationId) {
-      const destination = activeAccounts.find(
-        (item) => item.id === destinationId,
-      );
-      if (destination && destination.currency !== account.currency) {
-        form.setValue("transferAccountId", undefined, { shouldValidate: true });
-      }
+    if (!destinationId) return;
+    if (destinationId === accountId) {
+      form.setValue("transferAccountId", undefined, { shouldValidate: true });
     }
-  }, [accountId, activeAccounts, form]);
+  }, [accountId, form]);
 
   const updateExpression = (next: string) => {
     setExpression(next);
@@ -174,7 +146,6 @@ export const TransactionFormDialog = ({
     const payload = {
       type: values.type,
       amount: values.amount,
-      currency: values.currency,
       date: values.date,
       description: values.description,
       notes: values.notes ?? null,
@@ -254,7 +225,7 @@ export const TransactionFormDialog = ({
               <SelectContent>
                 {activeAccounts.map((account) => (
                   <SelectItem key={account.id} value={account.id}>
-                    {account.name} · {account.currency}
+                    {account.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -279,15 +250,14 @@ export const TransactionFormDialog = ({
                 <SelectContent>
                   {destinationAccounts.map((account) => (
                     <SelectItem key={account.id} value={account.id}>
-                      {account.name} · {account.currency}
+                      {account.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {selectedAccount && destinationAccounts.length === 0 ? (
+              {destinationAccounts.length === 0 ? (
                 <p className="text-muted-foreground text-xs">
-                  Necesitás otra cuenta en {selectedAccount.currency} para
-                  transferir.
+                  Necesitás otra cuenta para transferir.
                 </p>
               ) : null}
               <FormMessage />
@@ -328,11 +298,11 @@ export const TransactionFormDialog = ({
         ) : null}
         <span className="font-heading text-4xl font-semibold tabular-nums">
           {signFor(type)}
-          {formatCurrency(evaluated, currency)}
+          {formatCurrency(evaluated, CURRENCY)}
         </span>
         <span className="text-muted-foreground text-xs">
           Disponible{" "}
-          {formatCurrency(selectedAccount?.currentBalance ?? 0, currency)}
+          {formatCurrency(selectedAccount?.currentBalance ?? 0, CURRENCY)}
         </span>
       </div>
 
