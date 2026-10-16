@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAssistantChat } from "@/hooks/use-assistant-chat";
 import { usePeriod } from "@/hooks/use-period";
@@ -14,8 +14,19 @@ export const useAssistantConversation = () => {
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+
+  // Abort the in-flight stream and stop updating state once unmounted (avoids
+  // post-teardown updates that would touch a disposed environment).
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+      abortRef.current?.abort();
+    },
+    [],
+  );
 
   const messages = useMemo(() => activeThread?.messages ?? [], [activeThread]);
   const isBusy = isStreaming;
@@ -35,11 +46,13 @@ export const useAssistantConversation = () => {
           { question, period: range },
           {
             onToken: (delta) => {
+              if (!mountedRef.current) return;
               received += delta;
               updateMessage(assistantId, { content: received });
               requestAnimationFrame(scrollToBottom);
             },
             onError: (message) => {
+              if (!mountedRef.current) return;
               updateMessage(assistantId, { content: message });
               toast.error(message);
             },
@@ -47,6 +60,7 @@ export const useAssistantConversation = () => {
           { signal: controller.signal },
         );
       } catch (error) {
+        if (!mountedRef.current) return;
         if ((error as { name?: string })?.name === "AbortError") {
           updateMessage(assistantId, {
             content: received
@@ -66,6 +80,7 @@ export const useAssistantConversation = () => {
         }
       } finally {
         abortRef.current = null;
+        if (!mountedRef.current) return;
         setIsStreaming(false);
         requestAnimationFrame(scrollToBottom);
       }

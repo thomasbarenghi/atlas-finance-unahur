@@ -9,13 +9,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AccountsSection } from "@/components/features/dashboard/accounts-section";
 import { NetWorthHero } from "@/components/features/dashboard/net-worth-hero";
 import { WidgetCard } from "@/components/features/dashboard/widget-card";
-import { useDisplayCurrency } from "@/hooks/use-display-currency";
+import { CURRENCY } from "@/lib/currency";
 import { usePeriod } from "@/hooks/use-period";
 import { useDashboard } from "@/lib/query/dashboard";
 
 export const DashboardView = () => {
   const { range } = usePeriod();
-  const { currency } = useDisplayCurrency();
   const dashboardQuery = useDashboard({ from: range.from, to: range.to });
   const data = dashboardQuery.data;
 
@@ -37,7 +36,7 @@ export const DashboardView = () => {
           <NetWorthHero
             value={data.kpis.netWorth}
             deltaPct={data.kpis.netWorthDeltaPct}
-            currency={currency}
+            currency={CURRENCY}
             series={data.netWorthSeries}
             income={data.kpis.income}
             expenses={data.kpis.expenses}
@@ -47,7 +46,7 @@ export const DashboardView = () => {
             <WidgetCard title="Ingresos vs. gastos" hint="Comparación mensual.">
               <IncomeExpenseChart
                 data={data.incomeExpenseByMonth}
-                currency={currency}
+                currency={CURRENCY}
               />
             </WidgetCard>
             <WidgetCard
@@ -56,7 +55,7 @@ export const DashboardView = () => {
             >
               <CategoryDonut
                 data={data.expensesByCategory}
-                currency={currency}
+                currency={CURRENCY}
               />
             </WidgetCard>
           </div>
