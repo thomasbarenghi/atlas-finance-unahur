@@ -1,7 +1,7 @@
 # Atlass Fin — Documento Técnico del Frontend
 
 > **Audiencia:** agentes de IA que implementarán el frontend.
-> **Stack:** Next.js 16 (App Router) · TypeScript (strict) · Tailwind CSS 4 · shadcn/ui · Outfit (títulos) + Nunito (cuerpo) · Recharts · TanStack Query · React Hook Form + Zod · lucide-react · Capacitor 8 (Android; iOS pendiente).
+> **Stack:** Next.js 16 (App Router) · TypeScript (strict) · Tailwind CSS 4 · shadcn/ui · Outfit (títulos) + Nunito (cuerpo) · Recharts · TanStack Query · React Hook Form + Zod · lucide-react.
 > **Backend:** consume una API REST NestJS (ver `backend.md`). La URL base se inyecta por variable de entorno.
 > **Referencia funcional:** `../specification/0.3/FRD_Gestor_Financiero_v0.3.md`. Todo requisito citado (FR-*, HU-*, CAL-*, NFR-*) corresponde a ese documento.
 
@@ -22,8 +22,7 @@
 11. [Formato de monedas, fechas y localización](#11-formato-de-monedas-fechas-y-localización)
 12. [Requerimientos no funcionales del front](#12-requerimientos-no-funcionales-del-front)
 13. [Convenciones de código](#13-convenciones-de-código)
-14. [Empaquetado móvil con Capacitor](#14-empaquetado-móvil-con-capacitor)
-15. [Plan de trabajo por tandas](#15-plan-de-trabajo-por-tandas)
+14. [Plan de trabajo por tandas](#14-plan-de-trabajo-por-tandas)
 
 ---
 
@@ -44,17 +43,16 @@ La aplicación opera con **una única moneda** (definida por el backend) y un **
 | Estado servidor | TanStack Query | 5.x |
 | Formularios | React Hook Form + Zod | RHF 7.x, Zod 3.x |
 | Validación | Zod (compartida conceptualmente con el back) | 3.x |
-| Auth | JWT: cookie `HttpOnly` (web) o `Authorization: Bearer` (nativo) | — |
+| Auth | JWT: cookie `HttpOnly` (web) | — |
 | HTTP | `fetch` nativo dentro de un cliente tipado | — |
-| Móvil | Capacitor (Android; iOS pendiente) | 8.x |
 | Iconos | lucide-react (los genera shadcn) | — |
 | Fechas | `date-fns` (compatible con DatePicker de shadcn) | 4.x |
 
 **Principios rectores:**
 
-1. **Cliente primero y exportable a estático**: el front es un cliente puro que consume la API REST; no depende de Server Components, Server Actions, Route Handlers ni `middleware.ts` para funcionar. Esto garantiza que el mismo build funcione en web y dentro de Capacitor (`output: "export"`).
+1. **Cliente primero y exportable a estático**: el front es un cliente puro que consume la API REST; no depende de Server Components, Server Actions, Route Handlers ni `middleware.ts` para funcionar. Esto garantiza que el mismo build sea estático (`output: "export"`).
 2. **Una sola fuente de verdad de tipos**: contratos de la API modelados en `lib/api/types.ts`.
-3. **Lógica portable**: `lib/` (api, query, format, validation) no importa nada de `next/*`, para reusarlo tal cual en el build nativo.
+3. **Lógica portable**: `lib/` (api, query, format, validation) no importa nada de `next/*`, para mantenerlo independiente del framework de UI.
 4. **Accesibilidad primero**: shadcn + Radix ya aportan foco y teclado; se completa con resúmenes textuales de gráficos y estados no dependientes del color (NFR-UA-002/004/005).
 5. **Estados vacíos accionables**: toda vista sin datos muestra una acción sugerida (FR-DAS-008).
 
@@ -64,16 +62,15 @@ La aplicación opera con **una única moneda** (definida por el backend) y un **
 
 | Decisión | Elección | Justificación |
 | :--- | :--- | :--- |
-| Router | App Router (`app/`) | Layouts anidados; con `output: "export"` se genera un sitio estático apto para Capacitor. |
+| Router | App Router (`app/`) | Layouts anidados; con `output: "export"` se genera un sitio estático. |
 | Render | Componentes cliente en `(app)` | Evita dependencias de RSC; el build estático hidrata en cliente. |
-| Móvil | Capacitor | Envuelve el mismo código web en shells iOS/Android; 100% de reuso. |
 | Route groups | `(auth)` y `(app)` | Separa pantallas públicas y protegidas sin alterar URLs. |
 | Fetching | TanStack Query en el cliente | Caché, invalidación, retry, cancelación (clave para IA con timeout). |
 | Formularios | RHF + Zod | Validación declarativa, consistente con validación de servidor. |
 | Estado global | Mínimo; contextos puntuales (auth) | Evita sobre-ingeniería; TanStack Query cubre el resto. |
 | Gráficos | Recharts vía `Chart` de shadcn | Accesible, con tooltip personalizable y datos tabulados alternativos. |
 | IA | Streaming SSE al backend | UI reactiva, cancelable, con timeout (NFR-PR-004). |
-| Sesión | Cookie `HttpOnly` (web) / Bearer token en almacenamiento seguro (nativo) | El cliente abstrae la fuente del token; el backend valida igual. |
+| Sesión | Cookie `HttpOnly` (web) | El cliente no maneja tokens en JS; el backend valida en cada request. |
 | Moneda/fecha | `Intl.NumberFormat` / `Intl.DateTimeFormat` + `date-fns` | Localización real (NFR-CAL-003). La moneda es una constante del sistema. |
 
 ---
@@ -102,18 +99,17 @@ La aplicación opera con **una única moneda** (definida por el backend) y un **
 - La protección de rutas vive en un **`AuthGuard` en cliente** (componente que envuelve el layout de `(app)`): si no hay sesión, redirige a `/login`. El backend valida la autorización en cada request, así que el guard es solo UX (NFR-SEG-001).
 - `(app)` comparte un `layout.tsx` con la navegación (sidebar en desktop / barra inferior en móvil), `Header` (usuario) y el provider de TanStack Query.
 - Toda página de `(app)` se renderiza tras una verificación de sesión; los datos se cargan en cliente vía Query.
-- **Sin `middleware.ts`** (o solo como optimización opcional en web): en el build estático/Capacitor no existe, por lo que la barrera real es el guard en cliente + el backend.
+- **Sin `middleware.ts`** (o solo como optimización opcional en web): en el build estático no existe, por lo que la barrera real es el guard en cliente + el backend.
 
 **Navegación responsive (web + app):**
 
 - **Desktop (≥ `md`)**: `Sidebar` lateral fija con las secciones y accesos de perfil/configuración. El `Header` (**usuario**) es **solo desktop** (`hidden md:flex`). El **período** vive en el contenido como filtro de página.
-- **Móvil (< `md`)**: la navegación se convierte en una **barra inferior estilo app móvil** (flotante, separada del borde, con bordes redondeados), como en las apps nativas. Se detecta por viewport (`matchMedia` / CSS), no por plataforma. El estilo visual es propio; se toma como referencia (no como requisito) la estética "Liquid Glass" de iOS 26.
+- **Móvil (< `md`)**: la navegación se convierte en una **barra inferior estilo app móvil** (flotante, separada del borde, con bordes redondeados). Se detecta por viewport (`matchMedia` / CSS), no por plataforma. El estilo visual es propio; se toma como referencia (no como requisito) la estética "Liquid Glass" de iOS 26.
 - La barra inferior tiene **3 ítems**: `Inicio`, **`Asistente`** (abre el chat, no navega) y `Perfil`; más un **botón central prominente** `+` que lleva a **Movimientos**.
 - **`Perfil`** (ruta `/profile`) es el hub de la barra inferior: muestra la tarjeta de perfil, un acceso a **Categorías** y a **Ajustes** (`/settings`), y **Cerrar sesión**. Se comporta como una pestaña más, no como un `Sheet` superpuesto.
 - **El asistente no está en la sidebar**: en **desktop** es un **widget flotante** (botón abajo a la derecha) disponible en `(app)`, salvo en `/assistant`; en **mobile** es una **página propia** (`/assistant`) a la que se entra desde el ítem `Asistente` de la barra inferior. Ver §10.
 - Estado activo con ícono + label, respetando NFR-UA-005 (no solo color); safe-areas (`env(safe-area-inset-bottom)`) para el notch/gesto de home.
 - **Mobile**: no hay header global. Cada página muestra su propio título (`PageHeader`) y, en `/dashboard`, el **período** se muestra dentro del contenido (`PeriodSelector`), no en una barra fija.
-- El mismo comportamiento aplica en el navegador móvil y dentro de Capacitor (misma base de código).
 
 > **Sin tema:** no hay provider ni toggle de claro/oscuro; la app usa un único esquema visual.
 > **Sin selector de moneda:** la moneda es una constante del sistema que llega en las respuestas del backend.
@@ -126,7 +122,7 @@ Cada página lista: FRs cubiertos, componentes shadcn, y comportamiento esperado
 
 ### 4.1 `/login`, `/register` — SC-001 (FR-AUT-001/002)
 
-- **Login:** email + contraseña. El backend devuelve `{ user, accessToken, refreshToken }`; en web además fija cookie `HttpOnly`, y en nativo el token se guarda en almacenamiento seguro (Keychain/Keystore vía Capacitor). On success → `router.push("/dashboard")` + `router.refresh()`.
+- **Login:** email + contraseña. El backend fija la cookie `HttpOnly` de sesión y responde con el usuario; el cliente no guarda tokens. On success → `router.push("/dashboard")` + `router.refresh()`.
 - **Registro:** nombre, email, contraseña (con confirmación). **Política:** 8–72 caracteres, al menos una letra y un número (debe coincidir con el backend). Tras registrarse, se loguea automáticamente (o queda pendiente de aprobación si el backend lo indica).
 - **Componentes:** `Card`, `Form`, `Input`, `Button`, `Alert`, `Label`.
 - **Errores:** mensajes genéricos del servidor, nunca detalles sensibles.
@@ -157,7 +153,7 @@ El **formulario** (`AccountFormDialog`) es un editor visual: hero con ícono del
 - **Stats**: saldo inicial, ingresos y gastos del período (`usePeriod`).
 - **Movimientos**: `TransactionList` (lista de items reutilizable) con los movimientos de la cuenta; al tocar uno se abre el `Dialog` de edición.
 - **Editar** reutiliza `AccountFormDialog`; **eliminar** usa `AlertDialog` de confirmación y advierte que se eliminan también sus movimientos asociados (FR-CUE-003/005).
-- La ruta usa `?id=` en vez de `/accounts/:id` para ser compatible con el **static export** de Next/Capacitor; el id se lee con `useQueryParam`.
+- La ruta usa `?id=` en vez de `/accounts/:id` para ser compatible con el **static export** de Next; el id se lee con `useQueryParam`.
 
 ### 4.4 `/transactions` — SC-004 (FR-TRX-001..005)
 
@@ -215,8 +211,7 @@ client/
 │   │   ├── header.tsx               # header desktop (usuario)
 │   │   ├── header/user-menu.tsx
 │   │   ├── auth-guard.tsx           # guard de sesión en cliente (rutas de (app))
-│   │   ├── brand.tsx
-│   │   └── native-system-bars.tsx   # status/navigation bar en Capacitor
+│   │   └── brand.tsx
 │   ├── common/                      # genéricos domain-agnostic (folder + index.tsx)
 │   │   ├── amount/  amount-keypad/  money/  money-input/  category-badge/
 │   │   ├── confirm-dialog/  confirm-action-dialog/  period-selector/
@@ -236,15 +231,12 @@ client/
 │   ├── currency.ts / categories.ts
 │   ├── sections.ts / forms.ts / storage.ts
 │   ├── amount-expression.ts
-│   ├── api/                       # client, types, session, token-store, endpoints, errors, assistant-stream
+│   ├── api/                       # client, types, session, endpoints, errors, assistant-stream
 │   ├── query/                     # hooks de TanStack Query por dominio (+ keys.ts)
 │   ├── validation/                # schemas Zod por formulario
-│   ├── native/                    # puente a plugins Capacitor
 │   └── mocks/                     # API mockeada para desarrollo
 ├── hooks/                         # hooks compartidos (auth, período, confirm, …)
 ├── providers/                     # app-providers, auth, query, período, asistente…
-├── capacitor.config.ts             # config de Capacitor (appId, webDir: out)
-├── android/                        # proyecto Android (generado por Capacitor)
 ├── next.config.ts                  # output: "export", images: unoptimized
 ├── components.json                # config de shadcn (preset radix-maia)
 ├── tsconfig.json
@@ -260,7 +252,7 @@ client/
 - Cada dominio de datos tiene su archivo de hooks en `lib/query/`, que encapsula las `queryKey`s y las mutaciones con su invalidación. Las claves están centralizadas en `lib/query/keys.ts`.
 - La lógica transversal vive en hooks compartidos: `use-confirm-action` (confirmar + mutar + toast), `use-period`, etc.
 - Los schemas Zod viven en `lib/validation/` y reflejan los DTOs de `lib/api/types.ts`.
-- `next.config.ts` usa `output: "export"` e `images: { unoptimized: true }` para generar el estático que Capacitor sirve (`webDir: out`).
+- `next.config.ts` usa `output: "export"` e `images: { unoptimized: true }` para generar el sitio estático.
 - No existe `middleware.ts`: el guard de sesión es `auth-guard.tsx` en cliente. La seguridad real la impone el backend.
 
 > **Eliminados:** `lib/budget.ts`, `lib/goal.ts`, `lib/patrimony.ts`, `lib/query/{budgets,assets,debts,goals,positions,quotes,reference,assistant}.ts`, `lib/validation/{budgets,assets,goals,categories}.ts`, las páginas `budgets`, `goals`, `patrimony/**`, `reports/**`, `forgot-password` y `reset-password`, y los componentes `currency-selector`, `theme-toggle`, `period-currency-filters`, `allocation-list`, `status-badge`, `warning-badge`, `signed-money`, `budget-progress`, `form-currency-field`, `archived-sheet` y `coming-soon`.
@@ -334,26 +326,16 @@ npx shadcn@latest add breadcrumb avatar
 
 ### 7.1 Cliente HTTP (`lib/api/client.ts`)
 
-- `fetch` nativo con `credentials: "include"` en web para la cookie de sesión.
-- Base URL desde `process.env.NEXT_PUBLIC_API_URL` (p. ej. `http://localhost:3001/api` en dev; URL pública HTTPS en producción/nativo).
+- `fetch` nativo con `credentials: "include"` para la cookie de sesión.
+- Base URL desde `process.env.NEXT_PUBLIC_API_URL` (p. ej. `http://localhost:3001/api` en dev; URL pública HTTPS en producción).
 - Normaliza errores a `ApiError { statusCode, code, message, fieldErrors? }` (catálogo en `backend.md` §7.13).
 - Expone `get<T>`, `post<T>`, `patch<T>`, `del<T>` tipadas y un helper `apiFetch` de bajo nivel (usado por el parser SSE de §10).
-- **Doble transporte (web/nativo).** En web se sigue usando la cookie `HttpOnly` (`credentials: "include"`, sin tokens en JS). En nativo, `lib/api/token-store.ts` guarda los tokens y `authHeaders()` inyecta `Authorization: Bearer <accessToken>` en cada request; ante un `401` (fuera de `/auth/login` y `/auth/register`) `refreshAuthSession()` hace `POST /auth/refresh` enviando `{ refreshToken }` en el body, guarda el par rotado y reintenta una vez. Si el refresh falla, limpia los tokens (el `AuthGuard` redirige a `/login`).
-- `lib/mocks/api.ts` es el **único** consumidor de `sessionStore` (mock); el flujo real de tokens vive en `lib/api/token-store.ts`.
+- **Sesión por cookie.** El cliente usa la cookie `HttpOnly` (`credentials: "include"`, sin tokens en JS); ante un `401` (fuera de `/auth/login` y `/auth/register`) hace `POST /auth/refresh` (cookie) y reintenta una vez. Si el refresh falla, el `AuthGuard` redirige a `/login`.
+- `lib/mocks/api.ts` es el **único** consumidor de `sessionStore` (mock).
 
 ### 7.2 Sesión (`lib/api/session.ts`)
 
-`lib/api/session.ts` mantiene el `sessionStore` que persiste el `userId` en `localStorage` (`atlassfin.session.userId`); lo usan **solo los mocks** para resolver `/auth/me`. La sesión real va por cookie (web) o por tokens (nativo).
-
-**Nativo — `lib/api/token-store.ts`.** El access token vive en memoria y el refresh token se persiste con `@capacitor/preferences`; `ensureTokensLoaded()` hidrata de forma perezosa antes del primer request. En web es no-op total.
-
-```ts
-export const ensureTokensLoaded = (): Promise<void>;
-export const getAccessToken = (): string | null;
-export const getRefreshToken = (): string | null;
-export const setTokens = (t: { accessToken: string; refreshToken: string }): void;
-export const clearTokens = (): void;
-```
+`lib/api/session.ts` mantiene el `sessionStore` que persiste el `userId` en `localStorage` (`atlassfin.session.userId`); lo usan **solo los mocks** para resolver `/auth/me`. La sesión real va por cookie `HttpOnly`.
 
 ### 7.3 Tipos (`lib/api/types.ts`)
 
@@ -406,13 +388,13 @@ export interface AssistantStreamMeta { period: { from: string; to: string }; cur
 
 ## 8. Autenticación
 
-Flujo basado en **JWT** emitido por el backend (ver `backend.md`). En web viaja en cookie `HttpOnly`; en nativo, en el header `Authorization: Bearer` con el token en almacenamiento seguro. El frontend **no** firma ni interpreta el token, solo lo transporta.
+Flujo basado en **JWT** emitido por el backend (ver `backend.md`). Viaja en cookie `HttpOnly`; el frontend **no** firma, interpreta ni persiste el token, solo lo transporta implícitamente vía la cookie.
 
-1. **Login/registro**: `POST /auth/login` → backend responde `{ user, accessToken, refreshToken }` y, en web, fija cookie. `session.ts` persiste los tokens (según plataforma) y `AuthProvider` guarda el usuario y redirige.
+1. **Login/registro**: `POST /auth/login` → el backend fija la cookie `HttpOnly` y devuelve el usuario; `AuthProvider` guarda el usuario y redirige.
 2. **Guard en cliente (`auth-guard.tsx`)**: envuelve el layout de `(app)`; si no hay usuario (o `GET /auth/me` falla con 401), redirige a `/login`. Es solo UX: el backend valida en cada request.
 3. **Verificación inicial**: `GET /auth/me` al montar el provider para hidratar el usuario y confirmar validez. Ante `401`, limpiar estado y redirigir.
-4. **Refresh**: `POST /auth/refresh` ante `401` (rotación); en web se hace con la cookie, en nativo con el refresh token guardado.
-5. **Logout**: `POST /auth/logout` → backend invalida la sesión; front limpia tokens y redirige.
+4. **Refresh**: `POST /auth/refresh` ante `401` (rotación); se hace con la cookie de sesión.
+5. **Logout**: `POST /auth/logout` → backend invalida la sesión; front limpia el estado de sesión y redirige.
 6. **401 global**: un interceptor del cliente lanza evento; `AuthProvider` redirige a `/login`.
 
 ---
@@ -441,10 +423,10 @@ Implementación de la UI conversacional (SC-009, FR-IA-002/011/015). El backend 
 - **Flujo**:
   1. `POST /assistant/messages` con `{ question, period? }`; el backend responde `text/event-stream` con los eventos `meta`, `token`, `done` y `error` (ver `backend.md` §7.12).
   2. UI muestra estado de carga mientras llega el stream; los `delta` se acumulan en la burbuja del asistente en vivo.
-- **Transporte**: usar `fetch` + `ReadableStream`, **no `EventSource`** (no permite `Authorization` ni body). Implementado en `lib/api/assistant-stream.ts` (`streamAssistantMessage`) con callbacks `onMeta`/`onToken`/`onDone`/`onError`.
+- **Transporte**: usar `fetch` + `ReadableStream`, **no `EventSource`** (no permite el cuerpo de request ni controlar los headers). Implementado en `lib/api/assistant-stream.ts` (`streamAssistantMessage`) con callbacks `onMeta`/`onToken`/`onDone`/`onError`.
 
 ```ts
-// lib/api/assistant-stream.ts — parser SSE basado en fetch (soporta cookie y Bearer)
+// lib/api/assistant-stream.ts — parser SSE basado en fetch (usa la cookie de sesión)
 export interface AssistantStreamHandlers {
   onMeta?: (meta: AssistantStreamMeta) => void;
   onToken?: (delta: string) => void;
@@ -463,7 +445,7 @@ export const streamAssistantMessage = (
 - **Render**: la respuesta se acumula desde los `delta` y se renderiza **Markdown de forma segura** con `components/common/markdown-text` (produce elementos React para negrita/cursiva/código/listas; **nunca** usa `dangerouslySetInnerHTML`, NFR-SEG-006). El front marca la respuesta como informativa. El `ScrollArea` de la conversación usa `min-h-0` para poder scrollear dentro del panel.
 - **Límites**: si llega `done` con `insufficient: true`, mostrar el mensaje sin fallar (FR-IA-011); si llega `error`, mostrar aviso genérico y permitir reintento.
 - **Seguridad de prompts**: el front **nunca** concatena datos del usuario con instrucciones de sistema; envía solo la pregunta y el período.
-- **Historial**: **no hay historial en el servidor** ni propuestas/acciones. La conversación vive solo mientras el panel está montado; no se persiste conversación ni token.
+- **Historial**: **no hay historial en el servidor** ni propuestas/acciones. La conversación vive solo mientras el panel está montado; no se persiste la conversación.
 - **Modo mock**: con `NEXT_PUBLIC_USE_MOCKS` (default) el asistente responde desde `lib/mocks`, simulando el stream por palabras y sin llamar a DeepSeek.
 - **Modo en vivo (`NEXT_PUBLIC_ASSISTANT_LIVE=true`)**: aunque el resto siga mockeado, el asistente hace el `POST /assistant/messages` real contra `NEXT_PUBLIC_API_URL` y responde con DeepSeek. La ruta del API es pública-condicionada a desarrollo (usa el usuario demo); en producción requiere sesión.
 
@@ -507,7 +489,6 @@ export const formatPercent = (v: number, locale: string = DEFAULT_LOCALE) =>
 | NFR-PR-004 (IA cancel/timeout) | `AbortController` en el stream + botón cancelar. |
 | NFR-CAL-003 (localización) | `Intl` + `date-fns` (§11). |
 | NFR-CAL-005 (datos demo) | Consumir el seed del backend; ningún dato real. |
-| NFR-CAL-006 (app Android con Capacitor) | El mismo build estático (`output: "export"`) corre embebido en el shell Android (§14); sesión persistente con `lib/api/token-store.ts` + `@capacitor/preferences` (Bearer + refresh por body) y safe-areas (`env(safe-area-inset-bottom)`) en la barra inferior y los bottom sheets, con las barras del sistema pintadas por el plugin `NativeBars`. iOS diferido. |
 
 > **Eliminados:** NFR-PR-003 (cotizaciones) y NFR-CAL-002 (temas).
 
@@ -516,7 +497,7 @@ export const formatPercent = (v: number, locale: string = DEFAULT_LOCALE) =>
 ## 13. Convenciones de código
 
 - **Componentes**: siempre **funciones flecha** (`const Foo = () => {}`), nunca `function`; archivos `kebab-case.tsx`. Un componente por archivo (salvo variantes pequeñas). Excepción: `components/ui/**` generado por shadcn.
-- **Client/Server**: las páginas de `(app)` son componentes cliente; no usar Server Components, Server Actions, Route Handlers ni APIs server-only (cookies/headers) para que el build sea estático y portable a Capacitor.
+- **Client/Server**: las páginas de `(app)` son componentes cliente; no usar Server Components, Server Actions, Route Handlers ni APIs server-only (cookies/headers) para que el build sea estático.
 - **Tipado**: `strict`; usar `interface` para DTOs y `type` para uniones; evitar `any`.
 - **Imports**: path alias `@/`; orden: externos, internos (`@/lib`, `@/components`), relativos.
 - **Estilos**: Tailwind + `cn()`; evitar CSS inline.
@@ -528,61 +509,7 @@ export const formatPercent = (v: number, locale: string = DEFAULT_LOCALE) =>
 
 ---
 
-## 14. Empaquetado móvil con Capacitor
-
-El mismo código web se empaqueta en apps iOS/Android con Capacitor (**NFR-CAL-006**: Android en esta versión; iOS diferido). No hay fork de UI: se reutiliza 100% de `app/`, `components/`, `lib/`.
-
-### 14.1 Configuración de build estático
-
-```ts
-// next.config.ts
-const nextConfig = {
-  output: "export",
-  images: { unoptimized: true },
-};
-export default nextConfig;
-```
-
-```bash
-npm i @capacitor/core @capacitor/android && npm i -D @capacitor/cli
-# capacitor.config.ts → appId com.atlassfin.app, appName "Atlass Fin", webDir "out"
-npx cap add android                 # iOS pendiente: npx cap add ios
-npm run build && npx cap sync android
-npm run android                     # build web + sync + instala/lanza (scripts/android.sh)
-```
-
-> Requisitos Android: **Node 22+** (lo exige Capacitor 8), **JDK 21** (`.sdkmanrc`) y Android SDK. El helper `scripts/android.sh` los configura y ofrece `--list`, build de APK y `--run` (emulador/dispositivo).
-
-### 14.2 URL de la API y CORS
-
-- **Web dev**: `NEXT_PUBLIC_API_URL=http://localhost:3001/api`.
-- **Nativo**: la API debe ser alcanzable por el dispositivo (URL HTTPS pública); `localhost` no sirve. El valor se fija con `client/.env.native` (git-ignored); `scripts/android.sh` lo exporta antes de `npm run build`.
-- El backend debe habilitar CORS para el origen nativo (`capacitor://localhost` en iOS; `https://localhost` en Android con Capacitor 8, `http://localhost` en versiones previas). Se configura con `CORS_ORIGIN_NATIVE`; la auth nativa no depende de cookies.
-
-### 14.3 Autenticación en nativo
-
-- Las cookies `HttpOnly` no son confiables en el webview (contexto cross-site); se usa el flujo Bearer (ver §7.1/§7.2 y `backend.md` §6).
-- `lib/api/token-store.ts`: access token en memoria, refresh token persistido con `@capacitor/preferences`. `lib/api/client.ts` inyecta `Authorization: Bearer` y, ante `401`, refresca con `{ refreshToken }` en el body para rotar el par.
-- El `AuthGuard` y el manejo de `401` son idénticos a web; solo cambia la fuente del token (cookie vs Bearer).
-
-### 14.4 Plugins de plataforma
-
-| Necesidad | Plugin |
-| :--- | :--- |
-| Refresh token persistente | `@capacitor/preferences` (instalado) |
-| Access token en keychain (endurecimiento pendiente) | `capacitor-secure-storage-plugin` |
-| Barra de estado / navigation bar | Plugin nativo propio `NativeBars` (status + navigation) + safe-areas CSS `env(safe-area-inset-*)` |
-| Backend en dev | `NEXT_PUBLIC_API_URL` desde `.env.native` (lo exporta `scripts/android.sh` antes del build) |
-
-### 14.5 Consideraciones
-
-- **SSE del asistente** funciona en el webview; asegurar CORS del endpoint y timeout/cancel en el cliente (NFR-PR-004).
-- **Safe areas / notch** (NFR-CAL-006): la barra inferior (`mobile-tab-bar`) y los bottom sheets (`ResponsiveDialogContent`) aplican `env(safe-area-inset-bottom)`; arriba no hace falta `safe-area-inset-top` porque el proyecto Android desactiva el edge-to-edge (`android:windowOptOutEdgeToEdgeEnforcement`) y la status/navigation bar las pinta `NativeBars`.
-- **Sin APIs server-only**: no usar `cookies()`, `headers()`, Server Actions ni Route Handlers en el flujo de datos (ya excluidos por convención, §13).
-
----
-
-## 15. Plan de trabajo por tandas
+## 14. Plan de trabajo por tandas
 
 Progresivo y validable al final de cada tanda. Cada tanda deja la app compilando (`npm run lint && npm run build`) y consumiendo endpoints ya existentes en el backend (ver plan equivalente en `backend.md`).
 
@@ -595,7 +522,7 @@ Progresivo y validable al final de cada tanda. Cada tanda deja la app compilando
 ### Tanda 1 — Shell de app + Autenticación — ✅ Hecho
 - Sidebar (desktop) + `mobile-tab-bar.tsx` (barra inferior flotante móvil), `(auth)` y `(app)` layouts, `auth-guard.tsx`.
 - Páginas login/register con RHF+Zod, `AuthProvider`, `use-auth`.
-- `lib/api/client.ts`, `session.ts` (cookie + bearer), `types.ts`; `users.ts` (`PATCH /users/me`).
+- `lib/api/client.ts`, `session.ts` (mock de sesión), `types.ts`; `users.ts` (`PATCH /users/me`).
 - **Aceptación**: registro/login/logout + edición del perfil funcionales; rutas protegidas; navegación desktop/móvil correcta.
 
 ### Tanda 2 — Cuentas y Movimientos — ✅ Hecho
@@ -623,9 +550,3 @@ Progresivo y validable al final de cada tanda. Cada tanda deja la app compilando
 - A11y, responsive 360px, estados vacíos, loading skeletons.
 - Refinar la barra inferior móvil: safe-areas, transiciones y estado activo accesible.
 - **Aceptación**: cumplimiento de NFR-UA/PR/CAL del §12.
-
-### Tanda 7 — Empaquetado móvil (Capacitor) — ◐ Parcial
-- Android (hecho, NFR-CAL-006): `@capacitor/core`, `cli`, `android`, `capacitor.config.ts` y `cap add android`; helper `scripts/android.sh` (`npm run android`).
-- iOS (pendiente): `@capacitor/ios` + `cap add ios`.
-- Sesión nativa (hecho): `lib/api/token-store.ts` + `@capacitor/preferences`, Bearer y refresh por body en `lib/api/client.ts`; keychain del access token como endurecimiento pendiente.
-- **Aceptación**: la app corre en Android (y luego iOS) contra la API, con sesión persistente.

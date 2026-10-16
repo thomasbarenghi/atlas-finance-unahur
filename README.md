@@ -11,7 +11,7 @@ Atlass Fin helps you organize and understand the money you enter yourself: accou
 ```
 atlas-finance-unahur/
 ├── api/      # NestJS REST API (PostgreSQL/Supabase, TypeORM, JWT)
-├── client/   # Next.js 16 web app + Capacitor (Android)
+├── client/   # Next.js 16 web app
 ├── docs/     # functional and technical documentation
 └── README.md
 ```
@@ -20,14 +20,14 @@ atlas-finance-unahur/
 
 | Layer | Technologies |
 | :--- | :--- |
-| Client | Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · shadcn/ui · Outfit + Nunito · Recharts · TanStack Query · React Hook Form + Zod · lucide-react · Capacitor 8 (Android) |
+| Client | Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · shadcn/ui · Outfit + Nunito · Recharts · TanStack Query · React Hook Form + Zod · lucide-react |
 | API | NestJS (modular monolith) · TypeScript · PostgreSQL (Supabase) · TypeORM · JWT (HttpOnly cookie + Bearer) · class-validator · argon2 |
 
 ## Documentation
 
 - [`docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md`](docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md) — functional requirements, user stories, calculation rules, NFRs.
 - [`docs/specification/0.3/BRD_Gestor_Financiero_v0.3.md`](docs/specification/0.3/BRD_Gestor_Financiero_v0.3.md) — business requirements, business rules, cases, glossary.
-- [`docs/architecture/frontend.md`](docs/architecture/frontend.md) — site map, per-page behavior, file structure, auth, charts, AI, Capacitor, work plan.
+- [`docs/architecture/frontend.md`](docs/architecture/frontend.md) — site map, per-page behavior, file structure, auth, charts, AI, work plan.
 - [`docs/architecture/backend.md`](docs/architecture/backend.md) — architecture, data model, REST contract (DTOs/enums/errors), integrations, security, seed, env.
 
 The full index — including the archived audits — is in [`docs/README.md`](docs/README.md).
@@ -47,9 +47,8 @@ Skills are written in English; functional documentation is in Spanish.
 
 ### Prerequisites
 
-- Node.js 20+ and npm (Node 22+ for Capacitor/Android)
+- Node.js 20+ and npm
 - PostgreSQL 15+ (local, or a Supabase project)
-- Optional: Android Studio + Android SDK + JDK 21 for native Android builds
 
 ### API
 
@@ -72,11 +71,6 @@ npm run start:dev             # http://localhost:3001/api
 cd client
 npm install
 npm run dev                   # http://localhost:3000
-
-# Android (Capacitor)
-npm run android:list          # list AVDs / connected devices
-npm run android:build         # web build + cap sync + debug APK
-npm run android               # build + install + launch on a device/emulator
 ```
 
 > When API integration lands, point the client at it with `NEXT_PUBLIC_API_URL=http://localhost:3001/api` in `.env.local` (create the file; `.env*` is git-ignored).

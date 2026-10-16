@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Nunito, Outfit } from "next/font/google";
 import { AppProviders } from "@/providers/app-providers";
-import { NativeSystemBars } from "@/components/layout/native-system-bars";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -27,7 +26,6 @@ const RootLayout = ({ children }: LayoutProps<"/">) => {
       className={`${nunito.variable} ${outfit.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <NativeSystemBars />
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

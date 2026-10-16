@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { authEndpoints } from "@/lib/api/endpoints";
-import { clearTokens, setTokens } from "@/lib/api/token-store";
 import type { LoginInput, RegisterInput } from "@/lib/api/types";
 import { queryKeys } from "./keys";
 
@@ -17,7 +16,6 @@ export const useLogin = () => {
   return useMutation({
     mutationFn: (input: LoginInput) => authEndpoints.login(input),
     onSuccess: (data) => {
-      setTokens(data);
       queryClient.setQueryData(queryKeys.auth.me, data.user);
     },
   });
@@ -28,7 +26,6 @@ export const useRegister = () => {
   return useMutation({
     mutationFn: (input: RegisterInput) => authEndpoints.register(input),
     onSuccess: (data) => {
-      setTokens(data);
       queryClient.setQueryData(queryKeys.auth.me, data.user);
     },
   });
@@ -39,7 +36,6 @@ export const useLogout = () => {
   return useMutation({
     mutationFn: authEndpoints.logout,
     onSuccess: () => {
-      clearTokens();
       queryClient.setQueryData(queryKeys.auth.me, null);
       queryClient.clear();
     },

@@ -20,7 +20,6 @@ export interface CookieConfig {
 
 export interface CorsConfig {
   origins: string[];
-  native: string[];
 }
 
 export interface AiConfig {
@@ -96,11 +95,6 @@ export const configuration = (): AppConfig => ({
   },
   cors: {
     origins: toList(process.env.CORS_ORIGIN, ["http://localhost:3000"]),
-    native: toList(process.env.CORS_ORIGIN_NATIVE, [
-      "capacitor://localhost",
-      "http://localhost",
-      "https://localhost",
-    ]),
   },
   ai: {
     provider: process.env.AI_PROVIDER ?? "deepseek",

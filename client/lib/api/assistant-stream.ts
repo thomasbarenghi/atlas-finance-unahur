@@ -1,5 +1,5 @@
 import { mockApi } from "@/lib/mocks/api";
-import { API_BASE_URL, authHeaders, refreshAuthSession } from "./client";
+import { API_BASE_URL, refreshAuthSession } from "./client";
 import type { AssistantMessageInput, PeriodRange } from "./types";
 
 const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS !== "false";
@@ -56,11 +56,10 @@ export const streamAssistantMessage = async (
   }
 
   const send = async () => {
-    const auth = await authHeaders();
     return fetch(`${API_BASE_URL}/assistant/messages`, {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json", ...auth },
+      headers: { "Content-Type": "application/json" },
       signal: options?.signal,
       body: JSON.stringify({
         question: input.question,

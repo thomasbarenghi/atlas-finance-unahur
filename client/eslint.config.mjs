@@ -7,14 +7,7 @@ import preferArrow from "eslint-plugin-prefer-arrow";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  globalIgnores([
-    ".next/**",
-    "out/**",
-    "build/**",
-    "android/**",
-    "ios/**",
-    "next-env.d.ts",
-  ]),
+  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
   {
     plugins: { "prefer-arrow": preferArrow },
     rules: {

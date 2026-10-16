@@ -39,7 +39,7 @@ La aplicación opera con **una única moneda del sistema** (`DEFAULT_CURRENCY`, 
 | Base de datos | PostgreSQL | Proveedor: **Supabase** (Postgres gestionado). |
 | ORM | TypeORM | Entidades como fuente de verdad del esquema (`synchronize`). |
 | Esquema | **Sin migraciones** (decisión de la etapa) | El schema se deriva de las entidades; ante un cambio se recrea la base y se corre el seed (§11.1). |
-| Auth | `@nestjs/jwt` + `passport` | JWT por cookie `HttpOnly` (web) o `Authorization: Bearer` (nativo). |
+| Auth | `@nestjs/jwt` + `passport` | JWT por cookie `HttpOnly`; opcionalmente `Authorization: Bearer` para clientes que no usan cookies. |
 | Validación | `class-validator` + `class-transformer` + `ValidationPipe` global | — |
 | Hash | `argon2` | Algoritmo adaptativo (NFR-SEG-003). |
 | IA | Proveedor de LLM (configurable, p. ej. DeepSeek/OpenAI) | Solo contexto mínimo calculado; asistente de solo consulta. |
@@ -55,8 +55,8 @@ La aplicación opera con **una única moneda del sistema** (`DEFAULT_CURRENCY`, 
 | Estructura | Convencional NestJS (module/controller/service) + DTOs y entidades | Es la estructura por defecto; clara para el agente. |
 | Casos de uso | Services de dominio con un método por caso de uso | Separación de responsabilidades; testeo unitario directo. |
 | ORM | TypeORM | Integración nativa con NestJS (`@nestjs/typeorm`); el esquema se sincroniza desde las entidades. |
-| Auth | JWT (access token) + sesión persistida | Permite invalidar sesión al cerrar (FR-AUT-002). Transporte por cookie o Bearer para soportar web y nativo. |
-| Transporte de token | Cookie `HttpOnly; Secure; SameSite` (web) + `Authorization: Bearer` (nativo) | Mitiga XSS y soporta clientes nativos; consistente con NFR-SEG-004. |
+| Auth | JWT (access token) + sesión persistida | Permite invalidar sesión al cerrar (FR-AUT-002). Transporte por cookie o Bearer según el cliente. |
+| Transporte de token | Cookie `HttpOnly; Secure; SameSite` (web) + `Authorization: Bearer` (clientes que no usan cookies) | Mitiga XSS y admite clientes que no persisten cookies; consistente con NFR-SEG-004. |
 | IDs | `uuid` (gen_random_uuid) | Identificadores no predecibles (NFR-SEG-005). |
 | Moneda | Única moneda del sistema (`DEFAULT_CURRENCY`, default `ARS`) | Sin multimoneda ni conversión; se expone como dato **informativo** en las respuestas con dinero. |
 | Streaming IA | SSE | UI reactiva y cancelable (NFR-PR-004). |
@@ -263,11 +263,11 @@ Tablas derivadas de las entidades principales del FRD v0.3 (§3.2) más las nece
 ### 6.2 Login (`POST /auth/login`)
 1. Verifica credenciales; respuestas genéricas ante falla (sin revelar si el email existe).
 2. Emite **access token** (JWT, vida corta ~15 min) y **refresh token** (opaco, hash almacenado en `sessions`).
-3. Responde `{ user, accessToken, refreshToken }` en el body (para clientes nativos que no usan cookies) y, en web, además fija cookies: `access_token` y `refresh_token` (`HttpOnly; Secure; SameSite=Lax` en producción; NFR-SEG-004). **El cliente web ignora los tokens del body y se apoya solo en la cookie**; el cliente nativo usa el body.
-4. **Doble transporte soportado**: cookie `HttpOnly` (web) o `Authorization: Bearer` (nativo). Ambos son válidos e intercambiables.
+3. Responde `{ user, accessToken, refreshToken }` en el body (para clientes que no usan cookies) y, en web, además fija cookies: `access_token` y `refresh_token` (`HttpOnly; Secure; SameSite=Lax` en producción; NFR-SEG-004). **El cliente web ignora los tokens del body y se apoya solo en la cookie**; un cliente que no use cookies usa el body.
+4. **Doble transporte soportado**: cookie `HttpOnly` (web) o `Authorization: Bearer` (clientes que no usan cookies). Ambos son válidos e intercambiables.
 
 ### 6.3 Renovación
-- `POST /auth/refresh` rota el refresh token (rotación, NFR-SEG-004). Acepta el refresh token por cookie o por body (clientes nativos). El refresh token viejo se invalida.
+- `POST /auth/refresh` rota el refresh token (rotación, NFR-SEG-004). Acepta el refresh token por cookie o por body (clientes que no usan cookies). El refresh token viejo se invalida.
 
 ### 6.4 Logout (`POST /auth/logout`)
 - Marca la sesión como revocada (`revoked_at`) → invalida la sesión activa (FR-AUT-002) y limpia cookies/tokens.
@@ -381,8 +381,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 - **Paginación:** query `page` (default 1) y `pageSize` (default 20, máx. 100). Respuesta: `{ items, page, pageSize, total, totalPages }`. Solo `/transactions` es paginado; `/accounts` y `/categories` devuelven un **array** completo.
 - **Errores:** `{ statusCode, code, message, fieldErrors? }`; `fieldErrors` es `{ [campo]: string[] }` para validación (para mapeo a formularios). El filtro global nunca expone detalles internos.
 - **Auth:** cookie `HttpOnly` o `Authorization: Bearer`. Los endpoints `@Public()` son: `/auth/register`, `/auth/login`, `/auth/refresh`, `/assistant/messages` (§7.12) y `/health`.
-- **CORS:** con credenciales habilitadas; permitir `CORS_ORIGIN` y `CORS_ORIGIN_NATIVE` exactos (no `*`). Incluir `https://localhost` en `CORS_ORIGIN_NATIVE` para el webview de Android (Capacitor 8), además de `capacitor://localhost` (iOS) y `http://localhost` (Android previo).
-- **App Android (NFR-CAL-006):** el cliente se empaqueta con Capacitor (Android en esta versión; iOS diferido) y consume el mismo contrato REST: usa `Authorization: Bearer` y `POST /auth/refresh` para la **sesión persistente** (el refresh token se guarda en el cliente, `client/lib/api/token-store.ts`). Las **safe-areas** se resuelven en el cliente (`frontend.md`) y no modifican el contrato del backend.
+- **CORS:** con credenciales habilitadas; permitir `CORS_ORIGIN` exacto (no `*`); admite varios orígenes separados por coma.
 
 ### 7.10 Enums y catálogos
 
@@ -409,7 +408,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 { "email": "ana@example.com", "password": "Secreta123" }
 // 200 → { "user": User, "accessToken": "eyJ...", "refreshToken": "opaco..." }
 
-// POST /auth/refresh — body opcional (nativo)
+// POST /auth/refresh — body opcional (cliente que no usa cookies)
 { "refreshToken": "opaco..." }   // en web puede omitirse (usa cookie)
 // 200 → { "accessToken": "...", "refreshToken": "..." }  (rotación)
 
@@ -457,7 +456,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 
 ### 7.12 Contrato de streaming del asistente
 
-`POST /assistant/messages` responde `text/event-stream` (SSE). **El cliente debe usar `fetch` + `ReadableStream`, no `EventSource`**, porque `EventSource` no permite el header `Authorization` (necesario en nativo) ni el cuerpo de request.
+`POST /assistant/messages` responde `text/event-stream` (SSE). **El cliente debe usar `fetch` + `ReadableStream`, no `EventSource`**, porque `EventSource` no permite el header `Authorization` (necesario para clientes que no usan cookies) ni el cuerpo de request.
 
 **Proveedor implementado: DeepSeek** (OpenAI-compatible). El backend llama a `POST {AI_BASE_URL}/chat/completions` con `Authorization: Bearer {AI_API_KEY}`, `stream: true` y `model: {AI_MODEL}` (default `deepseek-chat`), y reemite el texto como eventos SSE. La API key **nunca** sale del servidor (NFR-SEG-007).
 
@@ -655,7 +654,6 @@ COOKIE_SAME_SITE=lax
 
 # Frontend (CORS)
 CORS_ORIGIN=http://localhost:3000   # admite varios orígenes separados por coma
-CORS_ORIGIN_NATIVE=capacitor://localhost,http://localhost,https://localhost   # orígenes nativos de Capacitor
 
 # IA (DeepSeek por defecto; OpenAI-compatible)
 # La API key SIEMPRE vive en el servidor: nunca exponerla con NEXT_PUBLIC_* en el cliente.

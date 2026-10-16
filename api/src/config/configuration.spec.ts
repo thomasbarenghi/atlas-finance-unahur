@@ -13,7 +13,6 @@ const KEYS = [
   "COOKIE_SECURE",
   "COOKIE_SAME_SITE",
   "CORS_ORIGIN",
-  "CORS_ORIGIN_NATIVE",
   "DEFAULT_CURRENCY",
   "AI_PROVIDER",
   "AI_API_KEY",
@@ -76,7 +75,7 @@ describe("configuration", () => {
     process.env.JWT_ACCESS_TTL = "60";
     process.env.COOKIE_SECURE = "true";
     process.env.COOKIE_SAME_SITE = "strict";
-    process.env.CORS_ORIGIN_NATIVE = "a, b ,c";
+    process.env.CORS_ORIGIN = "a, b ,c";
     process.env.DEFAULT_CURRENCY = "USD";
     process.env.AI_PROVIDER = "openai";
     process.env.AI_API_KEY = "sk-1";
@@ -87,7 +86,7 @@ describe("configuration", () => {
     expect(config.database.ssl).toBe(true);
     expect(config.jwt.accessTtl).toBe(60);
     expect(config.cookie).toEqual({ secure: true, sameSite: "strict" });
-    expect(config.cors.native).toEqual(["a", "b", "c"]);
+    expect(config.cors.origins).toEqual(["a", "b", "c"]);
     expect(config.defaultCurrency).toBe("USD");
     expect(config.ai.provider).toBe("openai");
     expect(config.ai.model).toBe("gpt-4o-mini");

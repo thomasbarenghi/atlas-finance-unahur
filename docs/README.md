@@ -15,7 +15,7 @@
 
 | Documento | Contenido |
 | :--- | :--- |
-| [`frontend.md`](architecture/frontend.md) | Mapa del sitio, comportamiento por página, estructura de archivos, autenticación, gráficos, asistente de IA, Capacitor y plan de trabajo. |
+| [`frontend.md`](architecture/frontend.md) | Mapa del sitio, comportamiento por página, estructura de archivos, autenticación, gráficos, asistente de IA y plan de trabajo. |
 | [`backend.md`](architecture/backend.md) | Arquitectura, modelo de datos, contrato REST (DTOs, enums, errores), reglas de cálculo, integraciones, seguridad, seed y variables de entorno. |
 
 Estos dos documentos citan requerimientos (`FR-*`, `HU-*`, `CAL-*`, `NFR-*`) del FRD v0.3. Si el código y la documentación no coinciden, se alinean en el mismo cambio.

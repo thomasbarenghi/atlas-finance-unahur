@@ -28,7 +28,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./vitest.setup.ts"],
     include: ["**/*.test.{ts,tsx}"],
-    exclude: ["node_modules/**", ".next/**", "out/**", "android/**"],
+    exclude: ["node_modules/**", ".next/**", "out/**"],
     testTimeout: 20_000,
     hookTimeout: 20_000,
     clearMocks: true,
