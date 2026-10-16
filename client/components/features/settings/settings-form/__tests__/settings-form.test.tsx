@@ -20,7 +20,7 @@ describe("SettingsForm", () => {
       .spyOn(mockApi, "updateUser")
       .mockResolvedValue(makeUser({ name: "Nuevo" }));
     renderWithProviders(<SettingsForm />, {
-      user: makeUser({ name: "Demo", aiEnabled: false }),
+      user: makeUser({ name: "Demo" }),
     });
 
     const name = screen.getByLabelText("Nombre");
@@ -30,7 +30,7 @@ describe("SettingsForm", () => {
 
     await waitFor(() => expect(updateSpy).toHaveBeenCalledTimes(1));
     const payload = updateSpy.mock.calls[0][0];
-    expect(payload).toMatchObject({ name: "Nuevo", baseCurrency: "ARS" });
+    expect(payload).toMatchObject({ name: "Nuevo" });
     const result = await validateApiPayload(
       apiRequestDtos.UpdateUserDto,
       payload,
@@ -52,13 +52,5 @@ describe("SettingsForm", () => {
       await screen.findByText("El nombre debe tener al menos 2 caracteres"),
     ).toBeInTheDocument();
     expect(updateSpy).not.toHaveBeenCalled();
-  });
-
-  it("disables the destructive-actions switch while the assistant is off", () => {
-    renderWithProviders(<SettingsForm />, {
-      user: makeUser({ aiEnabled: false }),
-    });
-    const switches = screen.getAllByRole("switch");
-    expect(switches[1]).toBeDisabled();
   });
 });

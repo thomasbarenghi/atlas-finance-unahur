@@ -1,13 +1,11 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssistantHistorySheet } from "@/components/features/assistant/assistant-chat/history-sheet";
 import { AssistantWidget } from "@/components/features/assistant/assistant-widget";
 import { AssistantPanelProvider } from "@/providers/assistant-panel-provider";
-import { mockApi } from "@/lib/mocks/api";
 import { makeUser } from "@/lib/test/factories";
 import { renderWithProviders } from "@/lib/test/render";
-import { resetMockSession, seedMockSession } from "@/lib/test/mock-session";
 
 vi.mock("next/navigation", () => import("@/lib/test/next-navigation"));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -15,32 +13,16 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 import { setPathname } from "@/lib/test/next-navigation";
 
 describe("AssistantHistorySheet", () => {
-  beforeEach(() => {
-    seedMockSession();
-    vi.restoreAllMocks();
-  });
-  afterEach(() => resetMockSession());
+  afterEach(() => vi.restoreAllMocks());
 
-  it("lists local threads and the server conversations", async () => {
+  it("lists local threads ordered by recency", () => {
     renderWithProviders(
       <AssistantHistorySheet
         open
         onOpenChange={vi.fn()}
         threads={[
-          {
-            id: "t1",
-            title: "Consulta vieja",
-            conversationId: null,
-            messages: [],
-            updatedAt: 1,
-          },
-          {
-            id: "t2",
-            title: "Consulta nueva",
-            conversationId: null,
-            messages: [],
-            updatedAt: 2,
-          },
+          { id: "t1", title: "Consulta vieja", messages: [], updatedAt: 1 },
+          { id: "t2", title: "Consulta nueva", messages: [], updatedAt: 2 },
         ]}
         activeId="t2"
         onSelect={vi.fn()}
@@ -49,13 +31,9 @@ describe("AssistantHistorySheet", () => {
       />,
     );
 
-    expect(screen.getByText("Consulta nueva")).toBeInTheDocument();
-    expect(screen.getByText("Guardadas en el servidor")).toBeInTheDocument();
-    await waitFor(() =>
-      expect(
-        screen.getByText("¿En qué gasté más este mes?"),
-      ).toBeInTheDocument(),
-    );
+    const items = screen.getAllByRole("listitem");
+    expect(items[0]).toHaveTextContent("Consulta nueva");
+    expect(items[1]).toHaveTextContent("Consulta vieja");
   });
 
   it("selects, deletes and starts a new conversation", async () => {
@@ -67,15 +45,7 @@ describe("AssistantHistorySheet", () => {
       <AssistantHistorySheet
         open
         onOpenChange={vi.fn()}
-        threads={[
-          {
-            id: "t1",
-            title: "Consulta",
-            conversationId: null,
-            messages: [],
-            updatedAt: 1,
-          },
-        ]}
+        threads={[{ id: "t1", title: "Consulta", messages: [], updatedAt: 1 }]}
         activeId="t1"
         onSelect={onSelect}
         onDelete={onDelete}
@@ -97,38 +67,7 @@ describe("AssistantHistorySheet", () => {
     expect(onNew).toHaveBeenCalled();
   });
 
-  it("deletes a server conversation", async () => {
-    const user = userEvent.setup();
-    const deleteSpy = vi
-      .spyOn(mockApi, "deleteConversation")
-      .mockResolvedValue(undefined);
-    renderWithProviders(
-      <AssistantHistorySheet
-        open
-        onOpenChange={vi.fn()}
-        threads={[]}
-        activeId={null}
-        onSelect={vi.fn()}
-        onDelete={vi.fn()}
-        onNew={vi.fn()}
-      />,
-    );
-
-    const deleteButtons = await screen.findAllByRole("button", {
-      name: "Eliminar conversación del servidor",
-    });
-    await user.click(deleteButtons[0]);
-    await waitFor(() => expect(deleteSpy).toHaveBeenCalled());
-  });
-
-  it("shows empty states", async () => {
-    vi.spyOn(mockApi, "listConversations").mockResolvedValue({
-      items: [],
-      page: 1,
-      pageSize: 20,
-      total: 0,
-      totalPages: 1,
-    });
+  it("shows an empty state without threads", () => {
     renderWithProviders(
       <AssistantHistorySheet
         open
@@ -141,19 +80,16 @@ describe("AssistantHistorySheet", () => {
       />,
     );
     expect(
-      screen.getByText("Todavía no hay conversaciones guardadas."),
-    ).toBeInTheDocument();
-    expect(
-      await screen.findByText("Sin conversaciones en el servidor."),
+      screen.getByText("Todavía no hay conversaciones."),
     ).toBeInTheDocument();
   });
 });
 
-const desktopMedia = () => {
+const mockMedia = (matches: boolean) => {
   vi.spyOn(window, "matchMedia").mockImplementation(
     (query: string) =>
       ({
-        matches: true,
+        matches,
         media: query,
         onchange: null,
         addEventListener: () => {},
@@ -169,7 +105,7 @@ describe("AssistantWidget", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("renders nothing on the assistant route", () => {
-    desktopMedia();
+    mockMedia(true);
     setPathname("/assistant");
     const { container } = renderWithProviders(
       <AssistantPanelProvider>
@@ -180,19 +116,7 @@ describe("AssistantWidget", () => {
   });
 
   it("renders nothing on mobile", () => {
-    vi.spyOn(window, "matchMedia").mockImplementation(
-      (query: string) =>
-        ({
-          matches: false,
-          media: query,
-          onchange: null,
-          addEventListener: () => {},
-          removeEventListener: () => {},
-          addListener: () => {},
-          removeListener: () => {},
-          dispatchEvent: () => false,
-        }) as unknown as MediaQueryList,
-    );
+    mockMedia(false);
     setPathname("/dashboard");
     const { container } = renderWithProviders(
       <AssistantPanelProvider>
@@ -204,13 +128,13 @@ describe("AssistantWidget", () => {
 
   it("toggles the assistant panel on desktop", async () => {
     const user = userEvent.setup();
-    desktopMedia();
+    mockMedia(true);
     setPathname("/dashboard");
     renderWithProviders(
       <AssistantPanelProvider>
         <AssistantWidget />
       </AssistantPanelProvider>,
-      { user: makeUser({ aiEnabled: true }) },
+      { user: makeUser() },
     );
 
     await user.click(screen.getByRole("button", { name: "Abrir asistente" }));

@@ -28,10 +28,6 @@ export class CreateTransactionDto {
   @Min(0.0001)
   amount: number;
 
-  @IsString()
-  @Length(3, 3)
-  currency: string;
-
   @Matches(ISO_DATE, { message: "date debe ser YYYY-MM-DD" })
   @IsDateString({}, { message: "date debe ser una fecha válida" })
   date: string;

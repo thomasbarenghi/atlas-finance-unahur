@@ -20,11 +20,6 @@ export class UpdateAccountDto {
   type?: AccountType;
 
   @IsOptional()
-  @IsString()
-  @Length(3, 3)
-  currency?: string;
-
-  @IsOptional()
   @IsNumber()
   initialBalance?: number;
 

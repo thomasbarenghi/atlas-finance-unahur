@@ -1,5 +1,5 @@
 import { ErrorCode } from "../common/errors/error-codes";
-import { mockCurrency, mockRepository } from "../../test/unit/mocks";
+import { mockRepository } from "../../test/unit/mocks";
 import { Account } from "./entities/account.entity";
 import { AccountsService } from "./accounts.service";
 
@@ -9,9 +9,7 @@ const account = (overrides: Partial<Account> = {}): Account =>
     userId: "u1",
     name: "Caja",
     type: "cash",
-    currency: "ARS",
     initialBalance: 1000,
-    archived: false,
     notes: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -26,11 +24,7 @@ const build = () => {
     signedTotalsByAccount: jest.fn().mockResolvedValue(new Map([["a1", 50]])),
     currentBalanceOf: jest.fn().mockResolvedValue(1050),
   };
-  const service = new AccountsService(
-    repository as any,
-    balances as any,
-    mockCurrency() as any,
-  );
+  const service = new AccountsService(repository as any, balances as any);
   return { service, repository, balances };
 };
 
@@ -67,10 +61,8 @@ describe("AccountsService", () => {
     const result = await service.createAccount("u1", {
       name: "  Caja  ",
       type: "cash",
-      currency: "ars",
     } as any);
     expect(result.initialBalance).toBe(0);
-    expect(result.currency).toBe("ARS");
     expect(result.currentBalance).toBe(0);
   });
 
@@ -89,43 +81,32 @@ describe("AccountsService", () => {
     expect(result.notes).toBe("hola");
   });
 
-  it("archives and restores an account", async () => {
+  it("deletes an owned account", async () => {
     const { service, repository } = build();
     repository.findOneBy.mockResolvedValue(account());
 
-    expect((await service.archiveAccount("u1", "a1")).archived).toBe(true);
-    expect((await service.restoreAccount("u1", "a1")).archived).toBe(false);
+    await service.deleteAccount("u1", "a1");
+
+    expect(repository.remove).toHaveBeenCalledWith(account());
   });
 
-  it("asserts usability and rejects archived accounts", async () => {
+  it("rejects deleting an account that is not owned", async () => {
     const { service, repository } = build();
-    repository.findOneBy.mockResolvedValue(account({ archived: true }));
-    await expect(service.assertAccountUsable("u1", "a1")).rejects.toMatchObject(
+    repository.findOneBy.mockResolvedValue(null);
+
+    await expect(service.deleteAccount("u1", "nope")).rejects.toMatchObject({
+      response: { code: ErrorCode.NOT_FOUND },
+    });
+  });
+
+  it("asserts ownership through a single lookup", async () => {
+    const { service, repository } = build();
+    repository.findOneBy.mockResolvedValue(account());
+
+    await expect(service.assertAccountOwned("u1", "a1")).resolves.toMatchObject(
       {
-        response: { code: ErrorCode.ACCOUNT_ARCHIVED },
+        id: "a1",
       },
     );
-
-    repository.findOneBy.mockResolvedValue(account());
-    await expect(
-      service.assertAccountUsable("u1", "a1"),
-    ).resolves.toBeDefined();
-  });
-
-  it("stores notes on create and updates the currency", async () => {
-    const { service, repository } = build();
-    await service.createAccount("u1", {
-      name: "C",
-      type: "cash",
-      currency: "ARS",
-      notes: "n",
-    } as any);
-
-    repository.findOneBy.mockResolvedValue(account());
-    const updated = await service.updateAccount("u1", "a1", {
-      currency: "usd",
-      notes: null,
-    } as any);
-    expect(updated).toMatchObject({ currency: "USD", notes: null });
   });
 });

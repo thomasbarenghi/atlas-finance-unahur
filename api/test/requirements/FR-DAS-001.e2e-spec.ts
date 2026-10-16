@@ -36,9 +36,6 @@ describe("FR-DAS-001 · KPIs del período", () => {
       income: 500,
       expenses: 200,
       savings: 300,
-      accounts: 1300,
-      assets: 0,
-      debts: 0,
       netWorth: 1300,
     });
   });
@@ -57,7 +54,6 @@ describe("FR-DAS-001 · KPIs del período", () => {
       .send({
         type: "transfer",
         amount: 400,
-        currency: "ARS",
         date: "2026-03-20",
         description: "Ahorro",
         accountId: account.id,

@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "@/hooks/use-auth";
 import { PeriodContext, type PeriodContextValue } from "@/hooks/use-period";
-import { DisplayCurrencyContext } from "@/hooks/use-display-currency";
 import {
   AssistantChatContext,
   type AssistantChatContextValue,
@@ -46,7 +45,6 @@ export const makePeriodValue = (
 const makeAssistantChatValue = (): AssistantChatContextValue => ({
   threads: [],
   activeThread: null,
-  setConversationId: vi.fn(),
   appendMessage: vi.fn(),
   updateMessage: vi.fn(),
   startNewThread: vi.fn(),
@@ -61,7 +59,6 @@ export interface RenderWithProvidersOptions extends Omit<
   user?: User | null;
   auth?: Partial<AuthContextValue>;
   period?: PeriodRange;
-  currency?: string;
   queryClient?: QueryClient;
   assistantChat?: AssistantChatContextValue;
 }
@@ -74,7 +71,6 @@ export const renderWithProviders = (
     user,
     auth,
     period = defaultPeriod,
-    currency = "ARS",
     queryClient = createTestQueryClient(),
     assistantChat = makeAssistantChatValue(),
     ...renderOptions
@@ -87,20 +83,18 @@ export const renderWithProviders = (
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={authValue}>
         <PeriodContext.Provider value={periodValue}>
-          <DisplayCurrencyContext.Provider value={{ currency }}>
-            <AssistantPanelContext.Provider
-              value={{
-                isOpen: false,
-                open: vi.fn(),
-                close: vi.fn(),
-                toggle: vi.fn(),
-              }}
-            >
-              <AssistantChatContext.Provider value={assistantChat}>
-                {children}
-              </AssistantChatContext.Provider>
-            </AssistantPanelContext.Provider>
-          </DisplayCurrencyContext.Provider>
+          <AssistantPanelContext.Provider
+            value={{
+              isOpen: false,
+              open: vi.fn(),
+              close: vi.fn(),
+              toggle: vi.fn(),
+            }}
+          >
+            <AssistantChatContext.Provider value={assistantChat}>
+              {children}
+            </AssistantChatContext.Provider>
+          </AssistantPanelContext.Provider>
         </PeriodContext.Provider>
       </AuthContext.Provider>
     </QueryClientProvider>
@@ -117,7 +111,6 @@ export const renderHookWithProviders = <Result, Props>(
     user,
     auth,
     period = defaultPeriod,
-    currency = "ARS",
     queryClient = createTestQueryClient(),
     assistantChat = makeAssistantChatValue(),
   } = options;
@@ -129,11 +122,9 @@ export const renderHookWithProviders = <Result, Props>(
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={authValue}>
         <PeriodContext.Provider value={periodValue}>
-          <DisplayCurrencyContext.Provider value={{ currency }}>
-            <AssistantChatContext.Provider value={assistantChat}>
-              {children}
-            </AssistantChatContext.Provider>
-          </DisplayCurrencyContext.Provider>
+          <AssistantChatContext.Provider value={assistantChat}>
+            {children}
+          </AssistantChatContext.Provider>
         </PeriodContext.Provider>
       </AuthContext.Provider>
     </QueryClientProvider>

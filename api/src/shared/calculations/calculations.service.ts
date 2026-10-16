@@ -1,29 +1,21 @@
 import { Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import type {
-  BudgetStatus,
-  GoalStatus,
-} from "../../common/types/financial-enums";
-import { AppConfig } from "../../config/configuration";
 import type {
   BalanceAccount,
-  BudgetConsumption,
-  GoalProgress,
   MoneyTransaction,
-  NetWorthParts,
   PeriodFlows,
-  PositionCost,
-  ValuationPoint,
 } from "./calculations.types";
 
 const FULL_MONTH_END = "-31";
 
 const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
 
+/**
+ * Single source of truth for the financial formulas of the v0.3 scope
+ * (CAL-001..003 y CAL-010, backend.md §8). Dashboard and the AI reuse it so a
+ * formula never gets duplicated (AGENTS rule 7).
+ */
 @Injectable()
 export class CalculationsService {
-  constructor(private readonly config: ConfigService<AppConfig, true>) {}
-
   calculatePeriodFlows(
     transactions: MoneyTransaction[],
     from: string,
@@ -73,50 +65,6 @@ export class CalculationsService {
     return expensesByCategory;
   }
 
-  calculateBudgetConsumption(limit: number, spent: number): BudgetConsumption {
-    const consumedPct = limit > 0 ? (spent / limit) * 100 : 0;
-    const warningPct =
-      this.config.get("budgetWarningThreshold", {
-        infer: true,
-      }) * 100;
-
-    const status: BudgetStatus =
-      limit <= 0
-        ? "available"
-        : consumedPct > 100
-          ? "exceeded"
-          : consumedPct >= warningPct
-            ? "warning"
-            : "available";
-
-    return { limit, spent, available: limit - spent, consumedPct, status };
-  }
-
-  calculateGoalProgress(
-    targetAmount: number,
-    savedAmount: number,
-    targetDate: string | null,
-    reference: Date = new Date(),
-  ): GoalProgress {
-    const progressPct =
-      targetAmount > 0 ? Math.max(0, (savedAmount / targetAmount) * 100) : 0;
-    const overdue =
-      targetDate !== null &&
-      savedAmount < targetAmount &&
-      targetDate < toIsoDate(reference);
-
-    const status: GoalStatus =
-      targetAmount > 0 && savedAmount >= targetAmount
-        ? "achieved"
-        : overdue
-          ? "overdue"
-          : savedAmount > 0
-            ? "in_progress"
-            : "pending";
-
-    return { progressPct, status };
-  }
-
   calculateCurrentBalance(
     account: BalanceAccount,
     transactions: MoneyTransaction[],
@@ -132,66 +80,16 @@ export class CalculationsService {
     return balance;
   }
 
-  calculateCashBalance(
+  /** CAL-001: patrimonio neto = Σ saldos netos de las cuentas del usuario. */
+  calculateNetWorth(
     accounts: BalanceAccount[],
     transactions: MoneyTransaction[],
   ): number {
-    return accounts
-      .filter((account) => !account.archived)
-      .reduce(
-        (total, account) =>
-          total + this.calculateCurrentBalance(account, transactions),
-        0,
-      );
-  }
-
-  getLatestValuationsTotal(valuations: ValuationPoint[]): number {
-    const latestByAsset = new Map<string, ValuationPoint>();
-
-    for (const valuation of valuations) {
-      const current = latestByAsset.get(valuation.assetId);
-      if (!current || valuation.date > current.date) {
-        latestByAsset.set(valuation.assetId, valuation);
-      }
-    }
-
-    let total = 0;
-    for (const valuation of latestByAsset.values()) total += valuation.value;
-    return total;
-  }
-
-  calculatePositionsCost(positions: PositionCost[]): number {
-    return positions
-      .filter((position) => !position.archived)
-      .reduce(
-        (total, position) => total + position.quantity * position.avgCost,
-        0,
-      );
-  }
-
-  calculatePositionValue(
-    quantity: number,
-    avgCost: number,
-    price: number,
-  ): {
-    costBasis: number;
-    currentValue: number;
-    profitLoss: number;
-    profitLossPct: number;
-  } {
-    const costBasis = quantity * avgCost;
-    const currentValue = quantity * price;
-    const profitLoss = currentValue - costBasis;
-    return {
-      costBasis,
-      currentValue,
-      profitLoss,
-      profitLossPct: costBasis > 0 ? (profitLoss / costBasis) * 100 : 0,
-    };
-  }
-
-  calculateNetWorth({ assets, positions, cash, debts }: NetWorthParts): number {
-    return assets + positions + cash - debts;
+    return accounts.reduce(
+      (total, account) =>
+        total + this.calculateCurrentBalance(account, transactions),
+      0,
+    );
   }
 
   pctDelta(current: number, previous: number): number | null {

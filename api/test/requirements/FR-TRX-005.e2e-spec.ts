@@ -35,7 +35,6 @@ describe("FR-TRX-005 · Transferencia atómica", () => {
     const outbound = await createTransaction(ctx.app, user.accessToken, {
       type: "transfer",
       amount: 300,
-      currency: "ARS",
       date: isoDate(),
       description: "Ahorro",
       accountId: origin.id,
@@ -43,7 +42,7 @@ describe("FR-TRX-005 · Transferencia atómica", () => {
     });
 
     const list = await request(ctx.server)
-      .get("/api/transactions?type=transfer")
+      .get("/api/transactions")
       .set(bearer(user.accessToken))
       .expect(200);
 
@@ -65,7 +64,6 @@ describe("FR-TRX-005 · Transferencia atómica", () => {
     const transfer = await createTransaction(ctx.app, user.accessToken, {
       type: "transfer",
       amount: 300,
-      currency: "ARS",
       date: isoDate(),
       description: "Ahorro",
       accountId: origin.id,
@@ -78,7 +76,7 @@ describe("FR-TRX-005 · Transferencia atómica", () => {
       .expect(200);
 
     const list = await request(ctx.server)
-      .get("/api/transactions?type=transfer")
+      .get("/api/transactions")
       .set(bearer(user.accessToken))
       .expect(200);
     expect(list.body.total).toBe(0);
@@ -94,7 +92,6 @@ describe("FR-TRX-005 · Transferencia atómica", () => {
       .send({
         type: "transfer",
         amount: 300,
-        currency: "ARS",
         date: isoDate(),
         description: "Destino inexistente",
         accountId: origin.id,

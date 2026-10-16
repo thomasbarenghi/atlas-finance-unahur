@@ -4,7 +4,7 @@ Guidance for AI agents working in `client/`. Read this first, then load the rele
 
 ## Project
 
-Atlass Fin web app: a personal-finance client (accounts, transactions, budgets, assets, goals, reports) with rich analytics and an integrated AI assistant. It is a **pure REST client** of the NestJS API in `../api/`. The same code is packaged for **Android** with Capacitor (iOS pending).
+Atlass Fin web app: a personal-finance client (accounts, transactions with a fixed category catalog, dashboard) with rich analytics and an integrated **read-only** AI assistant. It is a **pure REST client** of the NestJS API in `../api/`. The same code is packaged for **Android** with Capacitor (iOS pending).
 
 **Stack:** Next.js 16 (App Router) · TypeScript strict · Tailwind CSS 4 · shadcn/ui (preset radix-maia: green, radius large) · Outfit (headings) + Nunito (body) · Recharts · TanStack Query · React Hook Form + Zod · lucide-react · Capacitor 8 (Android).
 
@@ -12,7 +12,7 @@ Atlass Fin web app: a personal-finance client (accounts, transactions, budgets, 
 
 - `../docs/architecture/frontend.md` — site map, per-page features, file structure, auth, charts, AI, Capacitor, batches plan.
 - `../docs/architecture/backend.md` — REST contract (DTOs, enums, errors, streaming) this client consumes.
-- `../docs/specification/FRD_Gestor_Financiero_v0.2.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
+- `../docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
 
 ## Skills (load before coding)
 
@@ -47,7 +47,7 @@ Run `format:check`, `lint`, `typecheck`, and `build` before considering a task d
 3. **Named exports and arrow functions only**, except Next.js special files (`page.tsx`, `layout.tsx`, etc.) — see the quality skill.
 4. **No direct `fetch` in components.** Data goes through `lib/query/*`; HTTP through `lib/api/client.ts`.
 5. **`lib/` is portable.** It must not import `next/*` or components, so it can be reused on native.
-6. **Match the backend contract.** JSON is `camelCase`; dates `YYYY-MM-DD`; timestamps ISO 8601 UTC; decimals are `number`. Types in `lib/api/types.ts` mirror `../docs/architecture/backend.md` §7.13–§7.18.
+6. **Match the backend contract.** JSON is `camelCase`; dates `YYYY-MM-DD`; timestamps ISO 8601 UTC; decimals are `number`. Types in `lib/api/types.ts` mirror `../docs/architecture/backend.md` §7.9–§7.13.
 7. **No secrets.** Only `NEXT_PUBLIC_*` public env; never hardcode tokens/keys.
 8. **No real financial data.** Use the backend seed; demo login `demo@atlassfin.app` / `Demo1234!`.
 
@@ -63,7 +63,7 @@ client/
 │   └── features/<f>/    # domain components composing common
 ├── hooks/               # shared hooks
 ├── lib/                 # api, query, format, validation (portable)
-├── providers/           # Query, Theme, Auth
+├── providers/           # Query, Auth
 ├── scripts/android.sh   # Android build/run helper
 ├── android/             # Capacitor Android project (generated)
 └── capacitor.config.ts
@@ -72,4 +72,4 @@ client/
 ## Navigation behavior
 
 - Desktop (≥ `md`): fixed sidebar.
-- Mobile: bottom app-style bar with 4 items (`Home`, `Transactions`, central `+`, `Reports`, `Profile`); the `+` opens the quick-create picker and `Settings`/`Profile` are the hub for the remaining sections and preferences (theme is changed from `Profile`). Same behavior in browser and Capacitor.
+- Mobile: bottom app-style bar with 3 items (`Home`, `Assistant`, `Profile`) plus a central `+` that opens the transaction quick-create flow; `Categories` and `Settings` are reachable from `Profile`. There is no theme or currency preference. Same behavior in browser and Capacitor.

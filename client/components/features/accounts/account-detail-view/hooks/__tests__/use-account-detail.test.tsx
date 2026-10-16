@@ -5,8 +5,6 @@ import { mockState } from "@/lib/mocks/store";
 import { renderHookWithProviders } from "@/lib/test/render";
 import { resetMockSession, seedMockSession } from "@/lib/test/mock-session";
 
-const ALL_TIME = { from: "2000-01-01", to: "2100-01-01" };
-
 describe("useAccountDetail", () => {
   beforeEach(() => {
     seedMockSession();
@@ -23,9 +21,7 @@ describe("useAccountDetail", () => {
     )!;
     window.history.replaceState({}, "", `/accounts/detail?id=${bank.id}`);
 
-    const { result } = renderHookWithProviders(() => useAccountDetail(), {
-      period: ALL_TIME,
-    });
+    const { result } = renderHookWithProviders(() => useAccountDetail());
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     await waitFor(() =>
@@ -43,9 +39,7 @@ describe("useAccountDetail", () => {
 
   it("returns no account when the id is missing", async () => {
     window.history.replaceState({}, "", "/accounts/detail");
-    const { result } = renderHookWithProviders(() => useAccountDetail(), {
-      period: ALL_TIME,
-    });
+    const { result } = renderHookWithProviders(() => useAccountDetail());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.account).toBeUndefined();
   });

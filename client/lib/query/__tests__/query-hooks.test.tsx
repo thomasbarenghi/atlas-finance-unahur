@@ -4,29 +4,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   useAccounts,
-  useArchiveAccount,
   useCreateAccount,
+  useDeleteAccount,
 } from "@/lib/query/accounts";
 import {
   useCreateTransaction,
   useTransactions,
 } from "@/lib/query/transactions";
-import { useBudgets, useCreateBudget } from "@/lib/query/budgets";
 import { useLogin, useLogout, useRegister } from "@/lib/query/auth";
 import { useUpdateMe } from "@/lib/query/users";
 import { useCategories } from "@/lib/query/categories";
-import { useGoals } from "@/lib/query/goals";
-import { useAssets, useValuations } from "@/lib/query/assets";
-import { useDebts } from "@/lib/query/debts";
-import { usePositions } from "@/lib/query/positions";
 import { useDashboard } from "@/lib/query/dashboard";
-import { useQuotes } from "@/lib/query/quotes";
-import { useCurrencies } from "@/lib/query/reference";
-import {
-  useClearConversations,
-  useConversations,
-  useDeleteConversation,
-} from "@/lib/query/assistant";
 import { queryKeys } from "@/lib/query/keys";
 import { resetMockSession, seedMockSession } from "@/lib/test/mock-session";
 import { mockState } from "@/lib/mocks/store";
@@ -74,7 +62,6 @@ describe("data query hooks", () => {
       await result.current.mutateAsync({
         name: "Nueva",
         type: "cash",
-        currency: "ARS",
         initialBalance: 100,
         notes: null,
       });
@@ -89,33 +76,28 @@ describe("data query hooks", () => {
     });
   });
 
-  it("archives an account", async () => {
-    const { result } = renderHook(() => useArchiveAccount(), {
+  it("deletes an account", async () => {
+    const { result } = renderHook(() => useDeleteAccount(), {
       wrapper: createWrapper(newClient()),
     });
     const target = mockState.accounts[0];
     await act(async () => {
       await result.current.mutateAsync(target.id);
     });
-    expect(mockState.accounts.find((a) => a.id === target.id)?.archived).toBe(
-      true,
-    );
+    expect(mockState.accounts.find((a) => a.id === target.id)).toBeUndefined();
   });
 
-  it("passes transaction filters to the API and keys the query by filters", async () => {
+  it("lists transactions and keys the query by the pagination params", async () => {
     const queryClient = newClient();
-    const filters = { type: "expense" as const, page: 1, pageSize: 5 };
-    const { result } = renderHook(() => useTransactions(filters), {
+    const params = { page: 1, pageSize: 5 };
+    const { result } = renderHook(() => useTransactions(params), {
       wrapper: createWrapper(queryClient),
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.pageSize).toBe(5);
-    expect(result.current.data?.items.every((t) => t.type === "expense")).toBe(
-      true,
-    );
     expect(
-      queryClient.getQueryState(queryKeys.transactions(filters)),
+      queryClient.getQueryState(queryKeys.transactions(params)),
     ).toBeDefined();
   });
 
@@ -131,7 +113,6 @@ describe("data query hooks", () => {
       await result.current.mutateAsync({
         type: "income",
         amount: 500,
-        currency: account.currency,
         date: "2026-01-10",
         description: "Regalo",
         notes: null,
@@ -146,39 +127,7 @@ describe("data query hooks", () => {
     });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.accounts });
     expect(invalidate).toHaveBeenCalledWith({
-      queryKey: queryKeys.budgetsBase,
-    });
-    expect(invalidate).toHaveBeenCalledWith({
       queryKey: queryKeys.dashboardBase,
-    });
-  });
-
-  it("keys budgets by period and invalidates on create", async () => {
-    const queryClient = newClient();
-    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
-    const { result } = renderHook(() => useBudgets("2026-01-01"), {
-      wrapper: createWrapper(queryClient),
-    });
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(
-      queryClient.getQueryState(queryKeys.budgets("2026-01-01")),
-    ).toBeDefined();
-
-    const create = renderHook(() => useCreateBudget(), {
-      wrapper: createWrapper(queryClient),
-    });
-    const category = mockState.categories.find((c) => c.type === "expense")!;
-    await act(async () => {
-      await create.result.current.mutateAsync({
-        categoryId: category.id,
-        period: "2026-01-01",
-        limit: 1000,
-        currency: "ARS",
-        recurring: false,
-      });
-    });
-    expect(invalidate).toHaveBeenCalledWith({
-      queryKey: queryKeys.budgetsBase,
     });
   });
 
@@ -204,7 +153,6 @@ describe("data query hooks", () => {
     await act(async () => {
       await logout.result.current.mutateAsync();
     });
-    // `useLogout` clears the whole query cache, so the auth entry is gone.
     expect(queryClient.getQueryData(queryKeys.auth.me)).toBeUndefined();
   });
 
@@ -250,39 +198,8 @@ describe("data query hooks", () => {
     });
   });
 
-  it("loads the remaining domain collections", async () => {
-    const wrapper = createWrapper(newClient());
-    const categories = renderHook(() => useCategories(), { wrapper });
-    const goals = renderHook(() => useGoals(), { wrapper });
-    const assets = renderHook(() => useAssets(), { wrapper });
-    const debts = renderHook(() => useDebts(), { wrapper });
-    const positions = renderHook(() => usePositions(), { wrapper });
-    const quotes = renderHook(() => useQuotes(), { wrapper });
-    const currencies = renderHook(() => useCurrencies(), { wrapper });
-    const conversations = renderHook(() => useConversations(), { wrapper });
-
-    await waitFor(() => {
-      expect(categories.result.current.isSuccess).toBe(true);
-      expect(goals.result.current.isSuccess).toBe(true);
-      expect(assets.result.current.isSuccess).toBe(true);
-      expect(debts.result.current.isSuccess).toBe(true);
-      expect(positions.result.current.isSuccess).toBe(true);
-      expect(quotes.result.current.isSuccess).toBe(true);
-      expect(currencies.result.current.isSuccess).toBe(true);
-      expect(conversations.result.current.isSuccess).toBe(true);
-    });
-
-    expect(categories.result.current.data?.length).toBeGreaterThan(0);
-    expect(currencies.result.current.data?.supported).toContain("ARS");
-    expect(Array.isArray(conversations.result.current.data?.items)).toBe(true);
-    expect(conversations.result.current.data?.total).toBe(
-      conversations.result.current.data?.items?.length,
-    );
-  });
-
-  it("loads valuations for an owned asset", async () => {
-    const asset = mockState.assets[0];
-    const { result } = renderHook(() => useValuations(asset.id), {
+  it("loads categories", async () => {
+    const { result } = renderHook(() => useCategories(), {
       wrapper: createWrapper(newClient()),
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -306,29 +223,6 @@ describe("data query hooks", () => {
       from: "2026-01-01",
       to: "2026-01-31",
     });
-  });
-
-  it("clears and deletes assistant conversations", async () => {
-    const queryClient = newClient();
-    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
-    const clear = renderHook(() => useClearConversations(), {
-      wrapper: createWrapper(queryClient),
-    });
-    await act(async () => {
-      await clear.result.current.mutateAsync();
-    });
-    expect(invalidate).toHaveBeenCalledWith({
-      queryKey: queryKeys.conversations,
-    });
-
-    const del = renderHook(() => useDeleteConversation(), {
-      wrapper: createWrapper(queryClient),
-    });
-    await act(async () => {
-      await del.result.current.mutateAsync("conversation-1");
-    });
-    expect(invalidate).toHaveBeenCalledWith({
-      queryKey: queryKeys.conversations,
-    });
+    expect(result.current.data?.currency).toBe("ARS");
   });
 });

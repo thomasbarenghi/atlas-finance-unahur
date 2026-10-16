@@ -1,16 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
-import { usePeriod } from "@/hooks/use-period";
 import { useQueryParam } from "@/hooks/use-query-param";
 import { useAccounts } from "@/lib/query/accounts";
 import { useTransactions } from "@/lib/query/transactions";
 
-const PERIOD_PAGE_SIZE = 100;
+const ACCOUNT_PAGE_SIZE = 100;
 
 export const useAccountDetail = () => {
   const accountId = useQueryParam("id") ?? undefined;
-  const { range } = usePeriod();
 
   const accountsQuery = useAccounts();
   const accounts = useMemo(
@@ -23,34 +21,42 @@ export const useAccountDetail = () => {
   );
 
   const transactionsQuery = useTransactions({
-    accountId,
-    from: range.from,
-    to: range.to,
-    pageSize: PERIOD_PAGE_SIZE,
+    page: 1,
+    pageSize: ACCOUNT_PAGE_SIZE,
   });
 
-  const summary = useMemo(() => {
-    const items = transactionsQuery.data?.items ?? [];
-    return items.reduce(
-      (totals, transaction) => {
-        if (transaction.type === "income") totals.income += transaction.amount;
-        if (transaction.type === "expense") {
-          totals.expense += transaction.amount;
-        }
-        return totals;
-      },
-      { income: 0, expense: 0 },
-    );
-  }, [transactionsQuery.data]);
+  const transactions = useMemo(
+    () =>
+      (transactionsQuery.data?.items ?? []).filter(
+        (transaction) => transaction.accountId === accountId,
+      ),
+    [transactionsQuery.data, accountId],
+  );
+
+  const summary = useMemo(
+    () =>
+      transactions.reduce(
+        (totals, transaction) => {
+          if (transaction.type === "income") {
+            totals.income += transaction.amount;
+          }
+          if (transaction.type === "expense") {
+            totals.expense += transaction.amount;
+          }
+          return totals;
+        },
+        { income: 0, expense: 0 },
+      ),
+    [transactions],
+  );
 
   return {
     account,
     accounts,
     isLoading: accountsQuery.isLoading,
-    transactions: transactionsQuery.data?.items ?? [],
+    transactions,
     isLoadingTransactions: transactionsQuery.isLoading,
-    movementCount: transactionsQuery.data?.total ?? 0,
+    movementCount: transactions.length,
     summary,
-    range,
   };
 };

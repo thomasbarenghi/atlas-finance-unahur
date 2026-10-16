@@ -5,9 +5,9 @@ import { MISSING_UUID, truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
- * FR-CUE-003 — Editar y archivar cuentas propias.
+ * FR-CUE-003 — Editar y eliminar cuentas propias.
  */
-describe("FR-CUE-003 · Editar y archivar cuentas", () => {
+describe("FR-CUE-003 · Editar y eliminar cuentas", () => {
   let ctx: TestContext;
 
   beforeAll(async () => {
@@ -35,7 +35,6 @@ describe("FR-CUE-003 · Editar y archivar cuentas", () => {
       .send({
         name: "Nueva",
         type: "bank",
-        currency: "USD",
         initialBalance: 250,
         notes: "editada",
       })
@@ -44,22 +43,24 @@ describe("FR-CUE-003 · Editar y archivar cuentas", () => {
     expect(response.body).toMatchObject({
       name: "Nueva",
       type: "bank",
-      currency: "USD",
       initialBalance: 250,
       notes: "editada",
     });
   });
 
-  it("archiva una cuenta propia", async () => {
+  it("elimina una cuenta propia", async () => {
     const user = await registerUser(ctx.app);
     const account = await createAccount(ctx.app, user.accessToken);
 
-    const response = await request(ctx.server)
-      .post(`/api/accounts/${account.id}/archive`)
+    await request(ctx.server)
+      .delete(`/api/accounts/${account.id}`)
       .set(bearer(user.accessToken))
-      .expect(201);
+      .expect(200);
 
-    expect(response.body.archived).toBe(true);
+    await request(ctx.server)
+      .get(`/api/accounts/${account.id}`)
+      .set(bearer(user.accessToken))
+      .expect(404);
   });
 
   it("rechaza editar una cuenta inexistente con 404", async () => {

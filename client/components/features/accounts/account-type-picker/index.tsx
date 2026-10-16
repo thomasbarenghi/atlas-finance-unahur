@@ -10,7 +10,6 @@ const DESCRIPTIONS: Record<AccountType, string> = {
   cash: "Dinero en mano",
   bank: "Cuentas de banco",
   wallet: "Billeteras virtuales",
-  card: "Tarjetas de crédito",
   other: "Otros tipos de cuenta",
 };
 

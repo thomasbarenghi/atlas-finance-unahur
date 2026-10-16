@@ -21,7 +21,7 @@ describe("FR-DAS-002 · Evolución del patrimonio", () => {
     await ctx.app.close();
   });
 
-  it("devuelve una serie mensual con activos y deudas", async () => {
+  it("devuelve una serie mensual del patrimonio neto", async () => {
     const user = await registerUser(ctx.app);
     await seedBaseScenario(ctx.app, user.accessToken);
 
@@ -34,8 +34,6 @@ describe("FR-DAS-002 · Evolución del patrimonio", () => {
         expect.objectContaining({
           date: expect.any(String),
           value: expect.any(Number),
-          assets: expect.any(Number),
-          debts: expect.any(Number),
         }),
       );
     }

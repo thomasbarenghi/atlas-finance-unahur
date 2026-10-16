@@ -6,12 +6,7 @@ import { z } from "zod";
  */
 export const MAX_MONEY = 99_999_999_999_999.9999;
 
-const ISO_CURRENCY = /^[A-Za-z]{3}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-export const currencySchema = z
-  .string()
-  .regex(ISO_CURRENCY, "Elegí una moneda válida");
 
 export const dateSchema = z
   .string()

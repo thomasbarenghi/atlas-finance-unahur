@@ -1,35 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
-import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
 import { PageHeader } from "@/components/common/page-header";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useConfirmAction } from "@/hooks/use-confirm-action";
 import type { Category, CategoryType } from "@/lib/api/types";
 import { sortCategories } from "@/lib/categories";
-import { useArchiveCategory, useCategories } from "@/lib/query/categories";
+import { useCategories } from "@/lib/query/categories";
 import { CategoriesList } from "@/components/features/categories/categories-list";
-import { CategoryFormDialog } from "@/components/features/categories/category-form-dialog";
-
-interface CategoryDialogState {
-  category?: Category;
-  type?: CategoryType;
-}
 
 export const CategoriesView = () => {
   const categoriesQuery = useCategories();
-  const archiveCategory = useArchiveCategory();
-
   const [tab, setTab] = useState<CategoryType>("expense");
-  const [dialog, setDialog] = useState<CategoryDialogState | null>(null);
-
-  const archiveAction = useConfirmAction<Category>({
-    run: (category) => archiveCategory.mutateAsync(category.id),
-    successMessage: "Categoría archivada",
-    errorMessage: "No se pudo archivar",
-  });
 
   const categories = useMemo(
     () => categoriesQuery.data ?? [],
@@ -43,28 +24,14 @@ export const CategoriesView = () => {
   );
 
   const renderList = (list: Category[]) => (
-    <CategoriesList
-      categories={list}
-      isLoading={categoriesQuery.isLoading}
-      onEdit={(category) => setDialog({ category })}
-      onArchive={archiveAction.request}
-    />
+    <CategoriesList categories={list} isLoading={categoriesQuery.isLoading} />
   );
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Categorías"
-        description="Clasificá tus ingresos y gastos."
-        actions={
-          <Button
-            size="icon"
-            aria-label="Nueva categoría"
-            onClick={() => setDialog({ type: tab })}
-          >
-            <Plus />
-          </Button>
-        }
+        description="Catálogo fijo para clasificar tus ingresos y gastos."
       />
 
       <Tabs
@@ -82,24 +49,6 @@ export const CategoriesView = () => {
           {renderList(incomes)}
         </TabsContent>
       </Tabs>
-
-      <CategoryFormDialog
-        key={dialog?.category?.id ?? dialog?.type ?? "category-new"}
-        open={Boolean(dialog)}
-        onOpenChange={(open) => {
-          if (!open) setDialog(null);
-        }}
-        category={dialog?.category}
-        initialType={dialog?.type}
-      />
-      <ConfirmActionDialog
-        action={archiveAction}
-        title="Archivar categoría"
-        description={(target) =>
-          `La categoría "${target.name}" dejará de estar disponible para nuevos movimientos.`
-        }
-        confirmLabel="Archivar"
-      />
     </div>
   );
 };

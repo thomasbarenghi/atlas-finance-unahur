@@ -34,18 +34,10 @@ export const useUpdateAccount = () => {
   });
 };
 
-export const useArchiveAccount = () => {
+export const useDeleteAccount = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => accountEndpoints.archive(id),
-    onSuccess: () => invalidateAccountViews(queryClient),
-  });
-};
-
-export const useRestoreAccount = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => accountEndpoints.restore(id),
+    mutationFn: (id: string) => accountEndpoints.remove(id),
     onSuccess: () => invalidateAccountViews(queryClient),
   });
 };

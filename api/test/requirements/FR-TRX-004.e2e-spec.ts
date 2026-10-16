@@ -33,7 +33,6 @@ describe("FR-TRX-004 · Transferencia entre cuentas distintas", () => {
       .send({
         type: "transfer",
         amount: 100,
-        currency: "ARS",
         date: isoDate(),
         description: "Misma cuenta",
         accountId: account.id,
@@ -54,7 +53,6 @@ describe("FR-TRX-004 · Transferencia entre cuentas distintas", () => {
       .send({
         type: "transfer",
         amount: 100,
-        currency: "ARS",
         date: isoDate(),
         description: "Sin destino",
         accountId: account.id,

@@ -1,8 +1,8 @@
 import { registerUser } from "../utils/auth";
 import { truncateAll } from "../utils/db";
 import {
+  categoryByName,
   createAccount,
-  createCategory,
   createTransaction,
 } from "../utils/factories";
 import { getDashboard } from "../utils/scenario";
@@ -30,20 +30,17 @@ describe("CAL-010 · Variación de la tasa de ahorro", () => {
   it("expresa la variación en puntos porcentuales contra el período anterior", async () => {
     const user = await registerUser(ctx.app);
     const account = await createAccount(ctx.app, user.accessToken);
-    const income = await createCategory(ctx.app, user.accessToken, {
-      name: "Sueldo",
-      type: "income",
-    });
-    const expense = await createCategory(ctx.app, user.accessToken, {
-      name: "Gastos",
-      type: "expense",
-    });
+    const income = await categoryByName(ctx.app, user.accessToken, "Sueldo");
+    const expense = await categoryByName(
+      ctx.app,
+      user.accessToken,
+      "Supermercado",
+    );
 
     // Período anterior (ene 2026): tasa = 500/1000 = 50%
     await createTransaction(ctx.app, user.accessToken, {
       type: "income",
       amount: 1000,
-      currency: "ARS",
       date: "2026-01-10",
       description: "Ingreso enero",
       accountId: account.id,
@@ -52,7 +49,6 @@ describe("CAL-010 · Variación de la tasa de ahorro", () => {
     await createTransaction(ctx.app, user.accessToken, {
       type: "expense",
       amount: 500,
-      currency: "ARS",
       date: "2026-01-15",
       description: "Gasto enero",
       accountId: account.id,
@@ -63,7 +59,6 @@ describe("CAL-010 · Variación de la tasa de ahorro", () => {
     await createTransaction(ctx.app, user.accessToken, {
       type: "income",
       amount: 1000,
-      currency: "ARS",
       date: "2026-02-05",
       description: "Ingreso febrero",
       accountId: account.id,
@@ -72,7 +67,6 @@ describe("CAL-010 · Variación de la tasa de ahorro", () => {
     await createTransaction(ctx.app, user.accessToken, {
       type: "expense",
       amount: 750,
-      currency: "ARS",
       date: "2026-02-10",
       description: "Gasto febrero",
       accountId: account.id,

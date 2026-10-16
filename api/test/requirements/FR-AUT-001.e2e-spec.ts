@@ -30,9 +30,6 @@ describe("FR-AUT-001 · Registro de usuario", () => {
     expect(response.body.user).toMatchObject({
       name: "Ana",
       email: "ana@test.local",
-      baseCurrency: "ARS",
-      aiEnabled: false,
-      assistantDestructiveEnabled: false,
     });
     expect(response.body.user.id).toBeDefined();
     expect(response.body.user.passwordHash).toBeUndefined();

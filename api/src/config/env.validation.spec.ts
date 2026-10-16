@@ -3,7 +3,6 @@ import { validateEnv } from "./env.validation";
 const validEnv = (): Record<string, string> => ({
   DATABASE_URL: "postgres://x",
   JWT_ACCESS_SECRET: "a",
-  JWT_REFRESH_SECRET: "b",
 });
 
 describe("validateEnv", () => {
@@ -12,7 +11,6 @@ describe("validateEnv", () => {
       ...validEnv(),
       NODE_ENV: "test",
       PORT: "3001",
-      MARKET_ENABLED: "false",
     };
     expect(validateEnv(env)).toBe(env);
   });
@@ -31,16 +29,13 @@ describe("validateEnv", () => {
     expect(() =>
       validateEnv({ ...validEnv(), COOKIE_SAME_SITE: "invalid" }),
     ).toThrow(/COOKIE_SAME_SITE/);
-    expect(() => validateEnv({ ...validEnv(), MARKET_ENABLED: "yes" })).toThrow(
-      /MARKET_ENABLED/,
-    );
   });
 
   it("rejects non-numeric values", () => {
     expect(() => validateEnv({ ...validEnv(), PORT: "abc" })).toThrow(/PORT/);
-    expect(() =>
-      validateEnv({ ...validEnv(), BUDGET_WARNING_THRESHOLD: "x" }),
-    ).toThrow(/BUDGET_WARNING_THRESHOLD/);
+    expect(() => validateEnv({ ...validEnv(), AI_TIMEOUT_MS: "x" })).toThrow(
+      /AI_TIMEOUT_MS/,
+    );
   });
 
   it("ignores empty optional values", () => {

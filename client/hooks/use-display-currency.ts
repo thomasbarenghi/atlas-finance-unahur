@@ -1,20 +1,15 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { CURRENCY } from "@/lib/currency";
 
 export interface DisplayCurrencyContextValue {
   currency: string;
 }
 
-export const DisplayCurrencyContext =
-  createContext<DisplayCurrencyContextValue | null>(null);
-
-export const useDisplayCurrency = (): DisplayCurrencyContextValue => {
-  const context = useContext(DisplayCurrencyContext);
-  if (!context) {
-    throw new Error(
-      "useDisplayCurrency debe usarse dentro de DisplayCurrencyProvider",
-    );
-  }
-  return context;
-};
+/**
+ * Single system currency (v0.3). Kept as a hook so consumers stay unchanged
+ * without a provider or selector.
+ */
+export const useDisplayCurrency = (): DisplayCurrencyContextValue => ({
+  currency: CURRENCY,
+});

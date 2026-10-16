@@ -38,9 +38,6 @@ export class Transaction {
   })
   amount: number;
 
-  @Column({ type: "char", length: 3 })
-  currency: string;
-
   @Column({ type: "date" })
   date: string;
 

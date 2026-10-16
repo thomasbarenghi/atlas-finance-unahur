@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { currencySchema, moneySchema, notesSchema } from "./common";
+import { moneySchema, notesSchema } from "./common";
 
 export const accountSchema = z.object({
   name: z
@@ -7,8 +7,7 @@ export const accountSchema = z.object({
     .trim()
     .min(1, "Ingresá un nombre")
     .max(80, "El nombre es demasiado largo"),
-  type: z.enum(["cash", "bank", "wallet", "card", "other"]),
-  currency: currencySchema,
+  type: z.enum(["cash", "bank", "wallet", "other"]),
   initialBalance: moneySchema,
   notes: notesSchema.optional(),
 });

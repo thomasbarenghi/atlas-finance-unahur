@@ -19,12 +19,9 @@ describe("context hooks", () => {
     spy.mockRestore();
   });
 
-  it("useDisplayCurrency throws outside its provider", () => {
-    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(() => renderHook(() => useDisplayCurrency())).toThrow(
-      /DisplayCurrencyProvider/,
-    );
-    spy.mockRestore();
+  it("useDisplayCurrency returns the single system currency", () => {
+    const { result } = renderHook(() => useDisplayCurrency());
+    expect(result.current.currency).toBe("ARS");
   });
 
   it("useAssistantChat throws outside AssistantChatProvider", () => {

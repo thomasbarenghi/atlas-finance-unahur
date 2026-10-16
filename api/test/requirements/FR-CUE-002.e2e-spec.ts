@@ -4,8 +4,7 @@ import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
- * FR-CUE-002 — Registrar nombre, tipo, moneda, saldo inicial y observaciones
- * opcionales.
+ * FR-CUE-002 — Registrar nombre, tipo, saldo inicial y observaciones opcionales.
  */
 describe("FR-CUE-002 · Campos de la cuenta", () => {
   let ctx: TestContext;
@@ -31,7 +30,6 @@ describe("FR-CUE-002 · Campos de la cuenta", () => {
       .send({
         name: "Caja",
         type: "cash",
-        currency: "ARS",
         initialBalance: 50000,
         notes: "Efectivo de casa",
       })
@@ -40,10 +38,8 @@ describe("FR-CUE-002 · Campos de la cuenta", () => {
     expect(response.body).toMatchObject({
       name: "Caja",
       type: "cash",
-      currency: "ARS",
       initialBalance: 50000,
       currentBalance: 50000,
-      archived: false,
       notes: "Efectivo de casa",
     });
     expect(typeof response.body.createdAt).toBe("string");
@@ -55,34 +51,11 @@ describe("FR-CUE-002 · Campos de la cuenta", () => {
     const response = await request(ctx.server)
       .post("/api/accounts")
       .set(bearer(user.accessToken))
-      .send({ name: "Caja", type: "cash", currency: "ARS" })
+      .send({ name: "Caja", type: "cash" })
       .expect(201);
 
     expect(response.body.initialBalance).toBe(0);
     expect(response.body.notes).toBeNull();
-  });
-
-  it("rechaza una moneda con longitud distinta de 3", async () => {
-    const user = await registerUser(ctx.app);
-
-    await request(ctx.server)
-      .post("/api/accounts")
-      .set(bearer(user.accessToken))
-      .send({ name: "Caja", type: "cash", currency: "ARSX" })
-      .expect(400);
-  });
-
-  it("rechaza una moneda no soportada (BUG-1)", async () => {
-    const user = await registerUser(ctx.app);
-
-    const response = await request(ctx.server)
-      .post("/api/accounts")
-      .set(bearer(user.accessToken))
-      .send({ name: "Caja", type: "cash", currency: "GBP" })
-      .expect(400);
-
-    expect(response.body.code).toBe("VALIDATION_ERROR");
-    expect(response.body.fieldErrors.currency).toBeDefined();
   });
 
   it("rechaza un nombre vacío", async () => {
@@ -91,7 +64,7 @@ describe("FR-CUE-002 · Campos de la cuenta", () => {
     await request(ctx.server)
       .post("/api/accounts")
       .set(bearer(user.accessToken))
-      .send({ name: "", type: "cash", currency: "ARS" })
+      .send({ name: "", type: "cash" })
       .expect(400);
   });
 
@@ -101,12 +74,7 @@ describe("FR-CUE-002 · Campos de la cuenta", () => {
     await request(ctx.server)
       .post("/api/accounts")
       .set(bearer(user.accessToken))
-      .send({
-        name: "Caja",
-        type: "cash",
-        currency: "ARS",
-        initialBalance: "mil",
-      })
+      .send({ name: "Caja", type: "cash", initialBalance: "mil" })
       .expect(400);
   });
 });

@@ -2,47 +2,20 @@ import { del, get, patch, post } from "./client";
 import { mockApi } from "@/lib/mocks/api";
 import type {
   Account,
-  Asset,
-  AssistantActionResult,
   AuthResponse,
-  Budget,
   Category,
-  Conversation,
-  CopyBudgetsInput,
   CreateAccountInput,
-  CreateAssetInput,
-  CreateBudgetInput,
-  CreateCategoryInput,
-  CreateDebtInput,
-  CreateGoalInput,
-  CreatePositionInput,
   CreateTransactionInput,
-  CreateValuationInput,
-  CurrenciesResponse,
   DashboardData,
-  Debt,
-  ForgotPasswordInput,
-  Goal,
   LoginInput,
   Paginated,
-  Position,
-  Quote,
   RegisterInput,
-  RegisterResponse,
-  ResetPasswordInput,
   Transaction,
-  TransactionFilters,
+  TransactionListQuery,
   UpdateAccountInput,
-  UpdateAssetInput,
-  UpdateBudgetInput,
-  UpdateCategoryInput,
-  UpdateDebtInput,
-  UpdateGoalInput,
-  UpdatePositionInput,
   UpdateTransactionInput,
   UpdateUserInput,
   User,
-  Valuation,
 } from "./types";
 
 const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS !== "false";
@@ -61,33 +34,18 @@ const query = (params: object): string => {
 export const authEndpoints = {
   login: (input: LoginInput): Promise<AuthResponse> =>
     USE_MOCKS ? mockApi.login(input) : post<AuthResponse>("/auth/login", input),
-  register: (input: RegisterInput): Promise<RegisterResponse> =>
+  register: (input: RegisterInput): Promise<AuthResponse> =>
     USE_MOCKS
       ? mockApi.register(input)
-      : post<RegisterResponse>("/auth/register", input),
+      : post<AuthResponse>("/auth/register", input),
   logout: (): Promise<void> =>
     USE_MOCKS ? mockApi.logout() : post<void>("/auth/logout"),
   me: (): Promise<User> => (USE_MOCKS ? mockApi.me() : get<User>("/auth/me")),
-  forgotPassword: (input: ForgotPasswordInput): Promise<void> =>
-    USE_MOCKS
-      ? mockApi.forgotPassword(input.email)
-      : post<void>("/auth/forgot-password", input),
-  resetPassword: (input: ResetPasswordInput): Promise<void> =>
-    USE_MOCKS
-      ? mockApi.resetPassword(input)
-      : post<void>("/auth/reset-password", input),
 };
 
 export const userEndpoints = {
   updateMe: (input: UpdateUserInput): Promise<User> =>
     USE_MOCKS ? mockApi.updateUser(input) : patch<User>("/users/me", input),
-};
-
-export const referenceEndpoints = {
-  currencies: (): Promise<CurrenciesResponse> =>
-    USE_MOCKS
-      ? mockApi.listCurrencies()
-      : get<CurrenciesResponse>("/currencies"),
 };
 
 export const accountEndpoints = {
@@ -101,53 +59,20 @@ export const accountEndpoints = {
     USE_MOCKS
       ? mockApi.updateAccount(id, input)
       : patch<Account>(`/accounts/${id}`, input),
-  archive: (id: string): Promise<Account> =>
-    USE_MOCKS
-      ? mockApi.archiveAccount(id)
-      : post<Account>(`/accounts/${id}/archive`),
-  restore: (id: string): Promise<Account> =>
-    USE_MOCKS
-      ? mockApi.restoreAccount(id)
-      : post<Account>(`/accounts/${id}/restore`),
-};
-
-export const goalEndpoints = {
-  list: (): Promise<Goal[]> =>
-    USE_MOCKS ? mockApi.listGoals() : get<Goal[]>("/goals"),
-  create: (input: CreateGoalInput): Promise<Goal> =>
-    USE_MOCKS ? mockApi.createGoal(input) : post<Goal>("/goals", input),
-  update: (id: string, input: UpdateGoalInput): Promise<Goal> =>
-    USE_MOCKS
-      ? mockApi.updateGoal(id, input)
-      : patch<Goal>(`/goals/${id}`, input),
-  archive: (id: string): Promise<Goal> =>
-    USE_MOCKS ? mockApi.archiveGoal(id) : post<Goal>(`/goals/${id}/archive`),
-  restore: (id: string): Promise<Goal> =>
-    USE_MOCKS ? mockApi.restoreGoal(id) : post<Goal>(`/goals/${id}/restore`),
+  remove: (id: string): Promise<void> =>
+    USE_MOCKS ? mockApi.deleteAccount(id) : del<void>(`/accounts/${id}`),
 };
 
 export const categoryEndpoints = {
   list: (): Promise<Category[]> =>
     USE_MOCKS ? mockApi.listCategories() : get<Category[]>("/categories"),
-  create: (input: CreateCategoryInput): Promise<Category> =>
-    USE_MOCKS
-      ? mockApi.createCategory(input)
-      : post<Category>("/categories", input),
-  update: (id: string, input: UpdateCategoryInput): Promise<Category> =>
-    USE_MOCKS
-      ? mockApi.updateCategory(id, input)
-      : patch<Category>(`/categories/${id}`, input),
-  archive: (id: string): Promise<Category> =>
-    USE_MOCKS
-      ? mockApi.archiveCategory(id)
-      : post<Category>(`/categories/${id}/archive`),
 };
 
 export const transactionEndpoints = {
-  list: (filters: TransactionFilters = {}): Promise<Paginated<Transaction>> =>
+  list: (params: TransactionListQuery = {}): Promise<Paginated<Transaction>> =>
     USE_MOCKS
-      ? mockApi.listTransactions(filters)
-      : get<Paginated<Transaction>>(`/transactions${query(filters)}`),
+      ? mockApi.listTransactions(params)
+      : get<Paginated<Transaction>>(`/transactions${query(params)}`),
   create: (input: CreateTransactionInput): Promise<Transaction> =>
     USE_MOCKS
       ? mockApi.createTransaction(input)
@@ -162,130 +87,9 @@ export const transactionEndpoints = {
       : del<void>(`/transactions/${id}`),
 };
 
-export const budgetEndpoints = {
-  list: (period?: string): Promise<Budget[]> =>
-    USE_MOCKS
-      ? mockApi.listBudgets(period)
-      : get<Budget[]>(`/budgets${query({ period })}`),
-  create: (input: CreateBudgetInput): Promise<Budget> =>
-    USE_MOCKS ? mockApi.createBudget(input) : post<Budget>("/budgets", input),
-  update: (id: string, input: UpdateBudgetInput): Promise<Budget> =>
-    USE_MOCKS
-      ? mockApi.updateBudget(id, input)
-      : patch<Budget>(`/budgets/${id}`, input),
-  remove: (id: string): Promise<void> =>
-    USE_MOCKS ? mockApi.deleteBudget(id) : del<void>(`/budgets/${id}`),
-  copyPrevious: (input: CopyBudgetsInput): Promise<Budget[]> =>
-    USE_MOCKS
-      ? mockApi.copyPreviousBudgets(input)
-      : post<Budget[]>("/budgets/copy-previous", input),
-};
-
-export const assetEndpoints = {
-  list: (): Promise<Asset[]> =>
-    USE_MOCKS ? mockApi.listAssets() : get<Asset[]>("/assets"),
-  create: (input: CreateAssetInput): Promise<Asset> =>
-    USE_MOCKS ? mockApi.createAsset(input) : post<Asset>("/assets", input),
-  update: (id: string, input: UpdateAssetInput): Promise<Asset> =>
-    USE_MOCKS
-      ? mockApi.updateAsset(id, input)
-      : patch<Asset>(`/assets/${id}`, input),
-  archive: (id: string): Promise<Asset> =>
-    USE_MOCKS ? mockApi.archiveAsset(id) : post<Asset>(`/assets/${id}/archive`),
-  valuations: (id: string): Promise<Valuation[]> =>
-    USE_MOCKS
-      ? mockApi.listValuations(id)
-      : get<Valuation[]>(`/assets/${id}/valuations`),
-  createValuation: (
-    id: string,
-    input: CreateValuationInput,
-  ): Promise<Valuation> =>
-    USE_MOCKS
-      ? mockApi.createValuation(id, input)
-      : post<Valuation>(`/assets/${id}/valuations`, input),
-};
-
-export const debtEndpoints = {
-  list: (): Promise<Debt[]> =>
-    USE_MOCKS ? mockApi.listDebts() : get<Debt[]>("/debts"),
-  create: (input: CreateDebtInput): Promise<Debt> =>
-    USE_MOCKS ? mockApi.createDebt(input) : post<Debt>("/debts", input),
-  update: (id: string, input: UpdateDebtInput): Promise<Debt> =>
-    USE_MOCKS
-      ? mockApi.updateDebt(id, input)
-      : patch<Debt>(`/debts/${id}`, input),
-  archive: (id: string): Promise<Debt> =>
-    USE_MOCKS ? mockApi.archiveDebt(id) : post<Debt>(`/debts/${id}/archive`),
-};
-
-export const positionEndpoints = {
-  list: (): Promise<Position[]> =>
-    USE_MOCKS ? mockApi.listPositions() : get<Position[]>("/positions"),
-  create: (input: CreatePositionInput): Promise<Position> =>
-    USE_MOCKS
-      ? mockApi.createPosition(input)
-      : post<Position>("/positions", input),
-  update: (id: string, input: UpdatePositionInput): Promise<Position> =>
-    USE_MOCKS
-      ? mockApi.updatePosition(id, input)
-      : patch<Position>(`/positions/${id}`, input),
-  remove: (id: string): Promise<void> =>
-    USE_MOCKS ? mockApi.deletePosition(id) : del<void>(`/positions/${id}`),
-  archive: (id: string): Promise<Position> =>
-    USE_MOCKS
-      ? mockApi.archivePosition(id)
-      : post<Position>(`/positions/${id}/archive`),
-  restore: (id: string): Promise<Position> =>
-    USE_MOCKS
-      ? mockApi.restorePosition(id)
-      : post<Position>(`/positions/${id}/restore`),
-};
-
-export const quoteEndpoints = {
-  list: (): Promise<Quote[]> =>
-    USE_MOCKS ? mockApi.listQuotes() : get<Quote[]>("/quotes"),
-};
-
 export const dashboardEndpoints = {
-  get: (params: {
-    from: string;
-    to: string;
-    currency?: string;
-  }): Promise<DashboardData> =>
+  get: (params: { from: string; to: string }): Promise<DashboardData> =>
     USE_MOCKS
       ? mockApi.dashboard(params)
       : get<DashboardData>(`/dashboard${query(params)}`),
-};
-
-export const assistantEndpoints = {
-  conversations: (): Promise<Paginated<Conversation>> =>
-    USE_MOCKS
-      ? mockApi.listConversations()
-      : get<Paginated<Conversation>>("/assistant/conversations"),
-  clearConversations: (): Promise<void> =>
-    USE_MOCKS
-      ? mockApi.deleteConversations()
-      : del<void>("/assistant/conversations"),
-  deleteConversation: (id: string): Promise<void> =>
-    USE_MOCKS
-      ? mockApi.deleteConversation(id)
-      : del<void>(`/assistant/conversations/${id}`),
-  confirmAction: (
-    actionId: string,
-    token: string,
-  ): Promise<AssistantActionResult> =>
-    USE_MOCKS
-      ? mockApi.confirmAction(actionId, token)
-      : post<AssistantActionResult>(`/assistant/actions/${actionId}/confirm`, {
-          token,
-        }),
-  cancelAction: (
-    actionId: string,
-    token: string,
-  ): Promise<AssistantActionResult> =>
-    USE_MOCKS
-      ? mockApi.cancelAction(actionId, token)
-      : post<AssistantActionResult>(`/assistant/actions/${actionId}/cancel`, {
-          token,
-        }),
 };

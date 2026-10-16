@@ -4,17 +4,6 @@ import { httpClient } from "./test-app";
 import type { AiStreamChunk } from "../../src/shared/ai/ai.service";
 import { bearer } from "./auth";
 
-export const enableAssistant = async (
-  app: INestApplication,
-  token: string,
-): Promise<void> => {
-  await request(httpClient(app))
-    .patch("/api/users/me")
-    .set(bearer(token))
-    .send({ aiEnabled: true })
-    .expect(200);
-};
-
 export interface SseEvent {
   event: string;
   data: any;

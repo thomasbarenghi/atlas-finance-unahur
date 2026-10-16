@@ -1,33 +1,3 @@
-import { AssetType, BudgetStatus } from "../../common/types/financial-enums";
-
-export type NetWorthCompositionKind =
-  "property" | "vehicle" | "asset" | "investment" | "cash" | "account";
-
-export class DashboardInvestmentPosition {
-  id: string;
-  symbol: string;
-  instrument: string;
-  quantity: number;
-  originalCurrency: string;
-  originalValue: number;
-  originalCost: number;
-  originalProfitLoss: number | null;
-  value: number;
-  profitLossPct: number | null;
-  isStale: boolean;
-  quoteDate: string | null;
-  quoteProvider: string | null;
-}
-
-export class DashboardInvestments {
-  totalValue: number;
-  totalCost: number;
-  profitLoss: number;
-  profitLossPct: number;
-  staleQuotes: number;
-  positions: DashboardInvestmentPosition[];
-}
-
 export class DashboardData {
   period: { from: string; to: string };
   currency: string;
@@ -41,21 +11,8 @@ export class DashboardData {
     savings: number;
     savingsDeltaPct: number | null;
     savingsRateDeltaPp: number | null;
-    assets: number;
-    assetsDeltaPct: number | null;
-    debts: number;
-    debtsDeltaPct: number | null;
-    accounts: number;
-    accountsDeltaPct: number | null;
-    investmentsDeltaPct: number | null;
   };
-  netWorthSeries: {
-    date: string;
-    value: number;
-    assets: number;
-    debts: number;
-  }[];
-  assetsValueByMonth: { month: string; value: number }[];
+  netWorthSeries: { date: string; value: number }[];
   incomeExpenseByMonth: {
     month: string;
     income: number;
@@ -66,30 +23,5 @@ export class DashboardData {
     name: string;
     color: string;
     value: number;
-  }[];
-  categoryChanges: {
-    categoryId: string;
-    name: string;
-    current: number;
-    previous: number;
-    deltaPct: number | null;
-  }[];
-  assetsComposition: { type: AssetType; value: number }[];
-  netWorthComposition: {
-    kind: NetWorthCompositionKind;
-    label: string;
-    value: number;
-  }[];
-  cashflow: {
-    income: { name: string; value: number }[];
-    expenses: { name: string; color: string; value: number }[];
-    savings: number;
-  };
-  investments: DashboardInvestments;
-  budgetAlerts: {
-    budgetId: string;
-    categoryName: string;
-    consumedPct: number;
-    status: BudgetStatus;
   }[];
 }

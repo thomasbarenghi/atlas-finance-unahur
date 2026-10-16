@@ -23,7 +23,6 @@ const STATUS_FALLBACK: Record<number, ErrorCode> = {
   [HttpStatus.UNAUTHORIZED]: ErrorCode.UNAUTHENTICATED,
   [HttpStatus.FORBIDDEN]: ErrorCode.FORBIDDEN,
   [HttpStatus.NOT_FOUND]: ErrorCode.NOT_FOUND,
-  [HttpStatus.TOO_MANY_REQUESTS]: ErrorCode.RATE_LIMITED,
   [HttpStatus.BAD_GATEWAY]: ErrorCode.INTERNAL_ERROR,
   [HttpStatus.INTERNAL_SERVER_ERROR]: ErrorCode.INTERNAL_ERROR,
 };

@@ -14,34 +14,21 @@ import { resetMockSession } from "@/lib/test/mock-session";
 
 const ARS_ACCOUNT = makeAccount({
   id: "11111111-1111-4111-8111-111111111111",
-  currency: "ARS",
   name: "Caja ARS",
-});
-const USD_ACCOUNT = makeAccount({
-  id: "33333333-3333-4333-8333-333333333333",
-  currency: "USD",
-  name: "Ahorro USD",
 });
 const ARS_ACCOUNT_2 = makeAccount({
   id: "55555555-5555-4555-8555-555555555555",
-  currency: "ARS",
   name: "Banco ARS",
 });
 const EXPENSE_CATEGORY = makeCategory({
   id: "22222222-2222-4222-8222-222222222222",
-  name: "Comida",
+  name: "Supermercado",
   type: "expense",
 });
 const INCOME_CATEGORY = makeCategory({
   id: "44444444-4444-4444-8444-444444444444",
   name: "Sueldo",
   type: "income",
-});
-const ARCHIVED_CATEGORY = makeCategory({
-  id: "66666666-6666-4666-8666-666666666666",
-  name: "Vieja",
-  type: "expense",
-  archived: true,
 });
 
 const openCombobox = async (
@@ -57,7 +44,7 @@ const openCombobox = async (
 
 const openCategory = async (
   user: ReturnType<typeof userEvent.setup>,
-  optionName = "Comida",
+  optionName = "Supermercado",
 ) => {
   await openCombobox(user, "Categoría");
   await user.click(await screen.findByRole("option", { name: optionName }));
@@ -80,7 +67,7 @@ const renderDialog = (
     <TransactionFormDialog
       open
       onOpenChange={vi.fn()}
-      accounts={[ARS_ACCOUNT, USD_ACCOUNT]}
+      accounts={[ARS_ACCOUNT]}
       categories={[EXPENSE_CATEGORY, INCOME_CATEGORY]}
       {...props}
     />,
@@ -109,7 +96,6 @@ describe("TransactionFormDialog", () => {
     expect(payload).toMatchObject({
       type: "expense",
       amount: 1500,
-      currency: "ARS",
       accountId: ARS_ACCOUNT.id,
       categoryId: EXPENSE_CATEGORY.id,
       transferAccountId: null,
@@ -120,21 +106,6 @@ describe("TransactionFormDialog", () => {
       payload as unknown as Record<string, unknown>,
     );
     expect(result.errors).toEqual([]);
-  });
-
-  it("hides archived categories when creating a movement", async () => {
-    const user = userEvent.setup();
-    renderDialog({
-      categories: [EXPENSE_CATEGORY, ARCHIVED_CATEGORY, INCOME_CATEGORY],
-    });
-
-    await openCombobox(user, "Categoría");
-    expect(
-      await screen.findByRole("option", { name: "Comida" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("option", { name: "Vieja" }),
-    ).not.toBeInTheDocument();
   });
 
   it("rejects an empty description and a zero amount without calling the API", async () => {
@@ -175,7 +146,7 @@ describe("TransactionFormDialog", () => {
     const createSpy = vi
       .spyOn(mockApi, "createTransaction")
       .mockResolvedValue(makeTransaction({ type: "transfer" }));
-    renderDialog({ accounts: [ARS_ACCOUNT, ARS_ACCOUNT_2, USD_ACCOUNT] });
+    renderDialog({ accounts: [ARS_ACCOUNT, ARS_ACCOUNT_2] });
 
     await user.click(screen.getByRole("button", { name: "Transferencia" }));
     await openCombobox(user, "Cuenta destino");
@@ -256,27 +227,6 @@ describe("TransactionFormDialog", () => {
       type: "income",
       amount: 5000,
       categoryId: INCOME_CATEGORY.id,
-    });
-  });
-
-  it("switches the currency when the origin account changes", async () => {
-    const user = userEvent.setup();
-    const createSpy = vi
-      .spyOn(mockApi, "createTransaction")
-      .mockResolvedValue(makeTransaction());
-    renderDialog();
-
-    await openCombobox(user, "Caja ARS");
-    await user.click(await screen.findByRole("option", { name: /Ahorro USD/ }));
-    await openCategory(user);
-    await typeAmount(user, "100");
-    await user.type(screen.getByPlaceholderText("Comentario"), "En dólares");
-    await user.click(screen.getByRole("button", { name: "Crear movimiento" }));
-
-    await waitFor(() => expect(createSpy).toHaveBeenCalledTimes(1));
-    expect(createSpy.mock.calls[0][0]).toMatchObject({
-      accountId: USD_ACCOUNT.id,
-      currency: "USD",
     });
   });
 });

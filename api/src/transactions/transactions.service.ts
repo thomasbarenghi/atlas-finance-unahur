@@ -1,12 +1,11 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { randomUUID } from "crypto";
-import { DataSource, In, Repository } from "typeorm";
-import { Paginated } from "../common/dto/pagination.dto";
+import { DataSource, Repository } from "typeorm";
+import { Paginated, PaginationDto } from "../common/dto/pagination.dto";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
-import { QueryTransactionsDto } from "./dto/query-transactions.dto";
 import {
   toTransactionResponse,
   TransactionResponseDto,
@@ -24,49 +23,17 @@ export class TransactionsService {
 
   async listTransactions(
     userId: string,
-    filters: QueryTransactionsDto,
+    pagination: PaginationDto,
   ): Promise<Paginated<TransactionResponseDto>> {
-    const query = this.transactionsRepository
-      .createQueryBuilder("transaction")
-      .where("transaction.user_id = :userId", { userId });
+    const page = pagination.page ?? 1;
+    const pageSize = pagination.pageSize ?? 20;
 
-    if (filters.from) {
-      query.andWhere("transaction.date >= :from", { from: filters.from });
-    }
-    if (filters.to) {
-      query.andWhere("transaction.date <= :to", { to: filters.to });
-    }
-    if (filters.type) {
-      query.andWhere("transaction.type = :type", { type: filters.type });
-    }
-    if (filters.accountId) {
-      query.andWhere(
-        "(transaction.account_id = :accountId OR transaction.transfer_account_id = :accountId)",
-        { accountId: filters.accountId },
-      );
-    }
-    if (filters.categoryId) {
-      query.andWhere("transaction.category_id = :categoryId", {
-        categoryId: filters.categoryId,
-      });
-    }
-    if (filters.search) {
-      query.andWhere(
-        "(transaction.description ILIKE :search OR transaction.notes ILIKE :search)",
-        { search: `%${filters.search}%` },
-      );
-    }
-
-    const page = filters.page ?? 1;
-    const pageSize = filters.pageSize ?? 20;
-
-    query
-      .orderBy("transaction.date", "DESC")
-      .addOrderBy("transaction.created_at", "DESC")
-      .skip((page - 1) * pageSize)
-      .take(pageSize);
-
-    const [items, total] = await query.getManyAndCount();
+    const [items, total] = await this.transactionsRepository.findAndCount({
+      where: { userId },
+      order: { date: "DESC", createdAt: "DESC" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
 
     return {
       items: items.map(toTransactionResponse),
@@ -79,35 +46,6 @@ export class TransactionsService {
 
   async listOwnedTransactions(userId: string): Promise<Transaction[]> {
     return this.transactionsRepository.find({ where: { userId } });
-  }
-
-  async expensesByCategoryMonth(
-    userId: string,
-    months: string[],
-    categoryIds: string[],
-  ): Promise<Map<string, number>> {
-    const result = new Map<string, number>();
-    if (months.length === 0 || categoryIds.length === 0) return result;
-
-    const transactions = await this.transactionsRepository.find({
-      where: { userId, type: "expense", categoryId: In(categoryIds) },
-      select: ["categoryId", "amount", "date"],
-    });
-    const monthSet = new Set(months);
-    const today = new Date().toISOString().slice(0, 10);
-    const currentMonth = today.slice(0, 7);
-    for (const transaction of transactions) {
-      if (!transaction.categoryId) continue;
-      const month = transaction.date.slice(0, 7);
-      if (!monthSet.has(month)) continue;
-      // A budget for the current month reflects spending *so far*: movements
-      // dated in the future (scheduled or demo data) are not counted yet, so the
-      // budget stays consistent with period reports up to today.
-      if (month === currentMonth && transaction.date > today) continue;
-      const key = `${transaction.categoryId}:${month}`;
-      result.set(key, (result.get(key) ?? 0) + transaction.amount);
-    }
-    return result;
   }
 
   async getTransaction(
@@ -138,7 +76,6 @@ export class TransactionsService {
       userId,
       type: dto.type,
       amount: Math.abs(dto.amount),
-      currency: dto.currency.toUpperCase(),
       date: dto.date,
       description: dto.description.trim(),
       notes: dto.notes?.trim() || null,
@@ -175,8 +112,6 @@ export class TransactionsService {
       );
     }
     if (dto.amount !== undefined) transaction.amount = Math.abs(dto.amount);
-    if (dto.currency !== undefined)
-      transaction.currency = dto.currency.toUpperCase();
     if (dto.date !== undefined) transaction.date = dto.date;
     if (dto.description !== undefined)
       transaction.description = dto.description.trim();
@@ -226,7 +161,6 @@ export class TransactionsService {
       userId,
       type: "transfer",
       amount: -amount,
-      currency: dto.currency.toUpperCase(),
       date: dto.date,
       description: dto.description.trim(),
       notes: dto.notes?.trim() || null,
@@ -294,7 +228,6 @@ export class TransactionsService {
     inbound.amount = amount;
 
     for (const leg of [outbound, inbound]) {
-      if (dto.currency !== undefined) leg.currency = dto.currency.toUpperCase();
       if (dto.date !== undefined) leg.date = dto.date;
       if (dto.description !== undefined)
         leg.description = dto.description.trim();
