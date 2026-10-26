@@ -1,18 +1,20 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TransactionList } from "@/app/(app)/_components/transactions/transaction-list";
 import { collapseTransfers } from "@/app/(app)/_components/transactions/transaction-list/transaction-list.utils";
 import { TransactionsView } from "@/app/(app)/transactions/_components/transactions-view";
-import { mockApi } from "@/lib/mocks/api";
 import { makeCategory, makeTransaction } from "@/lib/test/factories";
 import { renderWithProviders } from "@/lib/test/render";
-import { resetMockSession, seedMockSession } from "@/lib/test/mock-session";
+import { testState } from "@/lib/test/api-state";
+import { setupTestServer } from "@/lib/test/server";
 
 vi.mock("next/navigation", () => import("@/lib/test/next-navigation"));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
+
+setupTestServer();
 
 describe("collapseTransfers", () => {
   it("keeps non-transfers and collapses a transfer pair to its outgoing leg", () => {
@@ -68,14 +70,14 @@ describe("TransactionList", () => {
           }),
         ]}
         accountNameById={accountNameById}
-        categoryById={new Map([[category.id, category]])}
+        categoryNameById={new Map([[category.id, category.name]])}
       />,
     );
 
     expect(screen.getByText("Sueldo")).toBeInTheDocument();
     expect(screen.getByText("Alquiler")).toBeInTheDocument();
     expect(screen.getByText(/Transferencia/)).toBeInTheDocument();
-    expect(screen.getByText(/Banco → Caja/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Banco → Caja/).length).toBeGreaterThan(0);
   });
 
   it("shows an empty state with an action", () => {
@@ -83,7 +85,7 @@ describe("TransactionList", () => {
       <TransactionList
         transactions={[]}
         accountNameById={new Map()}
-        categoryById={new Map()}
+        categoryNameById={new Map()}
         emptyAction={<button type="button">Nuevo</button>}
       />,
     );
@@ -102,7 +104,7 @@ describe("TransactionList", () => {
           makeTransaction({ id: "1", description: "Sueldo", type: "income" }),
         ]}
         accountNameById={accountNameById}
-        categoryById={new Map()}
+        categoryNameById={new Map()}
         onDelete={onDelete}
         onSelect={onSelect}
         pagination={{
@@ -128,21 +130,21 @@ describe("TransactionList", () => {
     expect(onDelete).toHaveBeenCalled();
 
     expect(screen.getByText(/Página 1 de 2/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Siguiente/ }));
+    await user.click(screen.getByRole("button", { name: /siguiente/i }));
     expect(onPageChange).toHaveBeenCalledWith(2);
   });
 });
 
 describe("TransactionsView", () => {
   beforeEach(() => {
-    seedMockSession();
     vi.restoreAllMocks();
   });
-  afterEach(() => resetMockSession());
 
   it("lists transactions and opens the create dialog", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<TransactionsView />);
+    renderWithProviders(<TransactionsView />, {
+      period: { from: "2000-01-01", to: "2100-01-01" },
+    });
 
     expect(await screen.findByText("Movimientos")).toBeInTheDocument();
     await waitFor(() =>
@@ -150,15 +152,39 @@ describe("TransactionsView", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Nuevo movimiento" }));
-    expect(await screen.findByText("Nuevo movimiento")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Nuevo movimiento" }),
+    ).toBeInTheDocument();
+  });
+
+  it("filters the list by search text", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<TransactionsView />, {
+      period: { from: "2000-01-01", to: "2100-01-01" },
+    });
+
+    await waitFor(() =>
+      expect(screen.getAllByText(/Supermercado/).length).toBeGreaterThan(0),
+    );
+    await user.type(
+      screen.getByPlaceholderText("Buscar por concepto, nota o monto"),
+      "Sueldo",
+    );
+
+    await waitFor(() =>
+      expect(screen.getAllByText("Sueldo").length).toBeGreaterThan(0),
+    );
+    expect(screen.queryByText("Supermercado")).toBeNull();
   });
 
   it("deletes a transaction through the confirm dialog", async () => {
     const user = userEvent.setup();
-    const deleteSpy = vi
-      .spyOn(mockApi, "deleteTransaction")
-      .mockResolvedValue(undefined);
-    renderWithProviders(<TransactionsView />);
+    const countBefore = testState.transactions.filter(
+      (transaction) => transaction.description === "Servicios",
+    ).length;
+    renderWithProviders(<TransactionsView />, {
+      period: { from: "2000-01-01", to: "2100-01-01" },
+    });
 
     await waitFor(() =>
       expect(screen.getAllByText(/Servicios/).length).toBeGreaterThan(0),
@@ -171,6 +197,13 @@ describe("TransactionsView", () => {
 
     const dialog = await screen.findByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Eliminar" }));
-    await waitFor(() => expect(deleteSpy).toHaveBeenCalled());
+
+    await waitFor(() =>
+      expect(
+        testState.transactions.filter(
+          (transaction) => transaction.description === "Servicios",
+        ).length,
+      ).toBe(countBefore - 1),
+    );
   });
 });

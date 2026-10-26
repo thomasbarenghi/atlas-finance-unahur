@@ -1,8 +1,22 @@
+import {
+  Banknote,
+  CircleDollarSign,
+  Landmark,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 import type { AccountType } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
-import { ACCOUNT_TYPE_ICONS, DEFAULT_ACCOUNT_ICON } from "./account-icon.utils";
 
-export { ACCOUNT_TYPE_ICONS } from "./account-icon.utils";
+export const ACCOUNT_TYPE_ICONS: Record<AccountType, LucideIcon> = {
+  cash: Banknote,
+  bank: Landmark,
+  wallet: Wallet,
+  other: CircleDollarSign,
+};
+
+/** Fallback for legacy/unknown values (e.g. stale `card` rows from older seeds). */
+const DEFAULT_ACCOUNT_ICON = CircleDollarSign;
 
 export interface AccountIconProps {
   type: AccountType;
@@ -15,11 +29,11 @@ export const AccountIcon = ({ type, className }: AccountIconProps) => {
   return (
     <span
       className={cn(
-        "bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-full",
+        "bg-accent text-primary flex size-[30px] shrink-0 items-center justify-center rounded-full md:size-9",
         className,
       )}
     >
-      <Icon className="size-5" aria-hidden />
+      <Icon className="size-[14px] md:size-[17px]" aria-hidden />
     </span>
   );
 };

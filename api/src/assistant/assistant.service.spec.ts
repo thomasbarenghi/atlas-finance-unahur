@@ -79,6 +79,41 @@ describe("AssistantService", () => {
     });
   });
 
+  it("forwards the conversation history before the current question", async () => {
+    const { service, aiService } = build();
+    const events = [];
+    for await (const event of service.answer("u1", {
+      question: "¿Y lo del auto?",
+      history: [
+        {
+          role: "user",
+          content: "¿Es inteligente comprar un auto por 2.750.000?",
+        },
+        { role: "assistant", content: "Equivale al 97% de tu patrimonio." },
+      ],
+    } as any)) {
+      events.push(event);
+    }
+
+    const messages = aiService.streamChat.mock.calls[0][0] as {
+      role: string;
+      content: string;
+    }[];
+    expect(messages.map((message) => message.role)).toEqual([
+      "system",
+      "user",
+      "assistant",
+      "user",
+    ]);
+    expect(messages[1].content).toContain("comprar un auto");
+    expect(messages[2].content).toContain("97%");
+    expect(messages[3].content).toContain("Pregunta: ¿Y lo del auto?");
+    expect(events.at(-1)).toEqual({
+      type: "done",
+      data: { insufficient: false },
+    });
+  });
+
   it("declares insufficiency when the model returns no text", async () => {
     const { service, aiService } = build();
     aiService.streamChat.mockReturnValue(asyncTokens([]));

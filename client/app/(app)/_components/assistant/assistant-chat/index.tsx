@@ -1,252 +1,35 @@
 "use client";
 
-import { useState } from "react";
-import {
-  ArrowUpRight,
-  History,
-  Loader2,
-  MessageCircleQuestion,
-  Plus,
-  Send,
-  Sparkles,
-  Square,
-  X,
-} from "lucide-react";
-import { MarkdownText } from "@/components/common/markdown-text";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Textarea } from "@/components/ui/textarea";
-import { useAssistantChat } from "@/hooks/use-assistant-chat";
-import { cn } from "@/lib/utils";
-import { AssistantHistorySheet } from "./history-sheet";
 import { useAssistantConversation } from "./hooks/use-assistant-conversation";
+import { AssistantComposer } from "./components/assistant-composer";
+import { AssistantEmptyState } from "./components/assistant-empty-state";
+import { AssistantMessages } from "./components/assistant-messages";
 
-const SUGGESTED_QUESTIONS = [
-  "¿En qué gasté más este mes?",
-  "¿Cuánto ahorré en el período?",
-  "¿Cómo fueron mis ingresos y gastos?",
-];
-
-export interface AssistantChatProps {
-  onClose?: () => void;
-  showHeader?: boolean;
-  historyOpen?: boolean;
-  onHistoryOpenChange?: (open: boolean) => void;
-}
-
-export const AssistantChat = ({
-  onClose,
-  showHeader = true,
-  historyOpen: historyOpenProp,
-  onHistoryOpenChange,
-}: AssistantChatProps) => {
-  const { threads, activeThread, selectThread, deleteThread } =
-    useAssistantChat();
-  const {
-    bottomRef,
-    messages,
-    input,
-    setInput,
-    isBusy,
-    submit,
-    cancelStream,
-    startNewThread,
-  } = useAssistantConversation();
-
-  const [internalHistoryOpen, setInternalHistoryOpen] = useState(false);
-  const historyOpen = historyOpenProp ?? internalHistoryOpen;
-  const setHistoryOpen = onHistoryOpenChange ?? setInternalHistoryOpen;
+export const AssistantChat = () => {
+  const { bottomRef, messages, input, setInput, isBusy, submit, cancelStream } =
+    useAssistantConversation();
 
   return (
-    <div className="flex h-full flex-col">
-      {showHeader ? (
-        <div className="border-b p-4">
-          <ScopeHeader
-            onClose={onClose}
-            onNewChat={startNewThread}
-            onOpenHistory={() => setHistoryOpen(true)}
-          />
-        </div>
-      ) : null}
-
+    <div className="flex h-full min-h-0 flex-col">
       <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-3 p-4">
+        <div className="mx-auto flex w-full max-w-[780px] flex-col gap-4 py-4">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center gap-5 py-8 text-center">
-              <span className="from-primary/25 to-primary/5 flex size-16 items-center justify-center rounded-3xl bg-gradient-to-br">
-                <Sparkles className="text-primary size-7" aria-hidden />
-              </span>
-              <div className="flex flex-col gap-1">
-                <h2 className="font-heading text-lg font-semibold">
-                  ¿En qué te ayudo?
-                </h2>
-                <p className="text-muted-foreground max-w-xs text-sm">
-                  Preguntá por tus gastos, ingresos y ahorro. El asistente solo
-                  consulta tus datos.
-                </p>
-              </div>
-              <div className="flex w-full max-w-sm flex-col gap-2">
-                {SUGGESTED_QUESTIONS.map((question) => (
-                  <button
-                    type="button"
-                    key={question}
-                    onClick={() => submit(question)}
-                    className="bg-card hover:bg-muted/50 flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition-colors"
-                  >
-                    <MessageCircleQuestion
-                      className="text-primary size-4 shrink-0"
-                      aria-hidden
-                    />
-                    <span className="flex-1">{question}</span>
-                    <ArrowUpRight
-                      className="text-muted-foreground size-4 shrink-0"
-                      aria-hidden
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
+            <AssistantEmptyState onSelect={submit} />
           ) : (
-            messages.map((message) => (
-              <div
-                key={message.id}
-                className={cn(
-                  "flex max-w-[85%] flex-col gap-1 rounded-2xl px-3 py-2 text-sm",
-                  message.role === "user"
-                    ? "bg-primary text-primary-foreground ml-auto"
-                    : "bg-muted",
-                )}
-              >
-                {message.content ? (
-                  message.role === "assistant" ? (
-                    <MarkdownText content={message.content} />
-                  ) : (
-                    <span>{message.content}</span>
-                  )
-                ) : message.role === "assistant" ? (
-                  <span className="text-muted-foreground flex items-center gap-2">
-                    <Loader2 className="size-3.5 animate-spin" />
-                    Pensando…
-                  </span>
-                ) : null}
-              </div>
-            ))
+            <AssistantMessages messages={messages} isBusy={isBusy} />
           )}
           <div ref={bottomRef} />
         </div>
       </ScrollArea>
 
-      <div className="flex flex-col gap-2 px-4 pt-3 pb-2">
-        <form
-          className="flex items-end gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            submit(input);
-          }}
-        >
-          <Textarea
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                submit(input);
-              }
-            }}
-            placeholder="Escribí tu pregunta…"
-            rows={1}
-            maxLength={1000}
-            className="max-h-32 min-h-9 resize-none"
-            aria-label="Pregunta para el asistente"
-          />
-          {isBusy ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              aria-label="Detener respuesta"
-              onClick={cancelStream}
-            >
-              <Square />
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              size="icon"
-              aria-label="Enviar pregunta"
-              disabled={!input.trim()}
-            >
-              <Send />
-            </Button>
-          )}
-        </form>
-      </div>
-
-      <AssistantHistorySheet
-        open={historyOpen}
-        onOpenChange={setHistoryOpen}
-        threads={threads}
-        activeId={activeThread?.id ?? null}
-        onSelect={selectThread}
-        onDelete={deleteThread}
-        onNew={startNewThread}
+      <AssistantComposer
+        input={input}
+        onInputChange={setInput}
+        isBusy={isBusy}
+        onSubmit={submit}
+        onCancel={cancelStream}
       />
-    </div>
-  );
-};
-
-const ScopeHeader = ({
-  onClose,
-  onNewChat,
-  onOpenHistory,
-}: {
-  onClose?: () => void;
-  onNewChat: () => void;
-  onOpenHistory?: () => void;
-}) => {
-  return (
-    <div className="flex items-start justify-between gap-2">
-      <div className="flex items-center gap-2">
-        <span className="from-primary/25 to-primary/5 flex size-8 items-center justify-center rounded-full bg-gradient-to-br">
-          <Sparkles className="text-primary size-4" aria-hidden />
-        </span>
-        <div className="flex flex-col">
-          <span className="font-heading text-sm font-semibold">Asistente</span>
-          <span className="text-muted-foreground text-xs">
-            Información de tus datos, no asesoramiento financiero.
-          </span>
-        </div>
-      </div>
-      <div className="flex items-center gap-0.5">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Nueva conversación"
-          onClick={onNewChat}
-        >
-          <Plus />
-        </Button>
-        {onOpenHistory ? (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Historial"
-            onClick={onOpenHistory}
-          >
-            <History />
-          </Button>
-        ) : null}
-        {onClose ? (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Cerrar asistente"
-            onClick={onClose}
-          >
-            <X />
-          </Button>
-        ) : null}
-      </div>
     </div>
   );
 };

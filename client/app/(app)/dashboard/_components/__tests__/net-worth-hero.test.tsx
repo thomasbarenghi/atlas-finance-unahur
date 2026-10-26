@@ -25,20 +25,4 @@ describe("NetWorthHero", () => {
       screen.getByRole("img", { name: "Evolución del patrimonio neto" }),
     ).toBeInTheDocument();
   });
-
-  it("can hide the period stats", () => {
-    render(
-      <NetWorthHero
-        value={1}
-        deltaPct={null}
-        currency="ARS"
-        series={dashboard.netWorthSeries}
-        income={0}
-        expenses={0}
-        savings={0}
-        showPeriodStats={false}
-      />,
-    );
-    expect(screen.queryByText("Ingresos")).toBeNull();
-  });
 });

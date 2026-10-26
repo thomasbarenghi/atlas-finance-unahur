@@ -1,5 +1,11 @@
 # Auditoría integral del sistema de Tool Calling del agente de IA
 
+> **Documento histórico (v0.2).** Esta auditoría describe el sistema de *tool
+> calling* de una versión anterior. La v0.3 redujo el alcance: el asistente es de
+> **solo consulta** y se eliminaron presupuestos, activos, inversiones, deudas,
+> objetivos, reportes, cotizaciones y las escrituras del asistente. No usar este
+> documento como fuente de verdad del estado actual.
+>
 > **Proyecto:** Atlass Fin (monorepo `client/` + `api/`)
 > **Alcance:** sistema de *tool calling* del asistente y su relación con toda la lógica de negocio, evaluado sobre el **diff local actual** de la rama `feature/finance-backend-api`.
 > **Método:** lectura completa de UI, frontend, API, servicios, DTOs, entidades, cálculo, docs y tests. Toda afirmación se apoya en el código con `archivo:línea`.

@@ -76,6 +76,15 @@ export const makeDashboardData = (
     { date: "2026-01-01", value: 100_000 },
     { date: "2026-01-31", value: 120_000 },
   ],
+  incomeExpenseByPeriod: [
+    {
+      bucket: "month",
+      start: "2026-01-01",
+      end: "2026-01-31",
+      income: 200_000,
+      expenses: 80_000,
+    },
+  ],
   incomeExpenseByMonth: [
     { month: "2026-01", income: 200_000, expenses: 80_000 },
   ],

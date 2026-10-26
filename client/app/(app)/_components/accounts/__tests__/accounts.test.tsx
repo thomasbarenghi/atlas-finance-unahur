@@ -3,16 +3,17 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AccountsList } from "@/app/(app)/_components/accounts/accounts-list";
 import { AccountDetailView } from "@/app/(app)/accounts/detail/_components/account-detail-view";
-import { mockApi } from "@/lib/mocks/api";
-import { mockState } from "@/lib/mocks/store";
 import { makeAccount } from "@/lib/test/factories";
 import { renderWithProviders } from "@/lib/test/render";
-import { resetMockSession, seedMockSession } from "@/lib/test/mock-session";
+import { testState } from "@/lib/test/api-state";
+import { setupTestServer } from "@/lib/test/server";
 
 vi.mock("next/navigation", () => import("@/lib/test/next-navigation"));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
+
+setupTestServer();
 
 describe("AccountsList", () => {
   it("orders accounts by type and shows balances", () => {
@@ -54,17 +55,15 @@ describe("AccountsList", () => {
 
 describe("AccountDetailView", () => {
   beforeEach(() => {
-    seedMockSession();
     vi.restoreAllMocks();
     window.history.replaceState({}, "", "/");
   });
   afterEach(() => {
-    resetMockSession();
     window.history.replaceState({}, "", "/");
   });
 
   const bankId = () =>
-    mockState.accounts.find((account) => account.name === "Banco ARS")!.id;
+    testState.accounts.find((account) => account.name === "Banco ARS")!.id;
 
   it("renders the account, metrics and movements", async () => {
     window.history.replaceState({}, "", `/accounts/detail?id=${bankId()}`);
@@ -95,17 +94,19 @@ describe("AccountDetailView", () => {
 
   it("deletes the account through the confirm dialog", async () => {
     const user = userEvent.setup();
-    const deleteSpy = vi
-      .spyOn(mockApi, "deleteAccount")
-      .mockResolvedValue(undefined);
-    window.history.replaceState({}, "", `/accounts/detail?id=${bankId()}`);
+    const targetId = bankId();
+    window.history.replaceState({}, "", `/accounts/detail?id=${targetId}`);
     renderWithProviders(<AccountDetailView />);
 
     await screen.findAllByText("Banco ARS");
-    await user.click(screen.getByRole("button", { name: "Más acciones" }));
-    await user.click(await screen.findByRole("menuitem", { name: /Eliminar/ }));
+    await user.click(screen.getByRole("button", { name: "Eliminar cuenta" }));
     const dialog = await screen.findByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Eliminar" }));
-    await waitFor(() => expect(deleteSpy).toHaveBeenCalled());
+
+    await waitFor(() =>
+      expect(
+        testState.accounts.find((account) => account.id === targetId),
+      ).toBeUndefined(),
+    );
   });
 });

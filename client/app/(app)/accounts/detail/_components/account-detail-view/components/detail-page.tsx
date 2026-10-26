@@ -8,13 +8,9 @@ import type { ReactNode } from "react";
 
 export interface DetailPageProps {
   title: string;
-  description?: string;
   actions?: ReactNode;
+  titleSize?: "default" | "compact";
   children: ReactNode;
-}
-
-export interface DetailPageSkeletonProps {
-  metricCount?: number;
 }
 
 export interface DetailPageNotFoundProps {
@@ -26,25 +22,23 @@ export interface DetailPageNotFoundProps {
 
 export const DetailPage = ({
   title,
-  description,
   actions,
+  titleSize,
   children,
 }: DetailPageProps) => (
-  <div className="flex flex-col gap-6">
-    <PageHeader title={title} description={description} actions={actions} />
+  <div className="flex flex-col gap-3.5 md:gap-[18px]">
+    <PageHeader title={title} actions={actions} titleSize={titleSize} />
     {children}
   </div>
 );
 
-export const DetailPageSkeleton = ({
-  metricCount = 3,
-}: DetailPageSkeletonProps) => (
-  <div className="flex flex-col gap-6">
+export const DetailPageSkeleton = () => (
+  <div className="flex flex-col gap-5">
     <Skeleton className="h-9 w-40" />
-    <Skeleton className="h-44 w-full rounded-2xl" />
+    <Skeleton className="h-36 w-full rounded-3xl" />
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-      {Array.from({ length: metricCount }, (_, index) => (
-        <Skeleton key={index} className="h-16 rounded-2xl" />
+      {Array.from({ length: 3 }, (_, index) => (
+        <Skeleton key={index} className="h-[66px] rounded-2xl" />
       ))}
     </div>
   </div>

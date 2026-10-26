@@ -4,11 +4,9 @@ import { cn } from "@/lib/utils";
 
 export interface TrendBadgeProps {
   deltaPct: number | null;
-  label?: string;
-  className?: string;
 }
 
-export const TrendBadge = ({ deltaPct, label, className }: TrendBadgeProps) => {
+export const TrendBadge = ({ deltaPct }: TrendBadgeProps) => {
   if (deltaPct === null) return null;
 
   const positive = deltaPct >= 0;
@@ -17,17 +15,13 @@ export const TrendBadge = ({ deltaPct, label, className }: TrendBadgeProps) => {
   return (
     <span
       className={cn(
-        "flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-        positive
-          ? "bg-success/10 text-success"
-          : "bg-destructive/10 text-destructive",
-        className,
+        "flex h-[21px] w-fit items-center gap-1 rounded-full px-2 text-[10px] leading-[14px] font-bold md:h-6 md:gap-[5px] md:px-[9px] md:text-[11px] md:leading-[15px]",
+        positive ? "bg-accent text-primary" : "bg-destructive/10 text-expense",
       )}
     >
-      <DeltaIcon className="size-3.5" aria-hidden />
+      <DeltaIcon className="size-[11px] md:size-3" aria-hidden />
       {positive ? "+" : ""}
       {formatPercentPoints(deltaPct)}
-      {label ? <span className="font-normal">{label}</span> : null}
     </span>
   );
 };

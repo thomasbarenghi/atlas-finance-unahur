@@ -114,31 +114,32 @@ Rules:
 
 ```tsx
 // app/(app)/_components/accounts/accounts-list/index.tsx
-import { DataList } from "@/components/common/data-list";
 import { Amount } from "@/components/common/amount";
+import { CURRENCY } from "@/lib/format";
 import type { Account } from "@/lib/api/types";
 
 export interface AccountsListProps {
   accounts: Account[];
-  onArchive: (id: string) => void;
+  onSelect: (id: string) => void;
 }
 
-export const AccountsList = ({ accounts, onArchive }: AccountsListProps) => {
+export const AccountsList = ({ accounts, onSelect }: AccountsListProps) => {
   return (
-    <DataList
-      data={accounts}
-      getRowKey={(a) => a.id}
-      renderItem={(a) => (
-        <>
-          {a.name} <Amount value={a.currentBalance} currency={a.currency} />
-        </>
-      )}
-    />
+    <ul>
+      {accounts.map((account) => (
+        <li key={account.id}>
+          <button type="button" onClick={() => onSelect(account.id)}>
+            {account.name}
+            <Amount value={account.currentBalance} currency={CURRENCY} />
+          </button>
+        </li>
+      ))}
+    </ul>
   );
-}
+};
 ```
 
-Anti-pattern: `AccountsList` implementing its own table, currency formatting, and pagination, duplicating `DataList`/`Amount`.
+Anti-pattern: `AccountsList` implementing its own table, currency formatting, and pagination, duplicating `Amount`, `ListSkeleton` or `ListPagination`.
 
 Promotion criterion: used by ≥ 2 routes **and** its API mentions no domain concept. If two routes need something similar but diverge, do **not** force an abstraction (YAGNI).
 
@@ -149,7 +150,7 @@ Promotion criterion: used by ≥ 2 routes **and** its API mentions no domain con
 - One hook = one responsibility. If it mixes fetching + transformation + UI state, split it.
 - **Data hooks** (TanStack Query) live in `lib/query/<domain>.ts`. **UI hooks** private to a component live in `components/<...>/hooks/`. Shared hooks live in `hooks/`.
 - Follow React rules: never call hooks conditionally or outside components/hooks.
-- Hooks MUST NOT import `next/*`; keeps `lib/` portable to Capacitor.
+- Hooks MUST NOT import `next/*`; keeps `lib/` portable to any React runtime.
 
 ```ts
 // components/common/amount/hooks/use-amount-color.ts
@@ -253,7 +254,7 @@ A task is done when:
 ## Exceptions
 
 - **Next.js requires `export default`** in special App Router files — the only exception:
-  `app/**/page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, `global-error.tsx`, `not-found.tsx`, `template.tsx`, `default.tsx`, and `route.ts` (Route Handlers). This project does not use Route Handlers (static export/Capacitor).
-- **Config files** (`next.config.ts`, `tailwind.config.ts`, `capacitor.config.ts`) follow their tool's required format.
+  `app/**/page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, `global-error.tsx`, `not-found.tsx`, `template.tsx`, `default.tsx`, and `route.ts` (Route Handlers). This project does not use Route Handlers (static export).
+- **Config files** (`next.config.ts`, `tailwind.config.ts`) follow their tool's required format.
 - **`components/ui/`** keeps shadcn's convention (generated `function` declarations, one file per component, named exports); the arrow-function rule and the folder-with-`index.tsx` rule do NOT apply here (Prettier still formats these files). The folder-with-`index.tsx` rule applies to owned components (`common/`, `features/`).
 - **Generated code** (shadcn CLI, OpenAPI-derived types) is not hand-edited and is exempt; regenerate it. The shadcn registry ships a bare `cn` import; `tsconfig.json` aliases `cn` → `@/lib/utils` so generated files stay untouched (define `cn` with `clsx` + `tailwind-merge`).

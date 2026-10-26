@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| Versión | 0.3 |
+| Versión | 0.3.1 |
 | Estado | En desarrollo — versión preliminar, no finalizada |
-| Fecha | 16/10/2026 |
+| Fecha | 26/10/2026 |
 | Sponsor Operación | Secretaría Académica UNAHUR |
 | Sponsor Organización | UNAHUR |
 | Autor | Barenghi, Thomas |
@@ -27,6 +27,7 @@
 | 0.1 | 04/09/2026 | Barenghi, Thomas | Versión inicial del documento. |
 | 0.2 | 02/10/2026 | Barenghi, Thomas | Se actualiza el cálculo de patrimonio neto (RN-002 y glosario) conforme a la nueva definición de CAL-001. No se modifican los requerimientos de negocio. |
 | 0.3 | 16/10/2026 | Barenghi, Thomas | Se ajusta el alcance de la versión y se consolida la documentación en torno a los flujos principales: acceso, cuentas, movimientos, panel y asistente de consulta. Se actualizan las reglas de negocio, los criterios de bondad, las pantallas y el glosario, y se amplían las historias de usuario para cubrir todos los módulos vigentes. |
+| 0.3.1 | 26/10/2026 | Barenghi, Thomas | Se alinea el documento con la implementación vigente: búsqueda, filtros y exportación CSV de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria y semanal del panel; y continuidad de la conversación del asistente en memoria del cliente. |
 
 ## 2. Alcance
 
@@ -52,6 +53,8 @@
 
 **Atributos de calidad exigidos: cada recurso queda restringido a su propietario mediante autorización verificada en el servidor; las contraseñas se almacenan con hash adaptativo y los secretos de los proveedores nunca salen del servidor; las fórmulas financieras están cubiertas por pruebas unitarias y los flujos P0 por pruebas de integración; y la demostración usa datos ficticios y reproducibles. El detalle normativo de cada atributo está en el FRD (NFR-SEG y NFR-CAL).**
 
+**La preferencia de tema (claro, oscuro o automático) es local al navegador y no se sincroniza entre dispositivos. La exportación CSV se genera en el cliente y no se envía a terceros.**
+
 ### 2.5. Dependencias
 
 **El producto depende de un proveedor de inteligencia artificial para las respuestas en lenguaje natural, de una base de datos relacional para la persistencia y de una plataforma de despliegue segura y reproducible para la demostración. Todas las integraciones externas se realizan exclusivamente desde el backend.**
@@ -61,6 +64,10 @@
 **El alcance de la versión inicial incluye registro, inicio y cierre de sesión con perfil; alta, edición y eliminación de cuentas manuales; ingresos, gastos y transferencias con categorías; dashboard con indicadores y gráficos; y un asistente de inteligencia artificial opcional de solo consulta.**
 
 **La aplicación opera con una única moneda, cinco categorías fijas del sistema y categorías propias que cada usuario puede crear, editar y eliminar.**
+
+**La versión incorpora búsqueda, filtros y exportación CSV de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria o semanal del panel según la duración del rango; y continuidad de la conversación del asistente en memoria del cliente, sin persistencia en el servidor.**
+
+**El período de análisis (Este mes, Últimos 30 días, 6 meses y 12 meses) es compartido por el panel, los movimientos y el asistente.**
 
 **Quedan fuera de alcance la sincronización automática con bancos o billeteras, la ejecución de pagos u operaciones reales, la compraventa de activos y la conexión de billeteras digitales, el asesoramiento financiero, legal, impositivo o contable, la liquidación de impuestos y la conciliación bancaria avanzada, las cuentas familiares o multiusuario con permisos compartidos, las aplicaciones móviles nativas, las notificaciones push y las automatizaciones complejas, y una aplicación para iOS. Las capacidades de gestión patrimonial avanzada y de integración con proveedores de mercado quedan para una iteración posterior.**
 
@@ -77,7 +84,10 @@
 | RN-003 | Una transferencia no se contabiliza como ingreso ni como gasto. |
 | RN-004 | Toda transferencia válida descuenta en la cuenta de origen y acredita en la cuenta de destino dentro de una única operación. |
 | RN-012 | La inteligencia artificial será de solo consulta: podrá leer la información del propio usuario con los permisos de su sesión, pero nunca crearla, editarla ni eliminarla. |
-| RN-013 | Los totales entregados al asistente serán calculados previamente por el sistema; la respuesta incluirá período y aclaración informativa. |
+| RN-013 | Los totales entregados al asistente serán calculados previamente por el sistema para el período consultado; el historial de conversación solo aporta continuidad y la respuesta incluirá período y aclaración informativa. |
+| RN-015 | Las cinco categorías del sistema son globales y de solo lectura. Cada categoría propia pertenece a un único usuario y solo él puede crearla, editarla o eliminarla. |
+| RN-016 | Eliminar una categoría propia no elimina los movimientos asociados: quedan sin categoría y se muestran como “Sin categoría”. |
+| RN-017 | La conversación del asistente no se persiste en el servidor. El cliente puede reenviar turnos recientes como contexto, pero las cifras siempre se recalculan para el período consultado. |
 
 ### 3.2. Casos de Estudio
 
@@ -101,9 +111,13 @@
 | US-014 | Como usuario registrado, quiero crear, editar y eliminar mis cuentas con su saldo inicial, para mantener actualizado dónde está mi dinero. | La cuenta admite nombre, tipo y saldo inicial; el saldo actual se calcula desde los movimientos; la eliminación es en cascada y solo alcanza cuentas propias. | Cuentas (FR-CUE-001 a FR-CUE-005) · HU-008 |
 | US-015 | Como usuario registrado, quiero transferir dinero entre dos cuentas propias, para mover fondos sin alterar mis ingresos ni mis gastos. | Origen y destino son distintos y propios; ambos lados se aplican de forma atómica; la transferencia se excluye del flujo de fondos. | Movimientos (FR-TRX-004/005) · CAL-003 · HU-002 |
 | US-016 | Como usuario registrado, quiero corregir o eliminar un movimiento propio, para arreglar errores de carga. | Solo se editan o eliminan movimientos del usuario autenticado y los totales se actualizan en consecuencia. | Movimientos (FR-TRX-003) · HU-011 |
-| US-017 | Como usuario registrado, quiero ver gráficos de la evolución del patrimonio, de ingresos frente a gastos y de gastos por categoría, para interpretar mis finanzas. | El panel muestra los tres gráficos y coinciden con los datos del período seleccionado. | Dashboard (FR-DAS-002/003/004) · HU-010 |
-| US-018 | Como usuario registrado, quiero elegir el período de análisis y ver una guía cuando falten datos, para no interpretar información incompleta. | El período seleccionado afecta a los indicadores y gráficos; sin datos se muestra un estado vacío con una acción sugerida. | Dashboard (FR-DAS-007/008) · HU-012 |
+| US-017 | Como usuario registrado, quiero ver gráficos de la evolución del patrimonio, de ingresos frente a gastos y de gastos por categoría, para interpretar mis finanzas. | El panel muestra los tres gráficos y coinciden con los datos del período seleccionado; la evolución y las barras se adaptan a la duración del rango (diaria/semanal o mensual). | Dashboard (FR-DAS-002/003/004) · HU-010 |
+| US-018 | Como usuario registrado, quiero elegir el período de análisis y ver una guía cuando falten datos, para no interpretar información incompleta. | El período seleccionado (Este mes, Últimos 30 días, 6 meses, 12 meses) es compartido por panel, movimientos y asistente y afecta a indicadores y gráficos; sin datos se muestra un estado vacío con una acción sugerida. | Dashboard (FR-DAS-007/008) · HU-012 |
 | US-019 | Como usuario registrado, quiero que el asistente solo consulte y avise cuando no haya datos suficientes, para no recibir respuestas inventadas. | El asistente no crea, edita ni elimina información y declara insuficiencia cuando no puede concluir. | Asistente (FR-IA-011/015) · HU-013 |
+| US-020 | Como usuario registrado, quiero buscar, filtrar y exportar mis movimientos, para encontrar información y respaldarla sin recorrer toda la lista. | La búsqueda cubre concepto, nota, categoría y monto; los filtros permiten tipo, cuenta, categoría y período; la exportación CSV respeta los filtros aplicados. | Movimientos (FR-TRX-007/008) · HU-015 |
+| US-021 | Como usuario registrado, quiero gestionar mis propias categorías, para clasificar mis movimientos según mis criterios. | Puedo crear, editar y eliminar categorías propias; las cinco del sistema son de solo lectura; al eliminar una propia sus movimientos quedan sin categoría. | Categorías (FR-CAT-001/002/003) · HU-016 |
+| US-022 | Como usuario registrado, quiero elegir el tema de la interfaz, para adaptarla a mis preferencias. | El tema (claro, oscuro o automático) se persiste localmente y no afecta los datos financieros. | Configuración (FR-CFG-001) · HU-017 |
+| US-023 | Como usuario registrado, quiero continuar una conversación con el asistente, para hacer preguntas de seguimiento sin repetir el contexto. | El asistente recibe los turnos recientes desde el cliente, no los persiste y responde con las cifras del período vigente. | Asistente (FR-IA-016) · HU-018 |
 
 ### 4.2. Criterios de Bondad
 
@@ -112,6 +126,8 @@
 | Demostración de extremo a extremo | Los flujos principales —acceso, cuentas, movimientos e inteligencia artificial— pueden demostrarse de extremo a extremo. |
 | Consistencia de los cálculos | Los cálculos de saldo, patrimonio y flujo de fondos coinciden con los movimientos registrados. |
 | Verificabilidad del asistente | Las respuestas del asistente pueden verificarse contra el dashboard del mismo período y el asistente no modifica los datos. |
+| Continuidad del asistente | El asistente interpreta preguntas de seguimiento con el historial reciente, sin persistirlo y manteniendo las cifras del período consultado. |
+| Portabilidad de datos | El usuario puede exportar sus movimientos a CSV con los filtros aplicados, sin alterar la información registrada. |
 | Usabilidad y respuesta de la interfaz | La interfaz funciona en escritorio y móvil y ofrece estados vacíos, de carga y de error comprensibles. |
 | Evidencia de aceptación | Los requerimientos P0 cuentan con pruebas automatizadas o evidencia reproducible de aceptación. |
 | Seguridad | No quedan vulnerabilidades críticas conocidas en autenticación, autorización, manejo de secretos o exposición de datos. |
@@ -130,11 +146,12 @@
 | ID | Pantalla | Contenido y componentes previstos |
 |---|---|---|
 | SC-001 | Acceso | Registro e inicio de sesión; Card, Form, Input, Button y Alert. |
-| SC-002 | Dashboard | Indicadores, gráficos y accesos rápidos; Card, Chart y Skeleton. |
-| SC-003 | Cuentas | Listado, saldo y formularios; Data Table, Badge, Dialog y Dropdown Menu. |
-| SC-004 | Movimientos | Tabla y alta o edición; Data Table, Date Picker, Select, Form y Alert Dialog. |
-| SC-009 | Asistente IA | Conversación y alcance del asistente; Scroll Area, Textarea, Button y Alert. |
-| SC-010 | Configuración | Perfil; Form y Alert Dialog. |
+| SC-002 | Dashboard | Indicadores, gráficos, período compartido y accesos rápidos; Card, Chart y Skeleton. |
+| SC-003 | Cuentas | Listado, saldo, transferencia desde el detalle y formularios; Data Table, Badge, Dialog y Dropdown Menu. |
+| SC-004 | Movimientos | Listado agrupado por mes, búsqueda, filtros y alta o edición; Data Table, Date Picker, Select, Form, Alert Dialog y exportación CSV. |
+| SC-009 | Asistente IA | Conversación con historial en memoria, período y alcance del asistente; Scroll Area, Textarea, Button y Alert. |
+| SC-010 | Configuración | Perfil, preferencia de tema, exportación y sesión; Form, Segmented Control y Alert Dialog. |
+| SC-011 | Categorías | Listado con uso del período, alta y edición; Tabs, Badge, Progress, Dialog y Alert Dialog. |
 
 ## 6. Glosario
 
@@ -142,10 +159,15 @@
 |---|---|
 | Cuenta | Contenedor de fondos del usuario con un saldo determinado. |
 | Movimiento | Ingreso, gasto o transferencia registrado sobre una o más cuentas del usuario. |
-| Categoría | Clasificación fija y predefinida por el sistema para los movimientos. |
+| Categoría | Clasificación de los movimientos; puede ser del sistema (global y de solo lectura) o propia del usuario. |
+| Categoría del sistema | Categoría global definida por la aplicación y compartida por todos los usuarios; no se edita ni se elimina. |
+| Categoría propia | Categoría creada por un usuario, editable y eliminable solo por su propietario. |
 | Transferencia | Movimiento que descuenta una cuenta de origen y acredita una de destino sin alterar ingresos ni gastos. |
 | Patrimonio neto | Suma de los saldos netos de las cuentas del usuario. |
 | Flujo de fondos | Resultado de ingresos menos gastos dentro de un período. |
+| Preferencias locales | Configuración de la interfaz (tema) guardada en el navegador del usuario. |
+| Historial de conversación | Turnos recientes que el cliente reenvía al asistente para interpretar preguntas de seguimiento; no se almacenan en el servidor. |
+| CSV | Archivo de texto separado por comas que se usa para exportar movimientos. |
 | P0 / P1 / P2 | Niveles de prioridad esencial, importante y futura. |
 
 ## 7. Minutas de Reunión

@@ -8,29 +8,28 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { AuthGuard } from "@/components/layout/auth-guard";
 import { makeUser } from "@/lib/test/factories";
 import { renderWithProviders } from "@/lib/test/render";
+import { setupTestServer } from "@/lib/test/server";
 
 vi.mock("next/navigation", () => import("@/lib/test/next-navigation"));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
+setupTestServer();
+
 import { replace, setPathname } from "@/lib/test/next-navigation";
 
 describe("Brand", () => {
-  it("renders the name and hides it in compact mode", () => {
-    const { unmount } = render(<Brand />);
-    expect(screen.getByText("Atlass Fin")).toBeInTheDocument();
-    unmount();
-
-    render(<Brand compact />);
-    expect(screen.queryByText("Atlass Fin")).toBeNull();
+  it("renders the name", () => {
+    render(<Brand />);
+    expect(screen.getByText("atlass fin")).toBeInTheDocument();
   });
 });
 
 describe("Sidebar", () => {
   it("marks the active section", () => {
     setPathname("/dashboard");
-    render(<Sidebar />);
+    renderWithProviders(<Sidebar />);
     expect(screen.getByRole("link", { name: /Inicio/ })).toHaveAttribute(
       "aria-current",
       "page",

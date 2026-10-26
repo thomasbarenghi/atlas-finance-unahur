@@ -3,9 +3,12 @@
 import { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
+import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { FormDialog } from "@/components/common/form-dialog";
 import { FormTextField } from "@/components/common/form-text-field";
+import { SegmentedControl } from "@/components/common/segmented-control";
+import { FIELD_LABEL } from "@/components/common/ui-classes";
 import { getErrorMessage } from "@/lib/api/errors";
 import type { Category, CategoryType } from "@/lib/api/types";
 import { applyApiFieldErrors } from "@/lib/forms";
@@ -15,20 +18,19 @@ import {
   categorySchema,
   type CategoryFormValues,
 } from "@/lib/validation/categories";
-import { cn } from "@/lib/utils";
 
 const DEFAULT_COLOR = "#3b82f6";
 
 const COLORS = [
-  { value: "#22c55e", label: "Verde" },
-  { value: "#0ea5e9", label: "Celeste" },
+  { value: "#4ade80", label: "Verde" },
+  { value: "#38bdf8", label: "Celeste" },
   { value: "#3b82f6", label: "Azul" },
   { value: "#6366f1", label: "Índigo" },
   { value: "#a855f7", label: "Violeta" },
   { value: "#ef4444", label: "Rojo" },
   { value: "#f97316", label: "Naranja" },
-  { value: "#eab308", label: "Amarillo" },
-  { value: "#64748b", label: "Gris" },
+  { value: "#facc15", label: "Amarillo" },
+  { value: "#94a3b8", label: "Gris" },
 ];
 
 export interface CategoryFormDialogProps {
@@ -104,6 +106,7 @@ export const CategoryFormDialog = ({
       onSubmit={onSubmit}
       submitLabel={isEditing ? "Guardar cambios" : "Crear categoría"}
       isPending={isPending}
+      contentClassName="sm:max-w-[520px]"
     >
       <FormTextField
         name="name"
@@ -113,41 +116,28 @@ export const CategoryFormDialog = ({
       />
 
       <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium">Tipo</span>
-        <div
-          role="group"
-          aria-label="Tipo de categoría"
-          className="bg-muted grid grid-cols-2 gap-1 rounded-xl p-1"
-        >
-          {(["expense", "income"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              disabled={isEditing}
-              aria-pressed={type === option}
-              onClick={() =>
-                form.setValue("type", option, { shouldValidate: true })
-              }
-              className={cn(
-                "rounded-lg px-2 py-2 text-sm font-medium transition-colors",
-                type === option
-                  ? "bg-background shadow-sm"
-                  : "text-muted-foreground",
-                isEditing && "cursor-not-allowed opacity-60",
-              )}
-            >
-              {CATEGORY_TYPE_LABELS[option]}
-            </button>
-          ))}
-        </div>
+        <span className={FIELD_LABEL}>Tipo</span>
+        <SegmentedControl
+          options={[
+            { value: "expense", label: CATEGORY_TYPE_LABELS.expense },
+            { value: "income", label: CATEGORY_TYPE_LABELS.income },
+          ]}
+          value={type}
+          onChange={(value) =>
+            form.setValue("type", value, { shouldValidate: true })
+          }
+          ariaLabel="Tipo de categoría"
+          fullWidth
+          disabled={isEditing}
+        />
       </div>
 
       <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium">Color</span>
+        <span className={FIELD_LABEL}>Color</span>
         <div
           role="group"
           aria-label="Color de la categoría"
-          className="flex flex-wrap gap-2"
+          className="flex flex-wrap gap-[13px]"
         >
           {COLORS.map((option) => (
             <button
@@ -158,14 +148,13 @@ export const CategoryFormDialog = ({
               onClick={() =>
                 form.setValue("color", option.value, { shouldValidate: true })
               }
-              className={cn(
-                "size-8 rounded-full border-2 transition-transform",
-                color === option.value
-                  ? "border-foreground scale-110"
-                  : "border-transparent",
-              )}
+              className="flex size-6 items-center justify-center rounded-full transition-transform"
               style={{ backgroundColor: option.value }}
-            />
+            >
+              {color === option.value ? (
+                <Check className="size-3 text-white" aria-hidden />
+              ) : null}
+            </button>
           ))}
         </div>
       </div>

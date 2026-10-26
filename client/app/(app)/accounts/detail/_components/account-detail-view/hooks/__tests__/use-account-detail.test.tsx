@@ -1,22 +1,19 @@
 import { waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { useAccountDetail } from "@/app/(app)/accounts/detail/_components/account-detail-view/hooks/use-account-detail";
-import { mockState } from "@/lib/mocks/store";
 import { renderHookWithProviders } from "@/lib/test/render";
-import { resetMockSession, seedMockSession } from "@/lib/test/mock-session";
+import { testState } from "@/lib/test/api-state";
+import { setupTestServer } from "@/lib/test/server";
+
+setupTestServer();
 
 describe("useAccountDetail", () => {
-  beforeEach(() => {
-    seedMockSession();
-  });
-
   afterEach(() => {
-    resetMockSession();
     window.history.replaceState({}, "", "/");
   });
 
   it("resolves the account from the id query param and summarizes its movements", async () => {
-    const bank = mockState.accounts.find(
+    const bank = testState.accounts.find(
       (account) => account.name === "Banco ARS",
     )!;
     window.history.replaceState({}, "", `/accounts/detail?id=${bank.id}`);
@@ -29,7 +26,7 @@ describe("useAccountDetail", () => {
     );
 
     expect(result.current.account?.id).toBe(bank.id);
-    const expectedCount = mockState.transactions.filter(
+    const expectedCount = testState.transactions.filter(
       (transaction) => transaction.accountId === bank.id,
     ).length;
     expect(result.current.movementCount).toBe(expectedCount);

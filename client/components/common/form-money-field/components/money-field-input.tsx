@@ -1,6 +1,7 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
+import { FIELD_INPUT } from "@/components/common/ui-classes";
 import { cn } from "@/lib/utils";
 import { useMoneyInput } from "../hooks/use-money-input";
 
@@ -8,9 +9,6 @@ export interface MoneyFieldInputProps {
   value: number | null | undefined;
   onChange: (value: number | null) => void;
   onBlur?: () => void;
-  placeholder?: string;
-  disabled?: boolean;
-  inputClassName?: string;
   id?: string;
   "aria-describedby"?: string;
   "aria-invalid"?: boolean;
@@ -20,9 +18,6 @@ export const MoneyFieldInput = ({
   value,
   onChange,
   onBlur,
-  placeholder = "0",
-  disabled,
-  inputClassName,
   id,
   "aria-describedby": ariaDescribedBy,
   "aria-invalid": ariaInvalid,
@@ -35,9 +30,7 @@ export const MoneyFieldInput = ({
 
   return (
     <div className="relative">
-      <span className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm">
-        $
-      </span>
+      <span className="field-icon left-3 text-sm">$</span>
       <Input
         id={id}
         aria-describedby={ariaDescribedBy}
@@ -47,9 +40,8 @@ export const MoneyFieldInput = ({
         value={text}
         onChange={(event) => handleChange(event.target.value)}
         onBlur={handleBlur}
-        placeholder={placeholder}
-        disabled={disabled}
-        className={cn("pl-7", inputClassName)}
+        placeholder="0"
+        className={cn(FIELD_INPUT, "h-[42px] pl-7")}
       />
     </div>
   );

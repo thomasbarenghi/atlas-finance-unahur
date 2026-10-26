@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { FormDialog } from "@/components/common/form-dialog";
 import { FormMoneyField } from "@/components/common/form-money-field";
 import { FormTextField } from "@/components/common/form-text-field";
+import { FIELD_LABEL } from "@/components/common/ui-classes";
 import {
   FormControl,
   FormField,
@@ -16,18 +17,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { getErrorMessage } from "@/lib/api/errors";
 import type { Account, AccountType } from "@/lib/api/types";
-import { ACCOUNT_TYPE_LABELS, ACCOUNT_TYPE_VALUES } from "@/lib/labels";
+import { ACCOUNT_TYPE_LABELS } from "@/lib/labels";
 import { useCreateAccount, useUpdateAccount } from "@/lib/query/accounts";
-import { cn } from "@/lib/utils";
 import {
   accountSchema,
   type AccountFormValues,
 } from "@/lib/validation/accounts";
-import {
-  AccountIcon,
-  ACCOUNT_TYPE_ICONS,
-} from "@/app/(app)/_components/accounts/account-icon";
+import { AccountIcon } from "@/app/(app)/_components/accounts/account-icon";
 import { FormHero } from "./components/form-hero";
+import { AccountTypeOptions } from "./components/account-type-options";
 
 export interface AccountFormDialogProps {
   open: boolean;
@@ -65,11 +63,6 @@ export const AccountFormDialog = ({
   });
 
   const type = useWatch({ control: form.control, name: "type" });
-  const firstType = account?.type ?? initialType ?? "cash";
-  const typeOrder = [
-    firstType,
-    ...ACCOUNT_TYPE_VALUES.filter((value) => value !== firstType),
-  ];
 
   const onSubmit = async (values: AccountFormValues) => {
     const payload = {
@@ -102,7 +95,7 @@ export const AccountFormDialog = ({
       onSubmit={onSubmit}
       submitLabel={isEditing ? "Guardar" : "Crear cuenta"}
       isPending={isPending}
-      contentClassName="max-h-[90dvh] overflow-y-auto"
+      contentClassName="max-h-[90dvh] overflow-y-auto sm:max-w-[540px]"
     >
       <FormHero
         icon={<AccountIcon type={type} className="size-16 [&_svg]:size-8" />}
@@ -132,29 +125,8 @@ export const AccountFormDialog = ({
         name="type"
         render={({ field }) => (
           <FormItem className="min-w-0">
-            <FormLabel>Tipo</FormLabel>
-            <div className="flex w-full min-w-0 gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {typeOrder.map((value) => {
-                const Icon = ACCOUNT_TYPE_ICONS[value];
-                const active = field.value === value;
-                return (
-                  <button
-                    type="button"
-                    key={value}
-                    onClick={() => field.onChange(value)}
-                    className={cn(
-                      "flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm transition-colors",
-                      active
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted/40",
-                    )}
-                  >
-                    <Icon className="size-4" aria-hidden />
-                    {ACCOUNT_TYPE_LABELS[value]}
-                  </button>
-                );
-              })}
-            </div>
+            <FormLabel className={FIELD_LABEL}>Tipo</FormLabel>
+            <AccountTypeOptions value={field.value} onChange={field.onChange} />
             <FormMessage />
           </FormItem>
         )}

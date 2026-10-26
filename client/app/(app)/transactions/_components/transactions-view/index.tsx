@@ -1,80 +1,105 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
-import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
+import { useState } from "react";
+import { Download, Plus } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
+import { ResponsiveActionButton } from "@/components/common/responsive-action-button";
 import { Button } from "@/components/ui/button";
-import { useConfirmAction } from "@/hooks/use-confirm-action";
+import { useExportTransactions } from "@/hooks/use-export-transactions";
 import type { Transaction } from "@/lib/api/types";
-import { useAccounts } from "@/lib/query/accounts";
-import { useCategories } from "@/lib/query/categories";
-import {
-  useDeleteTransaction,
-  useTransactions,
-} from "@/lib/query/transactions";
+import { DeleteTransactionDialog } from "@/app/(app)/_components/transactions/delete-transaction-dialog";
+import { useDeleteTransactionAction } from "@/app/(app)/_components/transactions/hooks/use-delete-transaction-action";
 import { TransactionFormDialog } from "@/app/(app)/_components/transactions/transaction-form-dialog";
 import { TransactionList } from "@/app/(app)/_components/transactions/transaction-list";
-
-const PAGE_SIZE = 10;
+import { TransactionFilters } from "./components/transaction-filters";
+import { useTransactionFilters } from "./hooks/use-transaction-filters";
 
 export const TransactionsView = () => {
-  const accountsQuery = useAccounts();
-  const categoriesQuery = useCategories();
-  const deleteTransaction = useDeleteTransaction();
+  const {
+    accounts,
+    categories,
+    accountNameById,
+    categoryNameById,
+    filtered,
+    pageItems,
+    total,
+    page,
+    pageSize,
+    totalPages,
+    setPage,
+    search,
+    setSearch,
+    type,
+    setType,
+    accountId,
+    setAccountId,
+    categoryId,
+    setCategoryId,
+    preset,
+    setPreset,
+    range,
+    hasActiveFilters,
+    clearFilters,
+    isLoading,
+  } = useTransactionFilters();
+  const { exportTransactions } = useExportTransactions();
 
-  const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Transaction | null>(null);
 
-  const deleteAction = useConfirmAction<Transaction>({
-    run: (transaction) => deleteTransaction.mutateAsync(transaction.id),
-    successMessage: "Movimiento eliminado",
-    errorMessage: "No se pudo eliminar",
-  });
+  const deleteAction = useDeleteTransactionAction();
 
-  const transactionsQuery = useTransactions({ page, pageSize: PAGE_SIZE });
-  const accounts = useMemo(
-    () => accountsQuery.data ?? [],
-    [accountsQuery.data],
-  );
-  const categories = useMemo(
-    () => categoriesQuery.data ?? [],
-    [categoriesQuery.data],
-  );
-
-  const accountNameById = useMemo(
-    () => new Map(accounts.map((account) => [account.id, account.name])),
-    [accounts],
-  );
-  const categoryById = useMemo(
-    () => new Map(categories.map((category) => [category.id, category])),
-    [categories],
-  );
-
-  const response = transactionsQuery.data;
+  const exportCsv = () => exportTransactions(filtered);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-3.5 md:gap-4">
       <PageHeader
         title="Movimientos"
-        description="Ingresos, gastos y transferencias."
+        description="Ingresos, gastos y transferencias"
         actions={
-          <Button
-            size="icon"
-            aria-label="Nuevo movimiento"
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus />
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              onClick={exportCsv}
+              disabled={filtered.length === 0}
+              className="bg-card hover:bg-card text-ink2 hidden h-10 gap-2 rounded-full border px-4 text-[12.5px] leading-[17px] font-semibold md:inline-flex"
+            >
+              <Download className="size-4" aria-hidden />
+              Exportar
+            </Button>
+            <ResponsiveActionButton
+              label="Nuevo movimiento"
+              icon={Plus}
+              onClick={() => setCreateOpen(true)}
+            />
+          </>
         }
       />
 
+      <TransactionFilters
+        search={search}
+        onSearchChange={setSearch}
+        type={type}
+        onTypeChange={setType}
+        accountId={accountId}
+        onAccountChange={setAccountId}
+        categoryId={categoryId}
+        onCategoryChange={setCategoryId}
+        preset={preset}
+        range={range}
+        onPresetChange={setPreset}
+        accounts={accounts}
+        categories={categories}
+        hasActiveFilters={hasActiveFilters}
+        onClear={clearFilters}
+      />
+
       <TransactionList
-        transactions={response?.items ?? []}
-        isLoading={transactionsQuery.isLoading}
+        transactions={pageItems}
+        isLoading={isLoading}
         accountNameById={accountNameById}
-        categoryById={categoryById}
+        categoryNameById={categoryNameById}
+        groupByMonth
         onSelect={setEditTarget}
         onDelete={deleteAction.request}
         emptyAction={
@@ -82,17 +107,13 @@ export const TransactionsView = () => {
             <Plus /> Nuevo movimiento
           </Button>
         }
-        pagination={
-          response
-            ? {
-                page: response.page,
-                pageSize: response.pageSize,
-                total: response.total,
-                totalPages: response.totalPages,
-                onPageChange: setPage,
-              }
-            : undefined
-        }
+        pagination={{
+          page,
+          pageSize,
+          total,
+          totalPages,
+          onPageChange: setPage,
+        }}
       />
 
       <TransactionFormDialog
@@ -111,16 +132,7 @@ export const TransactionsView = () => {
         accounts={accounts}
         categories={categories}
       />
-      <ConfirmActionDialog
-        action={deleteAction}
-        title="Eliminar movimiento"
-        description={(target) =>
-          target.transferGroupId
-            ? "Se eliminarán ambos lados de la transferencia. Esta acción no se puede deshacer."
-            : "El movimiento se eliminará de forma permanente."
-        }
-        confirmLabel="Eliminar"
-      />
+      <DeleteTransactionDialog action={deleteAction} />
     </div>
   );
 };

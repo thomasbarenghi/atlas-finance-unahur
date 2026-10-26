@@ -1,20 +1,22 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryProvider } from "@/providers/query-provider";
 import { PeriodProvider } from "@/providers/period-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { AppProviders } from "@/providers/app-providers";
 import { useAuth } from "@/hooks/use-auth";
 import { usePeriod } from "@/hooks/use-period";
-import { mockApi } from "@/lib/mocks/api";
-import { resetMockSession, seedMockSession } from "@/lib/test/mock-session";
+import { testState } from "@/lib/test/api-state";
+import { setupTestServer } from "@/lib/test/server";
 
 vi.mock("next/navigation", () => import("@/lib/test/next-navigation"));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
   Toaster: () => null,
 }));
+
+setupTestServer();
 
 describe("QueryProvider", () => {
   it("provides a query client to its children", () => {
@@ -29,54 +31,43 @@ describe("QueryProvider", () => {
 
 describe("PeriodProvider", () => {
   const Probe = () => {
-    const { preset, range, setPreset, setCustomRange } = usePeriod();
+    const { preset, range, setPreset } = usePeriod();
     return (
       <div>
         <span data-testid="preset">{preset}</span>
         <span data-testid="from">{range.from}</span>
-        <button type="button" onClick={() => setPreset("custom")}>
-          custom
+        <button type="button" onClick={() => setPreset("last-30-days")}>
+          last-30-days
         </button>
-        <button
-          type="button"
-          onClick={() =>
-            setCustomRange({ from: "2026-01-01", to: "2026-01-31" })
-          }
-        >
-          range
+        <button type="button" onClick={() => setPreset("12m")}>
+          12m
         </button>
       </div>
     );
   };
 
-  it("defaults to 6m and honours custom presets and ranges", async () => {
+  it("defaults to the current month and changes preset", async () => {
     const user = userEvent.setup();
     render(
       <PeriodProvider>
         <Probe />
       </PeriodProvider>,
     );
-    expect(screen.getByTestId("preset")).toHaveTextContent("6m");
+    expect(screen.getByTestId("preset")).toHaveTextContent("month");
 
-    await user.click(screen.getByRole("button", { name: "custom" }));
-    expect(screen.getByTestId("preset")).toHaveTextContent("custom");
-
-    await user.click(screen.getByRole("button", { name: "range" }));
-    expect(screen.getByTestId("from")).toHaveTextContent("2026-01-01");
+    await user.click(screen.getByRole("button", { name: "12m" }));
+    expect(screen.getByTestId("preset")).toHaveTextContent("12m");
   });
 });
 
 describe("AuthProvider", () => {
   beforeEach(() => {
     window.localStorage.clear();
-    seedMockSession();
     vi.restoreAllMocks();
   });
-  afterEach(() => resetMockSession());
 
   it("exposes the authenticated user and signs out", async () => {
     const user = userEvent.setup();
-    const logoutSpy = vi.spyOn(mockApi, "logout").mockResolvedValue(undefined);
     const Probe = () => {
       const { user: current, isLoading, signOut } = useAuth();
       return (
@@ -102,16 +93,21 @@ describe("AuthProvider", () => {
     expect(screen.getByTestId("loading")).toHaveTextContent("false");
 
     await user.click(screen.getByRole("button", { name: "salir" }));
-    await waitFor(() => expect(logoutSpy).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(
+        testState.requests.some(
+          (request) =>
+            request.method === "POST" && request.path.endsWith("/auth/logout"),
+        ),
+      ).toBe(true),
+    );
   });
 });
 
 describe("AppProviders", () => {
   beforeEach(() => {
     window.localStorage.clear();
-    seedMockSession();
   });
-  afterEach(() => resetMockSession());
 
   it("renders the provider tree with its children", async () => {
     render(

@@ -12,7 +12,6 @@ import { setupServer } from "msw/node";
 
 vi.hoisted(() => {
   process.env.NEXT_PUBLIC_API_URL = "http://localhost/api";
-  process.env.NEXT_PUBLIC_USE_MOCKS = "false";
 });
 
 import {

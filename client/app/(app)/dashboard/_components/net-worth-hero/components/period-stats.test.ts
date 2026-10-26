@@ -13,6 +13,11 @@ describe("buildPeriodSummaryStats", () => {
     expect(stats.find((stat) => stat.key === "savings")?.hint).toContain(
       "transferencias",
     );
+    expect(stats.find((stat) => stat.key === "income")?.info).toBeUndefined();
+    expect(stats.find((stat) => stat.key === "expenses")?.info).toBeUndefined();
+    expect(stats.find((stat) => stat.key === "savings")?.info?.formula).toBe(
+      "Ingresos − gastos",
+    );
   });
 
   it("reports a zero savings rate when there is no income", () => {

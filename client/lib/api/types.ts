@@ -95,6 +95,13 @@ export interface DashboardData {
     savingsRateDeltaPp: number | null;
   };
   netWorthSeries: { date: string; value: number }[];
+  incomeExpenseByPeriod: {
+    bucket: "week" | "month";
+    start: string;
+    end: string;
+    income: number;
+    expenses: number;
+  }[];
   incomeExpenseByMonth: { month: string; income: number; expenses: number }[];
   expensesByCategory: {
     categoryId: string;
@@ -104,9 +111,16 @@ export interface DashboardData {
   }[];
 }
 
+export interface AssistantHistoryMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface AssistantMessageInput {
   question: string;
   period?: PeriodRange;
+  /** Turnos previos de la conversación en memoria, para preguntas de seguimiento. */
+  history?: AssistantHistoryMessage[];
 }
 
 /* ── Inputs (mirror the REST request DTOs) ─────────────────────────────── */

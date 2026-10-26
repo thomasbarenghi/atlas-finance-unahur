@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCurrency, formatMonth } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface TooltipEntry {
@@ -34,7 +34,7 @@ export const IncomeExpenseTooltip = ({
   return (
     <div className="bg-background grid min-w-44 gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
       <div className="font-medium">
-        {label !== undefined ? formatMonth(String(label)) : ""}
+        {label !== undefined ? String(label) : ""}
       </div>
       <div className="flex items-center justify-between gap-4">
         <span className="text-muted-foreground">Ingresos</span>

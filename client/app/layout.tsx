@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Nunito, Outfit } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import { AppProviders } from "@/providers/app-providers";
 import "./globals.css";
 
@@ -26,7 +27,15 @@ const RootLayout = ({ children }: LayoutProps<"/">) => {
       className={`${nunito.variable} ${outfit.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <AppProviders>{children}</AppProviders>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem
+          storageKey="atlassfin.preferences.theme"
+          disableTransitionOnChange
+        >
+          <AppProviders>{children}</AppProviders>
+        </ThemeProvider>
       </body>
     </html>
   );

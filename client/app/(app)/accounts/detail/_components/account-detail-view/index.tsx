@@ -1,22 +1,22 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Pencil, Trash2, Wallet } from "lucide-react";
-import { Amount } from "@/components/common/amount";
+import Link from "next/link";
+import { ChevronRight, Pencil, Trash2, Wallet } from "lucide-react";
 import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
-import { RowActionsMenu } from "@/components/common/row-actions-menu";
 import { Button } from "@/components/ui/button";
 import { useConfirmAction } from "@/hooks/use-confirm-action";
 import type { Account, Transaction } from "@/lib/api/types";
-import { CURRENCY } from "@/lib/format";
-import { ACCOUNT_TYPE_LABELS } from "@/lib/labels";
 import { useDeleteAccount } from "@/lib/query/accounts";
 import { useCategories } from "@/lib/query/categories";
 import { AccountFormDialog } from "@/app/(app)/_components/accounts/account-form-dialog";
-import { AccountIcon } from "@/app/(app)/_components/accounts/account-icon";
+import { DeleteTransactionDialog } from "@/app/(app)/_components/transactions/delete-transaction-dialog";
+import { useDeleteTransactionAction } from "@/app/(app)/_components/transactions/hooks/use-delete-transaction-action";
+import { buildTransactionLookups } from "@/app/(app)/_components/transactions/transaction-lookups";
 import { TransactionFormDialog } from "@/app/(app)/_components/transactions/transaction-form-dialog";
 import { TransactionList } from "@/app/(app)/_components/transactions/transaction-list";
-import { DetailMetric } from "./components/detail-metric";
+import { AccountBalanceCard } from "./components/account-balance-card";
+import { AccountMetrics } from "./components/account-metrics";
 import {
   DetailPage,
   DetailPageNotFound,
@@ -42,23 +42,18 @@ export const AccountDetailView = () => {
     null,
   );
 
-  const deleteAction = useConfirmAction<Account>({
+  const deleteAccountAction = useConfirmAction<Account>({
     run: (target) => deleteAccount.mutateAsync(target.id),
     successMessage: "Cuenta eliminada",
     errorMessage: "No se pudo eliminar la cuenta",
   });
 
-  const categories = useMemo(
-    () => categoriesQuery.data ?? [],
-    [categoriesQuery.data],
-  );
-  const accountNameById = useMemo(
-    () => new Map(accounts.map((item) => [item.id, item.name])),
-    [accounts],
-  );
-  const categoryById = useMemo(
-    () => new Map(categories.map((category) => [category.id, category])),
-    [categories],
+  const deleteTransactionAction = useDeleteTransactionAction();
+
+  const categories = categoriesQuery.data ?? [];
+  const { accountNameById, categoryNameById } = useMemo(
+    () => buildTransactionLookups(accounts, categoriesQuery.data ?? []),
+    [accounts, categoriesQuery.data],
   );
 
   if (isLoading) {
@@ -79,89 +74,57 @@ export const AccountDetailView = () => {
   return (
     <DetailPage
       title={account.name}
-      description={ACCOUNT_TYPE_LABELS[account.type]}
+      titleSize="compact"
       actions={
         <>
           <Button
             variant="outline"
-            size="icon"
             aria-label="Editar cuenta"
             onClick={() => setEditOpen(true)}
+            className="bg-card hover:bg-card text-ink2 size-10 gap-2 rounded-full border px-0 text-[12.5px] leading-[17px] font-semibold md:w-auto md:px-4"
           >
-            <Pencil />
+            <Pencil className="size-4 md:size-[15px]" aria-hidden />
+            <span className="hidden md:inline">Editar</span>
           </Button>
-          <RowActionsMenu
-            label={account.name}
-            triggerLabel="Más acciones"
-            actions={[
-              {
-                label: "Eliminar",
-                icon: Trash2,
-                variant: "destructive",
-                onSelect: () => deleteAction.request(account),
-              },
-            ]}
-          />
+          <Button
+            variant="outline"
+            aria-label="Eliminar cuenta"
+            onClick={() => deleteAccountAction.request(account)}
+            className="bg-card hover:bg-card text-expense size-10 gap-2 rounded-full border px-0 text-[12.5px] leading-[17px] font-semibold md:w-auto md:px-4"
+          >
+            <Trash2 className="size-4 md:size-[15px]" aria-hidden />
+            <span className="hidden md:inline">Eliminar</span>
+          </Button>
         </>
       }
     >
-      <div className="from-primary/10 to-background flex flex-col items-center gap-3 rounded-2xl border bg-gradient-to-b p-6 text-center">
-        <AccountIcon type={account.type} className="size-14 [&_svg]:size-7" />
-        <div className="flex flex-col gap-1">
-          <span className="text-muted-foreground text-sm">{account.name}</span>
-          <Amount
-            value={account.currentBalance}
-            currency={CURRENCY}
-            className="font-heading text-3xl font-bold sm:text-4xl"
-          />
-        </div>
-      </div>
+      <AccountBalanceCard account={account} />
+      <AccountMetrics account={account} summary={summary} />
 
-      <div className="grid grid-cols-3 gap-3">
-        <DetailMetric
-          label="Saldo inicial"
-          value={
-            <Amount
-              value={account.initialBalance}
-              currency={CURRENCY}
-              className="font-normal"
-            />
-          }
-        />
-        <DetailMetric
-          label="Ingresos"
-          value={
-            <Amount value={summary.income} currency={CURRENCY} type="income" />
-          }
-        />
-        <DetailMetric
-          label="Gastos"
-          value={
-            <Amount
-              value={summary.expense}
-              currency={CURRENCY}
-              type="expense"
-            />
-          }
-        />
-      </div>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="font-heading text-base font-semibold">
-          Movimientos
-          <span className="text-muted-foreground font-normal">
-            {" "}
-            ({movementCount})
-          </span>
-        </h2>
-        <TransactionList
-          transactions={transactions}
-          isLoading={isLoadingTransactions}
-          accountNameById={accountNameById}
-          categoryById={categoryById}
-          onSelect={setEditTransaction}
-        />
-      </section>
+      <TransactionList
+        transactions={transactions.slice(0, 5)}
+        isLoading={isLoadingTransactions}
+        contextAccountId={account.id}
+        accountNameById={accountNameById}
+        categoryNameById={categoryNameById}
+        compact
+        onSelect={setEditTransaction}
+        onDelete={deleteTransactionAction.request}
+        header={
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-ink font-heading text-[13.5px] leading-[17px] font-semibold md:text-[14.5px] md:leading-[18px]">
+              Movimientos ({movementCount})
+            </h2>
+            <Link
+              href="/transactions"
+              className="text-primary flex items-center gap-1 text-[10.5px] leading-[14px] font-semibold md:text-[11.5px] md:leading-[16px]"
+            >
+              Ver todos
+              <ChevronRight className="size-3 md:size-[13px]" aria-hidden />
+            </Link>
+          </div>
+        }
+      />
 
       <AccountFormDialog
         key={account.id}
@@ -180,13 +143,20 @@ export const AccountDetailView = () => {
         categories={categories}
       />
       <ConfirmActionDialog
-        action={deleteAction}
+        action={deleteAccountAction}
         title="Eliminar cuenta"
         description={(target) =>
-          `Se eliminará la cuenta "${target.name}" y todos sus movimientos. Esta acción no se puede deshacer.`
+          `Se eliminará «${target.name}» junto con ${movementCount} ${
+            movementCount === 1 ? "movimiento" : "movimientos"
+          }.${
+            target.currentBalance > 0
+              ? " Si todavía tiene saldo, transferilo antes a otra cuenta."
+              : ""
+          } Esta acción no se puede deshacer.`
         }
         confirmLabel="Eliminar"
       />
+      <DeleteTransactionDialog action={deleteTransactionAction} />
     </DetailPage>
   );
 };

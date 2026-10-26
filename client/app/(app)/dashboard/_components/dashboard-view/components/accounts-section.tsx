@@ -1,66 +1,47 @@
 "use client";
 
-import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { AccountType } from "@/lib/api/types";
-import { useAccounts } from "@/lib/query/accounts";
-import { AccountFormDialog } from "@/app/(app)/_components/accounts/account-form-dialog";
-import { AccountTypePicker } from "@/app/(app)/_components/accounts/account-type-picker";
+import {
+  AccountCreation,
+  useAccountCreation,
+} from "@/app/(app)/_components/accounts/account-creation";
 import { AccountsList } from "@/app/(app)/_components/accounts/accounts-list";
+import { useAccounts } from "@/lib/query/accounts";
 
 export const AccountsSection = () => {
   const accountsQuery = useAccounts();
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [accountType, setAccountType] = useState<AccountType | null>(null);
-  const [formKey, setFormKey] = useState(0);
-
+  const creation = useAccountCreation();
   const accounts = accountsQuery.data ?? [];
 
-  const openForm = (type: AccountType) => {
-    setPickerOpen(false);
-    setFormKey((key) => key + 1);
-    setAccountType(type);
-  };
-
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="font-heading text-base font-semibold">Cuentas</h2>
-        <div className="flex shrink-0 gap-1">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Nueva cuenta"
-            onClick={() => setPickerOpen(true)}
-          >
-            <Plus />
-          </Button>
-        </div>
+    <section className="flex flex-col gap-2.5">
+      <div className="flex h-[30px] items-center justify-between gap-2 md:h-7">
+        <h2 className="text-foreground font-heading text-[15px] leading-[19px] font-semibold md:text-[17px] md:leading-[21px]">
+          Cuentas
+        </h2>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-primary h-7 gap-1.5 px-2.5 text-[11.5px] leading-[16px] font-semibold"
+          onClick={creation.openPicker}
+        >
+          <Plus className="size-3.5" aria-hidden />
+          <span className="hidden md:inline">Nueva cuenta</span>
+          <span className="sr-only md:hidden">Nueva cuenta</span>
+        </Button>
       </div>
       <AccountsList
         accounts={accounts}
         isLoading={accountsQuery.isLoading}
         emptyAction={
-          <Button size="sm" onClick={() => setPickerOpen(true)}>
+          <Button size="sm" onClick={creation.openPicker}>
             <Plus /> Cargar una cuenta
           </Button>
         }
       />
 
-      <AccountTypePicker
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        onSelect={openForm}
-      />
-      <AccountFormDialog
-        key={`account-${formKey}`}
-        open={accountType !== null}
-        onOpenChange={(open) => {
-          if (!open) setAccountType(null);
-        }}
-        initialType={accountType ?? undefined}
-      />
+      <AccountCreation creation={creation} />
     </section>
   );
 };

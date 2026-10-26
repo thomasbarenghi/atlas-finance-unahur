@@ -4,16 +4,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 import { LoginForm } from "@/app/(auth)/login/_components/login-form";
 import { RegisterForm } from "@/app/(auth)/register/_components/register-form";
-import { ApiError } from "@/lib/api/client";
-import { mockApi } from "@/lib/mocks/api";
 import { renderWithProviders } from "@/lib/test/render";
 import { replace, resetNavigationMocks } from "@/lib/test/next-navigation";
-import { resetMockSession } from "@/lib/test/mock-session";
+import { testState } from "@/lib/test/api-state";
+import { setupTestServer } from "@/lib/test/server";
 
 vi.mock("next/navigation", () => import("@/lib/test/next-navigation"));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
+
+setupTestServer();
 
 describe("LoginForm", () => {
   const getEmail = () => screen.getByLabelText("Email");
@@ -21,14 +22,12 @@ describe("LoginForm", () => {
 
   beforeEach(() => {
     resetNavigationMocks();
-    resetMockSession();
     vi.restoreAllMocks();
     vi.mocked(toast.error).mockClear();
   });
 
   it("blocks submit with an invalid email and never calls the API", async () => {
     const user = userEvent.setup();
-    const loginSpy = vi.spyOn(mockApi, "login");
     renderWithProviders(<LoginForm />, { user: null });
 
     await user.type(getEmail(), "not-an-email");
@@ -38,7 +37,12 @@ describe("LoginForm", () => {
     expect(
       await screen.findByText("Ingresá un email válido"),
     ).toBeInTheDocument();
-    expect(loginSpy).not.toHaveBeenCalled();
+    expect(
+      testState.requests.some(
+        (request) =>
+          request.method === "POST" && request.path.endsWith("/auth/login"),
+      ),
+    ).toBe(false);
   });
 
   it("logs in with valid credentials and redirects to the dashboard", async () => {
@@ -72,7 +76,6 @@ describe("LoginForm", () => {
 describe("RegisterForm", () => {
   beforeEach(() => {
     resetNavigationMocks();
-    resetMockSession();
     vi.restoreAllMocks();
     vi.mocked(toast.success).mockClear();
     vi.mocked(toast.error).mockClear();
@@ -80,7 +83,6 @@ describe("RegisterForm", () => {
 
   it("rejects mismatched passwords before hitting the API", async () => {
     const user = userEvent.setup();
-    const registerSpy = vi.spyOn(mockApi, "register");
     renderWithProviders(<RegisterForm />, { user: null });
 
     await user.type(screen.getByLabelText("Nombre"), "Ana");
@@ -92,7 +94,12 @@ describe("RegisterForm", () => {
     expect(
       await screen.findByText("Las contraseñas no coinciden"),
     ).toBeInTheDocument();
-    expect(registerSpy).not.toHaveBeenCalled();
+    expect(
+      testState.requests.some(
+        (request) =>
+          request.method === "POST" && request.path.endsWith("/auth/register"),
+      ),
+    ).toBe(false);
   });
 
   it("registers and redirects to the dashboard", async () => {
@@ -110,14 +117,6 @@ describe("RegisterForm", () => {
 
   it("surfaces API field errors on the matching input", async () => {
     const user = userEvent.setup();
-    vi.spyOn(mockApi, "register").mockRejectedValue(
-      new ApiError({
-        statusCode: 409,
-        code: "EMAIL_IN_USE",
-        message: "Ese email ya está registrado",
-        fieldErrors: { email: ["Ese email ya está registrado"] },
-      }),
-    );
     renderWithProviders(<RegisterForm />, { user: null });
 
     await user.type(screen.getByLabelText("Nombre"), "Ana");

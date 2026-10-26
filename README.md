@@ -20,7 +20,7 @@ atlas-finance-unahur/
 
 | Layer | Technologies |
 | :--- | :--- |
-| Client | Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · shadcn/ui · Outfit + Nunito · Recharts · TanStack Query · React Hook Form + Zod · lucide-react |
+| Client | Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · shadcn/ui · Outfit + Nunito · next-themes · Recharts · TanStack Query · React Hook Form + Zod · lucide-react |
 | API | NestJS (modular monolith) · TypeScript · PostgreSQL (Supabase) · TypeORM · JWT (HttpOnly cookie + Bearer) · class-validator · argon2 |
 
 ## Documentation
@@ -30,7 +30,7 @@ atlas-finance-unahur/
 - [`docs/architecture/frontend.md`](docs/architecture/frontend.md) — site map, per-page behavior, file structure, auth, charts, AI, work plan.
 - [`docs/architecture/backend.md`](docs/architecture/backend.md) — architecture, data model, REST contract (DTOs/enums/errors), integrations, security, seed, env.
 
-The full index — including the archived audits — is in [`docs/README.md`](docs/README.md).
+The documentation index is in [`docs/README.md`](docs/README.md).
 
 ## Agent guidance
 
@@ -73,7 +73,7 @@ npm install
 npm run dev                   # http://localhost:3000
 ```
 
-> When API integration lands, point the client at it with `NEXT_PUBLIC_API_URL=http://localhost:3001/api` in `.env.local` (create the file; `.env*` is git-ignored).
+> Point the client at the API with `NEXT_PUBLIC_API_URL=http://localhost:3001/api` in `.env.local` (create the file; `.env*` is git-ignored).
 
 ### Demo credentials
 
@@ -90,12 +90,12 @@ every time. See [`docs/architecture/backend.md`](docs/architecture/backend.md) �
 
 ## Features
 
-- **Auth & profile:** register, login/logout, and profile name editing. Single system currency (no currency picker or theme).
-- **Dashboard:** net-worth, income, expenses and savings KPIs; net-worth evolution; income vs. expenses; expenses by category; selectable period.
+- **Auth & profile:** register, login/logout, and profile name editing. Single system currency (no currency picker) and local light/dark/system theme.
+- **Dashboard:** net-worth, income, expenses and savings KPIs; daily/weekly or monthly net-worth evolution and income-vs-expenses charts; expenses by category; selectable period (`This month`, `Last 30 days`, `6 months`, `12 months`).
 - **Accounts:** cash, bank, wallet or other; current balance from initial balance + movements; direct deletion.
-- **Transactions:** income, expense, and atomic transfers; paginated list with system categories plus user-created categories (and no filters/search in this version).
-- **Categories:** fixed, read-only system catalog (salary, freelance, groceries, transport, services).
-- **AI assistant (distinctive):** **read-only** conversational answers built only from the user's own, pre-calculated, minimal context. It never creates, edits or deletes data, does not connect to banks, move money, or give financial advice.
+- **Transactions:** income, expense, and atomic transfers; paginated list with search, filters (type, account, category, period), and CSV export.
+- **Categories:** five read-only system categories plus user-created categories with edit/delete and period usage.
+- **AI assistant (distinctive):** **read-only** conversational answers built only from the user's own, pre-calculated, minimal context. Recent turns stay in client memory for follow-ups; the server does not persist the conversation. It never creates, edits or deletes data, does not connect to banks, move money, or give financial advice.
 
 ## Testing
 

@@ -6,25 +6,40 @@ import { IncomeExpenseChart } from "@/app/(app)/dashboard/_components/charts/inc
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { NetWorthHero } from "@/app/(app)/dashboard/_components/net-worth-hero";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { usePeriod } from "@/hooks/use-period";
 import { CURRENCY } from "@/lib/format";
 import { useDashboard } from "@/lib/query/dashboard";
 import { AccountsSection } from "./components/accounts-section";
-import { PeriodSelector } from "./components/period-selector";
+import { HeaderActions } from "./components/header-actions";
+import { PeriodSelector } from "@/components/common/period-selector";
+import { DashboardSkeleton } from "./components/dashboard-skeleton";
 import { WidgetCard } from "./components/widget-card";
+import { buildBarsHint, buildPeriodLabel } from "./components/period-summary";
 
 export const DashboardView = () => {
-  const { range } = usePeriod();
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const { preset, range } = usePeriod();
   const dashboardQuery = useDashboard({ from: range.from, to: range.to });
   const data = dashboardQuery.data;
+  const periodLabel = buildPeriodLabel(range);
+  const barsHint = buildBarsHint(data, preset, range);
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title="Tu resumen" />
-
-      <PeriodSelector />
+    <div className="flex flex-col gap-4 md:gap-[22px]">
+      <PageHeader
+        title="Tu resumen"
+        description={isDesktop ? periodLabel : undefined}
+        titleAddon={
+          isDesktop ? null : (
+            <span className="ml-auto">
+              <PeriodSelector />
+            </span>
+          )
+        }
+        actions={isDesktop ? <HeaderActions /> : undefined}
+      />
 
       {dashboardQuery.isError ? (
         <EmptyState
@@ -38,12 +53,9 @@ export const DashboardView = () => {
           }
         />
       ) : dashboardQuery.isLoading || !data ? (
-        <div className="grid gap-6 lg:grid-cols-3">
-          <Skeleton className="h-64 w-full lg:col-span-2" />
-          <Skeleton className="h-64 w-full" />
-        </div>
+        <DashboardSkeleton />
       ) : (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 md:gap-[22px]">
           <NetWorthHero
             value={data.kpis.netWorth}
             deltaPct={data.kpis.netWorthDeltaPct}
@@ -53,10 +65,18 @@ export const DashboardView = () => {
             expenses={data.kpis.expenses}
             savings={data.kpis.savings}
           />
-          <div className="grid gap-6 lg:grid-cols-2">
-            <WidgetCard title="Ingresos vs. gastos" hint="Comparación mensual.">
+          <div className="grid gap-4 md:gap-[22px] lg:grid-cols-[700fr_378fr]">
+            <WidgetCard
+              title="Ingresos vs. gastos"
+              hint={
+                <>
+                  <span className="hidden md:inline">{barsHint.desktop}</span>
+                  <span className="md:hidden">{barsHint.mobile}</span>
+                </>
+              }
+            >
               <IncomeExpenseChart
-                data={data.incomeExpenseByMonth}
+                data={data.incomeExpenseByPeriod}
                 currency={CURRENCY}
               />
             </WidgetCard>

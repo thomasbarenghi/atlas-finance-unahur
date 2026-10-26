@@ -4,10 +4,11 @@ import {
   formatDate,
   formatMoneyInput,
   formatMonth,
+  formatMonthTitle,
   formatPercent,
   formatPercentPoints,
 } from "@/lib/format";
-import { ROOT_ROUTES, SECTIONS } from "@/lib/sections";
+import { isSectionActive, ROOT_ROUTES, SECTIONS } from "@/lib/sections";
 
 describe("format helpers", () => {
   it("formats currency and percentages", () => {
@@ -25,6 +26,7 @@ describe("format helpers", () => {
   it("formats dates and months", () => {
     expect(formatDate("2026-01-31")).toContain("2026");
     expect(formatMonth("2026-01-01").toLowerCase()).toContain("ene");
+    expect(formatMonthTitle("2026-10-25")).toBe("Octubre 2026");
   });
 });
 
@@ -35,8 +37,17 @@ describe("sections", () => {
     expect(ROOT_ROUTES).toEqual([
       "/dashboard",
       "/transactions",
+      "/categories",
       "/assistant",
       "/profile",
+      "/settings",
     ]);
+  });
+
+  it("keeps the dashboard active for account detail routes", () => {
+    expect(isSectionActive("/dashboard", "/dashboard")).toBe(true);
+    expect(isSectionActive("/accounts/detail", "/dashboard")).toBe(true);
+    expect(isSectionActive("/transactions/123", "/transactions")).toBe(true);
+    expect(isSectionActive("/categories", "/transactions")).toBe(false);
   });
 });

@@ -56,19 +56,4 @@ describe("CategoryDonut", () => {
       screen.getByRole("table", { name: "Gastos por categoría" }),
     ).toBeInTheDocument();
   });
-
-  it("supports a custom value label and empty copy", () => {
-    render(
-      <CategoryDonut
-        data={items}
-        currency="ARS"
-        valueLabel="Ingreso"
-        emptyTitle="Sin ingresos"
-        emptyDescription="…"
-      />,
-    );
-    expect(
-      screen.getByRole("img", { name: "Ingresos por categoría" }),
-    ).toBeInTheDocument();
-  });
 });

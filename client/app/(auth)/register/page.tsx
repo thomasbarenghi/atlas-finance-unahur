@@ -10,9 +10,9 @@ const RegisterPage = () => {
         description="Empezá a organizar tus finanzas personales."
       />
       <RegisterForm />
-      <p className="text-muted-foreground text-center text-sm">
+      <p className="text-muted-foreground text-center text-[11px]">
         ¿Ya tenés cuenta?{" "}
-        <Link href="/login" className="text-primary hover:underline">
+        <Link href="/login" className="text-primary font-bold">
           Iniciá sesión
         </Link>
       </p>

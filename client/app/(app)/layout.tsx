@@ -5,10 +5,6 @@ import { usePathname } from "next/navigation";
 import { AuthGuard } from "@/components/layout/auth-guard";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
 import { Sidebar } from "@/components/layout/sidebar";
-import { UserMenu } from "@/components/layout/user-menu";
-import { AssistantWidget } from "@/app/(app)/_components/assistant/assistant-widget";
-import { AssistantChatProvider } from "@/providers/assistant-chat-provider";
-import { AssistantPanelProvider } from "@/providers/assistant-panel-provider";
 import { cn } from "@/lib/utils";
 
 const AppLayout = ({ children }: { children: ReactNode }) => {
@@ -17,32 +13,29 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthGuard>
-      <AssistantPanelProvider>
-        <AssistantChatProvider>
-          <div className="flex h-dvh w-full overflow-hidden">
-            <Sidebar />
-            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-              <header className="bg-background/95 supports-backdrop-filter:bg-background/70 sticky top-0 z-30 hidden items-center gap-3 border-b px-4 py-3 backdrop-blur md:flex">
-                <div className="ml-auto flex items-center gap-2">
-                  <UserMenu />
-                </div>
-              </header>
-              <main
-                className={cn(
-                  "mx-auto w-full max-w-6xl px-4 pt-5",
-                  isAssistant
-                    ? "flex min-h-0 flex-1 flex-col overflow-hidden pb-[90px]"
-                    : "flex-1 overflow-y-auto pb-28 md:pb-10",
-                )}
-              >
-                {children}
-              </main>
+      <div className="bg-background flex h-dvh w-full overflow-hidden">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <main
+            className={cn(
+              "flex-1",
+              isAssistant ? "min-h-0 overflow-hidden" : "overflow-y-auto",
+            )}
+          >
+            <div
+              className={cn(
+                "mx-auto flex w-full max-w-[1180px] flex-col px-4 md:px-10",
+                isAssistant
+                  ? "h-full min-h-0 pt-5 pb-24 md:pt-7 md:pb-7"
+                  : "pt-5 pb-28 md:pt-7 md:pb-10",
+              )}
+            >
+              {children}
             </div>
-            <MobileTabBar />
-            <AssistantWidget />
-          </div>
-        </AssistantChatProvider>
-      </AssistantPanelProvider>
+          </main>
+        </div>
+        <MobileTabBar />
+      </div>
     </AuthGuard>
   );
 };

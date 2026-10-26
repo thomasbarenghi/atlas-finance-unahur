@@ -1,140 +1,120 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
-import {
-  ArrowLeftRight,
-  Pencil,
-  Trash2,
-  TrendingDown,
-  TrendingUp,
-  type LucideIcon,
-} from "lucide-react";
-import { Amount } from "@/components/common/amount";
-import {
-  DataList,
-  type DataListPagination,
-} from "@/components/common/data-list";
-import { DataListItem } from "@/components/common/data-list-item";
+import { ArrowLeftRight } from "lucide-react";
 import { EmptyState } from "@/components/common/empty-state";
-import { IconBadge, type IconBadgeTone } from "@/components/common/icon-badge";
-import { RowActionsMenu } from "@/components/common/row-actions-menu";
-import type { Category, Transaction, TransactionType } from "@/lib/api/types";
-import { CURRENCY, formatCurrency, formatDate } from "@/lib/format";
+import { ListPagination } from "@/components/common/list-pagination";
+import { ListSkeleton } from "@/components/common/list-skeleton";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import type { Transaction } from "@/lib/api/types";
+import { cn } from "@/lib/utils";
+import type { ListPaginationProps } from "@/components/common/list-pagination";
+import { TransactionRow } from "./components/transaction-row";
 import { collapseTransfers } from "./transaction-list.utils";
+import { groupTransactionsByMonth } from "./group-transactions";
 
 export interface TransactionListProps {
   transactions: Transaction[];
   accountNameById: Map<string, string>;
-  categoryById: Map<string, Category>;
+  contextAccountId?: string;
+  categoryNameById: Map<string, string>;
   isLoading?: boolean;
-  pagination?: DataListPagination;
+  pagination?: ListPaginationProps;
+  groupByMonth?: boolean;
+  compact?: boolean;
+  header?: ReactNode;
   onSelect?: (transaction: Transaction) => void;
   onDelete?: (transaction: Transaction) => void;
   emptyAction?: ReactNode;
 }
 
-const TYPE_PRESENTATION: Record<
-  TransactionType,
-  { icon: LucideIcon; tone: IconBadgeTone }
-> = {
-  income: { icon: TrendingUp, tone: "success" },
-  expense: { icon: TrendingDown, tone: "destructive" },
-  transfer: { icon: ArrowLeftRight, tone: "primary" },
-};
-
 export const TransactionList = ({
   transactions,
   accountNameById,
-  categoryById,
+  contextAccountId,
+  categoryNameById,
   isLoading,
   pagination,
+  groupByMonth = false,
+  compact = false,
+  header,
   onSelect,
   onDelete,
   emptyAction,
 }: TransactionListProps) => {
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const rows = useMemo(() => collapseTransfers(transactions), [transactions]);
+  const groups = useMemo(() => groupTransactionsByMonth(rows), [rows]);
+
+  if (!isLoading && rows.length === 0) {
+    return (
+      <EmptyState
+        icon={ArrowLeftRight}
+        title="Sin movimientos"
+        description="No hay ingresos, gastos ni transferencias en este período."
+        action={emptyAction}
+      />
+    );
+  }
+
+  const renderRow = (transaction: Transaction) => (
+    <TransactionRow
+      transaction={transaction}
+      accountNameById={accountNameById}
+      categoryNameById={categoryNameById}
+      contextAccountId={contextAccountId}
+      compact={compact}
+      showCents={isDesktop}
+      onSelect={onSelect}
+      onDelete={onDelete}
+    />
+  );
 
   return (
-    <DataList
-      data={rows}
-      isLoading={isLoading}
-      pagination={pagination}
-      getRowKey={(transaction) => transaction.id}
-      emptyState={
-        <EmptyState
-          icon={ArrowLeftRight}
-          title="Sin movimientos"
-          description="No hay ingresos, gastos ni transferencias en este período."
-          action={emptyAction}
-        />
-      }
-      renderItem={(transaction) => {
-        const { icon, tone } = TYPE_PRESENTATION[transaction.type];
-        const category = transaction.categoryId
-          ? categoryById.get(transaction.categoryId)
-          : undefined;
-        const accountName =
-          accountNameById.get(transaction.accountId) ?? "Cuenta";
-        const target = transaction.transferAccountId
-          ? accountNameById.get(transaction.transferAccountId)
-          : undefined;
-        const isTransfer = transaction.type === "transfer";
-        const subtitle = isTransfer
-          ? [
-              formatDate(transaction.date),
-              "Transferencia",
-              target ? `${accountName} → ${target}` : accountName,
-            ].join(" · ")
-          : [
-              formatDate(transaction.date),
-              category?.name ?? "Sin categoría",
-              accountName,
-            ].join(" · ");
+    <div className="flex flex-col gap-3">
+      <div className="surface-list rounded-[20px] md:rounded-[22px]">
+        {header ? (
+          <div className="border-line2 border-b px-3.5 py-3 md:px-[18px] md:py-[14px]">
+            {header}
+          </div>
+        ) : null}
+        {isLoading ? (
+          <ListSkeleton rows={6} />
+        ) : groupByMonth ? (
+          groups.map((group) => (
+            <section key={group.key}>
+              <header className="bg-[#F9FAFB] dark:bg-muted/40 flex h-[30px] items-center px-3.5 md:h-9 md:px-[18px]">
+                <h3 className="text-muted-foreground font-sans text-[10px] leading-[14px] font-bold tracking-[0.12em] uppercase">
+                  {group.label}
+                </h3>
+              </header>
+              <ul>
+                {group.items.map((transaction, index) => (
+                  <li
+                    key={transaction.id}
+                    className={cn(index > 0 && "border-line2 border-t")}
+                  >
+                    {renderRow(transaction)}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))
+        ) : (
+          <ul>
+            {rows.map((transaction, index) => (
+              <li
+                key={transaction.id}
+                className={cn(index > 0 && "border-line2 border-t")}
+              >
+                {renderRow(transaction)}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
-        return (
-          <DataListItem
-            leading={<IconBadge icon={icon} tone={tone} />}
-            title={transaction.description}
-            subtitle={subtitle}
-            trailing={
-              isTransfer ? (
-                <span className="text-muted-foreground font-medium tabular-nums">
-                  {formatCurrency(Math.abs(transaction.amount), CURRENCY)}
-                </span>
-              ) : (
-                <Amount
-                  value={transaction.amount}
-                  currency={CURRENCY}
-                  type={transaction.type}
-                />
-              )
-            }
-            onClick={onSelect ? () => onSelect(transaction) : undefined}
-            showChevron={false}
-            trailingAction={
-              onDelete ? (
-                <RowActionsMenu
-                  label={transaction.description}
-                  actions={[
-                    {
-                      label: "Editar",
-                      icon: Pencil,
-                      hidden: !onSelect,
-                      onSelect: () => onSelect?.(transaction),
-                    },
-                    {
-                      label: "Eliminar",
-                      icon: Trash2,
-                      variant: "destructive",
-                      onSelect: () => onDelete(transaction),
-                    },
-                  ]}
-                />
-              ) : undefined
-            }
-          />
-        );
-      }}
-    />
+      {pagination ? <ListPagination {...pagination} /> : null}
+    </div>
   );
 };

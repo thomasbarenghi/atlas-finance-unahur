@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { FormShell } from "@/components/common/form-shell";
 import { FormTextField } from "@/components/common/form-text-field";
+import { AUTH_SUBMIT } from "@/components/common/ui-classes";
 import { Button } from "@/components/ui/button";
 import { getErrorMessage } from "@/lib/api/errors";
 import { applyApiFieldErrors } from "@/lib/forms";
@@ -63,7 +64,11 @@ export const RegisterForm = () => {
         type="password"
         autoComplete="new-password"
       />
-      <Button type="submit" disabled={register.isPending}>
+      <Button
+        type="submit"
+        disabled={register.isPending}
+        className={AUTH_SUBMIT}
+      >
         {register.isPending ? <Loader2 className="animate-spin" /> : null}
         Crear cuenta
       </Button>

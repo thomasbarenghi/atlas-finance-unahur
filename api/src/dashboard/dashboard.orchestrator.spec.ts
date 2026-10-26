@@ -87,9 +87,32 @@ describe("DashboardOrchestrator", () => {
       expect.objectContaining({ name: "Comida", value: 200 }),
     ]);
     expect(data.incomeExpenseByMonth).toHaveLength(3);
+    expect(data.incomeExpenseByPeriod).toHaveLength(3);
+    expect(
+      data.incomeExpenseByPeriod.every((item) => item.bucket === "month"),
+    ).toBe(true);
     expect(data.netWorthSeries).toHaveLength(3);
     expect(data.period).toEqual(RANGE);
     expect(data.currency).toBe("ARS");
+  });
+
+  it("uses daily evolution and weekly bars for a month range", async () => {
+    const { orchestrator } = build();
+    const data = await orchestrator.getDashboard("u1", {
+      from: "2026-03-01",
+      to: "2026-03-25",
+    });
+
+    expect(data.netWorthSeries).toHaveLength(25);
+    expect(data.netWorthSeries.at(-1)?.date).toBe("2026-03-25");
+    expect(data.incomeExpenseByPeriod).toHaveLength(4);
+    expect(data.incomeExpenseByPeriod[0]).toMatchObject({
+      bucket: "week",
+      start: "2026-03-01",
+      end: "2026-03-07",
+      income: 500,
+    });
+    expect(data.incomeExpenseByMonth).toHaveLength(1);
   });
 
   it("defaults the period and derives the net worth from account balances", async () => {

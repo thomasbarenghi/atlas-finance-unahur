@@ -72,5 +72,5 @@ archivos triviales: `*.module.ts`, `*.entity.ts`, `*.controller.ts`, `dto/**`,
 el contrato se cubren a nivel integración (e2e), no con tests unitarios de
 scaffolding.
 
-Hallazgos de comportamiento sospechoso detectados durante el testing se
-registran en [`TESTING_BUGS.md`](../TESTING_BUGS.md).
+Los hallazgos de comportamiento sospechoso detectados durante el testing se
+registran como issues del repositorio.

@@ -4,7 +4,7 @@
 |---|---|
 | **Proyecto** | Gestor Financiero Personal |
 | **Documento** | Plan de Pruebas |
-| **Versión** | 1.0 |
+| **Versión** | 1.1 |
 | **Fecha** | Octubre 2026 |
 | **Sponsor Operación** | Secretaría Académica UNAHUR |
 | **Sponsor Organización** | UNAHUR |
@@ -12,13 +12,14 @@
 | **Tutor** | Prof. Ciarallo, Cristian |
 | **Release** | Demostración académica 2026 |
 
-> **Nota de alcance.** Este plan está alineado con el **BRD y el FRD v0.3**, que **siguen en desarrollo y aún no están finalizados**; sus requerimientos pueden cambiar. Organiza los casos por prioridad, con el núcleo **P0** como evidencia principal de aceptación.
+> **Nota de alcance.** Este plan está alineado con el **BRD y el FRD v0.3.1**, que **siguen en desarrollo y aún no están finalizados**; sus requerimientos pueden cambiar. Organiza los casos por prioridad, con el núcleo **P0** como evidencia principal de aceptación.
 
 ## Historial de cambios
 
 | Versión | Fecha | Autor | Descripción |
 |---|---|---|---|
 | 1.0 | Octubre 2026 | Barenghi, Thomas | Versión inicial del plan de pruebas, alineada con el alcance reducido (BRD/FRD v0.3). |
+| 1.1 | Octubre 2026 | Barenghi, Thomas | Se agregan casos para búsqueda, filtros y exportación CSV; gestión y uso de categorías propias; granularidad diaria/semanal del panel; preferencia local de tema; y continuidad de la conversación del asistente. |
 
 ---
 
@@ -33,9 +34,12 @@ El objetivo operativo es **obtener evidencia suficiente y reproducible para apro
 - **Acceso:** registro, inicio y cierre de sesión.
 - **Cuentas** y saldos.
 - **Movimientos:** ingresos, gastos y transferencias, con categorías del sistema y propias.
-- **Dashboard** y cálculo de patrimonio neto.
+- **Búsqueda, filtros y exportación CSV** de movimientos.
+- **Categorías propias:** alta, edición, eliminación y uso por período.
+- **Dashboard** y cálculo de patrimonio neto, con granularidad diaria/semanal o mensual.
 - **Reglas de cálculo** (CAL-001, CAL-002, CAL-003 y CAL-010).
-- **Asistente de IA**, de solo consulta.
+- **Asistente de IA**, de solo consulta y con continuidad conversacional en memoria del cliente.
+- **Preferencias locales:** tema de la interfaz.
 - **Seguridad básica:** autorización por propietario, hash de contraseñas y validación de entradas.
 - **Usabilidad básica:** diseño adaptable, precisión decimal y estados vacíos/carga/error.
 
@@ -112,7 +116,7 @@ Se prioriza el nivel **P0** (que es la evidencia de aceptación exigida por el F
 
 ## 5. Casos de Prueba
 
-Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** al FRD/BRD v0.3.
+Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** al FRD/BRD v0.3.1.
 
 ### 5.1. Resumen por módulo
 
@@ -121,11 +125,13 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 | Acceso y sesión | 2 | P0 |
 | Seguridad y autorización | 3 | P0 |
 | Cuentas | 2 | P0 |
-| Movimientos | 3 | P0 |
-| Dashboard y patrimonio | 4 | P0 |
+| Movimientos | 5 | P0/P1 |
+| Categorías | 1 | P1 |
+| Dashboard y patrimonio | 5 | P0/P1 |
 | Cálculos | 4 | P0 |
 | No funcionales | 2 | P0/P1 |
-| Asistente de IA | 3 | P1 |
+| Asistente de IA | 4 | P1 |
+| Configuración y preferencias | 1 | P1 |
 
 ### 5.2. Acceso y sesión
 
@@ -156,9 +162,16 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 | CP-TRX-01 | Registrar ingreso y gasto | Cargar un ingreso y un gasto con monto, fecha, cuenta, categoría y descripción | Los movimientos aparecen en el listado y actualizan saldo y dashboard. Monto ≤ 0 o campos obligatorios vacíos se rechazan; las categorías del sistema no se editan y las propias sí. | P0 | FR-TRX-001/002 |
 | CP-TRX-02 | Transferencia válida y atómica | Transferir entre dos cuentas propias; simular una falla a mitad de la operación | Se descuenta origen y se acredita destino en una única operación (ambos o ninguno); origen distinto de destino; se excluye del flujo de fondos. | P0 | FR-TRX-004/005, RN-003/004, CAL-003 |
 | CP-TRX-03 | Edición, eliminación y propiedad | Editar y eliminar un movimiento propio; intentar operar sobre uno ajeno | La operación propia se aplica; sobre un recurso ajeno se rechaza. | P0 | FR-TRX-003 |
-| CP-TRX-04 | Gestión de categorías propias | Crear una categoría, asignarla a un movimiento, editarla y eliminarla; intentar operar sobre una del sistema o de otro usuario | La categoría propia se crea, asigna, edita y elimina; las del sistema y las ajenas se rechazan. | P1 | FR-TRX-002 |
+| CP-TRX-04 | Gestión de categorías propias | Crear una categoría, asignarla a un movimiento, editarla y eliminarla; intentar operar sobre una del sistema o de otro usuario | La categoría propia se crea, asigna, edita y elimina; las del sistema y las ajenas se rechazan. | P0 | FR-CAT-002/003 |
+| CP-TRX-05 | Búsqueda, filtros y exportación | Buscar por concepto, nota, categoría y monto; combinar filtros de tipo, cuenta, categoría y período; exportar el resultado | La lista muestra solo los movimientos que cumplen todos los filtros y el CSV descargado coincide con esa lista e incluye fecha, tipo, descripción, categoría, cuenta, monto y notas. | P1 | FR-TRX-007/008, HU-015 |
 
-### 5.6. Dashboard y patrimonio
+### 5.6. Categorías
+
+| ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
+|---|---|---|---|---|---|
+| CP-CAT-01 | Listado, origen y uso | Abrir Categorías; alternar Gastos/Ingresos; cambiar el período | Se listan las cinco categorías del sistema y las propias con badge de origen; se muestra cantidad, monto y porcentaje del período, ordenado por uso; las del sistema no muestran acciones. | P1 | FR-CAT-001/004 |
+
+### 5.7. Dashboard y patrimonio
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
@@ -166,8 +179,9 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 | CP-DAS-02 | Indicadores del período | Seleccionar un período con ingresos y gastos | Se muestran ingresos, gastos y ahorro; la tasa de ahorro = ahorro / ingresos × 100. | P0 | FR-DAS-001, CAL-002, CAL-010 |
 | CP-DAS-03 | Consistencia y estados vacíos | Comparar los totales del dashboard con los movimientos cargados; abrir la aplicación con el usuario sin datos | Los totales coinciden con los movimientos registrados; sin datos se muestra un estado vacío con acción sugerida. | P0 | FR-DAS-008, criterio de bondad |
 | CP-DAS-04 | Gráficos y período | Abrir el panel y cambiar el período; revisar los gráficos | Los gráficos de evolución del patrimonio, ingresos frente a gastos y gastos por categoría reflejan el período seleccionado. | P0 | FR-DAS-002/003/004/007 |
+| CP-DAS-05 | Granularidad diaria y semanal | Comparar `Este mes`/`Últimos 30 días` con `6 meses`/`12 meses` | En rangos de hasta 31 días el patrimonio se muestra por día y las barras por semana; en rangos mayores, por mes. Los totales coinciden con los movimientos del período. | P1 | FR-DAS-002/003/007, HU-010 |
 
-### 5.7. Cálculos (pruebas unitarias)
+### 5.8. Cálculos (pruebas unitarias)
 
 | ID | Regla | Entrada de ejemplo | Resultado esperado |
 |---|---|---|---|
@@ -176,20 +190,27 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 | CP-CAL-003 | CAL-003 Transferencias | Una transferencia entre cuentas | Se excluye de ingresos y gastos consolidados. |
 | CP-CAL-010 | CAL-010 Tasa de ahorro | Ahorro e ingresos del período | Ahorro / ingresos × 100; la variación se expresa en puntos porcentuales. |
 
-### 5.8. Asistente de IA
+### 5.9. Asistente de IA
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
 | CP-IA-01 | Consulta verificable | Preguntar por gastos de un período con datos | Responde con período y categorías consideradas; los totales coinciden con el dashboard del mismo período. | P1 | FR-IA-002, RN-013, HU-006 |
 | CP-IA-02 | Datos insuficientes | Preguntar por un período sin movimientos | Responde que no hay información suficiente e indica el período consultado. | P1 | FR-IA-011, Caso 1 BRD |
 | CP-IA-03 | Solo consulta | Pedir al asistente que cree, edite o elimine un dato | El asistente no crea, edita ni elimina datos. | P1 | FR-IA-015, RN-012 |
+| CP-IA-04 | Continuidad conversacional | Hacer una pregunta, luego una de seguimiento que dependa del contexto; recargar la página y verificar que no hay historial persistido | El asistente interpreta la pregunta de seguimiento con los turnos recientes enviados por el cliente, mantiene las cifras del período vigente y no conserva la conversación en el servidor. | P1 | FR-IA-016, NFR-SEG-013, HU-018 |
 
-### 5.9. No funcionales y usabilidad
+### 5.10. No funcionales y usabilidad
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
 | CP-NFR-01 | Diseño adaptable | Usar la aplicación en resoluciones de escritorio y móvil | Los flujos principales son usables y legibles en ambas resoluciones. | P1 | Criterio de bondad |
 | CP-NFR-02 | Estados de carga y error | Provocar una carga y un error (por ejemplo, proveedor de IA caído) | Se muestran estados de carga y error comprensibles, sin perder datos. | P0 | FR-DAS-008, Dependencias FRD |
+
+### 5.11. Configuración y preferencias
+
+| ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
+|---|---|---|---|---|---|
+| CP-CFG-01 | Tema y exportación | Cambiar el tema, exportar el CSV desde Ajustes y recargar la aplicación | El tema persiste en el navegador; el CSV se descarga con los campos esperados y sin modificar los datos financieros; la preferencia no se sincroniza entre dispositivos. | P1 | FR-CFG-001/003, FR-TRX-008 |
 
 ## 6. Datos de Prueba
 
@@ -200,7 +221,9 @@ Se utilizan **usuarios ficticios sin datos personales reales** y un conjunto de 
 | Usuarios | Tres usuarios ficticios: demo@atlassfin.app (con datos), sin-datos@atlassfin.app (sin movimientos, para estados vacíos) y ana@atlassfin.app (para el aislamiento entre propietarios). |
 | Cuentas | Tres cuentas del usuario con datos. |
 | Movimientos | Tres meses de ingresos, gastos y transferencias. |
-| Categorías | Cinco categorías fijas del sistema + categorías propias creadas por el usuario. |
+| Categorías | Cinco categorías fijas del sistema; las propias se crean durante la ejecución. |
+
+> Los casos de búsqueda, filtros, uso de categorías y exportación se ejecutan sobre los movimientos cargados en la vista (hasta 100 registros). El dashboard y los cálculos se validan contra el conjunto completo del período.
 
 ## 7. Plan de Ejecución
 
@@ -237,6 +260,7 @@ Se utilizan **usuarios ficticios sin datos personales reales** y un conjunto de 
 |---|---|---|
 | Alcance cambiante por la reducción de funcionalidad | Casos desactualizados | Plan modular: quitar secciones sin afectar el resto. |
 | Dependencia del proveedor externo de IA | Casos bloqueados | Usar datos simulados y cubrir el comportamiento ante falla. |
+| Filtros y uso de categorías calculados en cliente | Resultados parciales si el usuario supera los 100 movimientos cargados | Ejecutar con el dataset del seed; documentar el límite y evaluar paginación o filtros server-side en una iteración posterior. |
 | Tiempo limitado | Cobertura incompleta | Priorizar P0 y automatizar las fórmulas. |
 | Inestabilidad de las pruebas de UI | Resultados falsos | Esperas explícitas y reintentos controlados. |
 

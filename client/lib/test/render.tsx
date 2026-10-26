@@ -1,14 +1,10 @@
-import type { ReactElement } from "react";
+import { StrictMode, type ReactElement, type ReactNode } from "react";
 import { render, renderHook, type RenderOptions } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "@/hooks/use-auth";
 import { PeriodContext, type PeriodContextValue } from "@/hooks/use-period";
-import {
-  AssistantChatContext,
-  type AssistantChatContextValue,
-} from "@/hooks/use-assistant-chat";
-import { AssistantPanelContext } from "@/hooks/use-assistant-panel";
+import { ThemeProvider } from "next-themes";
 import type { PeriodRange, User } from "@/lib/api/types";
 import { makeUser } from "./factories";
 
@@ -38,18 +34,7 @@ export const makePeriodValue = (
   preset: "month",
   range: defaultPeriod,
   setPreset: vi.fn(),
-  setCustomRange: vi.fn(),
   ...overrides,
-});
-
-const makeAssistantChatValue = (): AssistantChatContextValue => ({
-  threads: [],
-  activeThread: null,
-  appendMessage: vi.fn(),
-  updateMessage: vi.fn(),
-  startNewThread: vi.fn(),
-  selectThread: vi.fn(),
-  deleteThread: vi.fn(),
 });
 
 export interface RenderWithProvidersOptions extends Omit<
@@ -60,7 +45,11 @@ export interface RenderWithProvidersOptions extends Omit<
   auth?: Partial<AuthContextValue>;
   period?: PeriodRange;
   queryClient?: QueryClient;
-  assistantChat?: AssistantChatContextValue;
+  /**
+   * Renders under `StrictMode` as the root element. React only double-invokes
+   * effects when `StrictMode` is the root of the rendered tree (not nested).
+   */
+  strict?: boolean;
 }
 
 export const renderWithProviders = (
@@ -72,33 +61,40 @@ export const renderWithProviders = (
     auth,
     period = defaultPeriod,
     queryClient = createTestQueryClient(),
-    assistantChat = makeAssistantChatValue(),
+    strict = false,
     ...renderOptions
   } = options;
 
   const authValue = makeAuthValue({ user, ...auth });
   const periodValue = makePeriodValue({ range: period });
 
-  const wrapper = ({ children }: { children: React.ReactNode }) => (
+  const providers = (children: ReactNode) => (
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={authValue}>
         <PeriodContext.Provider value={periodValue}>
-          <AssistantPanelContext.Provider
-            value={{
-              isOpen: false,
-              open: vi.fn(),
-              close: vi.fn(),
-              toggle: vi.fn(),
-            }}
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem
+            storageKey="atlassfin.preferences.theme"
+            disableTransitionOnChange
           >
-            <AssistantChatContext.Provider value={assistantChat}>
-              {children}
-            </AssistantChatContext.Provider>
-          </AssistantPanelContext.Provider>
+            {children}
+          </ThemeProvider>
         </PeriodContext.Provider>
       </AuthContext.Provider>
     </QueryClientProvider>
   );
+
+  if (strict) {
+    return {
+      queryClient,
+      ...render(<StrictMode>{providers(ui)}</StrictMode>, renderOptions),
+    };
+  }
+
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    providers(children);
 
   return { queryClient, ...render(ui, { wrapper, ...renderOptions }) };
 };
@@ -112,7 +108,6 @@ export const renderHookWithProviders = <Result, Props>(
     auth,
     period = defaultPeriod,
     queryClient = createTestQueryClient(),
-    assistantChat = makeAssistantChatValue(),
   } = options;
 
   const authValue = makeAuthValue({ user, ...auth });
@@ -122,9 +117,15 @@ export const renderHookWithProviders = <Result, Props>(
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={authValue}>
         <PeriodContext.Provider value={periodValue}>
-          <AssistantChatContext.Provider value={assistantChat}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem
+            storageKey="atlassfin.preferences.theme"
+            disableTransitionOnChange
+          >
             {children}
-          </AssistantChatContext.Provider>
+          </ThemeProvider>
         </PeriodContext.Provider>
       </AuthContext.Provider>
     </QueryClientProvider>

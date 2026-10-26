@@ -35,17 +35,17 @@ const labelFor = (key: AmountKeypadKey): string => (key === "." ? "," : key);
 
 export const AmountKeypad = ({ onKey }: AmountKeypadProps) => {
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className="grid grid-cols-4 gap-1.5">
       {ROWS.flat().map((key) => (
         <button
           type="button"
           key={key}
           onClick={() => onKey(key)}
           aria-label={key === "backspace" ? "Borrar" : labelFor(key)}
-          className="bg-muted/50 hover:bg-muted active:bg-muted flex h-12 items-center justify-center rounded-xl text-xl font-medium transition-colors"
+          className="text-ink flex h-[42px] items-center justify-center rounded-[12px] bg-[#F5F6F8] text-[14px] leading-[19px] font-medium transition-colors hover:bg-[#EFF1F4] active:bg-[#EFF1F4] sm:h-[46px] sm:text-[15px] sm:leading-[20px]"
         >
           {key === "backspace" ? (
-            <Delete className="size-5" aria-hidden />
+            <Delete className="size-4 sm:size-[18px]" aria-hidden />
           ) : (
             labelFor(key)
           )}

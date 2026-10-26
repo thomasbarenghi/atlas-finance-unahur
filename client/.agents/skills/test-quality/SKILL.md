@@ -203,7 +203,7 @@ it("parses assistant SSE events in order", async () => {
 - Use `getByRole`/accessible selectors and Playwright auto-waiting; avoid hard sleeps.
 - Each test MUST be self-contained: arrange its own data (seed/reset or API setup), act, assert.
 - Run headless and in CI; capture trace/screenshot on failure.
-- Cover the Capacitor-relevant flows at least once on a mobile viewport (bottom navigation, safe areas).
+- Cover the mobile web flows at least once on a mobile viewport (bottom navigation, safe areas).
 
 ## 12. Anti-patterns (MUST avoid)
 

@@ -76,7 +76,9 @@ Each feature follows: `<feature>.module.ts`, `<feature>.controller.ts`, `<featur
 
 ## Auth
 
-- JWT access token (short-lived) + opaque refresh token (hashed in `sessions`).
+- JWT access token (short-lived) + opaque refresh token (SHA-256 in `sessions`; argon2 legacy is accepted and migrated on rotation).
 - Transport: `HttpOnly` cookie (web) or `Authorization: Bearer` (native). Both valid.
 - `JwtAuthGuard` is global; mark public routes with `@Public()`.
+- Session validation is cached in memory for `SESSION_CACHE_TTL_MS` and coalesced per session; logout clears the local entry.
 - Logout revokes the session; refresh rotates the token.
+- The database pool is warmed at startup (`DatabaseWarmupService`, `min = DB_POOL_MAX`, `keepAlive`).

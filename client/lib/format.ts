@@ -6,16 +6,24 @@ export const CURRENCY = "ARS";
 
 const DEFAULT_LOCALE = "es-AR";
 
+export interface CurrencyFormatOptions {
+  showCents?: boolean;
+}
+
 export const formatCurrency = (
   value: number,
   currency: string,
   locale: string = DEFAULT_LOCALE,
-) =>
-  new Intl.NumberFormat(locale, {
+  options: CurrencyFormatOptions = {},
+) => {
+  const showCents = options.showCents ?? true;
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: showCents ? 2 : 0,
+    maximumFractionDigits: showCents ? 2 : 0,
   }).format(value);
+};
 
 export const formatPercent = (value: number, locale: string = DEFAULT_LOCALE) =>
   new Intl.NumberFormat(locale, {
@@ -88,11 +96,52 @@ export const formatDate = (iso: string, locale: string = DEFAULT_LOCALE) =>
     new Date(iso.length === 10 ? `${iso}T00:00:00` : iso),
   );
 
+export const formatDayMonth = (iso: string, locale: string = DEFAULT_LOCALE) =>
+  new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "short",
+  }).format(new Date(iso.length === 10 ? `${iso}T00:00:00` : iso));
+
+export const formatWeekRange = (
+  start: string,
+  end: string,
+  locale: string = DEFAULT_LOCALE,
+): string => {
+  const startDate = new Date(`${start}T00:00:00`);
+  const endDate = new Date(`${end}T00:00:00`);
+  const day = (date: Date) =>
+    new Intl.DateTimeFormat(locale, { day: "numeric" }).format(date);
+  const month = (date: Date) =>
+    new Intl.DateTimeFormat(locale, { month: "short" }).format(date);
+
+  if (
+    startDate.getMonth() === endDate.getMonth() &&
+    startDate.getFullYear() === endDate.getFullYear()
+  ) {
+    return `${day(startDate)}–${day(endDate)} ${month(endDate)}`;
+  }
+  return `${day(startDate)} ${month(startDate)}–${day(endDate)} ${month(endDate)}`;
+};
+
 export const formatMonth = (iso: string, locale: string = DEFAULT_LOCALE) =>
   new Intl.DateTimeFormat(locale, {
     month: "short",
     year: "numeric",
   }).format(new Date(`${iso.slice(0, 7)}-01T00:00:00`));
+
+const formatMonthLabel = (iso: string, locale: string = DEFAULT_LOCALE) =>
+  new Intl.DateTimeFormat(locale, {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(`${iso.slice(0, 7)}-01T00:00:00`));
+
+export const formatMonthTitle = (
+  iso: string,
+  locale: string = DEFAULT_LOCALE,
+): string => {
+  const label = formatMonthLabel(iso, locale).replace(" de ", " ");
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
 
 export const toIsoDate = (date: Date): string => {
   const year = date.getFullYear();

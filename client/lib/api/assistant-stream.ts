@@ -1,9 +1,5 @@
-import { mockApi } from "@/lib/mocks/api";
 import { API_BASE_URL, refreshAuthSession } from "./client";
 import type { AssistantMessageInput, PeriodRange } from "./types";
-
-const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS !== "false";
-const ASSISTANT_LIVE = process.env.NEXT_PUBLIC_ASSISTANT_LIVE === "true";
 
 export interface AssistantStreamMeta {
   period?: PeriodRange;
@@ -34,27 +30,6 @@ export const streamAssistantMessage = async (
   handlers: AssistantStreamHandlers,
   options?: { signal?: AbortSignal },
 ): Promise<void> => {
-  if (USE_MOCKS && !ASSISTANT_LIVE) {
-    const reply = await mockApi.sendMessage(input);
-    if (options?.signal?.aborted) return;
-    handlers.onMeta?.({
-      period: input.period,
-      currency: reply.currency,
-      sources: reply.sources,
-      disclaimer: reply.disclaimer,
-    });
-    const words = reply.answer.split(" ");
-    for (let index = 0; index < words.length; index += 1) {
-      if (options?.signal?.aborted) return;
-      handlers.onToken?.(
-        `${words[index]}${index < words.length - 1 ? " " : ""}`,
-      );
-      await new Promise((resolve) => setTimeout(resolve, 12));
-    }
-    handlers.onDone?.({ insufficient: reply.insufficient });
-    return;
-  }
-
   const send = async () => {
     return fetch(`${API_BASE_URL}/assistant/messages`, {
       method: "POST",
@@ -64,6 +39,7 @@ export const streamAssistantMessage = async (
       body: JSON.stringify({
         question: input.question,
         period: input.period,
+        ...(input.history?.length ? { history: input.history } : {}),
       }),
     });
   };

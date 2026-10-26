@@ -2,8 +2,9 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CategoriesView } from "@/app/(app)/categories/_components/categories-view";
-import { mockApi } from "@/lib/mocks/api";
-import { resetMockSession, seedMockSession } from "@/lib/test/mock-session";
+import { testState } from "@/lib/test/api-state";
+import { makeCategory } from "@/lib/test/factories";
+import { setupTestServer } from "@/lib/test/server";
 import { renderWithProviders } from "@/lib/test/render";
 
 vi.mock("next/navigation", () => import("@/lib/test/next-navigation"));
@@ -11,14 +12,15 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
+setupTestServer();
+
 describe("CategoriesView", () => {
   beforeEach(() => {
-    seedMockSession();
     vi.restoreAllMocks();
   });
 
   afterEach(() => {
-    resetMockSession();
+    vi.restoreAllMocks();
   });
 
   it("creates a category and switches to its tab", async () => {
@@ -49,11 +51,14 @@ describe("CategoriesView", () => {
   });
 
   it("deletes an own category after confirmation", async () => {
-    await mockApi.createCategory({
-      name: "Mascotas",
-      type: "expense",
-      color: "#f97316",
-    });
+    testState.categories.push(
+      makeCategory({
+        name: "Mascotas",
+        type: "expense",
+        color: "#f97316",
+        isSystem: false,
+      }),
+    );
     const user = userEvent.setup();
     renderWithProviders(<CategoriesView />);
 
@@ -63,6 +68,11 @@ describe("CategoriesView", () => {
     await user.click(screen.getByRole("menuitem", { name: /Eliminar/ }));
     await user.click(screen.getByRole("button", { name: "Eliminar" }));
 
-    await waitFor(() => expect(screen.queryByText("Mascotas")).toBeNull());
+    await waitFor(() =>
+      expect(
+        testState.categories.find((category) => category.name === "Mascotas"),
+      ).toBeUndefined(),
+    );
+    expect(screen.queryByText("Mascotas")).toBeNull();
   });
 });

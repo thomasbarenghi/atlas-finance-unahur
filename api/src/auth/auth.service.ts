@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
 import * as argon2 from "argon2";
-import { randomBytes, randomUUID } from "crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "crypto";
 import { Repository } from "typeorm";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
@@ -17,8 +17,30 @@ import { AuthResponse, TokenPair } from "./dto/auth-response.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 import { Session } from "./entities/session.entity";
+import { SessionValidationCache } from "./session-validation-cache.service";
 
 const REFRESH_SEPARATOR = ".";
+
+/**
+ * Refresh tokens are 256-bit random secrets, not user-chosen passwords: a fast
+ * cryptographic hash is enough (argon2 is only needed for low-entropy
+ * passwords). Keeping argon2 here made every token rotation cost ~1 s.
+ */
+const hashRefreshSecret = (secret: string): string =>
+  createHash("sha256").update(secret).digest("hex");
+
+/** Accepts the new SHA-256 hashes and legacy argon2 hashes still in the DB. */
+const matchesRefreshSecret = async (
+  storedHash: string,
+  secret: string,
+): Promise<boolean> => {
+  if (storedHash.startsWith("$argon2")) {
+    return argon2.verify(storedHash, secret);
+  }
+  const expected = Buffer.from(storedHash, "hex");
+  const actual = Buffer.from(hashRefreshSecret(secret), "hex");
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+};
 
 @Injectable()
 export class AuthService {
@@ -29,6 +51,7 @@ export class AuthService {
     private readonly sessionsRepository: Repository<Session>,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService<AppConfig, true>,
+    private readonly sessionCache: SessionValidationCache,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
@@ -99,7 +122,7 @@ export class AuthService {
       );
     }
 
-    const valid = await argon2.verify(session.refreshTokenHash, secret);
+    const valid = await matchesRefreshSecret(session.refreshTokenHash, secret);
     if (!valid) {
       throw new ApiException(
         ErrorCode.SESSION_REVOKED,
@@ -117,9 +140,22 @@ export class AuthService {
       );
     }
 
-    const rotated = await this.buildRefreshToken();
-    session.refreshTokenHash = rotated.hash;
-    await this.sessionsRepository.save(session);
+    // The caller will use the new access token immediately; skip the session
+    // lookup in the guard for that first request (and its cache window).
+    this.sessionCache.remember(
+      session.id,
+      { id: user.id, email: user.email, sessionId: session.id },
+      session.expiresAt,
+    );
+
+    const rotated = this.buildRefreshToken();
+    // `save` re-selects the row and wraps the write in an explicit transaction
+    // (≈4 extra round-trips). The session already exists and was validated, so
+    // a direct UPDATE is enough and keeps rotation cheap over a remote DB.
+    await this.sessionsRepository.update(
+      { id: session.id },
+      { refreshTokenHash: rotated.hash },
+    );
 
     return {
       accessToken: this.signAccessToken(user, session.id),
@@ -132,6 +168,9 @@ export class AuthService {
       { id: sessionId, userId },
       { revokedAt: new Date() },
     );
+    // Drop the cached validation so the revoked token stops working
+    // immediately on this instance instead of waiting for the TTL.
+    this.sessionCache.delete(sessionId);
   }
 
   async getMe(userId: string): Promise<UserResponseDto> {
@@ -148,6 +187,11 @@ export class AuthService {
 
   private async createAuthResponse(user: User): Promise<AuthResponse> {
     const session = await this.createSession(user.id);
+    this.sessionCache.remember(
+      session.id,
+      { id: user.id, email: user.email, sessionId: session.id },
+      session.expiresAt,
+    );
     return {
       user: toUserResponse(user),
       accessToken: this.signAccessToken(user, session.id),
@@ -158,29 +202,28 @@ export class AuthService {
   private async createSession(userId: string): Promise<{
     id: string;
     secret: string;
+    expiresAt: Date;
   }> {
     const id = randomUUID();
-    const refresh = await this.buildRefreshToken();
+    const refresh = this.buildRefreshToken();
     const refreshTtlDays = this.config.get("jwt", {
       infer: true,
     }).refreshTtlDays;
+    const expiresAt = new Date(Date.now() + refreshTtlDays * 86_400_000);
     await this.sessionsRepository.save(
       this.sessionsRepository.create({
         id,
         userId,
         refreshTokenHash: refresh.hash,
-        expiresAt: new Date(Date.now() + refreshTtlDays * 86_400_000),
+        expiresAt,
       }),
     );
-    return { id, secret: refresh.secret };
+    return { id, secret: refresh.secret, expiresAt };
   }
 
-  private async buildRefreshToken(): Promise<{
-    secret: string;
-    hash: string;
-  }> {
+  private buildRefreshToken(): { secret: string; hash: string } {
     const secret = randomBytes(32).toString("hex");
-    return { secret, hash: await argon2.hash(secret) };
+    return { secret, hash: hashRefreshSecret(secret) };
   }
 
   private signAccessToken(user: User, sessionId: string): string {

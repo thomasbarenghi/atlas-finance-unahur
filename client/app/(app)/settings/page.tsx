@@ -1,13 +1,7 @@
-import { PageHeader } from "@/components/common/page-header";
-import { SettingsForm } from "@/app/(app)/settings/_components/settings-form";
+import { SettingsView } from "@/app/(app)/settings/_components/settings-view";
 
 const SettingsPage = () => {
-  return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title="Ajustes" description="Tu perfil y tu sesión." />
-      <SettingsForm />
-    </div>
-  );
+  return <SettingsView />;
 };
 
 export default SettingsPage;

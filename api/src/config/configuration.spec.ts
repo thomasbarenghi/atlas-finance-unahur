@@ -7,6 +7,7 @@ const KEYS = [
   "DB_SSL",
   "DB_POOL_MAX",
   "DB_CONNECTION_TIMEOUT_MS",
+  "DB_IDLE_TIMEOUT_MS",
   "JWT_ACCESS_SECRET",
   "JWT_ACCESS_TTL",
   "JWT_REFRESH_TTL_DAYS",
@@ -17,6 +18,7 @@ const KEYS = [
   "AI_PROVIDER",
   "AI_API_KEY",
   "AI_MODEL",
+  "SESSION_CACHE_TTL_MS",
 ];
 
 describe("configuration", () => {
@@ -45,11 +47,13 @@ describe("configuration", () => {
       ssl: false,
       poolMax: 5,
       connectionTimeoutMs: 15000,
+      idleTimeoutMs: 300000,
     });
     expect(config.jwt.accessTtl).toBe(900);
     expect(config.jwt.refreshTtlDays).toBe(30);
     expect(config.cookie.sameSite).toBe("lax");
     expect(config.defaultCurrency).toBe("ARS");
+    expect(config.sessionCacheTtlMs).toBe(30_000);
     expect(config.ai.provider).toBe("deepseek");
     expect(config.ai.apiKey).toBeNull();
     expect(config.ai.model).toBe("deepseek-chat");

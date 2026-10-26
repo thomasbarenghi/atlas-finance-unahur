@@ -67,6 +67,13 @@ export class DashboardOrchestrator {
     );
 
     const months = this.calculations.monthRange(from, to);
+    const rangeDays =
+      Math.round(
+        (new Date(`${to}T00:00:00.000Z`).getTime() -
+          new Date(`${from}T00:00:00.000Z`).getTime()) /
+          DAY_MS,
+      ) + 1;
+    const dailyGranularity = rangeDays <= 31;
 
     const incomeExpenseByMonth = months.map((month) => {
       const flows = this.calculations.calculatePeriodFlows(
@@ -76,6 +83,38 @@ export class DashboardOrchestrator {
       );
       return { month, income: flows.income, expenses: flows.expenses };
     });
+
+    const incomeExpenseByPeriod = dailyGranularity
+      ? this.calculations.weekRange(from, to).map(({ start, end }) => {
+          const flows = this.calculations.calculatePeriodFlows(
+            transactions,
+            start,
+            end,
+          );
+          return {
+            bucket: "week" as const,
+            start,
+            end,
+            income: flows.income,
+            expenses: flows.expenses,
+          };
+        })
+      : months.map((month) => {
+          const start = `${month}-01`;
+          const end = this.calculations.monthEnd(month);
+          const flows = this.calculations.calculatePeriodFlows(
+            transactions,
+            start,
+            end,
+          );
+          return {
+            bucket: "month" as const,
+            start,
+            end,
+            income: flows.income,
+            expenses: flows.expenses,
+          };
+        });
 
     const currentByCategory = this.calculations.calculateExpensesByCategory(
       transactions,
@@ -95,13 +134,18 @@ export class DashboardOrchestrator {
     // series are the same sum evaluated at the end of each month.
     const netWorth = this.calculations.netWorthAt(accounts, transactions);
 
-    const netWorthSeries = months.map((month) => {
-      const date = this.calculations.monthEnd(month);
-      return {
-        date,
-        value: this.calculations.netWorthAt(accounts, transactions, date),
-      };
-    });
+    const netWorthSeries = dailyGranularity
+      ? this.calculations.dayRange(from, to).map((date) => ({
+          date,
+          value: this.calculations.netWorthAt(accounts, transactions, date),
+        }))
+      : months.map((month) => {
+          const date = this.calculations.monthEnd(month);
+          return {
+            date,
+            value: this.calculations.netWorthAt(accounts, transactions, date),
+          };
+        });
 
     const seriesStart = netWorthSeries[0];
     const savingsRateDeltaPp =
@@ -137,6 +181,7 @@ export class DashboardOrchestrator {
         savingsRateDeltaPp,
       },
       netWorthSeries,
+      incomeExpenseByPeriod,
       incomeExpenseByMonth,
       expensesByCategory,
     };

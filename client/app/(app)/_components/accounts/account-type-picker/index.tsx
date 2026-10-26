@@ -1,16 +1,13 @@
 "use client";
 
-import { IconBadge } from "@/components/common/icon-badge";
-import { ResponsiveDialogContent } from "@/components/common/responsive-dialog";
+import { DialogShell } from "@/components/common/dialog-shell";
+import { DIALOG_BUTTON, DIALOG_FOOTER } from "@/components/common/ui-classes";
 import { ACCOUNT_TYPE_ICONS } from "@/app/(app)/_components/accounts/account-icon";
-import {
-  Dialog,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { DialogFooter } from "@/components/ui/dialog";
 import type { AccountType } from "@/lib/api/types";
 import { ACCOUNT_TYPE_LABELS, ACCOUNT_TYPE_VALUES } from "@/lib/labels";
+import { cn } from "@/lib/utils";
 
 export interface AccountTypePickerProps {
   open: boolean;
@@ -31,39 +28,52 @@ export const AccountTypePicker = ({
   onSelect,
 }: AccountTypePickerProps) => {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <ResponsiveDialogContent className="max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Nueva cuenta</DialogTitle>
-          <DialogDescription>
-            Elegí qué querés crear y completá los datos.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid grid-cols-2 gap-3">
-          {ACCOUNT_TYPE_VALUES.map((type) => {
-            const Icon = ACCOUNT_TYPE_ICONS[type];
-            return (
-              <button
-                key={type}
-                type="button"
-                onClick={() => onSelect(type)}
-                className="bg-card hover:bg-muted/40 active:bg-muted/60 flex flex-col items-start gap-3 rounded-2xl border p-4 text-left transition-colors"
-              >
-                <IconBadge icon={Icon} shape="xl" />
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="text-sm font-medium">
-                    {ACCOUNT_TYPE_LABELS[type]}
-                  </span>
-                  <span className="text-muted-foreground text-xs">
-                    {DESCRIPTIONS[type]}
-                  </span>
+    <DialogShell
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Nueva cuenta"
+      description="Elegí qué querés crear y completá los datos."
+      contentClassName="sm:max-w-[540px] sm:gap-0"
+    >
+      <div className="dialog-body grid grid-cols-2 gap-2.5 sm:gap-[10px]">
+        {ACCOUNT_TYPE_VALUES.map((type) => {
+          const Icon = ACCOUNT_TYPE_ICONS[type];
+          return (
+            <button
+              key={type}
+              type="button"
+              onClick={() => onSelect(type)}
+              className="interactive-card flex min-h-[105px] flex-col items-start gap-1.5 rounded-xl border p-3.5 text-left transition-colors"
+            >
+              <span className="bg-accent text-primary flex size-[34px] shrink-0 items-center justify-center rounded-full">
+                <Icon className="size-[15px]" aria-hidden />
+              </span>
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-ink text-[12.5px] leading-[17px] font-semibold">
+                  {ACCOUNT_TYPE_LABELS[type]}
                 </span>
-              </button>
-            );
-          })}
-        </div>
-      </ResponsiveDialogContent>
-    </Dialog>
+                <span className="text-muted-foreground text-[10.5px] leading-[14px]">
+                  {DESCRIPTIONS[type]}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <DialogFooter className={DIALOG_FOOTER}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+          className={cn(
+            DIALOG_BUTTON,
+            "bg-[#F5F6F8] hover:bg-[#F5F6F8] sm:bg-card",
+          )}
+        >
+          Cancelar
+        </Button>
+      </DialogFooter>
+    </DialogShell>
   );
 };

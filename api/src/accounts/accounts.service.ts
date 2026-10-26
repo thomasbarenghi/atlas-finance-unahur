@@ -32,11 +32,15 @@ export class AccountsService {
   ) {}
 
   async listAccounts(userId: string): Promise<AccountResponseDto[]> {
-    const accounts = await this.accountsRepository.find({
-      where: { userId },
-      order: { createdAt: "ASC" },
-    });
-    const totals = await this.balances.signedTotalsByAccount(userId);
+    // Both reads are independent: run them in parallel to save a full
+    // round-trip to the database.
+    const [accounts, totals] = await Promise.all([
+      this.accountsRepository.find({
+        where: { userId },
+        order: { createdAt: "ASC" },
+      }),
+      this.balances.signedTotalsByAccount(userId),
+    ]);
     return accounts.map((account) =>
       toAccountResponse(
         account,

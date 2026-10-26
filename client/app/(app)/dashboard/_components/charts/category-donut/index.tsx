@@ -8,27 +8,20 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { groupSmallCategories } from "./category-donut.utils";
 
 export interface CategoryDonutProps {
   data: { categoryId: string; name: string; color: string; value: number }[];
   currency: string;
-  valueLabel?: string;
-  emptyTitle?: string;
-  emptyDescription?: string;
 }
 
-export const CategoryDonut = ({
-  data,
-  currency,
-  valueLabel = "Gasto",
-  emptyTitle = "Sin gastos en el período",
-  emptyDescription = "Cuando registres gastos por categoría vas a ver su distribución.",
-}: CategoryDonutProps) => {
+export const CategoryDonut = ({ data, currency }: CategoryDonutProps) => {
   const config = {
-    value: { label: valueLabel },
+    value: { label: "Gasto" },
   } satisfies ChartConfig;
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const chartData = groupSmallCategories(data);
   const total = chartData.reduce((sum, item) => sum + item.value, 0);
 
@@ -36,19 +29,22 @@ export const CategoryDonut = ({
     return (
       <EmptyState
         icon={PieChartIcon}
-        title={emptyTitle}
-        description={emptyDescription}
+        title="Sin gastos en el período"
+        description="Cuando registres gastos por categoría vas a ver su distribución."
       />
     );
   }
 
   return (
     <>
-      <ChartContainer config={config} className="mx-auto h-56 w-full">
+      <ChartContainer
+        config={config}
+        className="mx-auto h-[132px] w-full md:h-[168px]"
+      >
         <PieChart
           accessibilityLayer
           role="img"
-          aria-label={`${valueLabel}s por categoría`}
+          aria-label="Gastos por categoría"
         >
           <ChartTooltip
             content={
@@ -62,9 +58,10 @@ export const CategoryDonut = ({
             data={chartData}
             dataKey="value"
             nameKey="name"
-            innerRadius={55}
-            outerRadius={90}
+            innerRadius={isDesktop ? 47 : 38}
+            outerRadius={isDesktop ? 79 : 63}
             paddingAngle={2}
+            isAnimationActive={false}
           >
             {chartData.map((item) => (
               <Cell key={item.categoryId} fill={item.color} />
@@ -72,29 +69,31 @@ export const CategoryDonut = ({
           </Pie>
         </PieChart>
       </ChartContainer>
-      <ul className="flex flex-col gap-2">
+      <ul className="mt-1 flex flex-col gap-1 text-[10.5px] md:mt-1.5 md:gap-0 md:text-[11.5px]">
         {chartData.map((item) => (
           <li
             key={item.categoryId}
-            className="flex items-center justify-between gap-2 text-sm"
+            className="flex h-6 items-center gap-2 leading-[14px] md:h-[27px] md:leading-[16px]"
           >
-            <span className="flex items-center gap-2">
-              <span
-                className="size-2.5 rounded-full"
-                style={{ backgroundColor: item.color }}
-                aria-hidden
-              />
+            <span
+              className="size-[7px] shrink-0 rounded-full md:size-2"
+              style={{ backgroundColor: item.color }}
+              aria-hidden
+            />
+            <span className="text-ink2 min-w-0 flex-1 truncate">
               {item.name}
             </span>
-            <span className="text-muted-foreground tabular-nums">
+            <span className="text-ink2 shrink-0 tabular-nums">
               {formatCurrency(item.value, currency)}
-              {total > 0 ? ` · ${formatPercent(item.value / total)}` : ""}
+            </span>
+            <span className="text-muted-foreground w-9 shrink-0 text-right text-[9.5px] leading-[13px] tabular-nums md:w-11 md:text-[10.5px] md:leading-[14px]">
+              {total > 0 ? formatPercent(item.value / total) : ""}
             </span>
           </li>
         ))}
       </ul>
       <ChartDataTable
-        caption={`${valueLabel}s por categoría`}
+        caption="Gastos por categoría"
         headers={["Categoría", "Monto"]}
         rows={chartData.map((item) => ({
           key: item.categoryId,

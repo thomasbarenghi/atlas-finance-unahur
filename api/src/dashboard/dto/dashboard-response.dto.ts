@@ -13,6 +13,13 @@ export class DashboardData {
     savingsRateDeltaPp: number | null;
   };
   netWorthSeries: { date: string; value: number }[];
+  incomeExpenseByPeriod: {
+    bucket: "week" | "month";
+    start: string;
+    end: string;
+    income: number;
+    expenses: number;
+  }[];
   incomeExpenseByMonth: {
     month: string;
     income: number;

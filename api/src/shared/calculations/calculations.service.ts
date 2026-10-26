@@ -107,6 +107,32 @@ export class CalculationsService {
     return ((current - previous) / Math.abs(previous)) * 100;
   }
 
+  dayRange(from: string, to: string): string[] {
+    const days: string[] = [];
+    const cursor = new Date(`${from}T00:00:00.000Z`);
+    const end = new Date(`${to}T00:00:00.000Z`);
+    while (cursor <= end) {
+      days.push(toIsoDate(cursor));
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    return days;
+  }
+
+  weekRange(from: string, to: string): { start: string; end: string }[] {
+    const weeks: { start: string; end: string }[] = [];
+    const end = new Date(`${to}T00:00:00.000Z`);
+    let cursor = new Date(`${from}T00:00:00.000Z`);
+    while (cursor <= end) {
+      const weekEnd = new Date(cursor);
+      weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+      const capped = weekEnd > end ? end : weekEnd;
+      weeks.push({ start: toIsoDate(cursor), end: toIsoDate(capped) });
+      cursor = new Date(capped);
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    return weeks;
+  }
+
   monthRange(from: string, to: string): string[] {
     const months: string[] = [];
     const cursor = new Date(`${from.slice(0, 7)}-01T00:00:00.000Z`);

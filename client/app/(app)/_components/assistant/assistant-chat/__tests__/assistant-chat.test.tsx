@@ -1,31 +1,29 @@
 import { screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AssistantChat } from "@/app/(app)/_components/assistant/assistant-chat";
-import { AssistantChatProvider } from "@/providers/assistant-chat-provider";
+import AssistantPage from "@/app/(app)/assistant/page";
 import { makeUser } from "@/lib/test/factories";
 import { renderWithProviders } from "@/lib/test/render";
-import { resetMockSession, seedMockSession } from "@/lib/test/mock-session";
+import { setupTestServer } from "@/lib/test/server";
 
 vi.mock("next/navigation", () => import("@/lib/test/next-navigation"));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-const renderChat = (onClose?: () => void) =>
-  renderWithProviders(
-    <AssistantChatProvider>
-      <AssistantChat onClose={onClose} />
-    </AssistantChatProvider>,
-    { user: makeUser(), period: { from: "2000-01-01", to: "2100-01-01" } },
-  );
+const server = setupTestServer();
+
+const renderChat = () =>
+  renderWithProviders(<AssistantPage />, {
+    user: makeUser(),
+    period: { from: "2000-01-01", to: "2100-01-01" },
+  });
 
 describe("AssistantChat", () => {
   beforeEach(() => {
     window.localStorage.clear();
-    seedMockSession();
     vi.restoreAllMocks();
   });
   afterEach(() => {
-    resetMockSession();
     window.localStorage.clear();
   });
 
@@ -42,6 +40,66 @@ describe("AssistantChat", () => {
     await waitFor(() => expect(screen.getByText(/gasto/)).toBeInTheDocument(), {
       timeout: 5000,
     });
+  });
+
+  it("streams an answer when effects re-mount under StrictMode", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<AssistantPage />, {
+      user: makeUser(),
+      period: { from: "2000-01-01", to: "2100-01-01" },
+      strict: true,
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: /¿En qué gasté más este mes\?/ }),
+    );
+
+    await waitFor(() => expect(screen.getByText(/gasto/)).toBeInTheDocument(), {
+      timeout: 5000,
+    });
+  });
+
+  it("sends the previous turns as conversation history", async () => {
+    const bodies: { history?: unknown }[] = [];
+    server.use(
+      http.post("*/assistant/messages", async ({ request }) => {
+        bodies.push((await request.json()) as { history?: unknown });
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream<Uint8Array>({
+          start: (controller) => {
+            controller.enqueue(
+              encoder.encode(
+                'event: token\ndata: {"delta":"ok"}\n\nevent: done\ndata: {"insufficient":false}\n\n',
+              ),
+            );
+            controller.close();
+          },
+        });
+        return new HttpResponse(stream, {
+          headers: { "Content-Type": "text/event-stream" },
+        });
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderChat();
+
+    const input = screen.getByLabelText("Pregunta para el asistente");
+    await user.type(input, "primera pregunta{Enter}");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Enviar pregunta" }),
+      ).toBeInTheDocument(),
+    );
+
+    await user.type(input, "¿y lo del auto?{Enter}");
+    await waitFor(() => expect(bodies).toHaveLength(2));
+
+    expect(bodies[0].history).toBeUndefined();
+    expect(bodies[1].history).toEqual([
+      { role: "user", content: "primera pregunta" },
+      { role: "assistant", content: "ok" },
+    ]);
   });
 
   it("submits a typed question with the send button", async () => {
@@ -71,25 +129,35 @@ describe("AssistantChat", () => {
     expect(await screen.findByText("hola")).toBeInTheDocument();
   });
 
-  it("opens the history and starts a new conversation", async () => {
+  it("clears the single conversation with Nuevo chat", async () => {
     const user = userEvent.setup();
     renderChat();
 
-    await user.click(screen.getByRole("button", { name: "Historial" }));
-    expect(await screen.findByText("Historial")).toBeInTheDocument();
     await user.click(
-      screen.getByRole("button", { name: /Nueva conversación/ }),
+      screen.getByRole("button", { name: /¿En qué gasté más este mes\?/ }),
     );
+    await waitFor(() => expect(screen.getByText(/gasto/)).toBeInTheDocument(), {
+      timeout: 5000,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Nuevo chat" }));
     expect(screen.getByText("¿En qué te ayudo?")).toBeInTheDocument();
   });
 
-  it("closes the panel when requested", async () => {
+  it("discards the conversation and stops an in-flight response on Nuevo chat", async () => {
     const user = userEvent.setup();
-    const onClose = vi.fn();
-    renderChat(onClose);
+    renderChat();
 
-    await user.click(screen.getByRole("button", { name: "Cerrar asistente" }));
-    expect(onClose).toHaveBeenCalled();
+    await user.click(
+      screen.getByRole("button", { name: /¿En qué gasté más este mes\?/ }),
+    );
+    await screen.findByRole("button", { name: "Detener respuesta" });
+    await user.click(screen.getByRole("button", { name: "Nuevo chat" }));
+
+    expect(screen.getByText("¿En qué te ayudo?")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Enviar pregunta" }),
+    ).toBeInTheDocument();
   });
 
   it("cancels an in-flight response", async () => {
@@ -109,8 +177,11 @@ describe("AssistantChat", () => {
 
   it("reports a failed stream", async () => {
     const user = userEvent.setup();
-    const { mockApi } = await import("@/lib/mocks/api");
-    vi.spyOn(mockApi, "sendMessage").mockRejectedValue(new Error("boom"));
+    server.use(
+      http.post("*/assistant/messages", () =>
+        HttpResponse.json({ message: "boom" }, { status: 500 }),
+      ),
+    );
     renderChat();
 
     const input = screen.getByLabelText("Pregunta para el asistente");

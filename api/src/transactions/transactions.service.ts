@@ -5,6 +5,7 @@ import { DataSource, Repository } from "typeorm";
 import { Paginated, PaginationDto } from "../common/dto/pagination.dto";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
+import type { MoneyTransaction } from "../shared/calculations/calculations.types";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
 import {
   toTransactionResponse,
@@ -44,8 +45,23 @@ export class TransactionsService {
     };
   }
 
-  async listOwnedTransactions(userId: string): Promise<Transaction[]> {
-    return this.transactionsRepository.find({ where: { userId } });
+  /**
+   * Slim projection used by the dashboard read model. Only the columns needed
+   * for the calculations travel over the wire; `description`, `notes` and
+   * timestamps are excluded (the dashboard never renders them).
+   */
+  async listOwnedTransactions(userId: string): Promise<MoneyTransaction[]> {
+    return this.transactionsRepository.find({
+      where: { userId },
+      select: [
+        "accountId",
+        "transferAccountId",
+        "categoryId",
+        "type",
+        "amount",
+        "date",
+      ],
+    });
   }
 
   async getTransaction(

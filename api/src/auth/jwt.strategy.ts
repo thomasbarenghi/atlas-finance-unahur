@@ -8,6 +8,7 @@ import { Repository } from "typeorm";
 import { AuthUser, JwtPayload } from "../common/types/auth-user";
 import { AppConfig } from "../config/configuration";
 import { Session } from "./entities/session.entity";
+import { SessionValidationCache } from "./session-validation-cache.service";
 
 const cookieExtractor = (request: Request): string | null => {
   const cookies = request.cookies as Record<string, string> | undefined;
@@ -20,6 +21,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     config: ConfigService<AppConfig, true>,
     @InjectRepository(Session)
     private readonly sessionsRepository: Repository<Session>,
+    private readonly sessionCache: SessionValidationCache,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
@@ -32,21 +34,26 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload): Promise<AuthUser> {
-    const session = await this.sessionsRepository.findOneBy({
-      id: payload.sid,
-      userId: payload.sub,
+    return this.sessionCache.getOrValidate(payload.sid, async () => {
+      const session = await this.sessionsRepository.findOneBy({
+        id: payload.sid,
+        userId: payload.sub,
+      });
+      if (
+        !session ||
+        session.revokedAt !== null ||
+        session.expiresAt.getTime() <= Date.now()
+      ) {
+        throw new UnauthorizedException();
+      }
+      return {
+        user: {
+          id: payload.sub,
+          email: payload.email,
+          sessionId: payload.sid,
+        },
+        expiresAt: session.expiresAt,
+      };
     });
-    if (
-      !session ||
-      session.revokedAt !== null ||
-      session.expiresAt.getTime() <= Date.now()
-    ) {
-      throw new UnauthorizedException();
-    }
-    return {
-      id: payload.sub,
-      email: payload.email,
-      sessionId: payload.sid,
-    };
   }
 }

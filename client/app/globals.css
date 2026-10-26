@@ -2,7 +2,6 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* No theme toggle in v0.3: keep the generated `dark:` variants inert. */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -16,6 +15,18 @@
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-ink: var(--ink);
+  --color-ink2: var(--ink2);
+  --color-line: var(--line);
+  --color-line2: var(--line2);
+  --color-income: var(--income);
+  --color-expense: var(--expense);
+  --color-net: var(--net);
+  --color-data-1: var(--data-1);
+  --color-data-2: var(--data-2);
+  --color-data-3: var(--data-3);
+  --color-data-4: var(--data-4);
+  --color-data-5: var(--data-5);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -29,54 +40,129 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
+  --color-metric-info: var(--metric-info);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-solid-foreground: var(--primary-solid-foreground);
+  --color-primary-solid: var(--primary-solid);
   --color-primary: var(--primary);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --radius-4xl: 9999px;
 }
 
 :root {
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.527 0.154 150.069);
-  --primary-foreground: oklch(0.982 0.018 155.826);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --success: oklch(0.596 0.145 163.225);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --radius: 0.875rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: #f6f7f9;
+  --foreground: #0f1115;
+  --card: #ffffff;
+  --card-foreground: #0f1115;
+  --popover: #ffffff;
+  --popover-foreground: #0f1115;
+  --primary: #165c36;
+  --primary-foreground: #ffffff;
+  --primary-solid: #165c36;
+  --primary-solid-foreground: #ffffff;
+  --secondary: #f2f4f7;
+  --secondary-foreground: #3f4550;
+  --muted: #f2f4f7;
+  --muted-foreground: #6b7280;
+  --metric-info: #8a94a3;
+  --accent: #d9eade;
+  --accent-foreground: #165c36;
+  --destructive: #a13325;
+  --success: #165c36;
+  --border: #e4e7ec;
+  --input: #e4e7ec;
+  --ring: #165c36;
+  --ink: #0f1115;
+  --ink2: #3f4550;
+  --line: #e4e7ec;
+  --line2: #eff1f4;
+  --income: #165c36;
+  --expense: #a13325;
+  --net: #165c36;
+  --data-1: #8ec5ff;
+  --data-2: #1447e6;
+  --data-3: #ef4444;
+  --data-4: #0ea5e9;
+  --data-5: #3b82f6;
+  --chart-1: var(--data-3);
+  --chart-2: var(--data-4);
+  --chart-3: var(--data-5);
+  --chart-4: #a855f7;
+  --chart-5: #f59e0b;
+  --radius: 0.75rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f1115;
+  --sidebar-accent: #d9eade;
+  --sidebar-accent-foreground: #165c36;
+  --hero-gradient: linear-gradient(
+    225deg,
+    #c9e2d4 0%,
+    #eff6f1 55%,
+    #ffffff 100%
+  );
+}
+
+.dark {
+  --background: #08090b;
+  --foreground: #f4f5f7;
+  --card: #111318;
+  --card-foreground: #f4f5f7;
+  --popover: #111318;
+  --popover-foreground: #f4f5f7;
+  --primary: #6dbe8b;
+  --primary-foreground: #08130d;
+  --primary-solid: #2e7d50;
+  --primary-solid-foreground: #ffffff;
+  --secondary: #1b1e24;
+  --secondary-foreground: #e5e7eb;
+  --muted: #1b1e24;
+  --muted-foreground: #9ca3af;
+  --accent: #1f3327;
+  --accent-foreground: #a7d8b7;
+  --destructive: #f87171;
+  --success: #6dbe8b;
+  --border: #24272c;
+  --input: #24272c;
+  --ring: #6dbe8b;
+  --ink: #f4f5f7;
+  --ink2: #c7cbd1;
+  --line: #24272c;
+  --line2: #1b1e24;
+  --income: #6dbe8b;
+  --expense: #f87171;
+  --net: #6dbe8b;
+  --data-1: #8ec5ff;
+  --data-2: #60a5fa;
+  --data-3: #f87171;
+  --data-4: #38bdf8;
+  --data-5: #60a5fa;
+  --chart-1: var(--data-3);
+  --chart-2: var(--data-4);
+  --chart-3: var(--data-5);
+  --chart-4: #c084fc;
+  --chart-5: #fbbf24;
+  --sidebar: #0d0f12;
+  --sidebar-foreground: #f4f5f7;
+  --sidebar-accent: #1f3327;
+  --sidebar-accent-foreground: #a7d8b7;
+  --hero-gradient: linear-gradient(
+    225deg,
+    #1b1e24 0%,
+    #111318 55%,
+    #111318 100%
+  );
 }
 
 @layer base {
@@ -96,5 +182,106 @@
   h5,
   h6 {
     @apply font-heading;
+  }
+}
+
+@layer components {
+  /* Surfaces */
+  .surface-card {
+    @apply bg-card border-line rounded-3xl border;
+  }
+
+  .surface-list {
+    @apply bg-card border-line overflow-hidden rounded-3xl border;
+  }
+
+  .interactive-card {
+    @apply bg-card border-line hover:border-primary/30 hover:bg-accent/30;
+  }
+
+  /* Bottom sheets and dialogs */
+  .sheet-handle {
+    @apply flex justify-center pt-[9px] pb-[9px] sm:hidden;
+  }
+
+  .sheet-handle-bar {
+    @apply h-1 w-[38px] rounded-full bg-[#D9DDE3];
+  }
+
+  .dialog-body {
+    @apply flex flex-col gap-3 px-[18px] pt-0 pb-1 sm:gap-3.5 sm:px-[22px] sm:pt-4;
+  }
+
+  /* Forms */
+  .field-icon {
+    @apply text-muted-foreground pointer-events-none absolute top-1/2 -translate-y-1/2;
+  }
+
+  /* Cards */
+  .card-description {
+    @apply text-muted-foreground text-[11.5px] leading-[16px];
+  }
+
+  .section-title {
+    @apply text-muted-foreground text-[9.5px] leading-[13px] font-bold tracking-[0.12em] uppercase;
+  }
+
+  /* Rows */
+  .list-row {
+    @apply text-ink flex h-[50px] w-full items-center gap-2.5 px-3.5 text-left text-[12.5px] leading-[17px] font-medium transition-colors;
+  }
+
+  /* Segmented control */
+  .segmented {
+    @apply bg-secondary inline-grid shrink-0 grid-flow-col gap-0.5 rounded-full p-[3px];
+  }
+
+  .segmented-item {
+    @apply rounded-full font-medium transition-colors;
+  }
+
+  .segmented-item-active {
+    @apply bg-card text-foreground border-border border font-semibold;
+  }
+
+  .dark .sheet-handle-bar {
+    @apply bg-muted-foreground/40;
+  }
+
+  [data-slot="dialog-overlay"],
+  [data-slot="alert-dialog-overlay"],
+  [data-slot="sheet-overlay"] {
+    background-color: color-mix(in srgb, #0f1115 60%, transparent) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .dark [data-slot="dialog-content"],
+  .dark [data-slot="alert-dialog-content"],
+  .dark [data-slot="sheet-content"] {
+    border: 1px solid var(--border);
+  }
+
+  .dark [data-slot="button"][data-variant="default"]:not(:disabled) {
+    background-color: var(--primary-solid) !important;
+    color: var(--primary-solid-foreground) !important;
+  }
+
+  .dark [data-slot="button"][data-variant="default"]:not(:disabled):hover {
+    background-color: color-mix(
+      in srgb,
+      var(--primary-solid) 85%,
+      white
+    ) !important;
+  }
+}
+
+@layer base {
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px var(--card) inset !important;
+    -webkit-text-fill-color: var(--foreground);
+    caret-color: var(--foreground);
   }
 }

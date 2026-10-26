@@ -5,6 +5,11 @@ export interface DatabaseConfig {
   poolMax: number;
   /** Tiempo máximo de espera para obtener una conexión del pool (ms). */
   connectionTimeoutMs: number;
+  /**
+   * Tiempo que una conexión ociosa permanece abierta (ms). Mantenerlo alto
+   * evita pagar el handshake TLS contra Supabase en cada visita.
+   */
+  idleTimeoutMs: number;
 }
 
 export interface JwtConfig {
@@ -41,6 +46,11 @@ export interface AppConfig {
   ai: AiConfig;
   /** Única moneda del sistema, usada para mostrar montos (FR de alcance 0.3). */
   defaultCurrency: string;
+  /**
+   * TTL del cache en memoria de sesiones validadas (ms). `0` lo desactiva.
+   * Acota cuánto tarda en propagarse una revocación hecha en otra instancia.
+   */
+  sessionCacheTtlMs: number;
 }
 
 const toNumber = (value: string | undefined, fallback: number): number => {
@@ -70,6 +80,7 @@ export const configuration = (): AppConfig => ({
     ssl: toBoolean(process.env.DB_SSL, false),
     poolMax: toNumber(process.env.DB_POOL_MAX, 5),
     connectionTimeoutMs: toNumber(process.env.DB_CONNECTION_TIMEOUT_MS, 15000),
+    idleTimeoutMs: toNumber(process.env.DB_IDLE_TIMEOUT_MS, 300000),
   },
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET ?? "",
@@ -99,4 +110,5 @@ export const configuration = (): AppConfig => ({
     devUserEmail: process.env.AI_DEV_USER_EMAIL || "demo@atlassfin.app",
   },
   defaultCurrency: process.env.DEFAULT_CURRENCY ?? "ARS",
+  sessionCacheTtlMs: toNumber(process.env.SESSION_CACHE_TTL_MS, 30_000),
 });

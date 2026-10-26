@@ -4,11 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfileMenu } from "@/app/(app)/profile/_components/profile-menu";
 import { makeUser } from "@/lib/test/factories";
 import { renderWithProviders } from "@/lib/test/render";
+import { setupTestServer } from "@/lib/test/server";
 
 vi.mock("next/navigation", () => import("@/lib/test/next-navigation"));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
+
+setupTestServer();
 
 describe("ProfileMenu", () => {
   beforeEach(() => {
@@ -20,7 +23,7 @@ describe("ProfileMenu", () => {
       user: makeUser({ name: "Ana Pérez", email: "ana@example.com" }),
     });
 
-    expect(screen.getByText("AP")).toBeInTheDocument();
+    expect(screen.getByText("A")).toBeInTheDocument();
     expect(screen.getByText("Ana Pérez")).toBeInTheDocument();
     expect(screen.getByText("ana@example.com")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Categorías/ })).toHaveAttribute(

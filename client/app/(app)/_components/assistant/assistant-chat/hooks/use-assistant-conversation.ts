@@ -1,16 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useAssistantChat } from "@/hooks/use-assistant-chat";
 import { usePeriod } from "@/hooks/use-period";
 import { streamAssistantMessage } from "@/lib/api/assistant-stream";
 import { getErrorMessage } from "@/lib/api/errors";
+import type { AssistantHistoryMessage } from "@/lib/api/types";
+import { buildAssistantHistory } from "./assistant-history";
+
+export interface AssistantChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
 
 export const useAssistantConversation = () => {
   const { range } = usePeriod();
-  const { activeThread, appendMessage, updateMessage, startNewThread } =
-    useAssistantChat();
+  const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -18,32 +24,55 @@ export const useAssistantConversation = () => {
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
 
-  // Abort the in-flight stream and stop updating state once unmounted (avoids
-  // post-teardown updates that would touch a disposed environment).
-  useEffect(
-    () => () => {
-      mountedRef.current = false;
-      abortRef.current?.abort();
+  const appendMessage = useCallback((message: AssistantChatMessage) => {
+    setMessages((previous) => [...previous, message]);
+  }, []);
+
+  const updateMessage = useCallback(
+    (id: string, patch: Partial<AssistantChatMessage>) => {
+      setMessages((previous) =>
+        previous.map((message) =>
+          message.id === id ? { ...message, ...patch } : message,
+        ),
+      );
     },
     [],
   );
 
-  const messages = useMemo(() => activeThread?.messages ?? [], [activeThread]);
-  const isBusy = isStreaming;
+  // Abort the in-flight stream and stop updating state once unmounted (avoids
+  // post-teardown updates that would touch a disposed environment). The flag is
+  // reset on mount because StrictMode runs effects mount → cleanup → mount,
+  // and leaving it `false` would discard every token and keep the chat stuck.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
   const streamInto = useCallback(
-    async (assistantId: string, question: string) => {
+    async (
+      assistantId: string,
+      question: string,
+      history: AssistantHistoryMessage[],
+    ) => {
       setIsStreaming(true);
       const controller = new AbortController();
       abortRef.current = controller;
       let received = "";
+      let timedOut = false;
+      const timeout = window.setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, 30_000);
       try {
         await streamAssistantMessage(
-          { question, period: range },
+          { question, period: range, history },
           {
             onToken: (delta) => {
               if (!mountedRef.current) return;
@@ -63,9 +92,11 @@ export const useAssistantConversation = () => {
         if (!mountedRef.current) return;
         if ((error as { name?: string })?.name === "AbortError") {
           updateMessage(assistantId, {
-            content: received
-              ? `${received}\n\n(Respuesta detenida)`
-              : "Respuesta detenida.",
+            content: timedOut
+              ? "El asistente tardó demasiado en responder. Intentá de nuevo."
+              : received
+                ? `${received}\n\n(Respuesta detenida)`
+                : "Respuesta detenida.",
           });
         } else {
           const message =
@@ -79,6 +110,7 @@ export const useAssistantConversation = () => {
           toast.error(message);
         }
       } finally {
+        window.clearTimeout(timeout);
         abortRef.current = null;
         if (!mountedRef.current) return;
         setIsStreaming(false);
@@ -91,8 +123,9 @@ export const useAssistantConversation = () => {
   const submit = useCallback(
     async (question: string) => {
       const trimmed = question.trim();
-      if (!trimmed || isBusy) return;
+      if (!trimmed || isStreaming) return;
 
+      const history = buildAssistantHistory(messages);
       const assistantId = crypto.randomUUID();
       appendMessage({
         id: crypto.randomUUID(),
@@ -101,9 +134,9 @@ export const useAssistantConversation = () => {
       });
       appendMessage({ id: assistantId, role: "assistant", content: "" });
       setInput("");
-      await streamInto(assistantId, trimmed);
+      await streamInto(assistantId, trimmed, history);
     },
-    [isBusy, appendMessage, streamInto],
+    [isStreaming, messages, appendMessage, streamInto],
   );
 
   const cancelStream = useCallback(() => {
@@ -115,9 +148,8 @@ export const useAssistantConversation = () => {
     messages,
     input,
     setInput,
-    isBusy,
+    isBusy: isStreaming,
     submit,
     cancelStream,
-    startNewThread,
   };
 };

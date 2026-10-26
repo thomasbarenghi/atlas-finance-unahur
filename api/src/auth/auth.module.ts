@@ -9,6 +9,7 @@ import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { Session } from "./entities/session.entity";
 import { JwtStrategy } from "./jwt.strategy";
+import { SessionValidationCache } from "./session-validation-cache.service";
 
 @Module({
   imports: [
@@ -26,7 +27,7 @@ import { JwtStrategy } from "./jwt.strategy";
     }),
   ],
   controllers: [AuthController],
-  providers: [JwtStrategy, AuthService],
+  providers: [JwtStrategy, AuthService, SessionValidationCache],
   exports: [JwtModule, AuthService],
 })
 export class AuthModule {}

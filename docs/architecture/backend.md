@@ -32,34 +32,34 @@ Backend monolítico que sirve una API REST para Atlass Fin. Organiza y explica l
 
 La aplicación opera con **una única moneda del sistema** (`DEFAULT_CURRENCY`, por defecto `ARS`): no hay multimoneda, ni conversión de divisas, ni cotizaciones de mercado. Existen cinco categorías globales definidas por el sistema (solo lectura) y cada usuario puede crear, editar y eliminar las suyas.
 
-| Área | Tecnología | Notas |
-| :--- | :--- | :--- |
-| Framework | NestJS | Monolítico, módulos por dominio. |
-| Lenguaje | TypeScript (strict) | — |
-| Base de datos | PostgreSQL | Proveedor: **Supabase** (Postgres gestionado). |
-| ORM | TypeORM | Entidades como fuente de verdad del esquema (`synchronize`). |
-| Esquema | **Sin migraciones** (decisión de la etapa) | El schema se deriva de las entidades; ante un cambio se recrea la base y se corre el seed (§11.1). |
-| Auth | `@nestjs/jwt` + `passport` | JWT por cookie `HttpOnly`; opcionalmente `Authorization: Bearer` para clientes que no usan cookies. |
-| Validación | `class-validator` + `class-transformer` + `ValidationPipe` global | — |
-| Hash | `argon2` | Algoritmo adaptativo (NFR-SEG-003). |
-| IA | Proveedor de LLM (configurable, p. ej. DeepSeek/OpenAI) | Solo contexto mínimo calculado; asistente de solo consulta. |
-| Config | `@nestjs/config` + validación de env | — |
+| Área          | Tecnología                                                        | Notas                                                                                               |
+| :------------ | :---------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------- |
+| Framework     | NestJS                                                            | Monolítico, módulos por dominio.                                                                    |
+| Lenguaje      | TypeScript (strict)                                               | —                                                                                                   |
+| Base de datos | PostgreSQL                                                        | Proveedor: **Supabase** (Postgres gestionado).                                                      |
+| ORM           | TypeORM                                                           | Entidades como fuente de verdad del esquema (`synchronize`).                                        |
+| Esquema       | **Sin migraciones** (decisión de la etapa)                        | El schema se deriva de las entidades; ante un cambio se recrea la base y se corre el seed (§11.1).  |
+| Auth          | `@nestjs/jwt` + `passport`                                        | JWT por cookie `HttpOnly`; opcionalmente `Authorization: Bearer` para clientes que no usan cookies. |
+| Validación    | `class-validator` + `class-transformer` + `ValidationPipe` global | —                                                                                                   |
+| Hash          | `argon2`                                                          | Algoritmo adaptativo (NFR-SEG-003).                                                                 |
+| IA            | Proveedor de LLM (configurable, p. ej. DeepSeek/OpenAI)           | Solo contexto mínimo calculado; asistente de solo consulta.                                         |
+| Config        | `@nestjs/config` + validación de env                              | —                                                                                                   |
 
 ---
 
 ## 2. Decisiones técnicas
 
-| Decisión | Elección | Justificación |
-| :--- | :--- | :--- |
-| Estilo | Monolito modular | Suficiente para el alcance; evita complejidad de microservicios. |
-| Estructura | Convencional NestJS (module/controller/service) + DTOs y entidades | Es la estructura por defecto; clara para el agente. |
-| Casos de uso | Services de dominio con un método por caso de uso | Separación de responsabilidades; testeo unitario directo. |
-| ORM | TypeORM | Integración nativa con NestJS (`@nestjs/typeorm`); el esquema se sincroniza desde las entidades. |
-| Auth | JWT (access token) + sesión persistida | Permite invalidar sesión al cerrar (FR-AUT-002). Transporte por cookie o Bearer según el cliente. |
-| Transporte de token | Cookie `HttpOnly; Secure; SameSite` (web) + `Authorization: Bearer` (clientes que no usan cookies) | Mitiga XSS y admite clientes que no persisten cookies; consistente con NFR-SEG-004. |
-| IDs | `uuid` (gen_random_uuid) | Identificadores no predecibles (NFR-SEG-005). |
-| Moneda | Única moneda del sistema (`DEFAULT_CURRENCY`, default `ARS`) | Sin multimoneda ni conversión; se expone como dato **informativo** en las respuestas con dinero. |
-| Streaming IA | SSE | UI reactiva y cancelable (NFR-PR-004). |
+| Decisión            | Elección                                                                                           | Justificación                                                                                     |
+| :------------------ | :------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------ |
+| Estilo              | Monolito modular                                                                                   | Suficiente para el alcance; evita complejidad de microservicios.                                  |
+| Estructura          | Convencional NestJS (module/controller/service) + DTOs y entidades                                 | Es la estructura por defecto; clara para el agente.                                               |
+| Casos de uso        | Services de dominio con un método por caso de uso                                                  | Separación de responsabilidades; testeo unitario directo.                                         |
+| ORM                 | TypeORM                                                                                            | Integración nativa con NestJS (`@nestjs/typeorm`); el esquema se sincroniza desde las entidades.  |
+| Auth                | JWT (access token) + sesión persistida                                                             | Permite invalidar sesión al cerrar (FR-AUT-002). Transporte por cookie o Bearer según el cliente. |
+| Transporte de token | Cookie `HttpOnly; Secure; SameSite` (web) + `Authorization: Bearer` (clientes que no usan cookies) | Mitiga XSS y admite clientes que no persisten cookies; consistente con NFR-SEG-004.               |
+| IDs                 | `uuid` (gen_random_uuid)                                                                           | Identificadores no predecibles (NFR-SEG-005).                                                     |
+| Moneda              | Única moneda del sistema (`DEFAULT_CURRENCY`, default `ARS`)                                       | Sin multimoneda ni conversión; se expone como dato **informativo** en las respuestas con dinero.  |
+| Streaming IA        | SSE                                                                                                | UI reactiva y cancelable (NFR-PR-004).                                                            |
 
 ---
 
@@ -110,6 +110,7 @@ api/
 │   ├── database/
 │   │   ├── data-source.ts           # DataSource de los scripts (`seed`, `db:*`)
 │   │   ├── database-maintenance.service.ts  # vaciar/recrear/sembrar (scripts `db:*`)
+│   │   ├── database-warmup.service.ts       # precalienta el pool al arrancar
 │   │   ├── database.module.ts
 │   │   └── seeds/                   # seed determinístico + runners
 │   ├── common/
@@ -123,7 +124,7 @@ api/
 │   │   └── types/{ auth-user.ts, financial-enums.ts }
 │   ├── auth/
 │   │   ├── auth.module.ts / auth.controller.ts / auth.service.ts
-│   │   ├── jwt.strategy.ts
+│   │   ├── jwt.strategy.ts / session-validation-cache.service.ts
 │   │   ├── dto/{ register, login, refresh-token, auth-response }.dto.ts
 │   │   └── entities/session.entity.ts
 │   ├── users/
@@ -187,66 +188,71 @@ Tablas derivadas de las entidades principales del FRD v0.3 (§3.2) más las nece
 > **Convención de columnas:** `snake_case` en la DB; los enums se almacenan como `text` con validación en la capa de aplicación (valores en §7.10); los `numeric` se serializan como `number` en la API (ver §7.9).
 
 ### 5.1 `users`
-| Columna | Tipo | Notas |
-| :--- | :--- | :--- |
-| id | uuid PK | default gen_random_uuid() |
-| name | text | |
-| email | text UNIQUE | lowercase |
-| password_hash | text | argon2 |
-| created_at / updated_at | timestamptz | |
+
+| Columna                 | Tipo        | Notas                     |
+| :---------------------- | :---------- | :------------------------ |
+| id                      | uuid PK     | default gen_random_uuid() |
+| name                    | text        |                           |
+| email                   | text UNIQUE | lowercase                 |
+| password_hash           | text        | argon2                    |
+| created_at / updated_at | timestamptz |                           |
 
 > No hay preferencias de moneda, tema ni IA en el usuario: la moneda es una constante del sistema y el asistente es de solo consulta (siempre disponible con sesión válida).
 
 ### 5.2 `sessions`
-| Columna | Tipo | Notas |
-| :--- | :--- | :--- |
-| id | uuid PK | |
-| user_id | uuid FK → users | on delete cascade |
-| refresh_token_hash | text | hash del refresh token |
-| expires_at | timestamptz | |
-| revoked_at | timestamptz NULL | se marca al logout (FR-AUT-002) |
-| created_at | timestamptz | |
+
+| Columna            | Tipo             | Notas                           |
+| :----------------- | :--------------- | :------------------------------ |
+| id                 | uuid PK          |                                 |
+| user_id            | uuid FK → users  | on delete cascade               |
+| refresh_token_hash | text             | SHA-256 del refresh token (se aceptan hashes argon2 legacy y se rotan) |
+| expires_at         | timestamptz      |                                 |
+| revoked_at         | timestamptz NULL | se marca al logout (FR-AUT-002) |
+| created_at         | timestamptz      |                                 |
 
 ### 5.3 `accounts` (FR-CUE-001..005)
-| Columna | Tipo | Notas |
-| :--- | :--- | :--- |
-| id | uuid PK | |
-| user_id | uuid FK | |
-| name | text | |
-| type | text | 'cash' \| 'bank' \| 'wallet' \| 'other' |
-| initial_balance | numeric(18,4) | |
-| notes | text NULL | |
-| created_at / updated_at | timestamptz | |
+
+| Columna                 | Tipo          | Notas                                   |
+| :---------------------- | :------------ | :-------------------------------------- |
+| id                      | uuid PK       |                                         |
+| user_id                 | uuid FK       |                                         |
+| name                    | text          |                                         |
+| type                    | text          | 'cash' \| 'bank' \| 'wallet' \| 'other' |
+| initial_balance         | numeric(18,4) |                                         |
+| notes                   | text NULL     |                                         |
+| created_at / updated_at | timestamptz   |                                         |
 
 > Saldo actual = `initial_balance` + Σ(movimientos) (calculado, FR-CUE-004). La **eliminación** de una cuenta elimina en cascada sus movimientos asociados (FR-CUE-005); no hay archivado ni restauración. Sin campo `currency` (moneda única del sistema) ni tipo `card`.
 
-### 5.4 `categories` — del sistema y propias (FR-TRX-002)
-| Columna | Tipo | Notas |
-| :--- | :--- | :--- |
-| id | uuid PK | |
+### 5.4 `categories` — del sistema y propias (FR-CAT-001..003)
+
+| Columna | Tipo                 | Notas                                                                         |
+| :------ | :------------------- | :---------------------------------------------------------------------------- |
+| id      | uuid PK              |                                                                               |
 | user_id | uuid FK NULL → users | `NULL` = categoría del sistema (global); valor = categoría propia del usuario |
-| name | text | único por usuario + tipo (case-insensitive) |
-| type | text | 'income' \| 'expense' (inmutable al editar) |
-| color | text | hex |
-| icon | text NULL | |
+| name    | text                 | único por usuario + tipo (case-insensitive)                                   |
+| type    | text                 | 'income' \| 'expense' (inmutable al editar)                                   |
+| color   | text                 | hex                                                                           |
+| icon    | text NULL            |                                                                               |
 
 > Las cinco categorías del sistema (`user_id NULL`) son **globales y de solo lectura**. Cada usuario puede crear, renombrar/recolorear y eliminar las suyas; el `type` no se modifica una vez creada. Al eliminar una categoría propia, sus movimientos quedan con `category_id NULL` y se muestran como “Sin categoría”. El seed crea solo las cinco del sistema (§11.4).
 
 ### 5.5 `transactions` (FR-TRX-001..005)
-| Columna | Tipo | Notas |
-| :--- | :--- | :--- |
-| id | uuid PK | |
-| user_id | uuid FK | |
-| type | text | 'income' \| 'expense' \| 'transfer' |
-| amount | numeric(18,4) | en `income`/`expense` se guarda positivo; en transferencias cada pata lleva el signo (negativo en origen, positivo en destino) |
-| date | date | |
-| description | text | |
-| notes | text NULL | |
-| account_id | uuid FK → accounts | |
-| transfer_account_id | uuid FK NULL → accounts | solo transferencias; distinto de account_id (FR-TRX-004) |
-| category_id | uuid FK NULL → categories | obligatoria en `income`/`expense`; nula en transferencias |
-| transfer_group_id | uuid NULL | agrupa las dos patas de una transferencia (FR-TRX-005) |
-| created_at / updated_at | timestamptz | |
+
+| Columna                 | Tipo                      | Notas                                                                                                                          |
+| :---------------------- | :------------------------ | :----------------------------------------------------------------------------------------------------------------------------- |
+| id                      | uuid PK                   |                                                                                                                                |
+| user_id                 | uuid FK                   |                                                                                                                                |
+| type                    | text                      | 'income' \| 'expense' \| 'transfer'                                                                                            |
+| amount                  | numeric(18,4)             | en `income`/`expense` se guarda positivo; en transferencias cada pata lleva el signo (negativo en origen, positivo en destino) |
+| date                    | date                      |                                                                                                                                |
+| description             | text                      |                                                                                                                                |
+| notes                   | text NULL                 |                                                                                                                                |
+| account_id              | uuid FK → accounts        |                                                                                                                                |
+| transfer_account_id     | uuid FK NULL → accounts   | solo transferencias; distinto de account_id (FR-TRX-004)                                                                       |
+| category_id             | uuid FK NULL → categories | obligatoria en `income`/`expense`; nula en transferencias                                                                      |
+| transfer_group_id       | uuid NULL                 | agrupa las dos patas de una transferencia (FR-TRX-005)                                                                         |
+| created_at / updated_at | timestamptz               |                                                                                                                                |
 
 > Las transferencias se persisten como **dos filas** (`type='transfer'`, montos con signo opuesto en cuentas distintas) en una transacción de base de datos con el mismo `transfer_group_id` (atomicidad, FR-TRX-005). Se excluyen de ingresos/gastos consolidados (CAL-003). Sin campo `currency` ni filtros/búsqueda.
 
@@ -255,25 +261,32 @@ Tablas derivadas de las entidades principales del FRD v0.3 (§3.2) más las nece
 ## 6. Autenticación y autorización (JWT)
 
 ### 6.1 Registro (`POST /auth/register`)
+
 1. Valida nombre (2–80), email (formato, único, lowercase), contraseña. **Política de contraseña:** 8–72 caracteres, al menos una letra y un número. Rechaza campos inesperados (NFR-SEG-002).
 2. Hashea con argon2 y crea el usuario. Crea la sesión y responde con cookies/tokens (login automático).
 
 ### 6.2 Login (`POST /auth/login`)
+
 1. Verifica credenciales; respuestas genéricas ante falla (sin revelar si el email existe).
 2. Emite **access token** (JWT, vida corta ~15 min) y **refresh token** (opaco, hash almacenado en `sessions`).
 3. Responde `{ user, accessToken, refreshToken }` en el body (para clientes que no usan cookies) y, en web, además fija cookies: `access_token` y `refresh_token` (`HttpOnly; Secure; SameSite=Lax` en producción; NFR-SEG-004). **El cliente web ignora los tokens del body y se apoya solo en la cookie**; un cliente que no use cookies usa el body.
 4. **Doble transporte soportado**: cookie `HttpOnly` (web) o `Authorization: Bearer` (clientes que no usan cookies). Ambos son válidos e intercambiables.
 
 ### 6.3 Renovación
+
 - `POST /auth/refresh` rota el refresh token (rotación, NFR-SEG-004). Acepta el refresh token por cookie o por body (clientes que no usan cookies). El refresh token viejo se invalida.
+- El refresh token es un secreto aleatorio de 256 bits; se guarda como **SHA-256** y se compara con `timingSafeEqual`. Los hashes **argon2 legacy** se aceptan y se migran a SHA-256 en la siguiente rotación. La rotación usa un `UPDATE` directo y recuerda la sesión validada en el cache para evitar una consulta extra en la primera request con el nuevo access token.
 
 ### 6.4 Logout (`POST /auth/logout`)
-- Marca la sesión como revocada (`revoked_at`) → invalida la sesión activa (FR-AUT-002) y limpia cookies/tokens.
+
+- Marca la sesión como revocada (`revoked_at`) → invalida la sesión activa (FR-AUT-002), limpia cookies/tokens e invalida la entrada del cache de validación de sesión en la instancia local.
 
 ### 6.5 Autorización por request (NFR-SEG-001)
+
 - `JwtAuthGuard` global valida el access token en **cada** operación, aceptándolo por cookie `HttpOnly` **o** header `Authorization: Bearer <token>`.
 - Los controllers obtienen el usuario vía `@CurrentUser()` y filtran/validan **siempre** por `user_id` del recurso.
 - Regla de oro: **ningún `id` aportado por el cliente otorga autorización**; el servidor resuelve la propiedad.
+- **Cache de validación:** `SessionValidationCache` memoriza la sesión validada durante `SESSION_CACHE_TTL_MS` (default 30 s) y coalesce validaciones concurrentes de la misma sesión. Evita una consulta a `sessions` por request (≈100–200 ms con Supabase remoto). La revocación se propaga como máximo en ese TTL entre instancias; en la instancia que ejecuta `logout` es inmediata.
 
 ---
 
@@ -282,20 +295,22 @@ Tablas derivadas de las entidades principales del FRD v0.3 (§3.2) más las nece
 Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, totalPages }`. Errores: `{ statusCode, code, message, fieldErrors? }`. Todos los endpoints de datos (salvo `@Public()`) requieren sesión.
 
 ### 7.1 Auth
-| Método | Ruta | FR |
-| :--- | :--- | :--- |
-| POST | `/auth/register` | FR-AUT-001 |
-| POST | `/auth/login` | FR-AUT-002 |
-| POST | `/auth/logout` | FR-AUT-002 |
-| POST | `/auth/refresh` | NFR-SEG-004 |
-| GET | `/auth/me` | — |
+
+| Método | Ruta             | FR          |
+| :----- | :--------------- | :---------- |
+| POST   | `/auth/register` | FR-AUT-001  |
+| POST   | `/auth/login`    | FR-AUT-002  |
+| POST   | `/auth/logout`   | FR-AUT-002  |
+| POST   | `/auth/refresh`  | NFR-SEG-004 |
+| GET    | `/auth/me`       | —           |
 
 > **Eliminados:** recuperación de contraseña (`/auth/forgot-password`, `/auth/reset-password`).
 
 ### 7.2 Users
-| Método | Ruta | FR |
-| :--- | :--- | :--- |
-| PATCH | `/users/me` | actualiza el perfil (`name`); sin preferencias de moneda/tema/IA |
+
+| Método | Ruta        | FR                                                               |
+| :----- | :---------- | :--------------------------------------------------------------- |
+| PATCH  | `/users/me` | actualiza el perfil (`name`); sin preferencias de moneda/tema/IA |
 
 ```jsonc
 // PATCH /users/me — body
@@ -304,72 +319,108 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 ```
 
 ### 7.3 Accounts
-| Método | Ruta | FR |
-| :--- | :--- | :--- |
-| GET | `/accounts` | listado con saldo actual (FR-CUE-004) |
-| POST | `/accounts` | FR-CUE-001/002 |
-| GET | `/accounts/:id` | — |
-| PATCH | `/accounts/:id` | FR-CUE-003 |
+
+| Método | Ruta            | FR                                                          |
+| :----- | :-------------- | :---------------------------------------------------------- |
+| GET    | `/accounts`     | listado con saldo actual (FR-CUE-004)                       |
+| POST   | `/accounts`     | FR-CUE-001/002                                              |
+| GET    | `/accounts/:id` | —                                                           |
+| PATCH  | `/accounts/:id` | FR-CUE-003                                                  |
 | DELETE | `/accounts/:id` | FR-CUE-003; elimina en cascada sus movimientos (FR-CUE-005) |
 
 > **Eliminados:** `POST /accounts/:id/archive` y `/restore`, el campo `currency` y el tipo `card`.
 
 ### 7.4 Categories
-| Método | Ruta | FR |
-| :--- | :--- | :--- |
-| GET | `/categories` | categorías del sistema + propias (FR-TRX-002) |
-| POST | `/categories` | crear una categoría propia |
-| PATCH | `/categories/:id` | editar una propia (`name`, `color`; `type` inmutable) |
-| DELETE | `/categories/:id` | eliminar una propia |
+
+| Método | Ruta              | FR                                                                 |
+| :----- | :---------------- | :----------------------------------------------------------------- |
+| GET    | `/categories`     | categorías del sistema + propias (FR-CAT-001)                      |
+| POST   | `/categories`     | crear una categoría propia (FR-CAT-002)                            |
+| PATCH  | `/categories/:id` | editar una propia (`name`, `color`; `type` inmutable) (FR-CAT-002) |
+| DELETE | `/categories/:id` | eliminar una propia (FR-CAT-003)                                   |
 
 > Las categorías del sistema (`isSystem: true`) no se pueden editar ni eliminar: responden `404`. Las categorías de otro usuario tampoco se exponen (`404`). Nombre duplicado (mismo usuario/tipo) → `400 VALIDATION_ERROR` con `fieldErrors.name`.
 
 ### 7.5 Transactions
-| Método | Ruta | FR |
-| :--- | :--- | :--- |
-| GET | `/transactions?page&pageSize` | listado paginado (FR-TRX-003) |
-| POST | `/transactions` | FR-TRX-001/002 (transferencia atómica FR-TRX-004/005) |
-| GET | `/transactions/:id` | — |
-| PATCH | `/transactions/:id` | FR-TRX-003 |
-| DELETE | `/transactions/:id` | FR-TRX-003 |
+
+| Método | Ruta                          | FR                                                    |
+| :----- | :---------------------------- | :---------------------------------------------------- |
+| GET    | `/transactions?page&pageSize` | listado paginado (FR-TRX-003)                         |
+| POST   | `/transactions`               | FR-TRX-001/002 (transferencia atómica FR-TRX-004/005) |
+| GET    | `/transactions/:id`           | —                                                     |
+| PATCH  | `/transactions/:id`           | FR-TRX-003                                            |
+| DELETE | `/transactions/:id`           | FR-TRX-003                                            |
 
 > **Eliminados:** filtros/búsqueda (`from`, `to`, `type`, `accountId`, `categoryId`, `search`) y el campo `currency`.
 
 ### 7.6 Dashboard
-| Método | Ruta | FR |
-| :--- | :--- | :--- |
-| GET | `/dashboard?from&to` | agrega en una sola llamada: KPIs y series del período (FR-DAS-001..004) |
+
+| Método | Ruta                 | FR                                                                      |
+| :----- | :------------------- | :---------------------------------------------------------------------- |
+| GET    | `/dashboard?from&to` | agrega en una sola llamada: KPIs y series del período (FR-DAS-001..004) |
 
 ```ts
 // 200 → DashboardData
 {
-  period: { from: string; to: string };
-  currency: string;                       // moneda única del sistema (informativa)
+  period: {
+    from: string;
+    to: string;
+  }
+  currency: string; // moneda única del sistema (informativa)
   kpis: {
-    netWorth: number; netWorthDeltaPct: number | null;
-    income: number; incomeDeltaPct: number | null;
-    expenses: number; expensesDeltaPct: number | null;
-    savings: number; savingsDeltaPct: number | null;
+    netWorth: number;
+    netWorthDeltaPct: number | null;
+    income: number;
+    incomeDeltaPct: number | null;
+    expenses: number;
+    expensesDeltaPct: number | null;
+    savings: number;
+    savingsDeltaPct: number | null;
     savingsRateDeltaPp: number | null;
-  };
-  netWorthSeries: { date: string; value: number }[];
-  incomeExpenseByMonth: { month: string; income: number; expenses: number }[];
-  expensesByCategory: { categoryId: string; name: string; color: string; value: number }[];
+  }
+  netWorthSeries: {
+    date: string;
+    value: number;
+  }
+  [];
+  incomeExpenseByPeriod: {
+    bucket: "week" | "month";
+    start: string;
+    end: string;
+    income: number;
+    expenses: number;
+  }
+  [];
+  incomeExpenseByMonth: {
+    month: string;
+    income: number;
+    expenses: number;
+  }
+  [];
+  expensesByCategory: {
+    categoryId: string;
+    name: string;
+    color: string;
+    value: number;
+  }
+  [];
 }
 ```
 
 - **Período (FR-DAS-007):** `from`/`to` son seleccionables (default: últimos 180 días). No hay selector de moneda: se usa la moneda única del sistema.
-- **Patrimonio neto (CAL-001, §8):** Σ saldos de las cuentas del usuario. La serie histórica evalúa esa suma al cierre de cada mes.
+- **Patrimonio neto (CAL-001, §8):** Σ saldos de las cuentas del usuario. La serie histórica evalúa esa suma por día si el rango tiene ≤ 31 días (mes en curso o últimos 30 días) y al cierre de cada mes en el resto de los rangos.
+- **Granularidad (FR-DAS-003/007):** para rangos de ≤ 31 días, `incomeExpenseByPeriod` devuelve tramos semanales (`bucket: "week"`); para rangos mayores, tramos mensuales (`bucket: "month"`). `incomeExpenseByMonth` se conserva para el contexto del asistente.
 - **Tasa de ahorro (CAL-010, §8):** `kpis.savingsRateDeltaPp` expresa en **puntos porcentuales** la variación de la tasa de ahorro contra el período anterior.
 - **Eliminados:** query `currency`, `kpis.assets/debts/accounts/investmentsDeltaPct`, `assetsValueByMonth`, `categoryChanges`, `assetsComposition`, `netWorthComposition`, `cashflow`, `investments`, `budgetAlerts`.
 
 ### 7.7 Assistant — solo consulta (FR-IA-002/011/015)
-| Método | Ruta | FR |
-| :--- | :--- | :--- |
-| POST | `/assistant/messages` | pregunta; responde con stream SSE (FR-IA-002) |
+
+| Método | Ruta                  | FR                                            |
+| :----- | :-------------------- | :-------------------------------------------- |
+| POST   | `/assistant/messages` | pregunta; responde con stream SSE (FR-IA-002) |
 
 - **Solo consulta:** no crea, edita ni elimina datos (FR-IA-015). Si el usuario pide una acción de escritura, el asistente explica que solo responde consultas.
-- **Sin estado:** no hay conversaciones persistidas ni acciones/propuestas. No existe historial en el servidor.
+- **Sin estado:** no hay conversaciones persistidas ni acciones/propuestas. No existe historial en el servidor; el cliente puede enviar los turnos recientes en `history` para dar continuidad a la conversación (memoria en memoria del cliente, acotada).
 - El estado del asistente no es una preferencia del usuario: con sesión válida siempre está disponible.
 - **Eliminados:** `GET/DELETE /assistant/conversations*`, `POST /assistant/actions/:id/confirm|cancel`, los eventos `action_proposal`/`action_error`, las preferencias `aiEnabled`/`assistantDestructiveEnabled` y la confirmación de escrituras.
 
@@ -386,12 +437,12 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 
 ### 7.10 Enums y catálogos
 
-| Concepto | Valores |
-| :--- | :--- |
-| `AccountType` | `cash` \| `bank` \| `wallet` \| `other` |
-| `TransactionType` | `income` \| `expense` \| `transfer` |
-| `CategoryType` | `income` \| `expense` |
-| `UserApprovalStatus` | `pending` \| `approved` \| `rejected` |
+| Concepto             | Valores                                 |
+| :------------------- | :-------------------------------------- |
+| `AccountType`        | `cash` \| `bank` \| `wallet` \| `other` |
+| `TransactionType`    | `income` \| `expense` \| `transfer`     |
+| `CategoryType`       | `income` \| `expense`                   |
+| `UserApprovalStatus` | `pending` \| `approved` \| `rejected`   |
 
 - **Moneda:** única, definida por env `DEFAULT_CURRENCY` (default `ARS`). Se expone como dato informativo en las respuestas con dinero; no existe `GET /currencies` ni validación de moneda por entidad.
 - **Categorías** (semilla): income (`Sueldo`, `Freelance`), expense (`Supermercado`, `Transporte`, `Servicios`). Son globales y de solo lectura; cada usuario puede crear las suyas (ver §7.4).
@@ -400,6 +451,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 ### 7.11 Esquemas de request/response por módulo
 
 **Auth**
+
 ```jsonc
 // POST /auth/register — body
 { "name": "Ana", "email": "ana@example.com", "password": "Secreta123" }
@@ -418,6 +470,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 ```
 
 **Accounts**
+
 ```jsonc
 // POST /accounts — body
 { "name": "Caja", "type": "cash", "initialBalance": 50000, "notes": null }
@@ -428,6 +481,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 ```
 
 **Categories**
+
 ```jsonc
 // GET /categories → Category[]
 { "id": "uuid", "name": "Supermercado", "type": "expense",
@@ -441,6 +495,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 ```
 
 **Transactions**
+
 ```jsonc
 // POST /transactions — income | expense
 { "type": "expense", "amount": 12000, "date": "2026-09-10",
@@ -456,6 +511,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
   "transferAccountId": null, "categoryId": "uuid",
   "transferGroupId": null, "createdAt": "ISO", "updatedAt": "ISO" }
 ```
+
 - `amount` es positivo en `income`/`expense` (el signo lo determina `type`, CAL-002/003). En transferencias, cada pata se persiste con signo opuesto: negativa en la cuenta origen y positiva en la destino.
 - `transferGroupId` no nulo agrupa las dos patas de una transferencia.
 - `DELETE /transactions/:id` de una transferencia elimina **ambas patas** del grupo.
@@ -470,7 +526,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 
 ```jsonc
 // Request body
-{ "question": "¿En qué gasté más este mes?", "period": { "from": "2026-09-01", "to": "2026-09-30" } }
+{ "question": "¿Y lo del auto?", "period": { "from": "2026-09-01", "to": "2026-09-30" }, "history": [{ "role": "user", "content": "¿Es inteligente comprar un auto por 2.750.000?" }, { "role": "assistant", "content": "Equivale a casi todo tu patrimonio." }] }
 
 // Eventos SSE (cada uno: `event: <nombre>\ndata: <json>\n\n`)
 event: meta    data: { "period": {...}, "currency": "ARS", "sources": ["transactions", "accounts", "categories"], "disclaimer": "Respuesta informativa calculada a partir de tus datos; no constituye asesoramiento financiero." }
@@ -479,32 +535,34 @@ event: token   data: { "delta": "gastaste más en..." }
 event: done    data: { "insufficient": false }
 event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 ```
+
 - **Contexto mínimo (FR-IA-002, RN-013):** el `assistant-context.service` reutiliza el read model del dashboard (ingresos, gastos, ahorro, patrimonio neto, gastos por categoría, evolución mensual y saldos de cuentas) y arma un resumen textual. No re-deriva fórmulas ni consulta repositorios directamente.
-- **Sin estado y sin tools:** no hay historial, memoria conversacional ni *function calling*. El prompt de sistema es fijo, separa instrucciones de datos y declara el alcance de **solo consulta** (FR-IA-015, NFR-SEG-012).
+- **Sin estado y sin tools:** no hay historial persistido ni _function calling_. El historial conversacional es opcional (`history`, máx. 12 mensajes), lo envía el cliente desde su memoria y se usa solo como contexto del período actual (FR-IA-016, NFR-SEG-013). El prompt de sistema es fijo, separa instrucciones de datos y declara el alcance de **solo consulta** (FR-IA-015, NFR-SEG-012).
 - **Insuficiencia (FR-IA-011):** si el modelo no devuelve texto utilizable, se emite un mensaje explicativo y `done: { insufficient: true }`.
-- **Acceso dev del stream:** `POST /assistant/messages` está marcado `@Public()` pero resuelve el usuario así: si hay sesión válida la usa; si no, y `NODE_ENV !== "production"`, cae al usuario demo `AI_DEV_USER_EMAIL`; en producción sin sesión responde `401 UNAUTHENTICATED`. Permite probar el asistente con el cliente en modo mock sin implementar todo el auth.
+- **Acceso dev del stream:** `POST /assistant/messages` está marcado `@Public()` pero resuelve el usuario así: si hay sesión válida la usa; si no, y `NODE_ENV !== "production"`, cae al usuario demo `AI_DEV_USER_EMAIL`; en producción sin sesión responde `401 UNAUTHENTICATED`. Permite probar el asistente desde el cliente en desarrollo sin implementar todo el auth.
 - La respuesta del modelo se sirve como texto plano; nunca como HTML (NFR-SEG-006/012).
 
 ### 7.13 Catálogo de códigos de error
 
-| `code` | HTTP | Cuándo |
-| :--- | :--- | :--- |
-| `VALIDATION_ERROR` | 400 | DTO inválido (incluye `fieldErrors`) |
-| `INVALID_CREDENTIALS` | 401 | login fallido |
-| `UNAUTHENTICATED` | 401 | sin sesión o token inválido/expirado |
-| `SESSION_REVOKED` | 401 | refresh token revocado |
-| `FORBIDDEN` | 403 | recurso de otro usuario |
-| `NOT_FOUND` | 404 | recurso inexistente o ajeno |
-| `EMAIL_IN_USE` | 409 | registro con email existente |
-| `AI_UNAVAILABLE` | 502 | falla del proveedor de IA |
-| `INTERNAL_ERROR` | 500 | error inesperado (mensaje genérico) |
+| `code`                | HTTP | Cuándo                               |
+| :-------------------- | :--- | :----------------------------------- |
+| `VALIDATION_ERROR`    | 400  | DTO inválido (incluye `fieldErrors`) |
+| `INVALID_CREDENTIALS` | 401  | login fallido                        |
+| `UNAUTHENTICATED`     | 401  | sin sesión o token inválido/expirado |
+| `SESSION_REVOKED`     | 401  | refresh token revocado               |
+| `FORBIDDEN`           | 403  | recurso de otro usuario              |
+| `NOT_FOUND`           | 404  | recurso inexistente o ajeno          |
+| `EMAIL_IN_USE`        | 409  | registro con email existente         |
+| `AI_UNAVAILABLE`      | 502  | falla del proveedor de IA            |
+| `INTERNAL_ERROR`      | 500  | error inesperado (mensaje genérico)  |
 
 > **Eliminados:** `AI_DISABLED`, `DESTRUCTIVE_DISABLED`, `ACTION_NOT_ALLOWED`, `ACTION_ALREADY_EXECUTED`, `ACTION_EXPIRED`, `ACTION_DEPENDENCY_PENDING`, `ACCOUNT_ARCHIVED`, `CATEGORY_ARCHIVED`, `DUPLICATE_BUDGET`, `MARKET_UNAVAILABLE`.
 
 ### 7.14 Health
-| Método | Ruta | Respuesta |
-| :--- | :--- | :--- |
-| GET | `/health` | `{ "status": "ok", "db": "up" }` — `@Public()` |
+
+| Método | Ruta      | Respuesta                                      |
+| :----- | :-------- | :--------------------------------------------- |
+| GET    | `/health` | `{ "status": "ok", "db": "up" }` — `@Public()` |
 
 > **Eliminado:** `GET /currencies`.
 
@@ -518,12 +576,12 @@ El contrato REST de este documento (`backend.md` §7) es la fuente de verdad. La
 
 Centralizadas en `calculations.service.ts` para garantizar consistencia entre dashboard y asistente. Cubiertas por pruebas unitarias (NFR-CAL-004). El patrimonio neto, la serie histórica y la tasa de ahorro se arman en `dashboard.orchestrator.ts` reutilizando ese service.
 
-| Regla | Implementación |
-| :--- | :--- |
-| CAL-001 Patrimonio neto | Σ saldos netos de las cuentas del usuario (RN-002). Implementado en `calculations.service.calculateNetWorth(accounts, transactions)` y reutilizado por `dashboard.orchestrator` para los KPIs y las series; `assistant-context.service` lo consume vía el dashboard. |
-| CAL-002 Flujo de fondos | Σ ingresos − Σ gastos del período (excluye transferencias). Implementado en `calculations.service.calculatePeriodFlows`. |
-| CAL-003 Transferencias | `type='transfer'` se excluye de ingresos/gastos consolidados (RN-003). |
-| CAL-010 Tasa de ahorro | ahorro del período / ingresos del período × 100; si los ingresos del período son 0, la tasa es 0. Su **variación** se expresa en **puntos porcentuales**: `kpis.savingsRateDeltaPp = (tasa actual − tasa del período anterior) × 100`. Implementado en `dashboard.orchestrator`. |
+| Regla                   | Implementación                                                                                                                                                                                                                                                                   |
+| :---------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CAL-001 Patrimonio neto | Σ saldos netos de las cuentas del usuario (RN-002). Implementado en `calculations.service.calculateNetWorth(accounts, transactions)` y reutilizado por `dashboard.orchestrator` para los KPIs y las series; `assistant-context.service` lo consume vía el dashboard.             |
+| CAL-002 Flujo de fondos | Σ ingresos − Σ gastos del período (excluye transferencias). Implementado en `calculations.service.calculatePeriodFlows`.                                                                                                                                                         |
+| CAL-003 Transferencias  | `type='transfer'` se excluye de ingresos/gastos consolidados (RN-003).                                                                                                                                                                                                           |
+| CAL-010 Tasa de ahorro  | ahorro del período / ingresos del período × 100; si los ingresos del período son 0, la tasa es 0. Su **variación** se expresa en **puntos porcentuales**: `kpis.savingsRateDeltaPp = (tasa actual − tasa del período anterior) × 100`. Implementado en `dashboard.orchestrator`. |
 
 > **Eliminadas:** CAL-004 (consumo de presupuesto), CAL-005 (valor de posición), CAL-006 (ganancia nominal), CAL-007 (progreso de objetivo), CAL-008/CAL-009 (conversión y trazabilidad cambiaria).
 
@@ -534,6 +592,7 @@ Centralizadas en `calculations.service.ts` para garantizar consistencia entre da
 Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones deshabilitadas (NFR-SEG-009).
 
 ### 9.1 Proveedor de IA (actor "Proveedor de IA")
+
 `assistant.service.ts` + `shared/ai/ai.service.ts`:
 
 1. Resuelve el usuario de la sesión (o el usuario dev cuando corresponde, §7.12).
@@ -550,7 +609,7 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 - `assistant/assistant-context.service.ts`: arma el contexto mínimo reutilizando `DashboardOrchestrator.getDashboard` (ingresos, gastos, ahorro, gastos por categoría, patrimonio neto, evolución mensual) y `AccountsService` (saldos de cuentas), y produce un resumen textual.
 - `assistant/assistant.service.ts`: resuelve el usuario, construye el prompt y el contexto, y devuelve un generador de eventos (`meta`/`token`/`done`). El prompt de sistema declara explícitamente el alcance de **solo consulta** y que no debe inventar cifras.
 - `assistant/assistant.controller.ts`: `POST /assistant/messages` (SSE); ante falla emite `event: error`.
-- El cliente consume el stream en `client/lib/api/assistant-stream.ts` (mock con `NEXT_PUBLIC_USE_MOCKS`).
+- El cliente consume el stream real en `client/lib/api/assistant-stream.ts`.
 
 > **Eliminados:** proveedor de mercado (Binance/currency-api), servicio de correo (SMTP) y `@nestjs/schedule` para cotizaciones.
 
@@ -558,18 +617,19 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 
 ## 10. Seguridad
 
-| NFR | Implementación |
-| :--- | :--- |
-| NFR-SEG-001 | `JwtAuthGuard` global + resolución de propiedad por `user_id` en cada consulta. |
-| NFR-SEG-002 | `ValidationPipe` global con whitelist y forbidNonWhitelisted; límites/longitud/formato en DTOs. |
-| NFR-SEG-003 | `argon2` para hashing; nunca texto plano. |
-| NFR-SEG-004 | Cookies HttpOnly/Secure/SameSite, expiración, rotación de refresh token. |
+| NFR         | Implementación                                                                                   |
+| :---------- | :----------------------------------------------------------------------------------------------- |
+| NFR-SEG-001 | `JwtAuthGuard` global + resolución de propiedad por `user_id` en cada consulta.                  |
+| NFR-SEG-002 | `ValidationPipe` global con whitelist y forbidNonWhitelisted; límites/longitud/formato en DTOs.  |
+| NFR-SEG-003 | `argon2` para hashing; nunca texto plano.                                                        |
+| NFR-SEG-004 | Cookies HttpOnly/Secure/SameSite, expiración, rotación de refresh token.                         |
 | NFR-SEG-005 | `uuid` no predecibles; consultas parametrizadas (TypeORM); el ID cliente no otorga autorización. |
-| NFR-SEG-006 | El backend devuelve JSON/texto; el front escapa todo HTML. |
-| NFR-SEG-007 | Secretos solo en servidor vía env, fuera del repositorio (`.env` ignorado). |
-| NFR-SEG-008 | Logging sin contraseñas, tokens, prompts completos ni datos sensibles. |
-| NFR-SEG-009 | Llamadas salientes con HTTPS, timeout y sin seguir redirecciones (cliente `axios` de IA). |
-| NFR-SEG-012 | Separación instrucciones/datos; validación de salida del modelo. |
+| NFR-SEG-006 | El backend devuelve JSON/texto; el front escapa todo HTML.                                       |
+| NFR-SEG-007 | Secretos solo en servidor vía env, fuera del repositorio (`.env` ignorado).                      |
+| NFR-SEG-008 | Logging sin contraseñas, tokens, prompts completos ni datos sensibles.                           |
+| NFR-SEG-009 | Llamadas salientes con HTTPS, timeout y sin seguir redirecciones (cliente `axios` de IA).        |
+| NFR-SEG-012 | Separación instrucciones/datos; validación de salida del modelo.                                 |
+| NFR-SEG-013 | Historial del asistente opcional, acotado (máx. 12 mensajes) y no persistido; tratado como contexto no confiable. |
 
 ---
 
@@ -588,11 +648,11 @@ En esta etapa del proyecto **no usamos migraciones**. La decisión es deliberada
 
 ### 11.2 Flujo de trabajo
 
-| Objetivo | Comando |
-| :--- | :--- |
-| Vaciar todas las tablas (conserva el esquema) | `npm run db:clear` |
+| Objetivo                                               | Comando            |
+| :----------------------------------------------------- | :----------------- |
+| Vaciar todas las tablas (conserva el esquema)          | `npm run db:clear` |
 | Recrear el esquema desde las entidades + seed completo | `npm run db:reset` |
-| Sembrar sin tocar el esquema (idempotente) | `npm run seed` |
+| Sembrar sin tocar el esquema (idempotente)             | `npm run seed`     |
 
 ```bash
 npm run db:reset   # cambió el modelo / querés un estado limpio
@@ -603,11 +663,11 @@ npm run start:dev  # app lista con datos de demo
 
 Todos comparten la contraseña **`Demo1234!`**:
 
-| Email | Escenario |
-| :--- | :--- |
-| `demo@atlassfin.app` | Dataset completo (ver §11.4). |
-| `sin-datos@atlassfin.app` | Usuario vacío, para estados vacíos y onboarding (FR-DAS-008). |
-| `ana@atlassfin.app` | Segundo usuario con un dataset mínimo, para aislamiento/permisos. |
+| Email                     | Escenario                                                         |
+| :------------------------ | :---------------------------------------------------------------- |
+| `demo@atlassfin.app`      | Dataset completo (ver §11.4).                                     |
+| `sin-datos@atlassfin.app` | Usuario vacío, para estados vacíos y onboarding (FR-DAS-008).     |
+| `ana@atlassfin.app`       | Segundo usuario con un dataset mínimo, para aislamiento/permisos. |
 
 ### 11.4 Qué genera el seed
 
@@ -640,11 +700,13 @@ DATABASE_URL=postgresql://user:pass@host:5432/db
 DB_SSL=true
 DB_POOL_MAX=5                  # conexiones por instancia (chico en serverless)
 DB_CONNECTION_TIMEOUT_MS=15000 # espera máx. por una conexión libre
+DB_IDLE_TIMEOUT_MS=300000      # mantener conexiones ociosas (evita handshake TLS)
 
 # JWT
 JWT_ACCESS_SECRET=change-me
 JWT_ACCESS_TTL=900
 JWT_REFRESH_TTL_DAYS=30
+SESSION_CACHE_TTL_MS=30000     # cache de sesión validada (0 = desactivado; cota la revocación entre instancias)
 
 # Cookies
 COOKIE_SECURE=false            # true en producción
@@ -673,8 +735,8 @@ TEST_DATABASE_URL=postgresql://localhost:5432/atlas_finance_test
 
 ### 12.1 Pool de conexiones (Supabase)
 
-- El driver `pg` configura el pool con `DB_POOL_MAX` (default 5) y `DB_CONNECTION_TIMEOUT_MS` (default 15000).
-- **Producción con Supabase:** usar la cadena del **transaction pooler** (puerto `6543`) para el `DATABASE_URL` del API y mantener `DB_POOL_MAX` chico (2–3) para no agotar el pooler. El dashboard es el más sensible porque ejecuta varias consultas en paralelo.
+- El driver `pg` configura el pool con `DB_POOL_MAX` (default 5), `DB_CONNECTION_TIMEOUT_MS` (default 15000) y `DB_IDLE_TIMEOUT_MS` (default 300000). Al arrancar, `DatabaseWarmupService` abre `DB_POOL_MAX` conexiones; `min = DB_POOL_MAX` y `keepAlive: true` las mantienen calientes para no pagar el handshake TLS de Supabase (~1–2 s) en la primera request después de una pausa. En serverless, bajá `DB_POOL_MAX` (2–3) para no retener conexiones de más.
+- **Producción con Supabase:** usar la cadena del **transaction pooler** (puerto `6543`) para el `DATABASE_URL` del API y mantener `DB_POOL_MAX` chico (2–3) para no agotar el pooler. El dashboard es el más sensible porque ejecuta varias consultas en paralelo; sus lecturas usan proyecciones acotadas y las consultas independientes se ejecutan en paralelo.
 
 ---
 
@@ -698,28 +760,34 @@ TEST_DATABASE_URL=postgresql://localhost:5432/atlas_finance_test
 Cada tanda deja la API compilando (`npm run lint && npm run build`) y con entidades + tests asociados. Alineado con el plan del front (`frontend.md`).
 
 ### Tanda 0 — Setup del proyecto — ✅ Hecho
+
 - Scaffold NestJS, config global (`@nestjs/config`), `ValidationPipe`, `Logger`, prefijo `/api`, CORS, cookies.
 - TypeORM + DataSource + entidades del modelo v0.3 (usuarios, sesiones, cuentas, categorías, movimientos).
 - `common/` (guards, decorators, filters, interceptors, errors).
 - **Aceptación**: API levanta, sincroniza el esquema desde las entidades y responde `/api/health`.
 
 ### Tanda 1 — Autenticación — ✅ Hecho
-- `auth` + `users`: register, login, refresh, logout, me; `PATCH /users/me`; argon2; JWT strategy; cookies + `Authorization: Bearer`.
+
+- `auth` + `users`: register, login, refresh, logout, me; `PATCH /users/me`; argon2 para contraseñas y SHA-256 para refresh tokens; `SessionValidationCache`; JWT strategy; cookies + `Authorization: Bearer`.
 - **Aceptación**: FR-AUT-001/002, NFR-SEG-003/004/010.
 
 ### Tanda 2 — Cuentas, categorías y movimientos — ✅ Hecho
+
 - CRUD `accounts`, `categories` (sistema + propias), `transactions` con paginación (sin filtros).
 - Transferencias atómicas (FR-TRX-004/005) y exclusión de consolidados (CAL-003).
 - **Aceptación**: HU-001, HU-002, FR-CUE-001..005, FR-TRX-001..005.
 
 ### Tanda 3 — Cálculos y dashboard — ✅ Hecho
+
 - `calculations` (CAL-001/002/003/010) + `dashboard` (`GET /dashboard?from&to` con KPIs y series v0.3).
 - **Aceptación**: FR-DAS-001..004, CAL-001.
 
 ### Tanda 4 — Asistente IA (solo consulta) — ✅ Hecho
-- `assistant` + `shared/ai`: `POST /assistant/messages` con stream SSE (`meta`/`token`/`done`/`error`), contexto mínimo e insuficiencia. Sin escrituras ni historial.
+
+- `assistant` + `shared/ai`: `POST /assistant/messages` con stream SSE (`meta`/`token`/`done`/`error`), contexto mínimo e insuficiencia. Sin escrituras ni historial persistido; el cliente puede enviar turnos recientes como contexto (FR-IA-016).
 - **Aceptación**: HU-006, FR-IA-002/011/015, NFR-SEG-012.
 
 ### Tanda 5 — Endurecimiento — ◐ Parcial
+
 - Tests e2e P0, rate limiting completo, timeout en salidas externas, logging seguro, validación de host.
 - **Aceptación**: NFR-SEG-001..010, NFR-CAL-004/005.

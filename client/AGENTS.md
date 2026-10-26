@@ -63,11 +63,12 @@ client/
 │   └── layout/          # shell de (app): sidebar, nav, user menu, auth guard
 ├── hooks/               # shared hooks
 ├── lib/                 # api, query, format, validation (portable)
-├── providers/           # Query, Auth
+├── providers/           # Query, Auth, Period; el tema vive en next-themes (layout raíz)
 └── next.config.ts       # static export (output: "export")
 ```
 
 ## Navigation behavior
 
-- Desktop (≥ `md`): fixed sidebar.
-- Mobile: bottom app-style bar with 4 equal items (`Inicio`, `Asistente`, `Movimientos`, `Perfil`); `Categories` and `Settings` are reachable from `Profile`. There is no theme or currency preference.
+- Desktop (≥ `md`): fixed sidebar with navigation, accounts summary and the account menu.
+- Mobile: bottom app-style bar with 4 equal items (`Inicio`, `Movimientos`, `Asistente`, `Perfil`); `Categories` and `Settings` are reachable from `Profile`.
+- `Ajustes` includes local theme (`Claro/Oscuro/Auto`) and CSV export. There is no currency selector.
