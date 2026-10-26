@@ -2,31 +2,33 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useQueryParam } from "@/hooks/use-query-param";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { setSearchParams } from "@/lib/test/next-navigation";
+
+vi.mock("next/navigation", () => import("@/lib/test/next-navigation"));
 
 describe("useQueryParam", () => {
   const setSearch = (search: string) => {
-    window.history.replaceState({}, "", search);
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    setSearchParams(new URLSearchParams(search));
   };
 
   it("reads a query parameter from the URL", () => {
-    window.history.replaceState({}, "", "/?id=abc&period=2026-01");
+    setSearch("?id=abc&period=2026-01");
     const { result } = renderHook(() => useQueryParam("id"));
     expect(result.current).toBe("abc");
   });
 
   it("returns null when the parameter is absent", () => {
-    window.history.replaceState({}, "", "/");
+    setSearch("");
     const { result } = renderHook(() => useQueryParam("id"));
     expect(result.current).toBeNull();
   });
 
   it("updates when the URL changes", async () => {
-    window.history.replaceState({}, "", "/?id=abc");
+    setSearch("?id=abc");
     const { result } = renderHook(() => useQueryParam("id"));
     expect(result.current).toBe("abc");
 
-    act(() => setSearch("/?id=xyz"));
+    act(() => setSearch("?id=xyz"));
     await waitFor(() => expect(result.current).toBe("xyz"));
   });
 });

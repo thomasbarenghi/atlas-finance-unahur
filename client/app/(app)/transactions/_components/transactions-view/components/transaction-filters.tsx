@@ -103,14 +103,16 @@ export const TransactionFilters = ({
 
         <div className="flex items-center gap-2.5">
           {renderFilters()}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-primary h-10 px-2 text-[12px] leading-[16px] font-semibold"
-            onClick={onClear}
-          >
-            Limpiar
-          </Button>
+          {hasActiveFilters ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-primary h-10 px-2 text-[12px] leading-[16px] font-semibold"
+              onClick={onClear}
+            >
+              Limpiar
+            </Button>
+          ) : null}
         </div>
       </div>
 

@@ -1,10 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Brand } from "@/components/layout/brand";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
-import { UserMenu } from "@/components/layout/user-menu";
 import { AuthGuard } from "@/components/layout/auth-guard";
 import { makeUser } from "@/lib/test/factories";
 import { renderWithProviders } from "@/lib/test/render";
@@ -38,6 +36,18 @@ describe("Sidebar", () => {
       screen.getByRole("link", { name: /Movimientos/ }),
     ).not.toHaveAttribute("aria-current");
   });
+
+  it("links the account block directly to the profile without a menu", () => {
+    setPathname("/dashboard");
+    renderWithProviders(<Sidebar />, {
+      user: makeUser({ name: "Ana", email: "ana@example.com" }),
+    });
+
+    const profileLink = screen.getByRole("link", { name: "Mi perfil" });
+    expect(profileLink).toHaveAttribute("href", "/profile");
+    expect(screen.getByText("Ana")).toBeInTheDocument();
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
 });
 
 describe("MobileTabBar", () => {
@@ -60,31 +70,6 @@ describe("MobileTabBar", () => {
       "href",
       "/profile",
     );
-  });
-});
-
-describe("UserMenu", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("shows the account menu and signs out", async () => {
-    const user = userEvent.setup();
-    const signOut = vi.fn().mockResolvedValue(undefined);
-    renderWithProviders(<UserMenu />, {
-      user: makeUser({ name: "Ana", email: "ana@example.com" }),
-      auth: { signOut },
-    });
-
-    await user.click(screen.getByRole("button", { name: "Cuenta" }));
-    expect(await screen.findByText("Ana")).toBeInTheDocument();
-    expect(screen.getByText("ana@example.com")).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: /Perfil/ })).toHaveAttribute(
-      "href",
-      "/profile",
-    );
-    await user.click(screen.getByRole("menuitem", { name: /Cerrar sesión/ }));
-    expect(signOut).toHaveBeenCalled();
   });
 });
 

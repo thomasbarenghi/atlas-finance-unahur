@@ -1,11 +1,12 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AccountsList } from "@/app/(app)/_components/accounts/accounts-list";
 import { AccountDetailView } from "@/app/(app)/accounts/detail/_components/account-detail-view";
 import { makeAccount } from "@/lib/test/factories";
 import { renderWithProviders } from "@/lib/test/render";
 import { testState } from "@/lib/test/api-state";
+import { setSearchParams } from "@/lib/test/next-navigation";
 import { setupTestServer } from "@/lib/test/server";
 
 vi.mock("next/navigation", () => import("@/lib/test/next-navigation"));
@@ -56,17 +57,14 @@ describe("AccountsList", () => {
 describe("AccountDetailView", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    window.history.replaceState({}, "", "/");
-  });
-  afterEach(() => {
-    window.history.replaceState({}, "", "/");
+    setSearchParams(new URLSearchParams());
   });
 
   const bankId = () =>
     testState.accounts.find((account) => account.name === "Banco ARS")!.id;
 
   it("renders the account, metrics and movements", async () => {
-    window.history.replaceState({}, "", `/accounts/detail?id=${bankId()}`);
+    setSearchParams(new URLSearchParams({ id: bankId() }));
     renderWithProviders(<AccountDetailView />);
 
     expect((await screen.findAllByText("Banco ARS")).length).toBeGreaterThan(0);
@@ -77,14 +75,14 @@ describe("AccountDetailView", () => {
   });
 
   it("shows a not-found state for an unknown id", async () => {
-    window.history.replaceState({}, "", "/accounts/detail?id=missing");
+    setSearchParams(new URLSearchParams({ id: "missing" }));
     renderWithProviders(<AccountDetailView />);
     expect(await screen.findByText("Cuenta no encontrada")).toBeInTheDocument();
   });
 
   it("opens the edit dialog", async () => {
     const user = userEvent.setup();
-    window.history.replaceState({}, "", `/accounts/detail?id=${bankId()}`);
+    setSearchParams(new URLSearchParams({ id: bankId() }));
     renderWithProviders(<AccountDetailView />);
 
     await screen.findAllByText("Banco ARS");
@@ -95,7 +93,7 @@ describe("AccountDetailView", () => {
   it("deletes the account through the confirm dialog", async () => {
     const user = userEvent.setup();
     const targetId = bankId();
-    window.history.replaceState({}, "", `/accounts/detail?id=${targetId}`);
+    setSearchParams(new URLSearchParams({ id: targetId }));
     renderWithProviders(<AccountDetailView />);
 
     await screen.findAllByText("Banco ARS");

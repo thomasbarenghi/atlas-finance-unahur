@@ -1,24 +1,15 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 
-const subscribe = (onStoreChange: () => void) => {
-  if (typeof window === "undefined") return () => {};
-  window.addEventListener("popstate", onStoreChange);
-  return () => window.removeEventListener("popstate", onStoreChange);
-};
-
-const getSnapshot = (): string =>
-  typeof window === "undefined" ? "" : window.location.search;
-
-const getServerSnapshot = (): string => "";
-
+/**
+ * Reads a query parameter from the current URL. Uses Next's reactive
+ * `useSearchParams` so client-side navigations (which use `pushState`, not
+ * `popstate`) re-render the consumer on the first click.
+ */
 export const useQueryParam = (key: string): string | null => {
-  const search = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getServerSnapshot,
-  );
+  const searchParams = useSearchParams();
 
-  return useMemo(() => new URLSearchParams(search).get(key), [search, key]);
+  return useMemo(() => searchParams.get(key), [searchParams, key]);
 };

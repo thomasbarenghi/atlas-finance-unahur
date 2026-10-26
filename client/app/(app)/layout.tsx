@@ -18,7 +18,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <main
             className={cn(
-              "flex-1",
+              "relative flex-1",
               isAssistant ? "min-h-0 overflow-hidden" : "overflow-y-auto",
             )}
           >
