@@ -1,5 +1,5 @@
 import request from "supertest";
-import { bearer, registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
 import {
   categoryByName,
   createAccount,
@@ -50,24 +50,24 @@ describe("NFR-SEG-001 · Propiedad de los recursos", () => {
 
     await request(ctx.server)
       .get(`/api/accounts/${account.id}`)
-      .set(bearer(bob.accessToken))
+      .set(authCookie(bob.accessToken))
       .expect(404);
     await request(ctx.server)
       .patch(`/api/accounts/${account.id}`)
-      .set(bearer(bob.accessToken))
+      .set(authCookie(bob.accessToken))
       .send({ name: "Hackeada" })
       .expect(404);
     await request(ctx.server)
       .delete(`/api/accounts/${account.id}`)
-      .set(bearer(bob.accessToken))
+      .set(authCookie(bob.accessToken))
       .expect(404);
     await request(ctx.server)
       .get(`/api/transactions/${transaction.id}`)
-      .set(bearer(bob.accessToken))
+      .set(authCookie(bob.accessToken))
       .expect(404);
     await request(ctx.server)
       .delete(`/api/transactions/${transaction.id}`)
-      .set(bearer(bob.accessToken))
+      .set(authCookie(bob.accessToken))
       .expect(404);
   });
 
@@ -84,7 +84,7 @@ describe("NFR-SEG-001 · Propiedad de los recursos", () => {
     // Bob intenta usar la cuenta de Alice: 404 (no pertenece a Bob).
     await request(ctx.server)
       .post("/api/transactions")
-      .set(bearer(bob.accessToken))
+      .set(authCookie(bob.accessToken))
       .send({
         type: "expense",
         amount: 10,

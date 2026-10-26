@@ -1,5 +1,5 @@
 import request from "supertest";
-import { bearer, registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
 import {
   categoryByName,
   createAccount,
@@ -95,7 +95,7 @@ describe("FR-TRX-002 · Campos del movimiento", () => {
     for (const amount of [0, -50]) {
       const response = await request(ctx.server)
         .post("/api/transactions")
-        .set(bearer(user.accessToken))
+        .set(authCookie(user.accessToken))
         .send({
           type: "expense",
           amount,
@@ -115,7 +115,7 @@ describe("FR-TRX-002 · Campos del movimiento", () => {
 
     const response = await request(ctx.server)
       .post("/api/transactions")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({
         type: "expense",
         amount: 10,
@@ -133,7 +133,7 @@ describe("FR-TRX-002 · Campos del movimiento", () => {
 
     await request(ctx.server)
       .post("/api/transactions")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({
         type: "expense",
         amount: 10,
@@ -156,7 +156,7 @@ describe("FR-TRX-002 · Campos del movimiento", () => {
 
     await request(ctx.server)
       .post("/api/transactions")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({
         type: "expense",
         amount: 10,
@@ -214,14 +214,14 @@ describe("FR-TRX-002 · Campos del movimiento", () => {
 
     const duplicate = await request(ctx.server)
       .post("/api/categories")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({ name: "extra", type: "income", color: "#22c55e" })
       .expect(400);
     expect(duplicate.body.fieldErrors.name).toBeDefined();
 
     await request(ctx.server)
       .post("/api/transactions")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({
         type: "expense",
         amount: 10,
@@ -239,7 +239,7 @@ describe("FR-TRX-002 · Campos del movimiento", () => {
 
     const updated = await request(ctx.server)
       .patch(`/api/categories/${category.id}`)
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({ name: "Mascotas y pets", color: "#111111" })
       .expect(200);
     expect(updated.body).toMatchObject({
@@ -250,7 +250,7 @@ describe("FR-TRX-002 · Campos del movimiento", () => {
 
     await request(ctx.server)
       .delete(`/api/categories/${category.id}`)
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(200);
 
     const categories = await listCategories(ctx.app, user.accessToken);
@@ -269,7 +269,7 @@ describe("FR-TRX-002 · Campos del movimiento", () => {
 
     await request(ctx.server)
       .post("/api/transactions")
-      .set(bearer(other.accessToken))
+      .set(authCookie(other.accessToken))
       .send({
         type: "expense",
         amount: 10,
@@ -287,13 +287,13 @@ describe("FR-TRX-002 · Campos del movimiento", () => {
 
     await request(ctx.server)
       .patch(`/api/categories/${category.id}`)
-      .set(bearer(other.accessToken))
+      .set(authCookie(other.accessToken))
       .send({ name: "Hack" })
       .expect(404);
 
     await request(ctx.server)
       .delete(`/api/categories/${category.id}`)
-      .set(bearer(other.accessToken))
+      .set(authCookie(other.accessToken))
       .expect(404);
 
     const systemCategory = await categoryByName(
@@ -303,7 +303,7 @@ describe("FR-TRX-002 · Campos del movimiento", () => {
     );
     await request(ctx.server)
       .delete(`/api/categories/${systemCategory.id}`)
-      .set(bearer(owner.accessToken))
+      .set(authCookie(owner.accessToken))
       .expect(404);
   });
 });

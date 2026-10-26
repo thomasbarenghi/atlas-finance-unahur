@@ -21,7 +21,7 @@ atlas-finance-unahur/
 | Layer | Technologies |
 | :--- | :--- |
 | Client | Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · shadcn/ui · Outfit + Nunito · next-themes · Recharts · TanStack Query · React Hook Form + Zod · lucide-react |
-| API | NestJS (modular monolith) · TypeScript · PostgreSQL (Supabase) · TypeORM · JWT (HttpOnly cookie + Bearer) · class-validator · argon2 |
+| API | NestJS (modular monolith) · TypeScript · PostgreSQL (Supabase) · TypeORM · JWT (HttpOnly cookie) · class-validator · argon2 |
 
 ## Documentation
 

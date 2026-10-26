@@ -33,8 +33,8 @@ describe("FR-AUT-001 · Registro de usuario", () => {
     });
     expect(response.body.user.id).toBeDefined();
     expect(response.body.user.passwordHash).toBeUndefined();
-    expect(typeof response.body.accessToken).toBe("string");
-    expect(typeof response.body.refreshToken).toBe("string");
+    expect(response.body.accessToken).toBeUndefined();
+    expect(response.body.refreshToken).toBeUndefined();
 
     const setCookie = response.headers["set-cookie"] as unknown as string[];
     expect(setCookie.join(";")).toContain("access_token=");

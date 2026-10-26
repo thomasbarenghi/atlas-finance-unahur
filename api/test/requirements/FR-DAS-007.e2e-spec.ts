@@ -1,5 +1,5 @@
 import request from "supertest";
-import { bearer, registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
 import { truncateAll } from "../utils/db";
 import { seedBaseScenario } from "../utils/scenario";
 import { createTestApp, TestContext } from "../utils/test-app";
@@ -28,7 +28,7 @@ describe("FR-DAS-007 · Período de visualización", () => {
 
     const response = await request(ctx.server)
       .get("/api/dashboard?from=2026-03-01&to=2026-03-31")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(200);
 
     expect(response.body.period).toEqual({
@@ -46,7 +46,7 @@ describe("FR-DAS-007 · Período de visualización", () => {
 
     const response = await request(ctx.server)
       .get("/api/dashboard")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(200);
 
     expect(response.body.period.from < response.body.period.to).toBe(true);

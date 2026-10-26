@@ -1,7 +1,7 @@
 # Atlass Fin — Documento Técnico del Backend
 
 > **Audiencia:** agentes de IA que implementarán el backend.
-> **Stack:** NestJS (monolítico) · TypeScript · PostgreSQL (Supabase como proveedor) · TypeORM · JWT (cookie HttpOnly + Bearer) · REST.
+> **Stack:** NestJS (monolítico) · TypeScript · PostgreSQL (Supabase como proveedor) · TypeORM · JWT (cookie HttpOnly) · REST.
 > **Frontend:** consume esta API. Ver `frontend.md`.
 > **Referencia funcional:** `../specification/0.3/FRD_Gestor_Financiero_v0.3.md`. Todo requisito citado (FR-*, HU-*, CAL-*, NFR-*) corresponde a ese documento.
 
@@ -39,7 +39,7 @@ La aplicación opera con **multimoneda**: cada cuenta declara su moneda, el usua
 | Base de datos | PostgreSQL                                                        | Proveedor: **Supabase** (Postgres gestionado).                                                      |
 | ORM           | TypeORM                                                           | Entidades como fuente de verdad del esquema (`synchronize`).                                        |
 | Esquema       | **Sin migraciones** (decisión de la etapa)                        | El schema se deriva de las entidades; ante un cambio se recrea la base y se corre el seed (§11.1).  |
-| Auth          | `@nestjs/jwt` + `passport`                                        | JWT por cookie `HttpOnly`; opcionalmente `Authorization: Bearer` para clientes que no usan cookies. |
+| Auth          | `@nestjs/jwt` + `passport`                                        | JWT por cookie `HttpOnly`; el cliente web no maneja tokens en JS.                                  |
 | Validación    | `class-validator` + `class-transformer` + `ValidationPipe` global | —                                                                                                   |
 | Hash          | `argon2`                                                          | Algoritmo adaptativo (NFR-SEG-003).                                                                 |
 | IA            | Proveedor de LLM (configurable, p. ej. DeepSeek/OpenAI)           | Solo contexto mínimo calculado; asistente de solo consulta.                                         |
@@ -55,8 +55,8 @@ La aplicación opera con **multimoneda**: cada cuenta declara su moneda, el usua
 | Estructura          | Convencional NestJS (module/controller/service) + DTOs y entidades                                 | Es la estructura por defecto; clara para el agente.                                               |
 | Casos de uso        | Services de dominio con un método por caso de uso                                                  | Separación de responsabilidades; testeo unitario directo.                                         |
 | ORM                 | TypeORM                                                                                            | Integración nativa con NestJS (`@nestjs/typeorm`); el esquema se sincroniza desde las entidades.  |
-| Auth                | JWT (access token) + sesión persistida                                                             | Permite invalidar sesión al cerrar (FR-AUT-002). Transporte por cookie o Bearer según el cliente. |
-| Transporte de token | Cookie `HttpOnly; Secure; SameSite` (web) + `Authorization: Bearer` (clientes que no usan cookies) | Mitiga XSS y admite clientes que no persisten cookies; consistente con NFR-SEG-004.               |
+| Auth                | JWT stateless (access + refresh)                                                                   | Sin tabla de sesiones ni revocación server-side. Transporte exclusivo por cookie `HttpOnly`.       |
+| Transporte de token | Cookie `HttpOnly; Secure; SameSite`                                                               | Mitiga XSS; el cliente web no lee ni persiste tokens; consistente con NFR-SEG-004.                |
 | IDs                 | `uuid` (gen_random_uuid)                                                                           | Identificadores no predecibles (NFR-SEG-005).                                                     |
 | Moneda              | Multimoneda: moneda por cuenta + moneda principal del usuario + cotizaciones globales de la API | El dashboard re-expresa todos los valores en la moneda de lectura (default: principal); CAL-001/002. |
 | Streaming IA        | SSE                                                                                                | UI reactiva y cancelable (NFR-PR-004).                                                            |
@@ -90,7 +90,7 @@ Frontend (Next.js) ───▶ │  NestJS (monolito)           │
 ```
 
 - **`ValidationPipe` global** con `whitelist: true, forbidNonWhitelisted: true, transform: true` (NFR-SEG-002).
-- **`JwtAuthGuard` global** por defecto (`APP_GUARD`), con decorador `@Public()` para rutas de auth (register/login/refresh), assistant y health.
+- **`JwtAuthGuard` global** por defecto (`APP_GUARD`), con decorador `@Public()` para rutas de auth (register/login/refresh/logout), assistant y health.
 - **Resolución de propiedad**: los services filtran/validan **siempre** por `user_id` del recurso antes de leerlo o modificarlo (NFR-SEG-001).
 - **`GlobalExceptionFilter`** que normaliza errores y devuelve mensajes genéricos ante fallas sensibles (sin filtrar detalles internos).
 
@@ -140,8 +140,7 @@ api/
 │   │   ├── currencies.module.ts / currencies.controller.ts / currencies.service.ts
 │   │   ├── currency-catalog.ts
 │   │   ├── exchange-rates.provider.ts
-│   │   ├── dto/currency-response.dto.ts
-│   │   └── entities/currency-rate.entity.ts
+│   │   └── dto/currency-response.dto.ts
 │   ├── transactions/               # orquestador por transferencias
 │   │   ├── transactions.module.ts / transactions.controller.ts
 │   │   ├── transactions.service.ts / transactions.orchestrator.ts
@@ -183,13 +182,13 @@ api/
 - Los casos de uso que **cruzan dominios** se implementan en un `<feature>.orchestrator.ts` que coordina los servicios implicados y devuelve DTOs de respuesta; el orquestador **no** ejecuta queries.
 - El saldo de cuenta (dos valores derivados del cruce `accounts` + `transactions`) se centraliza en el proveedor de `shared/account-balances` para evitar ciclos de módulos.
 - Orquestadores actuales: `transactions` (validación de cuentas/categorías) y `dashboard` (read model de KPIs y series). Los módulos `accounts`, `categories` y `users` son CRUD de un solo dominio (controller → servicio). El armado de contexto del asistente (`assistant-context.service.ts`) inyecta servicios, no repositorios.
-- **Excepción acotada:** `auth` comparte el agregado de identidad `users` (registro, credenciales y sesión) con `users`; es la autoridad de credenciales y accede al `User` directamente. El resto de los dominios consume usuarios vía `UsersService`.
+- **Excepción acotada:** `auth` comparte el agregado de identidad `users` (registro y credenciales) con `users`; es la autoridad de credenciales y accede al `User` directamente. El resto de los dominios consume usuarios vía `UsersService`.
 
 ---
 
 ## 5. Modelo de datos (PostgreSQL)
 
-Tablas derivadas de las entidades principales del FRD v0.3 (§3.2) más las necesarias para la sesión. Todos los `id` son `uuid` v4. Toda tabla con datos de usuario lleva `user_id` (o desciende de una entidad que lo tiene) y un índice.
+Tablas derivadas de las entidades principales del FRD v0.3 (§3.2). Todos los `id` son `uuid` v4. Toda tabla con datos de usuario lleva `user_id` (o desciende de una entidad que lo tiene) y un índice.
 
 > **Convención de columnas:** `snake_case` en la DB; los enums se almacenan como `text` con validación en la capa de aplicación (valores en §7.10); los `numeric` se serializan como `number` en la API (ver §7.9).
 
@@ -206,16 +205,9 @@ Tablas derivadas de las entidades principales del FRD v0.3 (§3.2) más las nece
 
 > El usuario elige su **moneda principal** (`primary_currency`). Las cotizaciones son globales y las provee la API; el usuario no las crea ni las edita. El asistente es de solo consulta (siempre disponible con sesión válida).
 
-### 5.2 `sessions`
+### 5.2 Sesiones (sin tabla)
 
-| Columna            | Tipo             | Notas                           |
-| :----------------- | :--------------- | :------------------------------ |
-| id                 | uuid PK          |                                 |
-| user_id            | uuid FK → users  | on delete cascade               |
-| refresh_token_hash | text             | SHA-256 del refresh token (se aceptan hashes argon2 legacy y se rotan) |
-| expires_at         | timestamptz      |                                 |
-| revoked_at         | timestamptz NULL | se marca al logout (FR-AUT-002) |
-| created_at         | timestamptz      |                                 |
+> No existe una tabla de sesiones. La autenticación es **JWT stateless**: el access token y el refresh token son autocontenidos y firmados; no hay estado de sesión en la base ni revocación server-side. El logout solo limpia las cookies del cliente.
 
 ### 5.3 `accounts` (FR-CUE-001..005)
 
@@ -264,17 +256,9 @@ Tablas derivadas de las entidades principales del FRD v0.3 (§3.2) más las nece
 
 > Las transferencias se persisten como **dos filas** (`type='transfer'`) en una transacción de base de datos con el mismo `transfer_group_id` (atomicidad, FR-TRX-005). En una transferencia multimoneda cada pata lleva el monto en la moneda de su cuenta (monto origen y monto destino); la cotización usada en la UI **no se persiste** (RN-017). Se excluyen de ingresos/gastos consolidados (CAL-003). Sin campo `currency` en el movimiento: el monto vive en la moneda de la cuenta. Las transferencias se pueden filtrar en la UI; la API mantiene paginación.
 
-### 5.6 `currency_rates` — cotizaciones globales
+### 5.6 Cotizaciones (sin tabla)
 
-| Columna                 | Tipo          | Notas                                                        |
-| :---------------------- | :------------ | :----------------------------------------------------------- |
-| currency                | text PK       | ISO 4217                                                     |
-| rate                    | numeric(18,6) | ARS por una unidad de la moneda (base interna)               |
-| rate_date               | date          | fecha de la cotización provista por la API                   |
-| source                  | text          | `api` (proveedor público)                                    |
-| updated_at              | timestamptz   |                                                              |
-
-> Tabla **global**, no por usuario. El usuario no crea ni edita cotizaciones; el backend las refresca desde el proveedor público y guarda la última cotización válida. La UI usa estas cotizaciones para re-expresar el dashboard en la moneda de lectura y para el desglose por moneda.
+> No existe una tabla de cotizaciones. Las cotizaciones son globales, las provee la API pública y el backend las consulta **en cada lectura**; no se persisten (RN-016). La UI las usa para re-expresar el dashboard en la moneda de lectura y para el desglose por moneda. Si el proveedor falla, el endpoint responde `502 EXCHANGE_RATES_UNAVAILABLE`.
 
 ---
 
@@ -283,30 +267,30 @@ Tablas derivadas de las entidades principales del FRD v0.3 (§3.2) más las nece
 ### 6.1 Registro (`POST /auth/register`)
 
 1. Valida nombre (2–80), email (formato, único, lowercase), contraseña. **Política de contraseña:** 8–72 caracteres, al menos una letra y un número. Rechaza campos inesperados (NFR-SEG-002).
-2. Hashea con argon2 y crea el usuario. Crea la sesión y responde con cookies/tokens (login automático).
+2. Hashea con argon2 y crea el usuario. Emite los tokens y responde con cookies/tokens (login automático).
 
 ### 6.2 Login (`POST /auth/login`)
 
 1. Verifica credenciales; respuestas genéricas ante falla (sin revelar si el email existe).
-2. Emite **access token** (JWT, vida corta ~15 min) y **refresh token** (opaco, hash almacenado en `sessions`).
-3. Responde `{ user, accessToken, refreshToken }` en el body (para clientes que no usan cookies) y, en web, además fija cookies: `access_token` y `refresh_token` (`HttpOnly; Secure; SameSite=Lax` en producción; NFR-SEG-004). **El cliente web ignora los tokens del body y se apoya solo en la cookie**; un cliente que no use cookies usa el body.
-4. **Doble transporte soportado**: cookie `HttpOnly` (web) o `Authorization: Bearer` (clientes que no usan cookies). Ambos son válidos e intercambiables.
+2. Emite **access token** (JWT, vida corta ~15 min) y **refresh token** (JWT, vida ~30 días). Ambos llevan un claim `type` para impedir usarlos indistintamente.
+3. Responde `{ user }` y fija las cookies `access_token` y `refresh_token` (`HttpOnly; Secure; SameSite=Lax` en producción; NFR-SEG-004). Los tokens **no** se exponen en el body.
+4. **Transporte exclusivo por cookie**: el cliente web no lee ni persiste tokens en JavaScript.
 
 ### 6.3 Renovación
 
-- `POST /auth/refresh` rota el refresh token (rotación, NFR-SEG-004). Acepta el refresh token por cookie o por body (clientes que no usan cookies). El refresh token viejo se invalida.
-- El refresh token es un secreto aleatorio de 256 bits; se guarda como **SHA-256** y se compara con `timingSafeEqual`. Los hashes **argon2 legacy** se aceptan y se migran a SHA-256 en la siguiente rotación. La rotación usa un `UPDATE` directo y recuerda la sesión validada en el cache para evitar una consulta extra en la primera request con el nuevo access token.
+- `POST /auth/refresh` verifica el refresh token JWT de la cookie `refresh_token`, emite tokens nuevos y responde `204 No Content`. No acepta tokens por body.
+- No hay rotación con invalidación: el refresh token anterior sigue siendo válido hasta su expiración. Tampoco hay detección de reutilización.
 
 ### 6.4 Logout (`POST /auth/logout`)
 
-- Marca la sesión como revocada (`revoked_at`) → invalida la sesión activa (FR-AUT-002), limpia cookies/tokens e invalida la entrada del cache de validación de sesión en la instancia local.
+- Solo limpia las cookies `access_token` y `refresh_token`. Al ser JWT stateless, el token ya emitido sigue siendo válido hasta su expiración; no existe revocación server-side.
 
 ### 6.5 Autorización por request (NFR-SEG-001)
 
-- `JwtAuthGuard` global valida el access token en **cada** operación, aceptándolo por cookie `HttpOnly` **o** header `Authorization: Bearer <token>`.
+- `JwtAuthGuard` global valida firma y expiración del access token en **cada** operación, leyéndolo exclusivamente de la cookie `HttpOnly`. También exige `type: "access"`.
 - Los controllers obtienen el usuario vía `@CurrentUser()` y filtran/validan **siempre** por `user_id` del recurso.
 - Regla de oro: **ningún `id` aportado por el cliente otorga autorización**; el servidor resuelve la propiedad.
-- **Cache de validación:** `SessionValidationCache` memoriza la sesión validada durante `SESSION_CACHE_TTL_MS` (default 30 s) y coalesce validaciones concurrentes de la misma sesión. Evita una consulta a `sessions` por request (≈100–200 ms con Supabase remoto). La revocación se propaga como máximo en ese TTL entre instancias; en la instancia que ejecuta `logout` es inmediata.
+- No hay consulta a la base ni cache de validación de sesión.
 
 ---
 
@@ -324,6 +308,8 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 | POST   | `/auth/refresh`  | NFR-SEG-004 |
 | GET    | `/auth/me`       | —           |
 
+> **Web-only:** register/login responden `{ user }` y fijan cookies `HttpOnly`; `/auth/refresh` lee solo la cookie `refresh_token` y responde `204`; no se aceptan tokens por body ni `Authorization: Bearer`.
+>
 > **Eliminados:** recuperación de contraseña (`/auth/forgot-password`, `/auth/reset-password`).
 
 ### 7.2 Users
@@ -472,7 +458,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 }
 ```
 
-> Endpoints de **solo lectura**. El usuario no crea monedas ni edita cotizaciones (RN-016); el backend refresca las cotizaciones globales desde la API y conserva la última válida. `rate` está expresada en la moneda principal.
+> Endpoints de **solo lectura**. El usuario no crea monedas ni edita cotizaciones (RN-016); el backend consulta la API global en cada request y no persiste las cotizaciones. `rate` está expresada en la moneda principal.
 
 ### 7.9 Convenciones de contrato
 
@@ -482,7 +468,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 - **Decimales:** `numeric` se serializa como **number** (no string). Máx. 4 decimales para montos y 6 para cotizaciones. Implementar un `transformer` de TypeORM (`parseFloat` al leer) o mappers de salida.
 - **Paginación:** query `page` (default 1) y `pageSize` (default 20, máx. 100). Respuesta: `{ items, page, pageSize, total, totalPages }`. Solo `/transactions` es paginado; `/accounts` y `/categories` devuelven un **array** completo.
 - **Errores:** `{ statusCode, code, message, fieldErrors? }`; `fieldErrors` es `{ [campo]: string[] }` para validación (para mapeo a formularios). El filtro global nunca expone detalles internos.
-- **Auth:** cookie `HttpOnly` o `Authorization: Bearer`. Los endpoints `@Public()` son: `/auth/register`, `/auth/login`, `/auth/refresh`, `/assistant/messages` (§7.12) y `/health`.
+- **Auth:** exclusivamente cookie `HttpOnly`. Los endpoints `@Public()` son: `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/assistant/messages` (§7.12) y `/health`.
 - **CORS:** con credenciales habilitadas; permitir `CORS_ORIGIN` exacto (no `*`); admite varios orígenes separados por coma.
 
 ### 7.10 Enums y catálogos
@@ -505,15 +491,14 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 ```jsonc
 // POST /auth/register — body
 { "name": "Ana", "email": "ana@example.com", "password": "Secreta123" }
-// 201 → { "user": User, "accessToken": "eyJ...", "refreshToken": "opaco..." }  (y fija cookies, igual que login)
+// 201 → { "user": User }  (además fija las cookies de access y refresh)
 
 // POST /auth/login — body
 { "email": "ana@example.com", "password": "Secreta123" }
-// 200 → { "user": User, "accessToken": "eyJ...", "refreshToken": "opaco..." }
+// 200 → { "user": User }  (y fija cookies)
 
-// POST /auth/refresh — body opcional (cliente que no usa cookies)
-{ "refreshToken": "opaco..." }   // en web puede omitirse (usa cookie)
-// 200 → { "accessToken": "...", "refreshToken": "..." }  (rotación)
+// POST /auth/refresh — sin body; usa la cookie refresh_token
+// 204 → sin body; rota las cookies de access y refresh
 
 // User
 { "id": "uuid", "name": "Ana", "email": "ana@example.com", "primaryCurrency": "ARS", "createdAt": "ISO" }
@@ -571,7 +556,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 
 ### 7.12 Contrato de streaming del asistente
 
-`POST /assistant/messages` responde `text/event-stream` (SSE). **El cliente debe usar `fetch` + `ReadableStream`, no `EventSource`**, porque `EventSource` no permite el header `Authorization` (necesario para clientes que no usan cookies) ni el cuerpo de request.
+`POST /assistant/messages` responde `text/event-stream` (SSE). **El cliente debe usar `fetch` + `ReadableStream`, no `EventSource`**, porque `EventSource` no permite enviar un cuerpo POST.
 
 **Proveedor implementado: DeepSeek** (OpenAI-compatible). El backend llama a `POST {AI_BASE_URL}/chat/completions` con `Authorization: Bearer {AI_API_KEY}`, `stream: true` y `model: {AI_MODEL}` (default `deepseek-chat`), y reemite el texto como eventos SSE. La API key **nunca** sale del servidor (NFR-SEG-007).
 
@@ -600,11 +585,12 @@ event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 | `VALIDATION_ERROR`    | 400  | DTO inválido (incluye `fieldErrors`) |
 | `INVALID_CREDENTIALS` | 401  | login fallido                        |
 | `UNAUTHENTICATED`     | 401  | sin sesión o token inválido/expirado |
-| `SESSION_REVOKED`     | 401  | refresh token revocado               |
+| `SESSION_REVOKED`     | 401  | refresh token ausente o inválido     |
 | `FORBIDDEN`           | 403  | recurso de otro usuario              |
 | `NOT_FOUND`           | 404  | recurso inexistente o ajeno          |
 | `EMAIL_IN_USE`        | 409  | registro con email existente         |
 | `AI_UNAVAILABLE`      | 502  | falla del proveedor de IA            |
+| `EXCHANGE_RATES_UNAVAILABLE` | 502 | falla del proveedor de cotizaciones |
 | `INTERNAL_ERROR`      | 500  | error inesperado (mensaje genérico)  |
 
 > **Eliminados:** `AI_DISABLED`, `DESTRUCTIVE_DISABLED`, `ACTION_NOT_ALLOWED`, `ACTION_ALREADY_EXECUTED`, `ACTION_EXPIRED`, `ACTION_DEPENDENCY_PENDING`, `ACCOUNT_ARCHIVED`, `CATEGORY_ARCHIVED`, `DUPLICATE_BUDGET`, `MARKET_UNAVAILABLE`.
@@ -662,7 +648,7 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 - `assistant/assistant.controller.ts`: `POST /assistant/messages` (SSE); ante falla emite `event: error`.
 - El cliente consume el stream real en `client/lib/api/assistant-stream.ts`.
 
-> **Eliminados:** Binance, servicio de correo (SMTP) y `@nestjs/schedule`. La **currency-api de Fawaz Ahmed** (pública, sin API key) se usa en `ExchangeRatesProvider` para refrescar las cotizaciones globales; el backend conserva la última cotización válida si el proveedor falla.
+> **Eliminados:** Binance, servicio de correo (SMTP), `@nestjs/schedule` y la tabla `currency_rates`. La **currency-api de Fawaz Ahmed** (pública, sin API key) se usa en `ExchangeRatesProvider` para obtener las cotizaciones globales en cada lectura; no hay caché persistente ni en memoria. Si el proveedor falla, el endpoint responde `502 EXCHANGE_RATES_UNAVAILABLE`.
 
 ---
 
@@ -673,7 +659,7 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 | NFR-SEG-001 | `JwtAuthGuard` global + resolución de propiedad por `user_id` en cada consulta.                  |
 | NFR-SEG-002 | `ValidationPipe` global con whitelist y forbidNonWhitelisted; límites/longitud/formato en DTOs.  |
 | NFR-SEG-003 | `argon2` para hashing; nunca texto plano.                                                        |
-| NFR-SEG-004 | Cookies HttpOnly/Secure/SameSite, expiración, rotación de refresh token.                         |
+| NFR-SEG-004 | Cookies HttpOnly/Secure/SameSite, expiración y renovación del access token con refresh JWT.      |
 | NFR-SEG-005 | `uuid` no predecibles; consultas parametrizadas (TypeORM); el ID cliente no otorga autorización. |
 | NFR-SEG-006 | El backend devuelve JSON/texto; el front escapa todo HTML.                                       |
 | NFR-SEG-007 | Secretos solo en servidor vía env, fuera del repositorio (`.env` ignorado).                      |
@@ -727,7 +713,7 @@ Datos **reproducibles** (sin información financiera real, NFR-CAL-005 / FRD §2
 - **5 categorías fijas del sistema**: income (`Sueldo`, `Freelance`), expense (`Supermercado`, `Transporte`, `Servicios`). Además crea la categoría propia `Otros` para el usuario demo.
 - **4 cuentas**: `cash` (Caja, ARS), `bank` (Banco, ARS), `wallet` (Billetera virtual, ARS) y `wallet` (Billetera USD, USD).
 - **3 meses de movimientos** en ARS y USD: sueldos, gastos por categoría, transferencias atómicas (dos patas con `transfer_group_id`), un ingreso sin categoría, un ingreso freelance y una transferencia multimoneda con los dos montos.
-- **Cotizaciones globales** (`currency_rates`) obtenidas de la API pública al correr el seed; si el proveedor falla, la API las reintenta al primer request y conserva la última cotización válida.
+- **Cotizaciones globales**: el seed consulta la API pública solo para calcular el monto destino de la transferencia multimoneda; no guarda cotizaciones. El dashboard las obtiene de la API en cada lectura.
 
 Para `ana@atlassfin.app` genera un dataset reducido (una cuenta bancaria y un ingreso) para probar aislamiento y propiedades.
 
@@ -758,7 +744,6 @@ DB_IDLE_TIMEOUT_MS=300000      # mantener conexiones ociosas (evita handshake TL
 JWT_ACCESS_SECRET=change-me
 JWT_ACCESS_TTL=900
 JWT_REFRESH_TTL_DAYS=30
-SESSION_CACHE_TTL_MS=30000     # cache de sesión validada (0 = desactivado; cota la revocación entre instancias)
 
 # Cookies
 COOKIE_SECURE=false            # true en producción
@@ -814,13 +799,13 @@ Cada tanda deja la API compilando (`npm run lint && npm run build`) y con entida
 ### Tanda 0 — Setup del proyecto — ✅ Hecho
 
 - Scaffold NestJS, config global (`@nestjs/config`), `ValidationPipe`, `Logger`, prefijo `/api`, CORS, cookies.
-- TypeORM + DataSource + entidades del modelo v0.3 (usuarios, sesiones, cuentas, categorías, movimientos).
+- TypeORM + DataSource + entidades del modelo v0.3 (usuarios, cuentas, categorías, movimientos).
 - `common/` (guards, decorators, filters, interceptors, errors).
 - **Aceptación**: API levanta, sincroniza el esquema desde las entidades y responde `/api/health`.
 
 ### Tanda 1 — Autenticación — ✅ Hecho
 
-- `auth` + `users`: register, login, refresh, logout, me; `PATCH /users/me`; argon2 para contraseñas y SHA-256 para refresh tokens; `SessionValidationCache`; JWT strategy; cookies + `Authorization: Bearer`.
+- `auth` + `users`: register, login, refresh, logout, me; `PATCH /users/me`; argon2 para contraseñas; JWT stateless para access y refresh; transporte exclusivo por cookie `HttpOnly`.
 - **Aceptación**: FR-AUT-001/002, NFR-SEG-003/004/010.
 
 ### Tanda 2 — Cuentas, categorías y movimientos — ✅ Hecho

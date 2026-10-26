@@ -18,7 +18,6 @@ const KEYS = [
   "AI_PROVIDER",
   "AI_API_KEY",
   "AI_MODEL",
-  "SESSION_CACHE_TTL_MS",
 ];
 
 describe("configuration", () => {
@@ -53,7 +52,6 @@ describe("configuration", () => {
     expect(config.jwt.refreshTtlDays).toBe(30);
     expect(config.cookie.sameSite).toBe("lax");
     expect(config.defaultCurrency).toBe("ARS");
-    expect(config.sessionCacheTtlMs).toBe(30_000);
     expect(config.ai.provider).toBe("deepseek");
     expect(config.ai.apiKey).toBeNull();
     expect(config.ai.model).toBe("deepseek-chat");

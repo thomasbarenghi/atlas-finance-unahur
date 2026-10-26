@@ -1,5 +1,5 @@
 import request from "supertest";
-import { bearer, registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
 import {
   categoryByName,
   createAccount,
@@ -86,7 +86,7 @@ describe("FR-TRX-001 · Tipos de movimiento", () => {
 
     const response = await request(ctx.server)
       .post("/api/transactions")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({
         type: "refund",
         amount: 100,

@@ -1,5 +1,5 @@
 import request from "supertest";
-import { bearer, registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
 import { createAccount } from "../utils/factories";
 import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
@@ -27,7 +27,7 @@ describe("NFR-SEG-002 · Validación de entradas", () => {
     const user = await registerUser(ctx.app);
     const response = await request(ctx.server)
       .post("/api/accounts")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({ name: "Caja", type: "cash", isAdmin: true })
       .expect(400);
 
@@ -38,7 +38,7 @@ describe("NFR-SEG-002 · Validación de entradas", () => {
     const user = await registerUser(ctx.app);
     await request(ctx.server)
       .post("/api/accounts")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({ name: 123, type: "cash" })
       .expect(400);
   });
@@ -47,7 +47,7 @@ describe("NFR-SEG-002 · Validación de entradas", () => {
     const user = await registerUser(ctx.app);
     await request(ctx.server)
       .get("/api/accounts/not-a-uuid")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(400);
   });
 
@@ -55,7 +55,7 @@ describe("NFR-SEG-002 · Validación de entradas", () => {
     const user = await registerUser(ctx.app);
     const response = await request(ctx.server)
       .post("/api/accounts")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({})
       .expect(400);
 
@@ -69,11 +69,11 @@ describe("NFR-SEG-002 · Validación de entradas", () => {
 
     await request(ctx.server)
       .get("/api/transactions?page=0")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(400);
     await request(ctx.server)
       .get("/api/transactions?pageSize=1000")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(400);
   });
 });

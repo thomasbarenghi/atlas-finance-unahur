@@ -1,7 +1,7 @@
 import { INestApplication } from "@nestjs/common";
 import request from "supertest";
 import { httpClient } from "./test-app";
-import { bearer } from "./auth";
+import { authCookie } from "./auth";
 
 /**
  * Typed factories that create domain data through the public API. They are used
@@ -20,10 +20,11 @@ export const createAccount = async (
 ): Promise<Record<string, any>> => {
   const response = await request(httpClient(app))
     .post("/api/accounts")
-    .set(bearer(token))
+    .set(authCookie(token))
     .send({
       name: "Caja",
       type: "cash",
+      currency: "ARS",
       initialBalance: 1000,
       ...overrides,
     })
@@ -37,7 +38,7 @@ export const listCategories = async (
 ): Promise<Record<string, any>[]> => {
   const response = await request(httpClient(app))
     .get("/api/categories")
-    .set(bearer(token))
+    .set(authCookie(token))
     .expect(200);
   return response.body;
 };
@@ -60,7 +61,7 @@ export const createCategory = async (
 ): Promise<Record<string, any>> => {
   const response = await request(httpClient(app))
     .post("/api/categories")
-    .set(bearer(token))
+    .set(authCookie(token))
     .send({
       name: "Mascotas",
       type: "expense",
@@ -78,7 +79,7 @@ export const createTransaction = async (
 ): Promise<Record<string, any>> => {
   const response = await request(httpClient(app))
     .post("/api/transactions")
-    .set(bearer(token))
+    .set(authCookie(token))
     .send(body)
     .expect(201);
   return response.body;

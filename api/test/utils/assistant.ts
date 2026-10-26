@@ -2,7 +2,7 @@ import { INestApplication } from "@nestjs/common";
 import request from "supertest";
 import { httpClient } from "./test-app";
 import type { AiStreamChunk } from "../../src/shared/ai/ai.service";
-import { bearer } from "./auth";
+import { authCookie } from "./auth";
 
 export interface SseEvent {
   event: string;
@@ -45,5 +45,5 @@ export const postAssistantMessage = (
 ) =>
   request(httpClient(app))
     .post("/api/assistant/messages")
-    .set(bearer(token))
+    .set(authCookie(token))
     .send({ question: "¿En qué gasté este mes?", ...body });

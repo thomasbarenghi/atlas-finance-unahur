@@ -1,5 +1,5 @@
 import request from "supertest";
-import { bearer, registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
 import { createAccount } from "../utils/factories";
 import { MISSING_UUID, truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
@@ -31,7 +31,7 @@ describe("FR-CUE-003 · Editar y eliminar cuentas", () => {
 
     const response = await request(ctx.server)
       .patch(`/api/accounts/${account.id}`)
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({
         name: "Nueva",
         type: "bank",
@@ -54,12 +54,12 @@ describe("FR-CUE-003 · Editar y eliminar cuentas", () => {
 
     await request(ctx.server)
       .delete(`/api/accounts/${account.id}`)
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(200);
 
     await request(ctx.server)
       .get(`/api/accounts/${account.id}`)
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(404);
   });
 
@@ -68,7 +68,7 @@ describe("FR-CUE-003 · Editar y eliminar cuentas", () => {
 
     await request(ctx.server)
       .patch(`/api/accounts/${MISSING_UUID}`)
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({ name: "X" })
       .expect(404);
   });
@@ -78,7 +78,7 @@ describe("FR-CUE-003 · Editar y eliminar cuentas", () => {
 
     await request(ctx.server)
       .patch("/api/accounts/not-a-uuid")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({ name: "X" })
       .expect(400);
   });

@@ -6,7 +6,7 @@ Guidance for AI agents working in `api/`. Read this first, then load the relevan
 
 Atlass Fin backend: a **NestJS monolith** exposing a REST API for the web/native client in `../client/`. It owns all business logic, persistence, auth, and the AI integration (read-only assistant). It organizes and explains user-entered data; it does **not** connect to banks, move money, or give financial advice.
 
-**Stack:** NestJS (modular monolith) · TypeScript strict · PostgreSQL (Supabase) · TypeORM (entities as schema source, no migrations) · JWT (HttpOnly cookie + Bearer) · class-validator · argon2 · @nestjs/config.
+**Stack:** NestJS (modular monolith) · TypeScript strict · PostgreSQL (Supabase) · TypeORM (entities as schema source, no migrations) · JWT (HttpOnly cookie) · class-validator · argon2 · @nestjs/config.
 
 ## Source of truth (READMEs / docs)
 
@@ -76,9 +76,9 @@ Each feature follows: `<feature>.module.ts`, `<feature>.controller.ts`, `<featur
 
 ## Auth
 
-- JWT access token (short-lived) + opaque refresh token (SHA-256 in `sessions`; argon2 legacy is accepted and migrated on rotation).
-- Transport: `HttpOnly` cookie (web) or `Authorization: Bearer` (native). Both valid.
+- Stateless JWT auth: access token (short-lived) + refresh token (long-lived), both signed and carrying a `type` claim. There is no session table and no server-side revocation.
+- Transport: `HttpOnly` cookie only. The web client never reads or stores tokens in JavaScript.
 - `JwtAuthGuard` is global; mark public routes with `@Public()`.
-- Session validation is cached in memory for `SESSION_CACHE_TTL_MS` and coalesced per session; logout clears the local entry.
-- Logout revokes the session; refresh rotates the token.
+- Logout only clears cookies; an issued token remains valid until it expires.
+- Refresh verifies the refresh JWT and issues new tokens; it does not rotate or revoke the previous refresh token.
 - The database pool is warmed at startup (`DatabaseWarmupService`, `min = DB_POOL_MAX`, `keepAlive`).

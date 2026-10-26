@@ -12,13 +12,11 @@ import { ConfigService } from "@nestjs/config";
 import { Request, Response } from "express";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { Public } from "../common/decorators/public.decorator";
-import { AuthUser } from "../common/types/auth-user";
 import { AppConfig } from "../config/configuration";
 import { UserResponseDto } from "../users/dto/user-response.dto";
 import { AuthService } from "./auth.service";
 import { AuthResponse, TokenPair } from "./dto/auth-response.dto";
 import { LoginDto } from "./dto/login.dto";
-import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { RegisterDto } from "./dto/register.dto";
 
 const ACCESS_COOKIE = "access_token";
@@ -38,8 +36,8 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponse> {
     const result = await this.authService.register(dto);
-    this.setAuthCookies(response, result);
-    return result;
+    this.setTokenCookies(response, result.tokens);
+    return { user: result.user };
   }
 
   @Public()
@@ -50,46 +48,32 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponse> {
     const result = await this.authService.login(dto);
-    this.setAuthCookies(response, result);
-    return result;
+    this.setTokenCookies(response, result.tokens);
+    return { user: result.user };
   }
 
   @Public()
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @Post("refresh")
   async refresh(
-    @Body() dto: RefreshTokenDto,
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<TokenPair> {
+  ): Promise<void> {
     const cookies = request.cookies as Record<string, string> | undefined;
-    const token = dto.refreshToken ?? cookies?.[REFRESH_COOKIE];
-    const tokens = await this.authService.refresh(token);
+    const tokens = await this.authService.refresh(cookies?.[REFRESH_COOKIE]);
     this.setTokenCookies(response, tokens);
-    return tokens;
   }
 
+  @Public()
   @HttpCode(HttpStatus.NO_CONTENT)
   @Post("logout")
-  async logout(
-    @CurrentUser() user: AuthUser,
-    @Res({ passthrough: true }) response: Response,
-  ): Promise<void> {
-    await this.authService.logout(user.id, user.sessionId);
+  logout(@Res({ passthrough: true }) response: Response): void {
     this.clearAuthCookies(response);
   }
 
   @Get("me")
   me(@CurrentUser("id") userId: string): Promise<UserResponseDto> {
     return this.authService.getMe(userId);
-  }
-
-  private setAuthCookies(response: Response, auth: AuthResponse): void {
-    const tokens: TokenPair = {
-      accessToken: auth.accessToken,
-      refreshToken: auth.refreshToken,
-    };
-    this.setTokenCookies(response, tokens);
   }
 
   private setTokenCookies(response: Response, tokens: TokenPair): void {

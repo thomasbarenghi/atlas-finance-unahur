@@ -127,7 +127,7 @@ beforeEach(async () => {
 
 ## 8. E2E rules
 
-- Boot the full Nest app once per suite; authenticate via `POST /auth/login` to get a token/cookie for protected calls.
+- Boot the full Nest app once per suite; authenticate via `POST /auth/login` and send the `access_token` cookie on protected calls (web-only auth).
 - Assert status codes **and** the exact response contract (`code`, field names, types).
 - Each test arranges its own data, acts, asserts, and cleans up; no order dependence.
 - Cover the security paths (cross-user access) and the transaction rollback at least once.
@@ -135,10 +135,10 @@ beforeEach(async () => {
 
 ```ts
 it("hides another user's account (404, no existence leak)", async () => {
-  const { token } = await loginAsUserB(app);
+  const { accessToken } = await loginAsUserB(app);
   await request(app.getHttpServer())
     .get(`/accounts/${accountOfUserA}`)
-    .set("Authorization", `Bearer ${token}`)
+    .set(authCookie(accessToken))
     .expect(404);
 });
 ```

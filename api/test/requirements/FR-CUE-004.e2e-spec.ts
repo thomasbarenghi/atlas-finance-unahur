@@ -1,5 +1,5 @@
 import request from "supertest";
-import { bearer, registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
 import {
   categoryByName,
   createAccount,
@@ -59,13 +59,13 @@ describe("FR-CUE-004 · Saldo actual", () => {
 
     const detail = await request(ctx.server)
       .get(`/api/accounts/${account.id}`)
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(200);
     expect(detail.body.currentBalance).toBe(1300);
 
     const list = await request(ctx.server)
       .get("/api/accounts")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(200);
     expect(list.body[0].currentBalance).toBe(1300);
   });
@@ -92,7 +92,7 @@ describe("FR-CUE-004 · Saldo actual", () => {
 
     const accounts = await request(ctx.server)
       .get("/api/accounts")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(200);
 
     const byName = new Map(

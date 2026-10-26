@@ -18,7 +18,7 @@ export interface TestState {
     currency: string;
     rate: number;
     rateDate: string;
-    source: "api" | "seed";
+    source: "api";
   }[];
   sessionUserId: string | null;
   requests: { method: string; path: string }[];

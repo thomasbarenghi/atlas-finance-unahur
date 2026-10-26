@@ -1,5 +1,5 @@
 import request from "supertest";
-import { bearer, registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
 import {
   categoryByName,
   createAccount,
@@ -47,7 +47,7 @@ describe("FR-TRX-003 · Editar y eliminar movimientos", () => {
 
     const updated = await request(ctx.server)
       .patch(`/api/transactions/${created.id}`)
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({ amount: 250, description: "Editado" })
       .expect(200);
 
@@ -74,12 +74,12 @@ describe("FR-TRX-003 · Editar y eliminar movimientos", () => {
 
     await request(ctx.server)
       .delete(`/api/transactions/${created.id}`)
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(200);
 
     await request(ctx.server)
       .get(`/api/transactions/${created.id}`)
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(404);
   });
 
@@ -89,12 +89,12 @@ describe("FR-TRX-003 · Editar y eliminar movimientos", () => {
 
     await request(ctx.server)
       .patch(`/api/transactions/${missing}`)
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({ amount: 1 })
       .expect(404);
     await request(ctx.server)
       .delete(`/api/transactions/${missing}`)
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(404);
   });
 
@@ -117,7 +117,7 @@ describe("FR-TRX-003 · Editar y eliminar movimientos", () => {
 
     await request(ctx.server)
       .patch(`/api/transactions/${created.id}`)
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({ categoryId: null })
       .expect(400);
   });

@@ -1,5 +1,5 @@
 import request from "supertest";
-import { bearer, registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
 import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
@@ -26,10 +26,11 @@ describe("FR-CUE-002 · Campos de la cuenta", () => {
 
     const response = await request(ctx.server)
       .post("/api/accounts")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({
         name: "Caja",
         type: "cash",
+        currency: "ARS",
         initialBalance: 50000,
         notes: "Efectivo de casa",
       })
@@ -50,8 +51,8 @@ describe("FR-CUE-002 · Campos de la cuenta", () => {
 
     const response = await request(ctx.server)
       .post("/api/accounts")
-      .set(bearer(user.accessToken))
-      .send({ name: "Caja", type: "cash" })
+      .set(authCookie(user.accessToken))
+      .send({ name: "Caja", type: "cash", currency: "ARS" })
       .expect(201);
 
     expect(response.body.initialBalance).toBe(0);
@@ -63,8 +64,8 @@ describe("FR-CUE-002 · Campos de la cuenta", () => {
 
     await request(ctx.server)
       .post("/api/accounts")
-      .set(bearer(user.accessToken))
-      .send({ name: "", type: "cash" })
+      .set(authCookie(user.accessToken))
+      .send({ name: "", type: "cash", currency: "ARS" })
       .expect(400);
   });
 
@@ -73,8 +74,13 @@ describe("FR-CUE-002 · Campos de la cuenta", () => {
 
     await request(ctx.server)
       .post("/api/accounts")
-      .set(bearer(user.accessToken))
-      .send({ name: "Caja", type: "cash", initialBalance: "mil" })
+      .set(authCookie(user.accessToken))
+      .send({
+        name: "Caja",
+        type: "cash",
+        currency: "ARS",
+        initialBalance: "mil",
+      })
       .expect(400);
   });
 });

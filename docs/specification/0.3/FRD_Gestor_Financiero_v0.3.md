@@ -27,7 +27,7 @@
 | 0.1 | 04/09/2026 | Barenghi, Thomas | Versión inicial. Especificación funcional del Gestor Financiero Personal. |
 | 0.2 | 02/10/2026 | Barenghi, Thomas | Se agregan 5 requerimientos funcionales, 1 no funcional y 1 regla de cálculo; se modifican FR-DAS-007, FR-IA-009 y CAL-001, y se actualiza la regla de negocio RN-002 (patrimonio neto). |
 | 0.3 | 16/10/2026 | Barenghi, Thomas | Se ajusta el alcance de la versión y se consolida la documentación en torno a los flujos principales: acceso, cuentas, movimientos, panel y asistente de consulta. Se actualizan los requerimientos, las reglas de negocio y de cálculo, las entidades, las pantallas y los datos de demostración, y se amplían las User Stories para cubrir todos los módulos vigentes. El asistente queda definido como de solo consulta. |
-| 0.3.1 | 26/10/2026 | Barenghi, Thomas | Se alinea el documento con la implementación vigente: búsqueda, filtros y exportación CSV de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria y semanal del panel; continuidad de la conversación del asistente en memoria del cliente; y multimoneda (moneda por cuenta, moneda principal, cotizaciones automáticas de la API, transferencias multimoneda y selector de moneda de lectura). |
+| 0.3.1 | 26/10/2026 | Barenghi, Thomas | Se alinea el documento con la implementación vigente: búsqueda, filtros y exportación CSV de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria y semanal del panel; continuidad de la conversación del asistente en memoria del cliente; multimoneda (moneda por cuenta, moneda principal, cotizaciones automáticas de la API consultadas en cada lectura y sin persistencia, transferencias multimoneda y selector de moneda de lectura); y autenticación JWT stateless sin tabla de sesiones y con transporte exclusivo por cookie HttpOnly. |
 
 ## 2. Alcance
 
@@ -58,7 +58,7 @@ La preferencia de tema (claro, oscuro o automático) es local al navegador y no 
 | Servicio | Datos intercambiados | Comportamiento ante falla |
 |---|---|---|
 | Proveedor de IA | Pregunta y contexto financiero mínimo ya calculado. | Informar indisponibilidad; no perder ni modificar datos financieros. |
-| Proveedor de cotizaciones (currency-api) | Tasas de cambio globales para las monedas del catálogo. | Mantener la última cotización válida y reintentar; no bloquear la carga de datos financieros. |
+| Proveedor de cotizaciones (currency-api) | Tasas de cambio globales para las monedas del catálogo. | Informar indisponibilidad y permitir reintentar; no modificar datos financieros. |
 | Base de datos relacional | Cuentas, movimientos y categorías del usuario. | Reintentar la operación e informar el error; no confirmar la acción como exitosa. |
 | Plataforma de despliegue | Aplicación, configuración y secretos del entorno. | Conservar la versión anterior disponible si el despliegue falla. |
 
@@ -116,7 +116,7 @@ Quedan fuera de alcance la sincronización automática con bancos o billeteras, 
 | RN-004 | Toda transferencia válida descuenta en la cuenta de origen y acredita en la cuenta de destino dentro de una única operación. |
 | RN-014 | Hay una moneda principal. El patrimonio se informa en la moneda de lectura (default: principal); los flujos se convierten a esa moneda con la cotización de la API. |
 | RN-015 | Cada cuenta tiene una moneda fija; no se puede cambiar si ya tiene movimientos. |
-| RN-016 | Las cotizaciones son globales y las provee la API; el usuario no las crea ni las edita. |
+| RN-016 | Las cotizaciones son globales y las provee la API; no se persisten y el usuario no las crea ni las edita. |
 | RN-017 | Una transferencia entre monedas distintas registra los dos montos. La cotización es opcional y se puede sobrescribir en la operación; no se persiste. |
 | RN-018 | Los indicadores del período incluyen todas las monedas, convirtiendo cada flujo a la moneda de lectura; el patrimonio se informa con desglose por moneda. |
 | RN-019 | La moneda de lectura es una vista, no un dato: cambiarla no altera ningún registro. |
@@ -154,7 +154,7 @@ Quedan fuera de alcance la sincronización automática con bancos o billeteras, 
 | HU-001 — Registrar un movimiento | Como usuario registrado, quiero cargar un ingreso o gasto para mantener actualizados mis saldos. | • Los campos obligatorios se validan antes de guardar.<br>• El monto debe ser mayor que cero.<br>• El movimiento aparece en el listado y actualiza saldo y dashboard.<br>• La API verifica que cuenta y categoría pertenezcan al usuario autenticado. |
 | HU-002 — Transferir entre cuentas | Como usuario registrado, quiero mover dinero entre dos cuentas propias, incluso de monedas distintas, sin alterar mis ingresos o gastos. | • Origen y destino son diferentes y pertenecen al usuario.<br>• Se registran efectos opuestos; en multimoneda se guardan el monto origen y el monto destino.<br>• La cotización usada se puede sobrescribir y no se persiste.<br>• La operación es atómica y no queda incompleta ante una falla.<br>• La transferencia se excluye del flujo de fondos consolidado. |
 | HU-006 — Consultar al asistente | Como usuario registrado, quiero preguntar por mis gastos para entender mi comportamiento financiero. | • El asistente requiere sesión válida.<br>• Solo utiliza datos propios y el mínimo contexto necesario.<br>• La respuesta identifica período y categorías considerados.<br>• Los totales coinciden con el dashboard del mismo período.<br>• El asistente es de solo consulta: no crea, edita ni elimina datos, y declara insuficiencia si faltan datos.<br>• Puede recibir turnos recientes de la conversación como contexto, sin persistirlos en el servidor. |
-| HU-007 — Registrarme e iniciar sesión | Como visitante, quiero registrarme e iniciar sesión para acceder a mi información financiera. | • El registro valida los campos obligatorios y rechaza el correo duplicado.<br>• Al cerrar sesión, la sesión se invalida y las pantallas financieras redirigen al acceso. |
+| HU-007 — Registrarme e iniciar sesión | Como visitante, quiero registrarme e iniciar sesión para acceder a mi información financiera. | • El registro valida los campos obligatorios y rechaza el correo duplicado.<br>• Al cerrar sesión se limpian las cookies y las pantallas financieras redirigen al acceso; el token emitido expira según su vigencia. |
 | HU-008 — Gestionar mis cuentas | Como usuario registrado, quiero crear, editar y eliminar mis cuentas para reflejar dónde está mi dinero. | • Se registran nombre, tipo, moneda y saldo inicial.<br>• El saldo actual se calcula desde el saldo inicial y los movimientos, en la moneda de la cuenta.<br>• La moneda no se cambia si la cuenta tiene movimientos.<br>• La eliminación elimina en cascada los movimientos asociados y solo alcanza cuentas propias. |
 | HU-009 — Ver el resumen del panel | Como usuario registrado, quiero ver mi patrimonio, ingresos, gastos y ahorro del período para entender mi situación de un vistazo. | • El panel muestra los cuatro indicadores del período seleccionado.<br>• Incluye todas las monedas convertidas a la moneda de lectura.<br>• Los totales coinciden con los movimientos registrados. |
 | HU-010 — Ver los gráficos del panel | Como usuario registrado, quiero ver la evolución del patrimonio, la comparación entre ingresos y gastos y la distribución de gastos por categoría. | • El panel muestra los tres gráficos.<br>• Los gráficos coinciden con los datos del período seleccionado.<br>• La evolución del patrimonio es diaria y las barras son semanales para rangos de hasta 31 días; en rangos mayores son mensuales. |
@@ -176,7 +176,7 @@ Los identificadores de requerimiento son estables entre versiones y no se renume
 | ID | Prioridad | Requerimiento |
 |---|---|---|
 | FR-AUT-001 | P0 | El visitante podrá registrarse con nombre, correo electrónico y contraseña. |
-| FR-AUT-002 | P0 | El usuario podrá iniciar y cerrar sesión; al cerrar se invalidará la sesión activa. |
+| FR-AUT-002 | P0 | El usuario podrá iniciar y cerrar sesión. Al cerrar se limpian las cookies y el cliente descarta el estado de sesión; al ser JWT stateless, el token emitido sigue vigente hasta expirar. |
 
 **Dashboard**
 

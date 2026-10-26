@@ -7,7 +7,7 @@ export interface CurrencyRateDto {
   /** How many units of the user's primary currency one unit buys. */
   rate: number;
   rateDate: string;
-  source: "api" | "seed";
+  source: "api";
 }
 
 export interface CurrencySettingsDto {

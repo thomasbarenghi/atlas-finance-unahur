@@ -4,8 +4,6 @@ import { randomUUID } from "crypto";
 import { DataSource, EntityManager, IsNull } from "typeorm";
 import { Account } from "../../accounts/entities/account.entity";
 import { Category } from "../../categories/entities/category.entity";
-import { CURRENCY_CATALOG } from "../../currencies/currency-catalog";
-import { CurrencyRate } from "../../currencies/entities/currency-rate.entity";
 import {
   ExchangeRatesProvider,
   type FetchedRates,
@@ -101,38 +99,6 @@ const createUser = async (
     }),
   );
   return { id: user.id, name: user.name };
-};
-
-const ensureCurrencyRates = async (
-  manager: EntityManager,
-  fetched: FetchedRates | null,
-): Promise<void> => {
-  if (!fetched) {
-    logger.warn(
-      "No se pudieron obtener cotizaciones de la API; la API las reintentará al iniciar",
-    );
-    return;
-  }
-  const repo = manager.getRepository(CurrencyRate);
-  const existing = await repo.find();
-  const existingCodes = new Set(existing.map((row) => row.currency));
-  const missing = CURRENCY_CATALOG.filter(
-    (entry) =>
-      !existingCodes.has(entry.code) &&
-      (entry.code === "ARS" || fetched.rates[entry.code]),
-  );
-  if (missing.length === 0) return;
-  await repo.save(
-    missing.map((entry) =>
-      repo.create({
-        currency: entry.code,
-        rate: entry.code === "ARS" ? 1 : fetched.rates[entry.code],
-        rateDate: fetched.date,
-        source: "api",
-      }),
-    ),
-  );
-  logger.log(`Seeded ${missing.length} global currency rates from the API`);
 };
 
 /** Full, deterministic dataset for the `demo@atlassfin.app` account. */
@@ -393,10 +359,14 @@ const seedDemoDataset = async (
 export const runSeed = async (dataSource: DataSource): Promise<void> => {
   const reference = new Date();
   const rates = await new ExchangeRatesProvider().fetch();
+  if (!rates) {
+    logger.warn(
+      "No se pudo obtener la cotización USD de la API; se omite la transferencia multimoneda del seed",
+    );
+  }
 
   await dataSource.transaction(async (manager) => {
     await ensureCategories(manager);
-    await ensureCurrencyRates(manager, rates);
     const categoryIds = await loadCategoryIds(manager);
 
     const userRepo = manager.getRepository(User);

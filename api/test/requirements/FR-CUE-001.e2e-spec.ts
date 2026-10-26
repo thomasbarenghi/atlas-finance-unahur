@@ -1,5 +1,5 @@
 import request from "supertest";
-import { bearer, registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
 import { createAccount } from "../utils/factories";
 import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
@@ -36,7 +36,7 @@ describe("FR-CUE-001 · Tipos de cuenta", () => {
 
     const response = await request(ctx.server)
       .post("/api/accounts")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({ name: "X", type: "crypto" })
       .expect(400);
 
@@ -51,7 +51,7 @@ describe("FR-CUE-001 · Tipos de cuenta", () => {
 
     const response = await request(ctx.server)
       .get("/api/accounts")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(200);
 
     expect(response.body).toHaveLength(2);

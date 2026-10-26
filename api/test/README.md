@@ -39,7 +39,7 @@ test/
 ├── utils/                       # harness reutilizable
 │   ├── test-app.ts              # boot de la app para tests
 │   ├── db.ts                    # truncate + datos de referencia + MISSING_UUID
-│   ├── auth.ts                  # registro/login + Bearer
+│   ├── auth.ts                  # registro/login + cookies de acceso
 │   ├── factories.ts             # creación de datos vía API
 │   ├── scenario.ts              # escenario base de finanzas
 │   └── assistant.ts             # stub de AiService + parser SSE

@@ -8,7 +8,6 @@ TypeORM en `api/src/**/entities/*.entity.ts` (el esquema se deriva de ellas con
 
 ```mermaid
 erDiagram
-  users ||--o{ sessions : "abre"
   users ||--o{ accounts : "posee"
   users ||--o{ transactions : "registra"
   accounts ||--o{ transactions : "cuenta de origen"
@@ -24,15 +23,6 @@ erDiagram
     text primary_currency
     timestamptz created_at
     timestamptz updated_at
-  }
-
-  sessions {
-    uuid id PK
-    uuid user_id FK
-    text refresh_token_hash
-    timestamptz expires_at
-    timestamptz revoked_at
-    timestamptz created_at
   }
 
   accounts {
@@ -72,13 +62,6 @@ erDiagram
     timestamptz updated_at
   }
 
-  currency_rates {
-    text currency PK
-    numeric rate
-    date rate_date
-    text source
-    timestamptz updated_at
-  }
 ```
 
 > La relación de la transferencia consigo misma no es una FK: los dos lados de
@@ -98,17 +81,6 @@ erDiagram
 | `primary_currency` | text | no | moneda principal; default `ARS` |
 | `created_at` | timestamptz | no | |
 | `updated_at` | timestamptz | no | |
-
-### `sessions` — Sesión / refresh token
-
-| Columna | Tipo | Nulo | Notas |
-| :--- | :--- | :--- | :--- |
-| `id` | uuid | no | PK |
-| `user_id` | uuid | no | FK → `users.id` `ON DELETE CASCADE` (indexado) |
-| `refresh_token_hash` | text | no | hash del refresh token opaco |
-| `expires_at` | timestamptz | no | |
-| `revoked_at` | timestamptz | sí | se marca al logout (FR-AUT-002) |
-| `created_at` | timestamptz | no | |
 
 ### `accounts` — Cuenta (FR-CUE-001..005)
 
@@ -142,20 +114,6 @@ erDiagram
 > Cada usuario puede crear, editar y eliminar las suyas. Al eliminar una propia,
 > `transactions.category_id` pasa a `NULL` (`ON DELETE SET NULL`).
 
-### `currency_rates` — Cotizaciones globales
-
-| Columna | Tipo | Nulo | Notas |
-| :--- | :--- | :--- | :--- |
-| `currency` | text | no | PK; ISO 4217 |
-| `rate` | numeric(18,6) | no | ARS por una unidad de la moneda |
-| `rate_date` | date | no | fecha de la cotización de la API |
-| `source` | text | no | `api` |
-| `updated_at` | timestamptz | no | |
-
-> Tabla **global**, no por usuario. El usuario no crea ni edita cotizaciones;
-> el backend las refresca desde la API pública y conserva la última válida.
-> Se usan para convertir el patrimonio y los flujos a la moneda de lectura.
-
 ### `transactions` — Movimiento (FR-TRX-001..005)
 
 | Columna | Tipo | Nulo | Notas |
@@ -176,10 +134,12 @@ erDiagram
 
 ## Reglas de integridad y cálculo
 
-- **Propiedad (RN-001 / NFR-SEG-001):** `accounts`, `sessions` y `transactions`
-  cuelgan de `users.id`; toda lectura/escritura filtra por el `user_id`
-  autenticado. `categories` tiene las cinco globales (`user_id NULL`) más las
-  propias de cada usuario.
+- **Propiedad (RN-001 / NFR-SEG-001):** `accounts` y `transactions` cuelgan de
+  `users.id`; toda lectura/escritura filtra por el `user_id` autenticado.
+  `categories` tiene las cinco globales (`user_id NULL`) más las propias de cada
+  usuario.
+- **Autenticación:** JWT stateless (access + refresh). No hay tabla de sesiones
+  ni revocación server-side.
 - **Transferencias (FR-TRX-004/005, RN-003/004/017):** origen ≠ destino; se
   persisten **dos filas** (`type='transfer'`) con el mismo `transfer_group_id`,
   de forma atómica. En multimoneda cada fila guarda el monto en la moneda de su
@@ -187,11 +147,11 @@ erDiagram
   ingresos/gastos consolidados (CAL-003).
 - **CAL-001 Patrimonio neto:** Σ (saldo × cotización) de las cuentas, en la moneda de lectura.
 - **CAL-002 Flujo de fondos:** Σ ingresos − Σ gastos del período, convirtiendo cada flujo a la moneda de lectura.
-- **Moneda:** multimoneda con cotizaciones globales provistas por la API; cada cuenta declara su moneda y el patrimonio se convierte a la moneda de lectura.
+- **Moneda:** multimoneda con cotizaciones globales provistas por la API; cada cuenta declara su moneda y el patrimonio se convierte a la moneda de lectura. Las cotizaciones **no se persisten**: se consultan a la API en cada lectura.
 
 ## Fuera de alcance (v0.3)
 
-No existen tablas para: presupuestos, activos/valuaciones, deudas, posiciones,
-objetivos, conversaciones de IA ni acciones del asistente. Las cotizaciones
-viven en la tabla global `currency_rates` (no son datos del usuario). Ver
-`docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md` §1.
+No existen tablas para: sesiones, presupuestos, activos/valuaciones, deudas,
+posiciones, objetivos, conversaciones de IA, acciones del asistente ni
+cotizaciones. Las cotizaciones son globales, las provee la API y no son datos
+del usuario. Ver `docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md` §1.

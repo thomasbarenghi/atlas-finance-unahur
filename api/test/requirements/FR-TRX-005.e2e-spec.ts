@@ -1,5 +1,5 @@
 import request from "supertest";
-import { bearer, registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
 import { createAccount, createTransaction, isoDate } from "../utils/factories";
 import { MISSING_UUID, truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
@@ -43,7 +43,7 @@ describe("FR-TRX-005 · Transferencia atómica", () => {
 
     const list = await request(ctx.server)
       .get("/api/transactions")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(200);
 
     expect(list.body.total).toBe(2);
@@ -72,12 +72,12 @@ describe("FR-TRX-005 · Transferencia atómica", () => {
 
     await request(ctx.server)
       .delete(`/api/transactions/${transfer.id}`)
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(200);
 
     const list = await request(ctx.server)
       .get("/api/transactions")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(200);
     expect(list.body.total).toBe(0);
   });
@@ -88,7 +88,7 @@ describe("FR-TRX-005 · Transferencia atómica", () => {
 
     await request(ctx.server)
       .post("/api/transactions")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({
         type: "transfer",
         amount: 300,
@@ -101,7 +101,7 @@ describe("FR-TRX-005 · Transferencia atómica", () => {
 
     const list = await request(ctx.server)
       .get("/api/transactions")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(200);
     expect(list.body.total).toBe(0);
   });

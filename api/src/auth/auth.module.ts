@@ -7,13 +7,11 @@ import { AppConfig } from "../config/configuration";
 import { User } from "../users/entities/user.entity";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
-import { Session } from "./entities/session.entity";
 import { JwtStrategy } from "./jwt.strategy";
-import { SessionValidationCache } from "./session-validation-cache.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Session]),
+    TypeOrmModule.forFeature([User]),
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -27,7 +25,7 @@ import { SessionValidationCache } from "./session-validation-cache.service";
     }),
   ],
   controllers: [AuthController],
-  providers: [JwtStrategy, AuthService, SessionValidationCache],
+  providers: [JwtStrategy, AuthService],
   exports: [JwtModule, AuthService],
 })
 export class AuthModule {}

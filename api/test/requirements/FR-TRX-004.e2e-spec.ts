@@ -1,5 +1,5 @@
 import request from "supertest";
-import { bearer, registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
 import { createAccount, isoDate } from "../utils/factories";
 import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
@@ -29,7 +29,7 @@ describe("FR-TRX-004 · Transferencia entre cuentas distintas", () => {
 
     const response = await request(ctx.server)
       .post("/api/transactions")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({
         type: "transfer",
         amount: 100,
@@ -49,7 +49,7 @@ describe("FR-TRX-004 · Transferencia entre cuentas distintas", () => {
 
     const response = await request(ctx.server)
       .post("/api/transactions")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({
         type: "transfer",
         amount: 100,

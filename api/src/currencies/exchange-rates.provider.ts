@@ -12,24 +12,17 @@ const RATES_URL =
   "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/ars.json";
 
 const REQUEST_TIMEOUT_MS = 6_000;
-const CACHE_TTL_MS = 60 * 60 * 1000;
 
 /**
- * Public FX provider (Fawaz Ahmed's currency-api). It is only used by the
- * explicit refresh endpoint; `CurrenciesService` keeps the last valid values if
- * the provider is unavailable (FR-MER-004 spirit). The API returns ARS as the
- * base, so each value is inverted to store "ARS per unit".
+ * Public FX provider (Fawaz Ahmed's currency-api). Quotes are fetched on every
+ * read; there is no database or in-memory cache. The API returns ARS as the
+ * base, so each value is inverted to expose "ARS per unit".
  */
 @Injectable()
 export class ExchangeRatesProvider {
   private readonly logger = new Logger(ExchangeRatesProvider.name);
-  private cache: (FetchedRates & { fetchedAt: number }) | null = null;
 
   async fetch(): Promise<FetchedRates | null> {
-    if (this.cache && Date.now() - this.cache.fetchedAt < CACHE_TTL_MS) {
-      return { date: this.cache.date, rates: this.cache.rates };
-    }
-
     try {
       const response = await axios.get<{
         date?: string;
@@ -47,13 +40,10 @@ export class ExchangeRatesProvider {
         }
       }
 
-      const result = {
+      return {
         date: response.data.date ?? new Date().toISOString().slice(0, 10),
         rates,
-        fetchedAt: Date.now(),
       };
-      this.cache = result;
-      return { date: result.date, rates: result.rates };
     } catch (error) {
       this.logger.warn(
         `No se pudieron obtener cotizaciones: ${

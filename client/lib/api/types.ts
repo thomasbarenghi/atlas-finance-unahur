@@ -32,8 +32,6 @@ export interface User {
 
 export interface AuthResponse {
   user: User;
-  accessToken: string;
-  refreshToken: string;
 }
 
 export interface Account {
@@ -142,7 +140,7 @@ export interface CurrencyCatalogItem {
   decimals: number;
 }
 
-export type CurrencyRateSource = "api" | "seed";
+export type CurrencyRateSource = "api";
 
 export interface CurrencyRate {
   currency: string;

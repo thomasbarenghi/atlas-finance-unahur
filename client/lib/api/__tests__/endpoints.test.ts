@@ -242,11 +242,11 @@ describe("auth, user and dashboard endpoints", () => {
     server.use(
       http.post(`${BASE}/auth/login`, async ({ request }) => {
         bodies.login = await request.json();
-        return okJson({ user: {}, accessToken: "a", refreshToken: "r" });
+        return okJson({ user: {} });
       }),
       http.post(`${BASE}/auth/register`, async ({ request }) => {
         bodies.register = await request.json();
-        return okJson({ user: {}, accessToken: "a", refreshToken: "r" });
+        return okJson({ user: {} });
       }),
     );
 

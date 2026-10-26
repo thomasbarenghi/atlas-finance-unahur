@@ -1,9 +1,7 @@
 import * as argon2 from "argon2";
-import { createHash } from "crypto";
 import { ErrorCode } from "../common/errors/error-codes";
 import { mockRepository } from "../../test/unit/mocks";
 import { User } from "../users/entities/user.entity";
-import { Session } from "./entities/session.entity";
 import { AuthService } from "./auth.service";
 
 jest.mock("argon2", () => ({
@@ -19,23 +17,10 @@ const user = (overrides: Partial<User> = {}): User =>
     name: "Ana",
     email: "ana@test.local",
     passwordHash: "hashed",
+    primaryCurrency: "ARS",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     ...overrides,
   }) as User;
-
-const sha256 = (value: string): string =>
-  createHash("sha256").update(value).digest("hex");
-
-const session = (overrides: Partial<Session> = {}): Session =>
-  ({
-    id: "s1",
-    userId: "u1",
-    refreshTokenHash: sha256("secret"),
-    expiresAt: new Date(Date.now() + 86_400_000),
-    revokedAt: null,
-    createdAt: new Date("2026-01-01T00:00:00.000Z"),
-    ...overrides,
-  }) as Session;
 
 const build = () => {
   const usersRepository = mockRepository();
@@ -43,43 +28,36 @@ const build = () => {
     ...user(),
     ...value,
   }));
-  usersRepository.save.mockImplementation(async (value: any) => ({
-    ...user(),
-    ...value,
-  }));
-  const sessionsRepository = mockRepository();
-  const jwtService = { sign: jest.fn(() => "access-token") };
+  usersRepository.save.mockImplementation(async (value: any) => value);
+
+  const jwtService = {
+    sign: jest.fn((payload: { type?: string }) =>
+      payload.type === "refresh" ? "refresh-token" : "access-token",
+    ),
+    verifyAsync: jest.fn(),
+  };
   const config = {
     get: jest.fn((key: string) => {
       if (key === "jwt") return { refreshTtlDays: 30 };
+      if (key === "defaultCurrency") return "ARS";
       return undefined;
     }),
   };
 
-  const sessionCache = { delete: jest.fn(), remember: jest.fn() };
   const service = new AuthService(
     usersRepository as any,
-    sessionsRepository as any,
     jwtService as any,
     config as any,
-    sessionCache as any,
   );
-  return {
-    service,
-    usersRepository,
-    sessionsRepository,
-    jwtService,
-    sessionCache,
-  };
+  return { service, usersRepository, jwtService };
 };
 
 describe("AuthService", () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it("registers a user, hashing the password and opening a session", async () => {
-    const { service, usersRepository, sessionsRepository } = build();
+  it("registers a user, hashing the password and issuing tokens", async () => {
+    const { service, usersRepository, jwtService } = build();
     usersRepository.findOneBy.mockResolvedValue(null);
-    usersRepository.save.mockImplementation(async (value: any) => value);
 
     const result = await service.register({
       name: "  Ana  ",
@@ -94,8 +72,17 @@ describe("AuthService", () => {
         passwordHash: "hashed",
       }),
     );
-    expect(sessionsRepository.save).toHaveBeenCalled();
-    expect(result).toMatchObject({ accessToken: "access-token" });
+    expect(result.tokens).toEqual({
+      accessToken: "access-token",
+      refreshToken: "refresh-token",
+    });
+    expect(jwtService.sign).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "access" }),
+    );
+    expect(jwtService.sign).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "refresh" }),
+      { expiresIn: 30 * 86_400 },
+    );
   });
 
   it("rejects a duplicate email", async () => {
@@ -117,7 +104,12 @@ describe("AuthService", () => {
 
     await expect(
       service.login({ email: "ANA@test.local", password: "Secreta123" } as any),
-    ).resolves.toMatchObject({ accessToken: "access-token" });
+    ).resolves.toMatchObject({
+      tokens: {
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+      },
+    });
   });
 
   it("rejects invalid credentials", async () => {
@@ -132,76 +124,61 @@ describe("AuthService", () => {
     });
   });
 
-  it("rotates the refresh token", async () => {
-    const { service, usersRepository, sessionsRepository, sessionCache } =
-      build();
-    sessionsRepository.findOneBy.mockResolvedValue(session());
+  it("renews both tokens from a valid stateless refresh token", async () => {
+    const { service, usersRepository, jwtService } = build();
+    jwtService.verifyAsync.mockResolvedValue({
+      sub: "u1",
+      email: "ana@test.local",
+      type: "refresh",
+    });
     usersRepository.findOneBy.mockResolvedValue(user());
 
-    const tokens = await service.refresh("s1.secret");
-    expect(tokens.accessToken).toBe("access-token");
-    expect(tokens.refreshToken.startsWith("s1.")).toBe(true);
-    expect(sessionsRepository.update).toHaveBeenCalledWith(
-      { id: "s1" },
-      { refreshTokenHash: expect.stringMatching(/^[a-f0-9]{64}$/) },
-    );
-    expect(sessionCache.remember).toHaveBeenCalledWith(
-      "s1",
-      { id: "u1", email: "ana@test.local", sessionId: "s1" },
-      expect.any(Date),
-    );
+    await expect(service.refresh("refresh-token")).resolves.toEqual({
+      accessToken: "access-token",
+      refreshToken: "refresh-token",
+    });
+    expect(jwtService.verifyAsync).toHaveBeenCalledWith("refresh-token");
     expect(mockedArgon2.verify).not.toHaveBeenCalled();
   });
 
-  it("accepts a legacy argon2 refresh hash and rotates it to SHA-256", async () => {
-    const { service, usersRepository, sessionsRepository } = build();
-    sessionsRepository.findOneBy.mockResolvedValue(
-      session({ refreshTokenHash: "$argon2id$legacy" }),
-    );
-    usersRepository.findOneBy.mockResolvedValue(user());
-    mockedArgon2.verify.mockResolvedValueOnce(true);
-
-    await expect(service.refresh("s1.secret")).resolves.toMatchObject({
-      accessToken: "access-token",
-    });
-    expect(mockedArgon2.verify).toHaveBeenCalledWith(
-      "$argon2id$legacy",
-      "secret",
-    );
-  });
-
-  it("rejects a wrong refresh secret", async () => {
-    const { service, sessionsRepository } = build();
-    sessionsRepository.findOneBy.mockResolvedValue(session());
-
-    await expect(service.refresh("s1.wrong")).rejects.toMatchObject({
-      response: { code: ErrorCode.SESSION_REVOKED },
-    });
-  });
-
-  it("rejects an unknown or revoked refresh token", async () => {
-    const { service, sessionsRepository } = build();
+  it("rejects an invalid or missing refresh token", async () => {
+    const { service, jwtService } = build();
 
     await expect(service.refresh(undefined)).rejects.toMatchObject({
       response: { code: ErrorCode.SESSION_REVOKED },
     });
 
-    sessionsRepository.findOneBy.mockResolvedValue(
-      session({ revokedAt: new Date() }),
-    );
-    await expect(service.refresh("s1.secret")).rejects.toMatchObject({
+    jwtService.verifyAsync.mockRejectedValue(new Error("invalid token"));
+    await expect(service.refresh("invalid")).rejects.toMatchObject({
       response: { code: ErrorCode.SESSION_REVOKED },
     });
   });
 
-  it("revokes the session on logout and clears its cache entry", async () => {
-    const { service, sessionsRepository, sessionCache } = build();
-    await service.logout("u1", "s1");
-    expect(sessionsRepository.update).toHaveBeenCalledWith(
-      { id: "s1", userId: "u1" },
-      { revokedAt: expect.any(Date) },
-    );
-    expect(sessionCache.delete).toHaveBeenCalledWith("s1");
+  it("rejects an access token used as a refresh token", async () => {
+    const { service, jwtService } = build();
+    jwtService.verifyAsync.mockResolvedValue({
+      sub: "u1",
+      email: "ana@test.local",
+      type: "access",
+    });
+
+    await expect(service.refresh("access-token")).rejects.toMatchObject({
+      response: { code: ErrorCode.SESSION_REVOKED },
+    });
+  });
+
+  it("rejects a refresh token whose user no longer exists", async () => {
+    const { service, usersRepository, jwtService } = build();
+    jwtService.verifyAsync.mockResolvedValue({
+      sub: "u1",
+      email: "ana@test.local",
+      type: "refresh",
+    });
+    usersRepository.findOneBy.mockResolvedValue(null);
+
+    await expect(service.refresh("refresh-token")).rejects.toMatchObject({
+      response: { code: ErrorCode.SESSION_REVOKED },
+    });
   });
 
   it("returns the current user profile", async () => {

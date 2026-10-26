@@ -46,11 +46,6 @@ export interface AppConfig {
   ai: AiConfig;
   /** Moneda principal por defecto para usuarios nuevos (cada cuenta elige la suya). */
   defaultCurrency: string;
-  /**
-   * TTL del cache en memoria de sesiones validadas (ms). `0` lo desactiva.
-   * Acota cuánto tarda en propagarse una revocación hecha en otra instancia.
-   */
-  sessionCacheTtlMs: number;
 }
 
 const toNumber = (value: string | undefined, fallback: number): number => {
@@ -110,5 +105,4 @@ export const configuration = (): AppConfig => ({
     devUserEmail: process.env.AI_DEV_USER_EMAIL || "demo@atlassfin.app",
   },
   defaultCurrency: process.env.DEFAULT_CURRENCY ?? "ARS",
-  sessionCacheTtlMs: toNumber(process.env.SESSION_CACHE_TTL_MS, 30_000),
 });

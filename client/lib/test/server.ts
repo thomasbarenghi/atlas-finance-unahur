@@ -310,11 +310,7 @@ const buildDashboard = (
   };
 };
 
-const authResponse = (user: User): AuthResponse => ({
-  user,
-  accessToken: `test-access-${user.id}`,
-  refreshToken: `test-refresh-${user.id}`,
-});
+const authResponse = (user: User): AuthResponse => ({ user });
 
 const buildAssistantAnswer = (question: string): string => {
   const text = question.toLowerCase();
@@ -357,7 +353,7 @@ const buildCurrencySettings = (): CurrencySettings => {
         symbol: catalog?.symbol ?? currency,
         rate: rateFor(currency) / primaryRate,
         rateDate: row?.rateDate ?? isoDate(new Date()),
-        source: row?.source ?? "seed",
+        source: row?.source ?? "api",
       };
     }),
     updatedAt:

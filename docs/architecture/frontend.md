@@ -123,7 +123,7 @@ Cada página lista: FRs cubiertos, componentes shadcn, y comportamiento esperado
 
 ### 4.1 `/login`, `/register` — SC-001 (FR-AUT-001/002)
 
-- **Login:** email + contraseña. El backend fija la cookie `HttpOnly` de sesión y responde con el usuario; el cliente no guarda tokens. On success → `router.push("/dashboard")` + `router.refresh()`.
+- **Login:** email + contraseña. El backend fija las cookies `HttpOnly` de access y refresh y responde con el usuario; el cliente no guarda tokens. On success → `router.push("/dashboard")` + `router.refresh()`.
 - **Registro:** nombre, email, contraseña (con confirmación). **Política:** 8–72 caracteres, al menos una letra y un número (debe coincidir con el backend). Tras registrarse, se loguea automáticamente (o queda pendiente de aprobación si el backend lo indica).
 - **Componentes:** `Card`, `Form`, `Input`, `Button`, `Alert`, `Label`.
 - **Errores:** mensajes genéricos del servidor, nunca detalles sensibles.
@@ -411,8 +411,6 @@ export interface User {
 }
 export interface AuthResponse {
   user: User;
-  accessToken: string;
-  refreshToken: string;
 }
 
 // ── Finanzas ──────────────────────────────────────────────────────────────
@@ -517,8 +515,8 @@ Flujo basado en **JWT** emitido por el backend (ver `backend.md`). Viaja en cook
 1. **Login/registro**: `POST /auth/login` → el backend fija la cookie `HttpOnly` y devuelve el usuario; `AuthProvider` guarda el usuario y redirige.
 2. **Guard en cliente (`auth-guard.tsx`)**: envuelve el layout de `(app)`; si no hay usuario (o `GET /auth/me` falla con 401), redirige a `/login`. Es solo UX: el backend valida en cada request.
 3. **Verificación inicial**: `GET /auth/me` al montar el provider para hidratar el usuario y confirmar validez. Ante `401`, limpiar estado y redirigir.
-4. **Refresh**: `POST /auth/refresh` ante `401` (rotación); se hace con la cookie de sesión.
-5. **Logout**: `POST /auth/logout` → backend invalida la sesión; front limpia el estado de sesión y redirige.
+4. **Refresh**: `POST /auth/refresh` ante `401` (renovación); se hace con la cookie de refresh.
+5. **Logout**: `POST /auth/logout` → el backend limpia las cookies; el front limpia el estado de sesión y redirige. Al ser JWT stateless, el token ya emitido sigue siendo válido hasta expirar.
 6. **401 global**: un interceptor del cliente lanza evento; `AuthProvider` redirige a `/login`.
 
 ---

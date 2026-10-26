@@ -140,7 +140,7 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
 | CP-ACC-01 | Registro de usuario | Completar el registro con datos válidos y enviar; luego probar con datos inválidos o email duplicado | Se crea el usuario, se informa éxito y se puede iniciar sesión. Los datos inválidos o duplicados se rechazan con mensaje. | P0 | FR-AUT-001 |
-| CP-ACC-02 | Inicio y cierre de sesión | Iniciar sesión; navegar; cerrar sesión; intentar volver a una pantalla protegida | La sesión inicia correctamente; al cerrar se invalida y las pantallas financieras redirigen al acceso. | P0 | FR-AUT-002, NFR-SEG-001 |
+| CP-ACC-02 | Inicio y cierre de sesión | Iniciar sesión; navegar; cerrar sesión; intentar volver a una pantalla protegida | La sesión inicia correctamente; al cerrar se limpian las cookies y las pantallas financieras redirigen al acceso. El token ya emitido sigue vigente hasta expirar (JWT stateless). | P0 | FR-AUT-002, NFR-SEG-001 |
 
 ### 5.3. Seguridad y autorización
 
