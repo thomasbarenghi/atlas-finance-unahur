@@ -172,10 +172,67 @@ describe("transaction endpoints", () => {
 });
 
 describe("category endpoints", () => {
-  it("lists the fixed category catalog", async () => {
+  it("lists the available categories", async () => {
     server.use(http.get(`${BASE}/categories`, () => okJson([makeCategory()])));
     const categories = await categoryEndpoints.list();
     expect(categories).toHaveLength(1);
+  });
+
+  it("POSTs a valid CreateCategoryDto payload", async () => {
+    let body: unknown;
+    server.use(
+      http.post(`${BASE}/categories`, async ({ request }) => {
+        body = await request.json();
+        return okJson(makeCategory({ isSystem: false }));
+      }),
+    );
+
+    await categoryEndpoints.create({
+      name: "Mascotas",
+      type: "expense",
+      color: "#f97316",
+    });
+
+    const result = await validateApiPayload(
+      apiRequestDtos.CreateCategoryDto,
+      body as never,
+    );
+    expect(result.errors).toEqual([]);
+    expect(result.valid).toBe(true);
+  });
+
+  it("PATCHes a valid UpdateCategoryDto payload", async () => {
+    let body: unknown;
+    server.use(
+      http.patch(`${BASE}/categories/:id`, async ({ request }) => {
+        body = await request.json();
+        return okJson(makeCategory({ isSystem: false }));
+      }),
+    );
+
+    await categoryEndpoints.update("cat-1", {
+      name: "Mascotas y pets",
+      color: "#ef4444",
+    });
+
+    const result = await validateApiPayload(
+      apiRequestDtos.UpdateCategoryDto,
+      body as never,
+    );
+    expect(result.valid).toBe(true);
+  });
+
+  it("deletes a category with DELETE", async () => {
+    let method: string | undefined;
+    server.use(
+      http.delete(`${BASE}/categories/:id`, ({ request }) => {
+        method = request.method;
+        return okJson({});
+      }),
+    );
+
+    await categoryEndpoints.remove("cat-1");
+    expect(method).toBe("DELETE");
   });
 });
 

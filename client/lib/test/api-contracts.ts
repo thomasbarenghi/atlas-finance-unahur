@@ -14,6 +14,8 @@ import { LoginDto } from "../../../api/src/auth/dto/login.dto";
 import { UpdateUserDto } from "../../../api/src/users/dto/update-user.dto";
 import { CreateAccountDto } from "../../../api/src/accounts/dto/create-account.dto";
 import { UpdateAccountDto } from "../../../api/src/accounts/dto/update-account.dto";
+import { CreateCategoryDto } from "../../../api/src/categories/dto/create-category.dto";
+import { UpdateCategoryDto } from "../../../api/src/categories/dto/update-category.dto";
 import { CreateTransactionDto } from "../../../api/src/transactions/dto/create-transaction.dto";
 import { UpdateTransactionDto } from "../../../api/src/transactions/dto/update-transaction.dto";
 import { AssistantMessageDto } from "../../../api/src/assistant/dto/assistant-message.dto";
@@ -25,6 +27,8 @@ export const apiRequestDtos = {
   UpdateUserDto,
   CreateAccountDto,
   UpdateAccountDto,
+  CreateCategoryDto,
+  UpdateCategoryDto,
   CreateTransactionDto,
   UpdateTransactionDto,
   AssistantMessageDto,

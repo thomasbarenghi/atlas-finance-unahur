@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { useFormContext } from "react-hook-form";
 import {
   FormControl,
@@ -11,9 +12,21 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { FormTextFieldProps } from "./form-text-field.types";
 
-export type { FormTextFieldProps } from "./form-text-field.types";
+export interface FormTextFieldProps {
+  name: string;
+  label?: string;
+  description?: string;
+  placeholder?: string;
+  type?: ComponentProps<"input">["type"];
+  step?: string | number;
+  min?: string | number;
+  autoComplete?: string;
+  disabled?: boolean;
+  multiline?: boolean;
+  rows?: number;
+  className?: string;
+}
 
 export const FormTextField = ({
   name,

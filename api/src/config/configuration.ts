@@ -31,17 +31,6 @@ export interface AiConfig {
   devUserEmail: string;
 }
 
-export interface DevConfig {
-  /**
-   * Whether the destructive dev endpoints are enabled. Fail-closed: it is only
-   * true when `NODE_ENV` is *explicitly* `development` or `test`, never from the
-   * defaulted `nodeEnv` (so a production deploy missing `NODE_ENV` stays safe).
-   */
-  databaseResetEnabled: boolean;
-  /** Shared secret required by the dev-only database endpoints when set. */
-  databaseToken: string | null;
-}
-
 export interface AppConfig {
   nodeEnv: string;
   port: number;
@@ -50,7 +39,6 @@ export interface AppConfig {
   cookie: CookieConfig;
   cors: CorsConfig;
   ai: AiConfig;
-  dev: DevConfig;
   /** Única moneda del sistema, usada para mostrar montos (FR de alcance 0.3). */
   defaultCurrency: string;
 }
@@ -109,12 +97,6 @@ export const configuration = (): AppConfig => ({
       (process.env.AI_PROVIDER === "openai" ? "gpt-4o-mini" : "deepseek-chat"),
     timeoutMs: toNumber(process.env.AI_TIMEOUT_MS, 30000),
     devUserEmail: process.env.AI_DEV_USER_EMAIL || "demo@atlassfin.app",
-  },
-  dev: {
-    databaseResetEnabled: ["development", "test"].includes(
-      process.env.NODE_ENV ?? "",
-    ),
-    databaseToken: process.env.DEV_DATABASE_TOKEN || null,
   },
   defaultCurrency: process.env.DEFAULT_CURRENCY ?? "ARS",
 });

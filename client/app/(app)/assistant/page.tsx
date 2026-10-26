@@ -4,7 +4,7 @@ import { useState } from "react";
 import { History, Plus } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
-import { AssistantChat } from "@/components/features/assistant/assistant-chat";
+import { AssistantChat } from "@/app/(app)/_components/assistant/assistant-chat";
 import { useAssistantChat } from "@/hooks/use-assistant-chat";
 
 const AssistantPage = () => {

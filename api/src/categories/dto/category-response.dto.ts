@@ -7,6 +7,7 @@ export class CategoryResponseDto {
   type: CategoryType;
   color: string;
   icon: string | null;
+  isSystem: boolean;
 }
 
 export const toCategoryResponse = (
@@ -17,4 +18,5 @@ export const toCategoryResponse = (
   type: category.type,
   color: category.color,
   icon: category.icon,
+  isSystem: category.userId === null,
 });

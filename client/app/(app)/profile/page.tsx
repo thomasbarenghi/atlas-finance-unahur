@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/common/page-header";
-import { ProfileMenu } from "@/components/features/profile/profile-menu";
+import { ProfileMenu } from "@/app/(app)/profile/_components/profile-menu";
 
 const ProfilePage = () => {
   return (

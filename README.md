@@ -2,7 +2,7 @@
 
 A personal finance manager with rich analytics and an integrated AI assistant. University project for **UNAHUR**.
 
-Atlass Fin helps you organize and understand the money you enter yourself: accounts, income/expense transactions, atomic transfers, and a fixed catalog of categories. Its two distinguishing features are **analytics/charts** and a **conversational AI agent** that answers questions about your own data. The app uses a single system currency.
+Atlass Fin helps you organize and understand the money you enter yourself: accounts, income/expense transactions, atomic transfers, and categories (system plus your own). Its two distinguishing features are **analytics/charts** and a **conversational AI agent** that answers questions about your own data. The app uses a single system currency.
 
 > **Scope note.** The app organizes and explains user-entered information. It does **not** connect to banks, execute payments or investments, and does **not** provide financial advice.
 
@@ -93,7 +93,7 @@ every time. See [`docs/architecture/backend.md`](docs/architecture/backend.md) Â
 - **Auth & profile:** register, login/logout, and profile name editing. Single system currency (no currency picker or theme).
 - **Dashboard:** net-worth, income, expenses and savings KPIs; net-worth evolution; income vs. expenses; expenses by category; selectable period.
 - **Accounts:** cash, bank, wallet or other; current balance from initial balance + movements; direct deletion.
-- **Transactions:** income, expense, and atomic transfers; paginated list with a fixed category catalog (and no filters/search in this version).
+- **Transactions:** income, expense, and atomic transfers; paginated list with system categories plus user-created categories (and no filters/search in this version).
 - **Categories:** fixed, read-only system catalog (salary, freelance, groceries, transport, services).
 - **AI assistant (distinctive):** **read-only** conversational answers built only from the user's own, pre-calculated, minimal context. It never creates, edits or deletes data, does not connect to banks, move money, or give financial advice.
 

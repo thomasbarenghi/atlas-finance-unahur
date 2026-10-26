@@ -156,7 +156,7 @@ describe("streamAssistantMessage (mock path)", () => {
     vi.stubEnv("NEXT_PUBLIC_ASSISTANT_LIVE", "false");
     const { streamAssistantMessage: mockedStream } =
       await import("@/lib/api/assistant-stream");
-    const { sessionStore } = await import("@/lib/api/session");
+    const { sessionStore } = await import("@/lib/mocks/session");
     const { mockState } = await import("@/lib/mocks/store");
     sessionStore.setUserId(mockState.users[0].user.id);
 

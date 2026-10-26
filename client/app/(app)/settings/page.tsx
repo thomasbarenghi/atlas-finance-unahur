@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/common/page-header";
-import { SettingsForm } from "@/components/features/settings/settings-form";
+import { SettingsForm } from "@/app/(app)/settings/_components/settings-form";
 
 const SettingsPage = () => {
   return (

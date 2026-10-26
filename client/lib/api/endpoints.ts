@@ -5,6 +5,7 @@ import type {
   AuthResponse,
   Category,
   CreateAccountInput,
+  CreateCategoryInput,
   CreateTransactionInput,
   DashboardData,
   LoginInput,
@@ -13,6 +14,7 @@ import type {
   Transaction,
   TransactionListQuery,
   UpdateAccountInput,
+  UpdateCategoryInput,
   UpdateTransactionInput,
   UpdateUserInput,
   User,
@@ -66,6 +68,16 @@ export const accountEndpoints = {
 export const categoryEndpoints = {
   list: (): Promise<Category[]> =>
     USE_MOCKS ? mockApi.listCategories() : get<Category[]>("/categories"),
+  create: (input: CreateCategoryInput): Promise<Category> =>
+    USE_MOCKS
+      ? mockApi.createCategory(input)
+      : post<Category>("/categories", input),
+  update: (id: string, input: UpdateCategoryInput): Promise<Category> =>
+    USE_MOCKS
+      ? mockApi.updateCategory(id, input)
+      : patch<Category>(`/categories/${id}`, input),
+  remove: (id: string): Promise<void> =>
+    USE_MOCKS ? mockApi.deleteCategory(id) : del<void>(`/categories/${id}`),
 };
 
 export const transactionEndpoints = {

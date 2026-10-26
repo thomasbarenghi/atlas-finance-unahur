@@ -33,8 +33,3 @@ export const uuidSchema = z.string().uuid("Seleccioná una opción válida");
 
 /** A UUID select that can be cleared to an empty string (then mapped to null). */
 export const optionalIdSchema = z.union([uuidSchema, z.literal("")]).optional();
-
-/** An optional ISO date that the date picker clears to an empty string. */
-export const optionalDateSchema = z
-  .union([dateSchema, z.literal("")])
-  .optional();

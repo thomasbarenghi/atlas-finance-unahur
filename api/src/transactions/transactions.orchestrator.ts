@@ -37,20 +37,16 @@ export class TransactionsOrchestrator {
           { transferAccountId: ["Seleccioná la cuenta de destino"] },
         );
       }
-      if (dto.transferAccountId === dto.accountId) {
-        throw new ApiException(
-          ErrorCode.VALIDATION_ERROR,
-          HttpStatus.BAD_REQUEST,
-          "Las cuentas deben ser distintas",
-          { transferAccountId: ["Debe ser distinta de la cuenta origen"] },
-        );
-      }
       await this.accountsService.assertAccountOwned(
         userId,
         dto.transferAccountId,
       );
     } else if (dto.categoryId) {
-      await this.categoriesService.assertCategoryExists(dto.categoryId);
+      await this.categoriesService.assertCategoryAssignable(
+        userId,
+        dto.categoryId,
+        dto.type === "income" ? "income" : "expense",
+      );
     }
 
     return this.transactionsService.createTransaction(userId, dto);
@@ -66,7 +62,7 @@ export class TransactionsOrchestrator {
     if (existing.type === "transfer") {
       const origin = dto.accountId ?? existing.accountId;
       const destination = dto.transferAccountId ?? existing.transferAccountId;
-      if (!destination || origin === destination) {
+      if (!destination) {
         throw new ApiException(
           ErrorCode.VALIDATION_ERROR,
           HttpStatus.BAD_REQUEST,
@@ -82,8 +78,20 @@ export class TransactionsOrchestrator {
       await this.accountsService.assertAccountOwned(userId, dto.accountId);
     }
 
-    if (existing.type !== "transfer" && dto.categoryId) {
-      await this.categoriesService.assertCategoryExists(dto.categoryId);
+    const nextType = dto.type ?? existing.type;
+    if (nextType !== "transfer") {
+      const nextCategoryId =
+        dto.categoryId !== undefined ? dto.categoryId : existing.categoryId;
+      if (
+        nextCategoryId &&
+        (dto.categoryId !== undefined || dto.type !== undefined)
+      ) {
+        await this.categoriesService.assertCategoryAssignable(
+          userId,
+          nextCategoryId,
+          nextType,
+        );
+      }
     }
 
     return this.transactionsService.updateTransaction(userId, id, dto);

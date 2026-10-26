@@ -6,7 +6,7 @@ export type AppSectionId =
   | "profile"
   | "settings";
 
-export interface AppSection {
+interface AppSection {
   href: string;
   label: string;
 }

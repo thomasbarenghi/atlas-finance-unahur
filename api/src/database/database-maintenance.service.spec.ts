@@ -35,47 +35,28 @@ describe("DatabaseMaintenanceService", () => {
     runSeedMock.mockResolvedValue(undefined);
   });
 
-  it("lists the application tables sorted", () => {
-    expect(service.getApplicationTables()).toEqual([
-      "accounts",
-      "transactions",
-      "users",
-    ]);
-  });
-
-  it("truncates every application table and drops the legacy migrations table", async () => {
-    const tables = await service.clearAllData();
+  it("truncates every application table", async () => {
+    const tables = await service.clear();
 
     expect(tables).toBe(3);
     expect(dataSource.query).toHaveBeenCalledWith(
       'TRUNCATE TABLE "accounts", "transactions", "users" RESTART IDENTITY CASCADE',
     );
-    expect(dataSource.query).toHaveBeenCalledWith(
-      'DROP TABLE IF EXISTS "migrations"',
-    );
-  });
-
-  it("returns a clear summary without seeding", async () => {
-    const summary = await service.clear();
-    expect(summary).toEqual({ action: "clear", tables: 3, seeded: false });
     expect(runSeedMock).not.toHaveBeenCalled();
   });
 
-  it("recreates the schema from the entities", async () => {
-    const tables = await service.recreateSchema();
-    expect(dataSource.synchronize).toHaveBeenCalledWith(true);
+  it("skips the query when there are no application tables", async () => {
+    dataSource.entityMetadatas = [];
+
+    await expect(service.clear()).resolves.toBe(0);
+    expect(dataSource.query).not.toHaveBeenCalled();
+  });
+
+  it("recreates the schema and runs the seed", async () => {
+    const tables = await service.reset();
+
     expect(tables).toBe(3);
-  });
-
-  it("resets the schema and runs the seed", async () => {
-    const summary = await service.reset();
     expect(dataSource.synchronize).toHaveBeenCalledWith(true);
-    expect(runSeedMock).toHaveBeenCalledWith(dataSource);
-    expect(summary).toEqual({ action: "reset", tables: 3, seeded: true });
-  });
-
-  it("delegates seeding to runSeed", async () => {
-    await service.seed();
     expect(runSeedMock).toHaveBeenCalledWith(dataSource);
   });
 });

@@ -1,9 +1,15 @@
-import type { ChartDataTableProps } from "./chart-data-table.types";
+import type { ReactNode } from "react";
 
-export type {
-  ChartDataTableProps,
-  ChartDataTableRow,
-} from "./chart-data-table.types";
+export interface ChartDataTableRow {
+  key: string;
+  cells: ReactNode[];
+}
+
+export interface ChartDataTableProps {
+  caption: string;
+  headers: string[];
+  rows: ChartDataTableRow[];
+}
 
 export const ChartDataTable = ({
   caption,

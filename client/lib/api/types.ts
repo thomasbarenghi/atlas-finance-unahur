@@ -52,7 +52,18 @@ export interface Category {
   type: CategoryType;
   color: string;
   icon: string | null;
+  isSystem: boolean;
 }
+
+export interface CreateCategoryInput {
+  name: string;
+  type: CategoryType;
+  color: string;
+}
+
+export type UpdateCategoryInput = Partial<
+  Pick<CreateCategoryInput, "name" | "color">
+>;
 
 export interface Transaction {
   id: string;

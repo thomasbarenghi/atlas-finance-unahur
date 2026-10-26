@@ -1,12 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   formatMoneyTyping,
-  monthInputValue,
-  monthStartFromInput,
   parseMoneyInput,
   sanitizeMoneyInput,
   toIsoDate,
-  formatTimeAgo,
 } from "@/lib/format";
 
 describe("sanitizeMoneyInput", () => {
@@ -47,27 +44,9 @@ describe("formatMoneyTyping", () => {
   });
 });
 
-describe("date helpers", () => {
+describe("toIsoDate", () => {
   it("builds an ISO date from a local Date without timezone drift", () => {
     expect(toIsoDate(new Date(2026, 0, 5))).toBe("2026-01-05");
     expect(toIsoDate(new Date(2026, 11, 31))).toBe("2026-12-31");
-  });
-
-  it("converts between month input value and month start", () => {
-    expect(monthInputValue("2026-01-01")).toBe("2026-01");
-    expect(monthStartFromInput("2026-01")).toBe("2026-01-01");
-  });
-
-  it("describes relative time in Spanish", () => {
-    const reference = new Date("2026-01-20T12:00:00.000Z");
-    expect(formatTimeAgo("2026-01-20T11:45:00.000Z", reference)).toBe(
-      "hace menos de 1 h",
-    );
-    expect(formatTimeAgo("2026-01-20T10:00:00.000Z", reference)).toBe(
-      "hace 2 h",
-    );
-    expect(formatTimeAgo("2026-01-18T12:00:00.000Z", reference)).toBe(
-      "hace 2 d",
-    );
   });
 });

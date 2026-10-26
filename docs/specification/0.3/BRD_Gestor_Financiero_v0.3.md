@@ -26,7 +26,7 @@
 |---|---|---|---|
 | 0.1 | 04/09/2026 | Barenghi, Thomas | Versión inicial del documento. |
 | 0.2 | 02/10/2026 | Barenghi, Thomas | Se actualiza el cálculo de patrimonio neto (RN-002 y glosario) conforme a la nueva definición de CAL-001. No se modifican los requerimientos de negocio. |
-| 0.3 | 16/10/2026 | Barenghi, Thomas | Se reduce el alcance del proyecto: se eliminan Presupuestos, Activos, Inversiones, Deudas, Objetivos financieros y Cotizaciones de mercado. Se redefine el patrimonio neto (RN-002) como la suma de los saldos netos de las cuentas y se ajustan las reglas, las historias de usuario, los casos de estudio, las pantallas y el glosario en consecuencia. Se restringe el asistente de inteligencia artificial a solo consulta: no puede crear, editar ni eliminar datos. Se quita la multimoneda (moneda única), el tema claro/oscuro, la entrada por voz y el archivado de cuentas (eliminación directa, sin restaurar); las categorías pasan a ser fijas y se elimina el tipo de cuenta tarjeta. Se eliminan además RN-007, RN-014, FR-AUT-003, FR-AUT-004, FR-TRX-006, el módulo Reportes y los requerimientos de IA FR-IA-001, FR-IA-008, FR-IA-009, FR-IA-010 y FR-IA-014, junto con el servicio de correo y la entidad Conversación IA. |
+| 0.3 | 16/10/2026 | Barenghi, Thomas | Se ajusta el alcance de la versión y se consolida la documentación en torno a los flujos principales: acceso, cuentas, movimientos, panel y asistente de consulta. Se actualizan las reglas de negocio, los criterios de bondad, las pantallas y el glosario, y se amplían las historias de usuario para cubrir todos los módulos vigentes. |
 
 ## 2. Alcance
 
@@ -60,9 +60,9 @@
 
 **El alcance de la versión inicial incluye registro, inicio y cierre de sesión con perfil; alta, edición y eliminación de cuentas manuales; ingresos, gastos y transferencias con categorías; dashboard con indicadores y gráficos; y un asistente de inteligencia artificial opcional de solo consulta.**
 
-**La aplicación opera con una única moneda y un catálogo fijo de categorías definido por el sistema.**
+**La aplicación opera con una única moneda, cinco categorías fijas del sistema y categorías propias que cada usuario puede crear, editar y eliminar.**
 
-**Quedan fuera de alcance la sincronización automática con bancos o billeteras, la ejecución de pagos u operaciones reales, la compraventa de activos y la conexión de billeteras digitales, el asesoramiento financiero, legal, impositivo o contable, la liquidación de impuestos y la conciliación bancaria avanzada, las cuentas familiares o multiusuario con permisos compartidos, las aplicaciones móviles nativas, las notificaciones push y las automatizaciones complejas, y una aplicación para iOS. También quedan fuera de alcance de esta versión la gestión de presupuestos, la valuación de activos e inversiones, la administración de deudas, los objetivos financieros y las cotizaciones de mercado.**
+**Quedan fuera de alcance la sincronización automática con bancos o billeteras, la ejecución de pagos u operaciones reales, la compraventa de activos y la conexión de billeteras digitales, el asesoramiento financiero, legal, impositivo o contable, la liquidación de impuestos y la conciliación bancaria avanzada, las cuentas familiares o multiusuario con permisos compartidos, las aplicaciones móviles nativas, las notificaciones push y las automatizaciones complejas, y una aplicación para iOS. Las capacidades de gestión patrimonial avanzada y de integración con proveedores de mercado quedan para una iteración posterior.**
 
 ## 3. Requerimientos de Negocio
 
@@ -91,12 +91,19 @@
 
 | ID | Historia | Criterio de aceptación | Trazabilidad |
 |---|---|---|---|
-| US-001 | Como usuario registrado, quiero visualizar mi situación financiera consolidada, para comprender mi patrimonio de un vistazo. | El dashboard muestra patrimonio neto, ingresos, gastos y ahorro del período. | Dashboard (FR-DAS-*) |
-| US-002 | Como usuario registrado, quiero registrar mis cuentas y movimientos, para reunir toda mi información en un solo lugar. | Cuentas y movimientos se listan y consolidan en la vista patrimonial de su propietario. | Cuentas (FR-CUE-*) · Movimientos (FR-TRX-*) · HU-001, HU-002 |
-| US-003 | Como usuario registrado, quiero organizar mis ingresos, gastos y transferencias mediante categorías, fechas y descripciones, para analizar mi comportamiento financiero. | Cada movimiento admite tipo, monto, fecha, cuenta, categoría y descripción. | Movimientos (FR-TRX-*) · HU-001, HU-002 |
+| US-001 | Como usuario registrado, quiero visualizar mi situación financiera consolidada, para comprender mi patrimonio de un vistazo. | El dashboard muestra patrimonio neto, ingresos, gastos y ahorro del período. | Dashboard (FR-DAS-001) · HU-009 |
+| US-002 | Como usuario registrado, quiero reunir mis cuentas y movimientos en un solo lugar, para no depender de planillas separadas. | Cuentas y movimientos se listan y consolidan en la vista patrimonial de su propietario. | Cuentas (FR-CUE-*) · Movimientos (FR-TRX-*) · HU-001, HU-002, HU-008 |
+| US-003 | Como usuario registrado, quiero registrar ingresos y gastos con categoría, fecha y descripción, para analizar mi comportamiento financiero. | Cada movimiento admite tipo, monto, fecha, cuenta, categoría y descripción. | Movimientos (FR-TRX-001/002) · HU-001 |
 | US-005 | Como usuario registrado, quiero ver la evolución de mi patrimonio y de mi flujo de fondos con cálculos trazables, para confiar en los resultados. | Los totales del dashboard coinciden con los movimientos registrados y provienen de fórmulas centralizadas. | Dashboard (FR-DAS-*) · CAL-001, CAL-002 |
-| US-010 | Como usuario registrado, quiero consultar un asistente de inteligencia artificial únicamente con información autorizada, para entender mejor mis finanzas. | El asistente requiere sesión válida, indica período y datos considerados y es de solo consulta: no crea, edita ni elimina información. | Asistente de inteligencia artificial (FR-IA-*) · HU-006 |
-| US-011 | Como usuario registrado, quiero que mi información permanezca privada y separada de la de otros usuarios, para proteger mis datos. | El servidor verifica la pertenencia de cada recurso al usuario autenticado antes de leerlo o modificarlo. | NFR-SEG-001 a NFR-SEG-003 |
+| US-010 | Como usuario registrado, quiero consultar un asistente de inteligencia artificial únicamente con información autorizada, para entender mejor mis finanzas. | El asistente requiere sesión válida, indica período y datos considerados y es de solo consulta: no crea, edita ni elimina información. | Asistente (FR-IA-002) · HU-006, HU-013 |
+| US-011 | Como usuario registrado, quiero que mi información permanezca privada y separada de la de otros usuarios, para proteger mis datos. | El servidor verifica la pertenencia de cada recurso al usuario autenticado antes de leerlo o modificarlo. | NFR-SEG-001 a NFR-SEG-003 · HU-014 |
+| US-013 | Como visitante, quiero registrarme e iniciar sesión, para acceder a mi información financiera. | El registro valida los campos y crea el usuario; al cerrar sesión se invalida la sesión y las pantallas financieras redirigen al acceso. | Autenticación y perfil (FR-AUT-001/002) · HU-007 |
+| US-014 | Como usuario registrado, quiero crear, editar y eliminar mis cuentas con su saldo inicial, para mantener actualizado dónde está mi dinero. | La cuenta admite nombre, tipo y saldo inicial; el saldo actual se calcula desde los movimientos; la eliminación es en cascada y solo alcanza cuentas propias. | Cuentas (FR-CUE-001 a FR-CUE-005) · HU-008 |
+| US-015 | Como usuario registrado, quiero transferir dinero entre dos cuentas propias, para mover fondos sin alterar mis ingresos ni mis gastos. | Origen y destino son distintos y propios; ambos lados se aplican de forma atómica; la transferencia se excluye del flujo de fondos. | Movimientos (FR-TRX-004/005) · CAL-003 · HU-002 |
+| US-016 | Como usuario registrado, quiero corregir o eliminar un movimiento propio, para arreglar errores de carga. | Solo se editan o eliminan movimientos del usuario autenticado y los totales se actualizan en consecuencia. | Movimientos (FR-TRX-003) · HU-011 |
+| US-017 | Como usuario registrado, quiero ver gráficos de la evolución del patrimonio, de ingresos frente a gastos y de gastos por categoría, para interpretar mis finanzas. | El panel muestra los tres gráficos y coinciden con los datos del período seleccionado. | Dashboard (FR-DAS-002/003/004) · HU-010 |
+| US-018 | Como usuario registrado, quiero elegir el período de análisis y ver una guía cuando falten datos, para no interpretar información incompleta. | El período seleccionado afecta a los indicadores y gráficos; sin datos se muestra un estado vacío con una acción sugerida. | Dashboard (FR-DAS-007/008) · HU-012 |
+| US-019 | Como usuario registrado, quiero que el asistente solo consulte y avise cuando no haya datos suficientes, para no recibir respuestas inventadas. | El asistente no crea, edita ni elimina información y declara insuficiencia cuando no puede concluir. | Asistente (FR-IA-011/015) · HU-013 |
 
 ### 4.2. Criterios de Bondad
 
@@ -123,11 +130,11 @@
 | ID | Pantalla | Contenido y componentes previstos |
 |---|---|---|
 | SC-001 | Acceso | Registro e inicio de sesión; Card, Form, Input, Button y Alert. |
-| SC-002 | Dashboard | Indicadores, gráficos, alertas y accesos rápidos; Card, Tabs, Chart, Progress y Skeleton. |
+| SC-002 | Dashboard | Indicadores, gráficos y accesos rápidos; Card, Chart y Skeleton. |
 | SC-003 | Cuentas | Listado, saldo y formularios; Data Table, Badge, Dialog y Dropdown Menu. |
 | SC-004 | Movimientos | Tabla y alta o edición; Data Table, Date Picker, Select, Form y Alert Dialog. |
 | SC-009 | Asistente IA | Conversación y alcance del asistente; Scroll Area, Textarea, Button y Alert. |
-| SC-010 | Configuración | Perfil y privacidad; Form, Switch y Alert Dialog. |
+| SC-010 | Configuración | Perfil; Form y Alert Dialog. |
 
 ## 6. Glosario
 

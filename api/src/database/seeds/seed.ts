@@ -1,7 +1,7 @@
 import { Logger } from "@nestjs/common";
 import * as argon2 from "argon2";
 import { randomUUID } from "crypto";
-import { DataSource, EntityManager } from "typeorm";
+import { DataSource, EntityManager, IsNull } from "typeorm";
 import { Account } from "../../accounts/entities/account.entity";
 import { Category } from "../../categories/entities/category.entity";
 import { Transaction } from "../../transactions/entities/transaction.entity";
@@ -56,7 +56,7 @@ const isoDate = (reference: Date, monthOffset: number, day: number): string =>
 
 const ensureCategories = async (manager: EntityManager): Promise<void> => {
   const repo = manager.getRepository(Category);
-  const existing = await repo.find();
+  const existing = await repo.find({ where: { userId: IsNull() } });
   const existingNames = new Set(existing.map((category) => category.name));
   const missing = FIXED_CATEGORIES.filter(
     (category) => !existingNames.has(category.name),
@@ -70,7 +70,9 @@ const ensureCategories = async (manager: EntityManager): Promise<void> => {
 const loadCategoryIds = async (
   manager: EntityManager,
 ): Promise<Map<string, string>> => {
-  const categories = await manager.getRepository(Category).find();
+  const categories = await manager
+    .getRepository(Category)
+    .find({ where: { userId: IsNull() } });
   return new Map(categories.map((category) => [category.name, category.id]));
 };
 

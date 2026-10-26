@@ -39,22 +39,6 @@ describe("CalculationsService", () => {
     });
   });
 
-  describe("calculateMonthExpenses", () => {
-    it("only counts expenses from the given month", () => {
-      const total = service.calculateMonthExpenses(
-        [
-          transaction({ amount: 100, date: "2026-03-31" }),
-          transaction({ amount: 50, date: "2026-03-01" }),
-          transaction({ amount: 999, date: "2026-02-28" }),
-          transaction({ type: "income", amount: 5000, date: "2026-03-15" }),
-        ],
-        "2026-03",
-      );
-
-      expect(total).toBe(150);
-    });
-  });
-
   describe("calculateExpensesByCategory", () => {
     it("groups period expenses by category and ignores uncategorized ones", () => {
       const grouped = service.calculateExpensesByCategory(
@@ -130,6 +114,54 @@ describe("CalculationsService", () => {
       );
 
       expect(balance).toBe(950);
+    });
+  });
+
+  describe("balanceAt / netWorthAt", () => {
+    it("only includes movements up to the end date", () => {
+      const movements = [
+        transaction({ type: "income", amount: 200, date: "2026-01-10" }),
+        transaction({ type: "expense", amount: 50, date: "2026-03-10" }),
+      ];
+
+      expect(
+        service.balanceAt({ id: "account-1", initialBalance: 1000 }, movements),
+      ).toBe(1150);
+      expect(
+        service.balanceAt(
+          { id: "account-1", initialBalance: 1000 },
+          movements,
+          "2026-01-31",
+        ),
+      ).toBe(1200);
+    });
+
+    it("sums every account at a date", () => {
+      const accounts = [
+        { id: "a1", initialBalance: 1000 },
+        { id: "a2", initialBalance: 500 },
+      ];
+      const movements = [
+        transaction({ type: "income", amount: 200, accountId: "a1" }),
+        transaction({ type: "expense", amount: 50, accountId: "a1" }),
+        transaction({
+          type: "transfer",
+          amount: -300,
+          accountId: "a1",
+          transferAccountId: "a2",
+          date: "2026-04-01",
+        }),
+        transaction({
+          type: "transfer",
+          amount: 300,
+          accountId: "a2",
+          transferAccountId: "a1",
+          date: "2026-04-01",
+        }),
+      ];
+
+      expect(service.netWorthAt(accounts, movements, "2026-03-31")).toBe(1650);
+      expect(service.netWorthAt(accounts, movements)).toBe(1650);
     });
   });
 

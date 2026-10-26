@@ -28,9 +28,9 @@
 
 ## 1. Visión general y stack
 
-**Atlass Fin** es una aplicación de gestión financiera personal: cuentas, movimientos (ingresos, gastos y transferencias), categorías fijas del sistema y un dashboard con la evolución del patrimonio y del flujo de fondos. Sus dos distintivos propios son **analítica/gráficos ricos** y un **agente de IA conversacional de solo consulta** que responde sobre los datos financieros del usuario.
+**Atlass Fin** es una aplicación de gestión financiera personal: cuentas, movimientos (ingresos, gastos y transferencias), categorías del sistema y propias, y un dashboard con la evolución del patrimonio y del flujo de fondos. Sus dos distintivos propios son **analítica/gráficos ricos** y un **agente de IA conversacional de solo consulta** que responde sobre los datos financieros del usuario.
 
-La aplicación opera con **una única moneda** (definida por el backend) y un **catálogo fijo de categorías**. No hay presupuestos, activos, inversiones, deudas, objetivos, reportes, multimoneda, tema claro/oscuro ni entrada por voz.
+La aplicación opera con **una única moneda** (definida por el backend), cinco categorías fijas del sistema y categorías propias que cada usuario puede gestionar. No hay presupuestos, activos, inversiones, deudas, objetivos, reportes, multimoneda, tema claro/oscuro ni entrada por voz.
 
 | Área | Tecnología | Versión objetivo |
 | :--- | :--- | :--- |
@@ -88,7 +88,7 @@ La aplicación opera con **una única moneda** (definida por el backend) y un **
     ├── /dashboard            # inicio: indicadores y gráficos del período + cuentas (SC-002)
     ├── /accounts/detail      # detalle de una cuenta (SC-003); el listado vive en /dashboard
     ├── /transactions         # listado + alta/edición (SC-004)
-    ├── /categories           # catálogo fijo de categorías, solo lectura (SC-004)
+    ├── /categories           # categorías del sistema + propias (SC-004)
     ├── /assistant            # chat con la IA, solo consulta (SC-009)
     ├── /profile              # hub de perfil: tarjeta, secciones y cierre de sesión (SC-010)
     └── /settings             # ajustes: nombre del perfil (SC-010)
@@ -105,7 +105,7 @@ La aplicación opera con **una única moneda** (definida por el backend) y un **
 
 - **Desktop (≥ `md`)**: `Sidebar` lateral fija con las secciones y accesos de perfil/configuración. El `Header` (**usuario**) es **solo desktop** (`hidden md:flex`). El **período** vive en el contenido como filtro de página.
 - **Móvil (< `md`)**: la navegación se convierte en una **barra inferior estilo app móvil** (flotante, separada del borde, con bordes redondeados). Se detecta por viewport (`matchMedia` / CSS), no por plataforma. El estilo visual es propio; se toma como referencia (no como requisito) la estética "Liquid Glass" de iOS 26.
-- La barra inferior tiene **3 ítems**: `Inicio`, **`Asistente`** (abre el chat, no navega) y `Perfil`; más un **botón central prominente** `+` que lleva a **Movimientos**.
+- La barra inferior tiene **4 ítems iguales**: `Inicio`, `Asistente` (abre el chat, no navega), `Movimientos` y `Perfil`.
 - **`Perfil`** (ruta `/profile`) es el hub de la barra inferior: muestra la tarjeta de perfil, un acceso a **Categorías** y a **Ajustes** (`/settings`), y **Cerrar sesión**. Se comporta como una pestaña más, no como un `Sheet` superpuesto.
 - **El asistente no está en la sidebar**: en **desktop** es un **widget flotante** (botón abajo a la derecha) disponible en `(app)`, salvo en `/assistant`; en **mobile** es una **página propia** (`/assistant`) a la que se entra desde el ítem `Asistente` de la barra inferior. Ver §10.
 - Estado activo con ícono + label, respetando NFR-UA-005 (no solo color); safe-areas (`env(safe-area-inset-bottom)`) para el notch/gesto de home.
@@ -159,14 +159,16 @@ El **formulario** (`AccountFormDialog`) es un editor visual: hero con ícono del
 
 - **Lista de items** (`TransactionList`) con paginación (NFR-PR-002) y menú por fila (editar/eliminar): ícono por tipo, descripción, `fecha · categoría · cuenta` y monto (color por signo). Cada fila abre la edición. **Las transferencias se colapsan en una sola fila** (`collapseTransfers` por `transferGroupId`, conservando la pata origen): subtítulo `fecha · Transferencia · Cuenta origen → destino` y monto **neutro** (sin verde/rojo); no afectan ingresos, gastos, ahorro ni patrimonio (CAL-003).
 - **Sin filtros ni búsqueda** (fuera de alcance de la v0.3): la lista solo pagina.
-- **CTA de alta**: botón `+ Nuevo movimiento` en desktop (ícono en mobile, donde la barra inferior ya aporta el `+` central).
-- **Alta/edición** como editor moderno estilo app (`Dialog` + `Form`, FR-TRX-001/002/003): **segmented de tipo** (Gasto/Ingreso/Transferencia), filas de cuenta y categoría (categoría obligatoria en ingreso/gasto, del **catálogo fijo**), **teclado numérico** (`AmountKeypad`) con operaciones `+ − × ÷`, **cálculo en vivo** (el resultado se muestra mientras se escribe, sin botón `=`), monto grande con signo por tipo y saldo disponible, fecha + comentario. El monto se evalúa con `lib/amount-expression.ts` (sin `eval`) y se valida `> 0`. Si es transferencia, selector origen/destino que excluye la otra cuenta elegida (FR-TRX-004).
+- **CTA de alta**: acción `+` en el `PageHeader` de la página y botón `+ Nuevo movimiento` en el estado vacío de la lista.
+- **Alta/edición** como editor moderno estilo app (`Dialog` + `Form`, FR-TRX-001/002/003): **segmented de tipo** (Gasto/Ingreso/Transferencia), filas de cuenta y categoría (categoría obligatoria en ingreso/gasto, del **catálogo del sistema + propias**), **teclado numérico** (`AmountKeypad`) con operaciones `+ − × ÷`, **cálculo en vivo** (el resultado se muestra mientras se escribe, sin botón `=`), monto grande con signo por tipo y saldo disponible, fecha + comentario. El monto se evalúa con un evaluador propio (sin `eval`) en `transaction-form-dialog/amount-expression.ts` y se valida `> 0`. Si es transferencia, selector origen/destino que excluye la otra cuenta elegida (FR-TRX-004).
 - **Eliminar** con `AlertDialog` de confirmación; en una transferencia elimina ambas patas.
 
-### 4.5 `/categories` — catálogo fijo, solo lectura (FR-TRX-002)
+### 4.5 `/categories` — categorías del sistema + propias (FR-TRX-002)
 
-- Página **`/categories`**, accesible desde el hub de **Perfil** (`/profile`). Tiene **tabs arriba** para elegir **Gastos** o **Ingresos** y lista el catálogo fijo del sistema.
-- **Sin alta, edición, archivo ni eliminación**: las categorías las define el sistema (Sueldo, Freelance, Supermercado, Transporte, Servicios). El color se usa como `Badge`/punto en toda la app.
+- Página **`/categories`**, accesible desde el hub de **Perfil** (`/profile`). Tiene **tabs arriba** para elegir **Gastos** o **Ingresos** y lista las cinco categorías del sistema más las propias del usuario.
+- **Alta/edición** (`CategoryFormDialog`): acción `+` en el header para crear y menú por fila para las propias. Campos: nombre, tipo (inmutable al editar) y color de una paleta. Las categorías del sistema (`isSystem`) no muestran acciones.
+- **Eliminar** una categoría propia pide confirmación; los movimientos que la usaban quedan como “Sin categoría”.
+- El color se usa como punto en la lista y en los gráficos.
 - **Estados vacíos**: `EmptyState` cuando el catálogo aún no cargó (no debería ocurrir con el seed).
 
 ### 4.6 `/assistant` — SC-009 (FR-IA-002/011/015)
@@ -191,50 +193,63 @@ client/
 │   ├── page.tsx                   # redirect según sesión
 │   ├── (auth)/
 │   │   ├── layout.tsx             # centrado, branding
-│   │   ├── login/page.tsx
-│   │   └── register/page.tsx
+│   │   ├── _components/auth-heading/       # compartido por login/register
+│   │   ├── login/
+│   │   │   ├── page.tsx
+│   │   │   └── _components/login-form/
+│   │   └── register/
+│   │       ├── page.tsx
+│   │       └── _components/register-form/
 │   └── (app)/
 │       ├── layout.tsx             # Sidebar + MobileTabBar + AuthGuard
-│       ├── dashboard/page.tsx
-│       ├── accounts/detail/page.tsx
-│       ├── transactions/page.tsx
-│       ├── categories/page.tsx
+│       ├── _components/           # compartidos entre rutas de (app)
+│       │   ├── accounts/          # account-form-dialog, account-type-picker, accounts-list, account-icon
+│       │   ├── transactions/      # transaction-form-dialog, transaction-list
+│       │   └── assistant/         # assistant-chat, assistant-widget
+│       ├── dashboard/
+│       │   ├── page.tsx
+│       │   └── _components/       # dashboard-view, net-worth-hero, accounts-section, period-selector, widget-card, charts/
+│       ├── accounts/detail/
+│       │   ├── page.tsx
+│       │   └── _components/account-detail-view/
+│       ├── transactions/
+│       │   ├── page.tsx
+│       │   └── _components/transactions-view/
+│       ├── categories/
+│       │   ├── page.tsx
+│       │   └── _components/       # categories-view, category-form-dialog
 │       ├── assistant/page.tsx
-│       ├── profile/page.tsx
-│       └── settings/page.tsx
+│       ├── profile/
+│       │   ├── page.tsx
+│       │   └── _components/profile-menu/
+│       └── settings/
+│           ├── page.tsx
+│           └── _components/settings-form/
 ├── components/
 │   ├── ui/                        # generado por shadcn (NO editar a mano salvo variantes)
-│   ├── layout/
-│   │   ├── app-nav.ts               # registro de navegación (desktop y móvil)
-│   │   ├── sidebar.tsx
-│   │   ├── mobile-tab-bar.tsx       # barra inferior estilo app móvil
-│   │   ├── header.tsx               # header desktop (usuario)
-│   │   ├── header/user-menu.tsx
-│   │   ├── auth-guard.tsx           # guard de sesión en cliente (rutas de (app))
-│   │   └── brand.tsx
-│   ├── common/                      # genéricos domain-agnostic (folder + index.tsx)
-│   │   ├── amount/  amount-keypad/  money/  money-input/  category-badge/
-│   │   ├── confirm-dialog/  confirm-action-dialog/  period-selector/
-│   │   ├── data-list/  data-list-item/  date-picker/  empty-state/  error-state/
-│   │   ├── markdown-text/  page-header/  detail-page/  responsive-dialog/
-│   │   ├── stat-tiles/  back-button/  list-row/  chart-data-table/  icon-badge/
-│   │   ├── option-picker-dialog/  option-sheet/  page-loader/  row-actions-menu/
-│   │   ├── section-card/  section-header/  time-series-chart/  trend-badge/
-│   │   ├── detail-metric/  form-shell/  form-dialog/  form-hero/
-│   │   └── form-text-field/  form-select-field/  form-date-field/  form-money-field/
-│   ├── charts/                      # wrappers de shadcn Chart (Recharts)
-│   └── features/<feature>/          # componentes de dominio (accounts, transactions, …)
+│   ├── common/                    # genéricos domain-agnostic (folder + index.tsx)
+│   │   ├── amount/  chart-data-table/  date-picker/  empty-state/
+│   │   ├── data-list/  data-list-item/  icon-badge/  page-header/
+│   │   ├── page-loader/  row-actions-menu/  markdown-text/
+│   │   ├── confirm-action-dialog/  responsive-dialog/
+│   │   └── form-shell/  form-dialog/  form-text-field/  form-money-field/
+│   └── layout/                    # shell de (app)
+│       ├── app-nav.ts             # registro de navegación (desktop y móvil)
+│       ├── sidebar/index.tsx
+│       ├── mobile-tab-bar/index.tsx
+│       ├── user-menu/index.tsx
+│       ├── auth-guard/index.tsx
+│       ├── brand/index.tsx
+│       └── section-icons.ts
 ├── lib/
 │   ├── utils.ts                   # cn()
-│   ├── format.ts                  # formatCurrency, formatDate, formatPercent, …
-│   ├── period.ts / period-stats.ts / labels.ts / colors.ts / chart-scale.ts
-│   ├── currency.ts / categories.ts
+│   ├── format.ts                  # CURRENCY, formatCurrency, formato de fechas, parseo de montos
+│   ├── period.ts / labels.ts / categories.ts
 │   ├── sections.ts / forms.ts / storage.ts
-│   ├── amount-expression.ts
-│   ├── api/                       # client, types, session, endpoints, errors, assistant-stream
+│   ├── api/                       # client, types, endpoints, errors, assistant-stream
 │   ├── query/                     # hooks de TanStack Query por dominio (+ keys.ts)
 │   ├── validation/                # schemas Zod por formulario
-│   └── mocks/                     # API mockeada para desarrollo
+│   └── mocks/                     # API mockeada + sessionStore para desarrollo/test
 ├── hooks/                         # hooks compartidos (auth, período, confirm, …)
 ├── providers/                     # app-providers, auth, query, período, asistente…
 ├── next.config.ts                  # output: "export", images: unoptimized
@@ -247,8 +262,9 @@ client/
 **Notas:**
 
 - Los componentes de `components/ui/` se instalan con el CLI de shadcn y se extienden con variantes solo si es necesario.
-- Cada componente propio vive en su carpeta con `index.tsx`, `*.types.ts`, `*.utils.ts` y/o `hooks/` privados (ver skill `quality-rules`).
-- `components/common/` agrupa los genéricos reutilizables (`StatTiles`, `PeriodSelector`, `OptionSheet`, `DataList`, `Amount`, `EmptyState`, …); `components/features/` solo agrega concerns de dominio y **compone** los genéricos.
+- Cada componente propio vive en su carpeta con `index.tsx`. Los tipos de props pueden declararse en `index.tsx` cuando son de uso único; `*.types.ts` queda para tipos compartidos o no triviales.
+- Los componentes de **una sola ruta** viven en `app/<ruta>/_components/`; los compartidos por varias rutas de un grupo, en `app/(grupo)/_components/<dominio>/`. Esas carpetas son privadas de Next (no generan rutas) y sus archivos no se importan desde fuera de la ruta/grupo dueño.
+- `components/common/` agrupa solo genéricos con **≥ 2 consumidores** reales (`DataList`, `Amount`, `EmptyState`, `PageHeader`, formularios compartidos…). `components/layout/` es el shell de `(app)` (sidebar, tab bar, user menu, auth guard).
 - Cada dominio de datos tiene su archivo de hooks en `lib/query/`, que encapsula las `queryKey`s y las mutaciones con su invalidación. Las claves están centralizadas en `lib/query/keys.ts`.
 - La lógica transversal vive en hooks compartidos: `use-confirm-action` (confirmar + mutar + toast), `use-period`, etc.
 - Los schemas Zod viven en `lib/validation/` y reflejan los DTOs de `lib/api/types.ts`.
@@ -286,30 +302,27 @@ npx shadcn@latest add breadcrumb avatar
 
 ### 6.3 Componentes financieros reutilizables
 
-- **`Amount`**: formatea monto con signo y color (`success` positivo ingreso, `destructive` gasto, `muted` transferencia). Respeta NFR-UA-005 (signo + color, no solo color).
-- **`StatTiles`**: grilla **2×2 en mobile** que pasa a tira horizontal en desktop (`label` + valor con tono y delta opcional). La usa `NetWorthHero`; los textos/formatos de Ingresos/Gastos/Ahorro/Tasa se derivan de `lib/period-stats.ts`.
-- **`PeriodSelector`**: filtro de período de página del dashboard. No hay selector de moneda.
-- **`NetWorthHero`**: hero de patrimonio neto con variación, mini-stats del período (opcionales vía `showPeriodStats`) y sparkline con escala adaptativa y tooltip.
-- **`Money`**: formatea un monto en la moneda del sistema (`formatCurrency`).
-- **`TrendBadge`**: pill de variación con ícono y color por signo.
-- **`SectionCard` / `SectionHeader`**: card y encabezado de sección reutilizables (título, descripción, acciones).
-- **`ErrorState`**: estado de error con reintento.
-- **`DetailMetric`**: métrica compacta `label + valor` para los detalles.
-- **`TimeSeriesChart`**: gráfico temporal genérico (áreas, tooltip, escala adaptativa y estado vacío con menos de dos puntos).
-- **`EmptyState`**: ícono, título, descripción, acción CTA (FR-DAS-008).
-- **`CategoryBadge`**: `Badge` con el color de la categoría.
+- **`Amount`**: formatea monto con signo y color (`success` positivo ingreso, `destructive` gasto, `muted` transferencia). Respeta NFR-UA-005 (signo + color, no solo color). Las transferencias sin signo usan `formatCurrency` directamente.
+- **`NetWorthHero`**: hero de patrimonio neto con variación, mini-stats del período (opcionales vía `showPeriodStats`) y sparkline con escala adaptativa y tooltip. `TrendBadge` es un subcomponente privado suyo.
+- **`PeriodSelector`**: filtro de período del dashboard; hoy es privado de `dashboard-view`. No hay selector de moneda.
+- **`EmptyState`**: ícono, título, descripción, acción CTA (FR-DAS-008); base de los estados vacíos y de error.
 - **`DataList` / `DataListItem`**: lista de items genérica (loading, vacío, paginación) con filas `leading/title/subtitle/trailing` y acción opcional. Se usan en todas las secciones; **no hay tablas** (`DataTable` eliminado).
 - **`IconBadge`**: tile de ícono reutilizable (tamaño, forma y tono semántico) usado por las listas, pickers y estados.
 - **`RowActionsMenu`**: menú de acciones por fila (`Editar`/`Eliminar`…) con trigger y `aria-label` consistentes.
-- **`OptionPickerDialog`**: diálogo de selección con opciones (ícono + título + bajada); unifica `AccountTypePicker`.
+- **`ConfirmActionDialog`**: diálogo de confirmación del patrón *confirmar → mutar → toast* (`useConfirmAction`), usado por eliminar cuentas y movimientos.
+- **`ResponsiveDialogContent`**: contenido de diálogo como sheet en mobile y modal en desktop.
 - **`ChartDataTable`**: tabla `sr-only` equivalente a cada gráfico (NFR-UA-004), compartida por todos los charts.
 - **`PageLoader`**: estado de carga a pantalla completa usado por el redirect raíz y el `AuthGuard`.
-- **Formularios compartidos** (`FormShell`, `FormDialog`, `FormTextField`, `FormSelectField`, `FormDateField`): eliminan el scaffold de RHF y los campos repetidos en todos los formularios.
-- **`useConfirmAction`**: hook compartido que encapsula el patrón *confirmar → mutar → toast* (usado por eliminar cuentas y movimientos).
+- **`PageHeader`**: título de página con acciones y `BackButton` privado (solo mobile, oculto en rutas raíz).
+- **`DatePicker`**: selector de fecha reutilizable (formularios y `PeriodSelector`).
+- **`MarkdownText`**: render seguro de Markdown del asistente sin `dangerouslySetInnerHTML` (NFR-SEG-006).
+- **Formularios compartidos** (`FormShell`, `FormDialog`, `FormTextField`, `FormMoneyField`): eliminan el scaffold de RHF y los campos repetidos en todos los formularios.
+
+Los detalles de una sola pantalla viven como subcomponentes privados dentro de su feature: `DetailPage`/`DetailMetric` en `account-detail-view`, `FormHero` en `account-form-dialog`, `AmountKeypad` en `transaction-form-dialog`, `WidgetCard`/`AccountsSection` en `dashboard-view`.
 
 **Fuentes únicas de verdad transversales:**
-- `lib/sections.ts`: registro de secciones (`href` + `label` + `icon`) consumido por sidebar, tab bar y perfil; agregar una sección es un solo cambio.
-- `lib/period-stats.ts`: labels/formatos de Ingresos/Gastos/Ahorro/Tasa.
+- `lib/sections.ts`: registro de secciones (`href` + `label`) consumido por sidebar, tab bar y perfil; los íconos viven en `components/layout/section-icons.ts`.
+- `lib/period.ts`: presets y resolución de rangos del dashboard.
 - `lib/forms.ts`: mapeo de `fieldErrors` del backend a campos de RHF.
 - `lib/storage.ts`: lectura/escritura segura de `localStorage`.
 - `lib/query/keys.ts`: claves de TanStack Query y bases de invalidación (`transactionsBase`, `accountsBase`, `dashboardBase`).
@@ -331,11 +344,11 @@ npx shadcn@latest add breadcrumb avatar
 - Normaliza errores a `ApiError { statusCode, code, message, fieldErrors? }` (catálogo en `backend.md` §7.13).
 - Expone `get<T>`, `post<T>`, `patch<T>`, `del<T>` tipadas y un helper `apiFetch` de bajo nivel (usado por el parser SSE de §10).
 - **Sesión por cookie.** El cliente usa la cookie `HttpOnly` (`credentials: "include"`, sin tokens en JS); ante un `401` (fuera de `/auth/login` y `/auth/register`) hace `POST /auth/refresh` (cookie) y reintenta una vez. Si el refresh falla, el `AuthGuard` redirige a `/login`.
-- `lib/mocks/api.ts` es el **único** consumidor de `sessionStore` (mock).
+- `lib/mocks/api.ts` usa `sessionStore` (mock) además de los helpers de test.
 
-### 7.2 Sesión (`lib/api/session.ts`)
+### 7.2 Sesión mock (`lib/mocks/session.ts`)
 
-`lib/api/session.ts` mantiene el `sessionStore` que persiste el `userId` en `localStorage` (`atlassfin.session.userId`); lo usan **solo los mocks** para resolver `/auth/me`. La sesión real va por cookie `HttpOnly`.
+`lib/mocks/session.ts` mantiene el `sessionStore` que persiste el `userId` en `localStorage` (`atlassfin.session.userId`); lo usan **solo los mocks y los helpers de test** para resolver `/auth/me`. La sesión real va por cookie `HttpOnly`.
 
 ### 7.3 Tipos (`lib/api/types.ts`)
 
@@ -418,7 +431,7 @@ La analítica es el diferenciador. Directrices:
 
 Implementación de la UI conversacional (SC-009, FR-IA-002/011/015). El backend es quien interactúa con el proveedor de IA (DeepSeek); el front solo presenta la conversación. **El asistente es de solo consulta**: no crea, edita ni elimina datos (FR-IA-015).
 
-- **Ubicación**: en **desktop** es un widget flotante (FAB abajo a la derecha + panel flotante); en **mobile** es una **página propia** (`/assistant`), accesible desde el ítem **`Asistente`** de la barra inferior (sin FAB ni overlay). Componente `components/features/assistant/assistant-widget` (solo desktop) + `assistant-chat`; el estado del panel vive en `AssistantPanelProvider`.
+- **Ubicación**: en **desktop** es un widget flotante (FAB abajo a la derecha + panel flotante); en **mobile** es una **página propia** (`/assistant`), accesible desde el ítem **`Asistente`** de la barra inferior (sin FAB ni overlay). Componente `app/(app)/_components/assistant/assistant-widget` (solo desktop) + `assistant-chat`; el estado del panel vive en `AssistantPanelProvider`.
 - **Separación**: la orquestación del chat (envío y streaming) vive en el hook privado `assistant-chat/hooks/use-assistant-conversation`; `AssistantChat` queda como presentación.
 - **Flujo**:
   1. `POST /assistant/messages` con `{ question, period? }`; el backend responde `text/event-stream` con los eventos `meta`, `token`, `done` y `error` (ver `backend.md` §7.12).
@@ -528,16 +541,16 @@ Progresivo y validable al final de cada tanda. Cada tanda deja la app compilando
 ### Tanda 2 — Cuentas y Movimientos — ✅ Hecho
 - **Cuentas** viven en `/dashboard`, con detalle en `/accounts/detail`; eliminación directa con confirmación (FR-CUE-003/005).
 - Movimientos con paginación, transferencia (colapsada a una fila) y CRUD en `/transactions`.
-- `Amount`, `CategoryBadge`, `DataList` / `DataListItem`.
+- `Amount`, `DataList` / `DataListItem`.
 - **Aceptación**: HU-001 y HU-002 completas.
 
 ### Tanda 3 — Dashboard — ✅ Hecho
 - Inicio "Tu resumen": layout fijo con patrimonio neto (`NetWorthHero`), ingresos vs. gastos, gastos por categoría y sección de Cuentas.
-- `EmptyState`, `ErrorState`, `PeriodSelector`, `CategoryDonut`, `IncomeExpenseChart`.
+- `EmptyState`, `PeriodSelector`, `CategoryDonut`, `IncomeExpenseChart`.
 - **Aceptación**: FR-DAS-001..004, 007, 008.
 
-### Tanda 4 — Categorías (solo lectura) + Perfil/Ajustes — ✅ Hecho
-- Página `/categories` con tabs Gastos/Ingresos sobre el catálogo fijo (FR-TRX-002).
+### Tanda 4 — Categorías (sistema + propias) + Perfil/Ajustes — ✅ Hecho
+- Página `/categories` con tabs Gastos/Ingresos sobre las categorías del sistema + propias (FR-TRX-002).
 - `/profile` (hub) y `/settings` (nombre del perfil), cierre de sesión.
 - **Aceptación**: FR-TRX-002, FR-AUT-001/002.
 

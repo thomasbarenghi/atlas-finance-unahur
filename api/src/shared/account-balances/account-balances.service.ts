@@ -2,10 +2,8 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Account } from "../../accounts/entities/account.entity";
+import { signedAmount } from "../calculations/calculations.service";
 import { Transaction } from "../../transactions/entities/transaction.entity";
-
-const signedAmount = (transaction: Transaction): number =>
-  transaction.type === "expense" ? -transaction.amount : transaction.amount;
 
 /**
  * Read model shared by the accounts and dashboard domains to derive the

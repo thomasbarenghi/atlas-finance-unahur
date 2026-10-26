@@ -1,5 +1,6 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,9 +9,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { RowActionsMenuProps } from "./row-actions-menu.types";
 
-export type { RowAction, RowActionsMenuProps } from "./row-actions-menu.types";
+export interface RowAction {
+  label: string;
+  icon: LucideIcon;
+  onSelect: () => void;
+  variant?: "default" | "destructive";
+  hidden?: boolean;
+}
+
+export interface RowActionsMenuProps {
+  label: string;
+  actions: RowAction[];
+  triggerLabel?: string;
+}
 
 export const RowActionsMenu = ({
   label,

@@ -13,7 +13,11 @@ const build = () => {
     assertAccountOwned: jest.fn(async (_u: string, id: string) => ({ id })),
   };
   const categoriesService = {
-    assertCategoryExists: jest.fn(async () => ({ id: "c1", type: "expense" })),
+    assertCategoryAssignable: jest.fn(async () => ({
+      id: "c1",
+      type: "expense",
+      isSystem: true,
+    })),
   };
   const orchestrator = new TransactionsOrchestrator(
     transactionsService as any,
@@ -50,7 +54,11 @@ describe("TransactionsOrchestrator", () => {
     await orchestrator.createTransaction("u1", dto() as any);
 
     expect(accountsService.assertAccountOwned).toHaveBeenCalledWith("u1", "a1");
-    expect(categoriesService.assertCategoryExists).toHaveBeenCalledWith("c1");
+    expect(categoriesService.assertCategoryAssignable).toHaveBeenCalledWith(
+      "u1",
+      "c1",
+      "expense",
+    );
     expect(transactionsService.createTransaction).toHaveBeenCalled();
   });
 
@@ -68,24 +76,13 @@ describe("TransactionsOrchestrator", () => {
     expect(accountsService.assertAccountOwned).toHaveBeenCalledWith("u1", "a2");
   });
 
-  it("rejects a transfer without destination or with equal accounts", async () => {
+  it("rejects a transfer without destination", async () => {
     const { orchestrator } = build();
 
     await expect(
       orchestrator.createTransaction(
         "u1",
         dto({ type: "transfer", categoryId: null }) as any,
-      ),
-    ).rejects.toMatchObject({ response: { code: ErrorCode.VALIDATION_ERROR } });
-
-    await expect(
-      orchestrator.createTransaction(
-        "u1",
-        dto({
-          type: "transfer",
-          categoryId: null,
-          transferAccountId: "a1",
-        }) as any,
       ),
     ).rejects.toMatchObject({ response: { code: ErrorCode.VALIDATION_ERROR } });
   });
@@ -110,7 +107,11 @@ describe("TransactionsOrchestrator", () => {
     } as any);
 
     expect(accountsService.assertAccountOwned).toHaveBeenCalledWith("u1", "a2");
-    expect(categoriesService.assertCategoryExists).toHaveBeenCalledWith("c9");
+    expect(categoriesService.assertCategoryAssignable).toHaveBeenCalledWith(
+      "u1",
+      "c9",
+      "expense",
+    );
   });
 
   it("validates both legs when updating a transfer", async () => {
@@ -130,28 +131,15 @@ describe("TransactionsOrchestrator", () => {
     expect(accountsService.assertAccountOwned).toHaveBeenCalledWith("u1", "a4");
   });
 
-  it("rejects an invalid transfer update", async () => {
+  it("rejects a transfer update without destination", async () => {
     const { orchestrator, transactionsService } = build();
-    transactionsService.getTransaction.mockResolvedValue({
-      id: "t1",
-      type: "transfer",
-      accountId: "a1",
-      transferAccountId: "a2",
-    });
-
-    await expect(
-      orchestrator.updateTransaction("u1", "t1", {
-        accountId: "a3",
-        transferAccountId: "a3",
-      } as any),
-    ).rejects.toMatchObject({ response: { code: ErrorCode.VALIDATION_ERROR } });
-
     transactionsService.getTransaction.mockResolvedValue({
       id: "t1",
       type: "transfer",
       accountId: "a1",
       transferAccountId: null,
     });
+
     await expect(
       orchestrator.updateTransaction("u1", "t1", { amount: 1 } as any),
     ).rejects.toMatchObject({ response: { code: ErrorCode.VALIDATION_ERROR } });

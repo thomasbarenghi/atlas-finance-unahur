@@ -1,9 +1,25 @@
+import type { ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { DataListProps } from "./data-list.types";
 
-export type { DataListPagination, DataListProps } from "./data-list.types";
+export interface DataListPagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}
+
+export interface DataListProps<T> {
+  data: T[];
+  getRowKey: (row: T) => string;
+  renderItem: (row: T) => ReactNode;
+  isLoading?: boolean;
+  emptyState?: ReactNode;
+  pagination?: DataListPagination;
+  skeletonCount?: number;
+}
 
 const DEFAULT_SKELETON_COUNT = 5;
 

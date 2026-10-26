@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BackButton } from "@/components/common/back-button";
+import { BackButton } from "./components/back-button";
 
 export interface PageHeaderProps {
   title: string;

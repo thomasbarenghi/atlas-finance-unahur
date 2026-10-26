@@ -13,6 +13,7 @@ erDiagram
   users ||--o{ transactions : "registra"
   accounts ||--o{ transactions : "cuenta de origen"
   accounts |o--o{ transactions : "cuenta destino (transfer)"
+  users |o--o{ categories : "crea propias"
   categories |o--o{ transactions : "clasifica"
 
   users {
@@ -46,6 +47,7 @@ erDiagram
 
   categories {
     uuid id PK
+    uuid user_id FK
     text name
     text type
     text color
@@ -113,18 +115,20 @@ erDiagram
 > Saldo actual = `initial_balance` + Σ movimientos de la cuenta (calculado, FR-CUE-004).
 > Eliminar la cuenta elimina en cascada sus movimientos (FR-CUE-005).
 
-### `categories` — Categoría (catálogo fijo, solo lectura)
+### `categories` — Categoría (sistema + propias)
 
 | Columna | Tipo | Nulo | Notas |
 | :--- | :--- | :--- | :--- |
 | `id` | uuid | no | PK |
-| `name` | text | no | |
-| `type` | text | no | `income` \| `expense` |
+| `user_id` | uuid | sí | FK → `users.id`; `NULL` = categoría del sistema (global), valor = propia del usuario |
+| `name` | text | no | único por `(user_id, type)` (case-insensitive) |
+| `type` | text | no | `income` \| `expense` (inmutable al editar) |
 | `color` | text | no | hex |
 | `icon` | text | sí | |
 
-> Catálogo del sistema definido por el seed y **no editable** (FR-TRX-002). No
-> tiene `user_id`: es global.
+> Cinco categorías del sistema definidas por el seed y **no editables** (FR-TRX-002).
+> Cada usuario puede crear, editar y eliminar las suyas. Al eliminar una propia,
+> `transactions.category_id` pasa a `NULL` (`ON DELETE SET NULL`).
 
 ### `transactions` — Movimiento (FR-TRX-001..005)
 
@@ -148,7 +152,8 @@ erDiagram
 
 - **Propiedad (RN-001 / NFR-SEG-001):** `accounts`, `sessions` y `transactions`
   cuelgan de `users.id`; toda lectura/escritura filtra por el `user_id`
-  autenticado. `categories` es global.
+  autenticado. `categories` tiene las cinco globales (`user_id NULL`) más las
+  propias de cada usuario.
 - **Transferencias (FR-TRX-004/005, RN-003/004):** origen ≠ destino; se
   persisten **dos filas** (`type='transfer'`, montos de signo opuesto en cuentas
   distintas) con el mismo `transfer_group_id`, de forma atómica. Se excluyen de

@@ -30,7 +30,7 @@
 
 Backend monolítico que sirve una API REST para Atlass Fin. Organiza y explica la información cargada por el usuario; **no** se conecta a bancos, no ejecuta pagos ni inversiones y no brinda asesoramiento financiero. La única integración externa es el proveedor de IA, y se realiza exclusivamente desde el backend.
 
-La aplicación opera con **una única moneda del sistema** (`DEFAULT_CURRENCY`, por defecto `ARS`): no hay multimoneda, ni conversión de divisas, ni cotizaciones de mercado. El catálogo de categorías es **fijo** (definido por el sistema, de solo lectura).
+La aplicación opera con **una única moneda del sistema** (`DEFAULT_CURRENCY`, por defecto `ARS`): no hay multimoneda, ni conversión de divisas, ni cotizaciones de mercado. Existen cinco categorías globales definidas por el sistema (solo lectura) y cada usuario puede crear, editar y eliminar las suyas.
 
 | Área | Tecnología | Notas |
 | :--- | :--- | :--- |
@@ -109,10 +109,8 @@ api/
 │   │   └── env.validation.ts
 │   ├── database/
 │   │   ├── data-source.ts           # DataSource de los scripts (`seed`, `db:*`)
-│   │   ├── database-maintenance.service.ts  # vaciar/recrear/sembrar (dev/test)
+│   │   ├── database-maintenance.service.ts  # vaciar/recrear/sembrar (scripts `db:*`)
 │   │   ├── database.module.ts
-│   │   ├── dev-database.controller.ts       # endpoints dev de mantenimiento
-│   │   ├── dev-only.guard.ts
 │   │   └── seeds/                   # seed determinístico + runners
 │   ├── common/
 │   │   ├── decorators/{ public, current-user }.decorator.ts
@@ -121,7 +119,6 @@ api/
 │   │   ├── filters/http-exception.filter.ts
 │   │   ├── guards/{ jwt-auth.guard.ts, optional-jwt-auth.guard.ts }
 │   │   ├── interceptors/logging.interceptor.ts
-│   │   ├── pipes/validation-exception.factory.ts
 │   │   ├── transformers/numeric.transformer.ts
 │   │   └── types/{ auth-user.ts, financial-enums.ts }
 │   ├── auth/
@@ -137,7 +134,7 @@ api/
 │   │   ├── accounts.module.ts / accounts.controller.ts / accounts.service.ts
 │   │   ├── dto/{ create-account, update-account, account-response }.dto.ts
 │   │   └── entities/account.entity.ts
-│   ├── categories/                  # catálogo fijo, solo lectura
+│   ├── categories/                  # categorías del sistema + propias (CRUD)
 │   ├── transactions/               # orquestador por transferencias
 │   │   ├── transactions.module.ts / transactions.controller.ts
 │   │   ├── transactions.service.ts / transactions.orchestrator.ts
@@ -223,16 +220,17 @@ Tablas derivadas de las entidades principales del FRD v0.3 (§3.2) más las nece
 
 > Saldo actual = `initial_balance` + Σ(movimientos) (calculado, FR-CUE-004). La **eliminación** de una cuenta elimina en cascada sus movimientos asociados (FR-CUE-005); no hay archivado ni restauración. Sin campo `currency` (moneda única del sistema) ni tipo `card`.
 
-### 5.4 `categories` — catálogo fijo (FR-TRX-002)
+### 5.4 `categories` — del sistema y propias (FR-TRX-002)
 | Columna | Tipo | Notas |
 | :--- | :--- | :--- |
 | id | uuid PK | |
-| name | text | |
-| type | text | 'income' \| 'expense' |
+| user_id | uuid FK NULL → users | `NULL` = categoría del sistema (global); valor = categoría propia del usuario |
+| name | text | único por usuario + tipo (case-insensitive) |
+| type | text | 'income' \| 'expense' (inmutable al editar) |
 | color | text | hex |
 | icon | text NULL | |
 
-> Catálogo **definido por el sistema y de solo lectura**: no tiene `user_id`, `archived` ni `isSystem`. El seed crea cinco categorías fijas (§11.5). El usuario no puede crearlas, editarlas ni eliminarlas.
+> Las cinco categorías del sistema (`user_id NULL`) son **globales y de solo lectura**. Cada usuario puede crear, renombrar/recolorear y eliminar las suyas; el `type` no se modifica una vez creada. Al eliminar una categoría propia, sus movimientos quedan con `category_id NULL` y se muestran como “Sin categoría”. El seed crea solo las cinco del sistema (§11.4).
 
 ### 5.5 `transactions` (FR-TRX-001..005)
 | Columna | Tipo | Notas |
@@ -319,9 +317,12 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 ### 7.4 Categories
 | Método | Ruta | FR |
 | :--- | :--- | :--- |
-| GET | `/categories` | catálogo fijo de solo lectura (FR-TRX-002) |
+| GET | `/categories` | categorías del sistema + propias (FR-TRX-002) |
+| POST | `/categories` | crear una categoría propia |
+| PATCH | `/categories/:id` | editar una propia (`name`, `color`; `type` inmutable) |
+| DELETE | `/categories/:id` | eliminar una propia |
 
-> **Eliminados:** `POST /categories`, `PATCH /categories/:id`, `POST /categories/:id/archive`.
+> Las categorías del sistema (`isSystem: true`) no se pueden editar ni eliminar: responden `404`. Las categorías de otro usuario tampoco se exponen (`404`). Nombre duplicado (mismo usuario/tipo) → `400 VALIDATION_ERROR` con `fieldErrors.name`.
 
 ### 7.5 Transactions
 | Método | Ruta | FR |
@@ -393,7 +394,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 | `UserApprovalStatus` | `pending` \| `approved` \| `rejected` |
 
 - **Moneda:** única, definida por env `DEFAULT_CURRENCY` (default `ARS`). Se expone como dato informativo en las respuestas con dinero; no existe `GET /currencies` ni validación de moneda por entidad.
-- **Categorías fijas** (semilla): income (`Sueldo`, `Freelance`), expense (`Supermercado`, `Transporte`, `Servicios`). Son de solo lectura; el usuario no crea las suyas.
+- **Categorías** (semilla): income (`Sueldo`, `Freelance`), expense (`Supermercado`, `Transporte`, `Servicios`). Son globales y de solo lectura; cada usuario puede crear las suyas (ver §7.4).
 - **Eliminados:** `AssetType`, `DebtType`, `BudgetStatus`, `GoalStatus`, `Theme`, `ValuationSource`, el catálogo de mercado y el catálogo de monedas soportadas.
 
 ### 7.11 Esquemas de request/response por módulo
@@ -429,7 +430,14 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 **Categories**
 ```jsonc
 // GET /categories → Category[]
-{ "id": "uuid", "name": "Supermercado", "type": "expense", "color": "#ef4444", "icon": "shopping-cart" }
+{ "id": "uuid", "name": "Supermercado", "type": "expense",
+  "color": "#ef4444", "icon": "shopping-cart", "isSystem": true }
+
+// POST /categories — body
+{ "name": "Mascotas", "type": "expense", "color": "#f97316" }
+
+// PATCH /categories/:id — body (todos opcionales)
+{ "name": "Mascotas y pets", "color": "#ef4444" }
 ```
 
 **Transactions**
@@ -452,7 +460,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 - `transferGroupId` no nulo agrupa las dos patas de una transferencia.
 - `DELETE /transactions/:id` de una transferencia elimina **ambas patas** del grupo.
 - `PATCH /transactions/:id` de una transferencia edita **ambas patas** atómicamente (si cambian `accountId`/`transferAccountId`, se reasignan).
-- Validación: `accountId !== transferAccountId` en transferencias; cuenta y categoría válidas (cuenta del usuario, categoría del catálogo) (FR-TRX-004).
+- Validación: `accountId !== transferAccountId` en transferencias; cuenta y categoría válidas (cuenta del usuario, categoría del sistema o propia del usuario, con tipo coincidente) (FR-TRX-004).
 
 ### 7.12 Contrato de streaming del asistente
 
@@ -591,37 +599,27 @@ npm run db:reset   # cambió el modelo / querés un estado limpio
 npm run start:dev  # app lista con datos de demo
 ```
 
-### 11.3 Endpoints de mantenimiento (solo desarrollo/test)
-
-El módulo `database` expone rutas destructivas para desarrollo y tests. **No existen en producción**: `DevOnlyGuard` es *fail-closed* y responde `404` salvo que `NODE_ENV` sea **explícito** `development` o `test`. Además exige el header `x-dev-database-token` si se configura `DEV_DATABASE_TOKEN`.
-
-| Método | Ruta | Efecto |
-| :--- | :--- | :--- |
-| POST | `/api/dev/database/clear` | Vacía todas las tablas de la aplicación (respeta FKs). |
-| POST | `/api/dev/database/seed` | Ejecuta el seed (idempotente). |
-| POST | `/api/dev/database/reset` | Recrea el esquema + ejecuta el seed. |
-
-### 11.4 Usuarios de demo (determinísticos)
+### 11.3 Usuarios de demo (determinísticos)
 
 Todos comparten la contraseña **`Demo1234!`**:
 
 | Email | Escenario |
 | :--- | :--- |
-| `demo@atlassfin.app` | Dataset completo (ver §11.5). |
+| `demo@atlassfin.app` | Dataset completo (ver §11.4). |
 | `sin-datos@atlassfin.app` | Usuario vacío, para estados vacíos y onboarding (FR-DAS-008). |
 | `ana@atlassfin.app` | Segundo usuario con un dataset mínimo, para aislamiento/permisos. |
 
-### 11.5 Qué genera el seed
+### 11.4 Qué genera el seed
 
 Datos **reproducibles** (sin información financiera real, NFR-CAL-005 / FRD §2.6). Para `demo@atlassfin.app`:
 
-- **5 categorías fijas del sistema**: income (`Sueldo`, `Freelance`), expense (`Supermercado`, `Transporte`, `Servicios`).
+- **5 categorías fijas del sistema**: income (`Sueldo`, `Freelance`), expense (`Supermercado`, `Transporte`, `Servicios`). Las categorías propias no se siembran: se crean desde la app.
 - **3 cuentas**: `cash` (Caja), `bank` (Banco) y `wallet` (Billetera virtual).
 - **3 meses de movimientos**: sueldos, gastos por categoría, transferencias atómicas (dos patas con `transfer_group_id`), un ingreso sin categoría y un ingreso freelance.
 
 Para `ana@atlassfin.app` genera un dataset reducido (una cuenta bancaria y un ingreso) para probar aislamiento y propiedades.
 
-### 11.6 Idempotencia y reproducibilidad
+### 11.5 Idempotencia y reproducibilidad
 
 - El seed verifica la existencia de `demo@atlassfin.app` antes de insertar; si ya existe, no pisa datos.
 - `db:reset` siempre parte de cero y deja el mismo estado conocido: **repetir el ciclo produce resultados consistentes**.
@@ -669,10 +667,6 @@ DEFAULT_CURRENCY=ARS
 
 # Tests de integración (e2e)
 TEST_DATABASE_URL=postgresql://localhost:5432/atlas_finance_test
-
-# Solo desarrollo/test: token opcional para los endpoints destructivos de
-# /api/dev/database/*. Si está vacío, el guard solo exige NODE_ENV=development|test.
-DEV_DATABASE_TOKEN=
 ```
 
 > **Eliminadas:** `MARKET_*`, `FX_API_URL`, `QUOTE_STALE_MS`, `SMTP_*`, `MAIL_FROM`, `RESET_TOKEN_TTL`, `BUDGET_WARNING_THRESHOLD`, `SUPPORTED_CURRENCIES` y `AI_ACTION_TTL_MS`.
@@ -714,7 +708,7 @@ Cada tanda deja la API compilando (`npm run lint && npm run build`) y con entida
 - **Aceptación**: FR-AUT-001/002, NFR-SEG-003/004/010.
 
 ### Tanda 2 — Cuentas, categorías y movimientos — ✅ Hecho
-- CRUD `accounts`, catálogo fijo `categories` (solo lectura), `transactions` con paginación (sin filtros).
+- CRUD `accounts`, `categories` (sistema + propias), `transactions` con paginación (sin filtros).
 - Transferencias atómicas (FR-TRX-004/005) y exclusión de consolidados (CAL-003).
 - **Aceptación**: HU-001, HU-002, FR-CUE-001..005, FR-TRX-001..005.
 

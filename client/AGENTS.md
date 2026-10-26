@@ -4,7 +4,7 @@ Guidance for AI agents working in `client/`. Read this first, then load the rele
 
 ## Project
 
-Atlass Fin web app: a personal-finance client (accounts, transactions with a fixed category catalog, dashboard) with rich analytics and an integrated **read-only** AI assistant. It is a **pure REST client** of the NestJS API in `../api/`.
+Atlass Fin web app: a personal-finance client (accounts, transactions with system and user categories, dashboard) with rich analytics and an integrated **read-only** AI assistant. It is a **pure REST client** of the NestJS API in `../api/`.
 
 **Stack:** Next.js 16 (App Router) · TypeScript strict · Tailwind CSS 4 · shadcn/ui (preset radix-maia: green, radius large) · Outfit (headings) + Nunito (body) · Recharts · TanStack Query · React Hook Form + Zod · lucide-react.
 
@@ -53,11 +53,14 @@ Run `format:check`, `lint`, `typecheck`, and `build` before considering a task d
 ```
 client/
 ├── .agents/skills/      # agent skills
-├── app/                 # routes: (auth) and (app) groups
+├── app/                 # rutas: grupos (auth) and (app)
+│   ├── (auth)/_components/          # compartidos por login/register
+│   ├── (app)/_components/<domain>/  # compartidos entre rutas de (app)
+│   └── <ruta>/_components/          # propios de una sola ruta
 ├── components/
 │   ├── ui/              # shadcn primitives (generated; do not hand-edit)
-│   ├── common/          # reusable domain-agnostic components
-│   └── features/<f>/    # domain components composing common
+│   ├── common/          # reusable domain-agnostic components (≥ 2 consumers)
+│   └── layout/          # shell de (app): sidebar, nav, user menu, auth guard
 ├── hooks/               # shared hooks
 ├── lib/                 # api, query, format, validation (portable)
 ├── providers/           # Query, Auth
@@ -67,4 +70,4 @@ client/
 ## Navigation behavior
 
 - Desktop (≥ `md`): fixed sidebar.
-- Mobile: bottom app-style bar with 3 items (`Home`, `Assistant`, `Profile`) plus a central `+` that opens the transaction quick-create flow; `Categories` and `Settings` are reachable from `Profile`. There is no theme or currency preference.
+- Mobile: bottom app-style bar with 4 equal items (`Inicio`, `Asistente`, `Movimientos`, `Perfil`); `Categories` and `Settings` are reachable from `Profile`. There is no theme or currency preference.

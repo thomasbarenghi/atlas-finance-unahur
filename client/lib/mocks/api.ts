@@ -1,13 +1,18 @@
 import { ApiError } from "@/lib/api/client";
-import { sessionStore } from "@/lib/api/session";
-import { CURRENCY } from "@/lib/currency";
-import { formatCurrency, formatPercent, toIsoDate } from "@/lib/format";
+import { sessionStore } from "./session";
+import {
+  CURRENCY,
+  formatCurrency,
+  formatPercent,
+  toIsoDate,
+} from "@/lib/format";
 import type {
   Account,
   AssistantMessageInput,
   AuthResponse,
   Category,
   CreateAccountInput,
+  CreateCategoryInput,
   CreateTransactionInput,
   DashboardData,
   LoginInput,
@@ -16,6 +21,7 @@ import type {
   Transaction,
   TransactionListQuery,
   UpdateAccountInput,
+  UpdateCategoryInput,
   UpdateTransactionInput,
   UpdateUserInput,
   User,
@@ -357,6 +363,77 @@ export const mockApi = {
     return mockState.categories;
   },
 
+  async createCategory(input: CreateCategoryInput): Promise<Category> {
+    await delay();
+    requireUser();
+    const name = input.name.trim();
+    const duplicate = mockState.categories.some(
+      (category) =>
+        category.type === input.type &&
+        category.name.toLowerCase() === name.toLowerCase(),
+    );
+    if (duplicate) {
+      fail(400, "VALIDATION_ERROR", "Ya existe una categoría con ese nombre", {
+        name: ["Ya existe una categoría con ese nombre"],
+      });
+    }
+    const category: Category = {
+      id: mockId(),
+      name,
+      type: input.type,
+      color: input.color.toLowerCase(),
+      icon: null,
+      isSystem: false,
+    };
+    mockState.categories.push(category);
+    return category;
+  },
+
+  async updateCategory(
+    id: string,
+    input: UpdateCategoryInput,
+  ): Promise<Category> {
+    await delay();
+    requireUser();
+    const category = mockState.categories.find(
+      (item) => item.id === id && !item.isSystem,
+    );
+    if (!category) fail(404, "NOT_FOUND", "La categoría no existe");
+    if (input.name !== undefined) {
+      const name = input.name.trim();
+      const duplicate = mockState.categories.some(
+        (item) =>
+          item.id !== id &&
+          item.type === category.type &&
+          item.name.toLowerCase() === name.toLowerCase(),
+      );
+      if (duplicate) {
+        fail(
+          400,
+          "VALIDATION_ERROR",
+          "Ya existe una categoría con ese nombre",
+          { name: ["Ya existe una categoría con ese nombre"] },
+        );
+      }
+      category.name = name;
+    }
+    if (input.color !== undefined) category.color = input.color.toLowerCase();
+    return category;
+  },
+
+  async deleteCategory(id: string): Promise<void> {
+    await delay();
+    requireUser();
+    const index = mockState.categories.findIndex(
+      (item) => item.id === id && !item.isSystem,
+    );
+    if (index < 0) fail(404, "NOT_FOUND", "La categoría no existe");
+    mockState.categories.splice(index, 1);
+    for (const transaction of mockState.transactions) {
+      if (transaction.categoryId === id) transaction.categoryId = null;
+    }
+  },
+
   async listTransactions(
     params: TransactionListQuery = {},
   ): Promise<Paginated<Transaction>> {
@@ -622,5 +699,3 @@ export const mockApi = {
     };
   },
 };
-
-export type MockApi = typeof mockApi;

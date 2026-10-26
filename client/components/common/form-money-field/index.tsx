@@ -9,10 +9,17 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { MoneyInput } from "@/components/common/money-input";
-import type { FormMoneyFieldProps } from "./form-money-field.types";
+import { MoneyFieldInput } from "./components/money-field-input";
 
-export type { FormMoneyFieldProps } from "./form-money-field.types";
+export interface FormMoneyFieldProps {
+  name: string;
+  label?: string;
+  description?: string;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+  inputClassName?: string;
+}
 
 export const FormMoneyField = ({
   name,
@@ -33,7 +40,7 @@ export const FormMoneyField = ({
         <FormItem className={className}>
           {label ? <FormLabel>{label}</FormLabel> : null}
           <FormControl>
-            <MoneyInput
+            <MoneyFieldInput
               value={(field.value ?? null) as number | null}
               onChange={(value) => field.onChange(value)}
               onBlur={field.onBlur}

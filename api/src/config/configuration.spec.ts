@@ -17,7 +17,6 @@ const KEYS = [
   "AI_PROVIDER",
   "AI_API_KEY",
   "AI_MODEL",
-  "DEV_DATABASE_TOKEN",
 ];
 
 describe("configuration", () => {
@@ -54,17 +53,6 @@ describe("configuration", () => {
     expect(config.ai.provider).toBe("deepseek");
     expect(config.ai.apiKey).toBeNull();
     expect(config.ai.model).toBe("deepseek-chat");
-    expect(config.dev.databaseToken).toBeNull();
-    // Fail-closed: without an explicit NODE_ENV the dev endpoints are disabled.
-    expect(config.dev.databaseResetEnabled).toBe(false);
-  });
-
-  it("enables the dev database endpoints only for explicit dev/test", () => {
-    process.env.NODE_ENV = "test";
-    expect(configuration().dev.databaseResetEnabled).toBe(true);
-
-    process.env.NODE_ENV = "production";
-    expect(configuration().dev.databaseResetEnabled).toBe(false);
   });
 
   it("parses numbers, booleans and lists from the environment", () => {

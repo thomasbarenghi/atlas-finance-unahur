@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { AuthHeading } from "@/components/features/auth/auth-heading";
-import { RegisterForm } from "@/components/features/auth/register-form";
+import { AuthHeading } from "@/app/(auth)/_components/auth-heading";
+import { RegisterForm } from "@/app/(auth)/register/_components/register-form";
 
 const RegisterPage = () => {
   return (

@@ -1,4 +1,4 @@
-import { sessionStore } from "@/lib/api/session";
+import { sessionStore } from "@/lib/mocks/session";
 import { mockState, resetMockState } from "@/lib/mocks/store";
 
 /**

@@ -87,6 +87,7 @@ const createInitialState = (): MockState => {
     type,
     color,
     icon,
+    isSystem: true,
   });
 
   const sueldo = category("Sueldo", "income", "#22c55e", "wallet");
@@ -182,11 +183,4 @@ export const findUserRecord = (userId: string): MockUserRecord | undefined =>
 export const findUserByEmail = (email: string): MockUserRecord | undefined =>
   mockState.users.find(
     (record) => record.user.email.toLowerCase() === email.toLowerCase(),
-  );
-
-export const getCategoriesByIds = (ids: string[]): Map<string, Category> =>
-  new Map(
-    mockState.categories
-      .filter((category) => ids.includes(category.id))
-      .map((category) => [category.id, category]),
   );

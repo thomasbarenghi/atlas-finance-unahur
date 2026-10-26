@@ -1,17 +1,17 @@
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type {
-  IconBadgeProps,
-  IconBadgeShape,
-  IconBadgeSize,
-  IconBadgeTone,
-} from "./icon-badge.types";
 
-export type {
-  IconBadgeProps,
-  IconBadgeShape,
-  IconBadgeSize,
-  IconBadgeTone,
-} from "./icon-badge.types";
+export type IconBadgeTone = "primary" | "success" | "destructive" | "muted";
+export type IconBadgeSize = "sm" | "md" | "lg";
+export type IconBadgeShape = "full" | "xl" | "lg";
+
+export interface IconBadgeProps {
+  icon: LucideIcon;
+  tone?: IconBadgeTone;
+  size?: IconBadgeSize;
+  shape?: IconBadgeShape;
+  className?: string;
+}
 
 const TONE: Record<IconBadgeTone, string> = {
   primary: "bg-primary/10 text-primary",

@@ -63,7 +63,7 @@ api/
 ├── src/
 │   ├── main.ts / app.module.ts
 │   ├── config/          # env loading + validation
-│   ├── database/        # datasource, maintenance/dev endpoints + seeds
+│   ├── database/        # datasource, maintenance scripts + seeds
 │   ├── common/          # guards, decorators, filters, interceptors, dto
 │   ├── <feature>/       # auth, users, admin, accounts, transactions,
 │   │                    # categories, dashboard, assistant, health

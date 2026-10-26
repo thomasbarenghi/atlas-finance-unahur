@@ -5,8 +5,6 @@ import type {
   PeriodFlows,
 } from "./calculations.types";
 
-const FULL_MONTH_END = "-31";
-
 const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
 
 /**
@@ -14,6 +12,11 @@ const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
  * (CAL-001..003 y CAL-010, backend.md §8). Dashboard and the AI reuse it so a
  * formula never gets duplicated (AGENTS rule 7).
  */
+export const signedAmount = (
+  transaction: Pick<MoneyTransaction, "type" | "amount">,
+): number =>
+  transaction.type === "expense" ? -transaction.amount : transaction.amount;
+
 @Injectable()
 export class CalculationsService {
   calculatePeriodFlows(
@@ -31,18 +34,6 @@ export class CalculationsService {
     }
 
     return { income, expenses, savings: income - expenses };
-  }
-
-  calculateMonthExpenses(
-    transactions: MoneyTransaction[],
-    month: string,
-  ): number {
-    const flows = this.calculatePeriodFlows(
-      transactions,
-      `${month}-01`,
-      `${month}${FULL_MONTH_END}`,
-    );
-    return flows.expenses;
   }
 
   calculateExpensesByCategory(
@@ -65,31 +56,50 @@ export class CalculationsService {
     return expensesByCategory;
   }
 
-  calculateCurrentBalance(
+  /**
+   * Account balance at the end of `end` (inclusive). With no `end`, it is the
+   * current balance. Used for CAL-001 both today and at past month ends.
+   */
+  balanceAt(
     account: BalanceAccount,
     transactions: MoneyTransaction[],
+    end?: string,
   ): number {
     let balance = account.initialBalance;
 
     for (const transaction of transactions) {
       if (transaction.accountId !== account.id) continue;
-      if (transaction.type === "expense") balance -= transaction.amount;
-      else balance += transaction.amount;
+      if (end && transaction.date > end) continue;
+      balance += signedAmount(transaction);
     }
 
     return balance;
   }
 
+  calculateCurrentBalance(
+    account: BalanceAccount,
+    transactions: MoneyTransaction[],
+  ): number {
+    return this.balanceAt(account, transactions);
+  }
+
   /** CAL-001: patrimonio neto = Σ saldos netos de las cuentas del usuario. */
+  netWorthAt(
+    accounts: BalanceAccount[],
+    transactions: MoneyTransaction[],
+    end?: string,
+  ): number {
+    return accounts.reduce(
+      (total, account) => total + this.balanceAt(account, transactions, end),
+      0,
+    );
+  }
+
   calculateNetWorth(
     accounts: BalanceAccount[],
     transactions: MoneyTransaction[],
   ): number {
-    return accounts.reduce(
-      (total, account) =>
-        total + this.calculateCurrentBalance(account, transactions),
-      0,
-    );
+    return this.netWorthAt(accounts, transactions);
   }
 
   pctDelta(current: number, previous: number): number | null {

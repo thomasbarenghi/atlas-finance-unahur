@@ -6,8 +6,8 @@ import { bearer } from "./auth";
 /**
  * Typed factories that create domain data through the public API. They are used
  * as arrange-helpers by the requirement specs, so the setup itself exercises the
- * real endpoints. Categories are a fixed system catalog, so they are read
- * (never created).
+ * real endpoints. System categories are seeded; user categories can be created
+ * through `createCategory`.
  */
 
 export const isoDate = (date: Date = new Date()): string =>
@@ -51,6 +51,24 @@ export const categoryByName = async (
   const category = categories.find((item) => item.name === name);
   if (!category) throw new Error(`Missing test category: ${name}`);
   return category;
+};
+
+export const createCategory = async (
+  app: INestApplication,
+  token: string,
+  overrides: Record<string, unknown> = {},
+): Promise<Record<string, any>> => {
+  const response = await request(httpClient(app))
+    .post("/api/categories")
+    .set(bearer(token))
+    .send({
+      name: "Mascotas",
+      type: "expense",
+      color: "#f97316",
+      ...overrides,
+    })
+    .expect(201);
+  return response.body;
 };
 
 export const createTransaction = async (

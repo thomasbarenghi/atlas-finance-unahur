@@ -1,6 +1,6 @@
 "use client";
 
-import type { FieldValues } from "react-hook-form";
+import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import { FormShell } from "@/components/common/form-shell";
 import { ResponsiveDialogContent } from "@/components/common/responsive-dialog";
@@ -12,9 +12,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { FormDialogProps } from "./form-dialog.types";
+import type { ReactNode } from "react";
 
-export type { FormDialogProps } from "./form-dialog.types";
+export interface FormDialogProps<T extends FieldValues> {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string;
+  form: UseFormReturn<T>;
+  onSubmit: (values: T) => void | Promise<void>;
+  submitLabel: string;
+  isPending?: boolean;
+  contentClassName?: string;
+  footerStart?: ReactNode;
+  children: ReactNode;
+}
 
 export const FormDialog = <T extends FieldValues>({
   open,

@@ -1,8 +1,17 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import type { DataListItemProps } from "./data-list-item.types";
+import type { ReactNode } from "react";
 
-export type { DataListItemProps } from "./data-list-item.types";
+export interface DataListItemProps {
+  leading?: ReactNode;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  trailing?: ReactNode;
+  trailingAction?: ReactNode;
+  href?: string;
+  onClick?: () => void;
+  showChevron?: boolean;
+}
 
 export const DataListItem = ({
   leading,

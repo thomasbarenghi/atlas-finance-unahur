@@ -1,10 +1,25 @@
 "use client";
 
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import type {
-  ConfirmActionDialogProps,
-  ConfirmActionValue,
-} from "./confirm-action-dialog.types";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import type { ConfirmAction } from "@/hooks/use-confirm-action";
+
+export type ConfirmActionValue<T, R> = R | ((target: T) => R);
+
+export interface ConfirmActionDialogProps<T> {
+  action: ConfirmAction<T>;
+  title: ConfirmActionValue<T, string>;
+  description: ConfirmActionValue<T, string>;
+  confirmLabel?: ConfirmActionValue<T, string>;
+  variant?: ConfirmActionValue<T, "default" | "destructive">;
+}
 
 export const ConfirmActionDialog = <T,>({
   action,
@@ -21,17 +36,40 @@ export const ConfirmActionDialog = <T,>({
   };
 
   return (
-    <ConfirmDialog
+    <AlertDialog
       open={action.isOpen}
       onOpenChange={(open) => {
         if (!open) action.clear();
       }}
-      title={resolve(title, "")}
-      description={resolve(description, "")}
-      confirmLabel={resolve(confirmLabel, "Confirmar")}
-      variant={resolve(variant, "destructive")}
-      isPending={action.isPending}
-      onConfirm={action.confirm}
-    />
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{resolve(title, "")}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {resolve(description, "")}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <Button
+            variant="outline"
+            onClick={action.clear}
+            disabled={action.isPending}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant={
+              resolve(variant, "destructive") === "destructive"
+                ? "destructive"
+                : "default"
+            }
+            disabled={action.isPending}
+            onClick={action.confirm}
+          >
+            {resolve(confirmLabel, "Confirmar")}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };

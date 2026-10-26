@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Brand } from "@/components/layout/brand";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
-import { Header } from "@/components/layout/header";
+import { UserMenu } from "@/components/layout/user-menu";
 import { AuthGuard } from "@/components/layout/auth-guard";
 import { makeUser } from "@/lib/test/factories";
 import { renderWithProviders } from "@/lib/test/render";
@@ -42,12 +42,16 @@ describe("Sidebar", () => {
 });
 
 describe("MobileTabBar", () => {
-  it("renders Inicio, Asistente, the create link and Perfil", () => {
+  it("renders Inicio, Asistente, Movimientos and Perfil as equal items", () => {
     setPathname("/assistant");
     render(<MobileTabBar />);
     expect(screen.getByRole("link", { name: "Asistente" })).toHaveAttribute(
       "aria-current",
       "page",
+    );
+    expect(screen.getByRole("link", { name: "Inicio" })).toHaveAttribute(
+      "href",
+      "/dashboard",
     );
     expect(screen.getByRole("link", { name: "Movimientos" })).toHaveAttribute(
       "href",
@@ -60,7 +64,7 @@ describe("MobileTabBar", () => {
   });
 });
 
-describe("Header / UserMenu", () => {
+describe("UserMenu", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -68,7 +72,7 @@ describe("Header / UserMenu", () => {
   it("shows the account menu and signs out", async () => {
     const user = userEvent.setup();
     const signOut = vi.fn().mockResolvedValue(undefined);
-    renderWithProviders(<Header />, {
+    renderWithProviders(<UserMenu />, {
       user: makeUser({ name: "Ana", email: "ana@example.com" }),
       auth: { signOut },
     });

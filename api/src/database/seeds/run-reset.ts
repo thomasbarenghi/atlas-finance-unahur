@@ -8,8 +8,8 @@ const main = async (): Promise<void> => {
   await AppDataSource.initialize();
   try {
     const maintenance = new DatabaseMaintenanceService(AppDataSource);
-    const summary = await maintenance.reset();
-    logger.log(`Schema recreated (${summary.tables} tables) and seed executed`);
+    const tables = await maintenance.reset();
+    logger.log(`Schema recreated (${tables} tables) and seed executed`);
   } finally {
     await AppDataSource.destroy();
   }

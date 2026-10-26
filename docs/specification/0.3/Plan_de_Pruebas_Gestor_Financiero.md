@@ -32,7 +32,7 @@ El objetivo operativo es **obtener evidencia suficiente y reproducible para apro
 
 - **Acceso:** registro, inicio y cierre de sesión.
 - **Cuentas** y saldos.
-- **Movimientos:** ingresos, gastos y transferencias, con categorías fijas del sistema.
+- **Movimientos:** ingresos, gastos y transferencias, con categorías del sistema y propias.
 - **Dashboard** y cálculo de patrimonio neto.
 - **Reglas de cálculo** (CAL-001, CAL-002, CAL-003 y CAL-010).
 - **Asistente de IA**, de solo consulta.
@@ -49,6 +49,8 @@ El objetivo operativo es **obtener evidencia suficiente y reproducible para apro
 | **Integración** | API + base de datos, reglas de negocio y autorización | Pruebas automatizadas de endpoints y servicios |
 | **Sistema / E2E** | Flujos completos en la interfaz | Pruebas manuales guiadas y automatización de UI |
 | **Aceptación** | Casos de estudio del BRD y criterios de bondad | Demostración reproducible con datos ficticios |
+
+La cobertura de las fórmulas financieras con pruebas unitarias y de los flujos P0 con pruebas de integración responde al requisito **NFR-CAL-004**.
 
 ### 3.2. Tipos de prueba
 
@@ -83,7 +85,7 @@ Se prioriza el nivel **P0** (que es la evidencia de aceptación exigida por el F
 
 ### 4.3. Pruebas dirigidas por IA (AI-driven)
 
-**Descripción.** La ejecución de las pruebas estará dirigida por un **agente de inteligencia artificial** que, a partir de este plan y de los casos aprobados, **manipula las herramientas de prueba** (Postman/cURL, Playwright, Pytest) para ejecutar los casos, generar los datos, recolectar la evidencia y reportar los resultados. El agente ejecuta lo que el equipo define y aprueba; no decide el alcance.
+**Descripción.** La ejecución de las pruebas estará dirigida por un **agente de inteligencia artificial** que, a partir de este plan y de los casos aprobados, **manipula las herramientas de prueba** (Jest/Supertest, Postman/cURL, Playwright) para ejecutar los casos, generar los datos, recolectar la evidencia y reportar los resultados. El agente ejecuta lo que el equipo define y aprueba; no decide el alcance.
 
 **Funcionalidades principales:**
 - Interpreta los casos de prueba de este plan y los ejecuta con las herramientas disponibles.
@@ -102,9 +104,9 @@ Se prioriza el nivel **P0** (que es la evidencia de aceptación exigida por el F
 | Propósito | Herramienta |
 |---|---|
 | Orquestación y ejecución dirigida por IA | Agente de IA que opera las herramientas de prueba |
-| Pruebas unitarias / integración de backend | Pytest (Python) |
+| Pruebas unitarias / integración de backend | Jest + Supertest (TypeScript) |
 | Pruebas de API | Postman / cURL |
-| Pruebas E2E de interfaz | Playwright |
+| Pruebas E2E de interfaz (previstas) | Playwright |
 | Pruebas de componentes frontend | Vitest / Testing Library |
 | Registro de casos y defectos | Planilla de registro (ver §7) |
 
@@ -120,7 +122,7 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 | Seguridad y autorización | 3 | P0 |
 | Cuentas | 2 | P0 |
 | Movimientos | 3 | P0 |
-| Dashboard y patrimonio | 3 | P0 |
+| Dashboard y patrimonio | 4 | P0 |
 | Cálculos | 4 | P0 |
 | No funcionales | 2 | P0/P1 |
 | Asistente de IA | 3 | P1 |
@@ -151,9 +153,10 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-TRX-01 | Registrar ingreso y gasto | Cargar un ingreso y un gasto con monto, fecha, cuenta, categoría y descripción | Los movimientos aparecen en el listado y actualizan saldo y dashboard. Monto ≤ 0 o campos obligatorios vacíos se rechazan, y la categoría se elige de un catálogo fijo del sistema (no editable). | P0 | FR-TRX-001/002 |
+| CP-TRX-01 | Registrar ingreso y gasto | Cargar un ingreso y un gasto con monto, fecha, cuenta, categoría y descripción | Los movimientos aparecen en el listado y actualizan saldo y dashboard. Monto ≤ 0 o campos obligatorios vacíos se rechazan; las categorías del sistema no se editan y las propias sí. | P0 | FR-TRX-001/002 |
 | CP-TRX-02 | Transferencia válida y atómica | Transferir entre dos cuentas propias; simular una falla a mitad de la operación | Se descuenta origen y se acredita destino en una única operación (ambos o ninguno); origen distinto de destino; se excluye del flujo de fondos. | P0 | FR-TRX-004/005, RN-003/004, CAL-003 |
-| CP-TRX-04 | Edición, eliminación y propiedad | Editar y eliminar un movimiento propio; intentar operar sobre uno ajeno | La operación propia se aplica; sobre un recurso ajeno se rechaza. | P0 | FR-TRX-003 |
+| CP-TRX-03 | Edición, eliminación y propiedad | Editar y eliminar un movimiento propio; intentar operar sobre uno ajeno | La operación propia se aplica; sobre un recurso ajeno se rechaza. | P0 | FR-TRX-003 |
+| CP-TRX-04 | Gestión de categorías propias | Crear una categoría, asignarla a un movimiento, editarla y eliminarla; intentar operar sobre una del sistema o de otro usuario | La categoría propia se crea, asigna, edita y elimina; las del sistema y las ajenas se rechazan. | P1 | FR-TRX-002 |
 
 ### 5.6. Dashboard y patrimonio
 
@@ -161,7 +164,8 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 |---|---|---|---|---|---|
 | CP-DAS-01 | Patrimonio neto | Cargar cuentas y movimientos; consultar el dashboard | Patrimonio neto = Σ saldos netos de las cuentas. | P0 | CAL-001, RN-002, FR-DAS-001 |
 | CP-DAS-02 | Indicadores del período | Seleccionar un período con ingresos y gastos | Se muestran ingresos, gastos y ahorro; la tasa de ahorro = ahorro / ingresos × 100. | P0 | FR-DAS-001, CAL-002, CAL-010 |
-| CP-DAS-03 | Consistencia y estados vacíos | Comparar los totales del dashboard con los movimientos cargados; abrir la aplicación sin datos | Los totales coinciden con los movimientos registrados; sin datos se muestra un estado vacío con acción sugerida. | P0 | FR-DAS-008, criterio de bondad |
+| CP-DAS-03 | Consistencia y estados vacíos | Comparar los totales del dashboard con los movimientos cargados; abrir la aplicación con el usuario sin datos | Los totales coinciden con los movimientos registrados; sin datos se muestra un estado vacío con acción sugerida. | P0 | FR-DAS-008, criterio de bondad |
+| CP-DAS-04 | Gráficos y período | Abrir el panel y cambiar el período; revisar los gráficos | Los gráficos de evolución del patrimonio, ingresos frente a gastos y gastos por categoría reflejan el período seleccionado. | P0 | FR-DAS-002/003/004/007 |
 
 ### 5.7. Cálculos (pruebas unitarias)
 
@@ -189,14 +193,14 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 
 ## 6. Datos de Prueba
 
-Se utiliza un **usuario ficticio sin datos personales reales** y un conjunto de datos reproducible:
+Se utilizan **usuarios ficticios sin datos personales reales** y un conjunto de datos reproducible (**NFR-CAL-005**):
 
 | Elemento | Detalle |
 |---|---|
-| Usuario | Un usuario ficticio de demostración. |
-| Cuentas | Tres cuentas. |
+| Usuarios | Tres usuarios ficticios: demo@atlassfin.app (con datos), sin-datos@atlassfin.app (sin movimientos, para estados vacíos) y ana@atlassfin.app (para el aislamiento entre propietarios). |
+| Cuentas | Tres cuentas del usuario con datos. |
 | Movimientos | Tres meses de ingresos, gastos y transferencias. |
-| Categorías | Cinco categorías fijas del sistema. |
+| Categorías | Cinco categorías fijas del sistema + categorías propias creadas por el usuario. |
 
 ## 7. Plan de Ejecución
 

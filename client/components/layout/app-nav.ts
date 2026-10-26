@@ -19,6 +19,9 @@ export const NAV_ITEMS: NavItem[] = (
   ["dashboard", "transactions", "categories", "settings"] as const
 ).map(toNavItem);
 
-export const MOBILE_NAV_ITEMS: NavItem[] = (
-  ["dashboard", "assistant", "profile"] as const
-).map(toNavItem);
+export const MOBILE_NAV_ITEMS: NavItem[] = [
+  toNavItem("dashboard"),
+  toNavItem("assistant"),
+  toNavItem("transactions"),
+  toNavItem("profile"),
+];

@@ -4,8 +4,6 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { join } from "path";
 import { DataSourceOptions } from "typeorm";
 import { AppConfig } from "../config/configuration";
-import { DatabaseMaintenanceService } from "./database-maintenance.service";
-import { DevDatabaseController } from "./dev-database.controller";
 
 @Module({
   imports: [
@@ -35,8 +33,5 @@ import { DevDatabaseController } from "./dev-database.controller";
       },
     }),
   ],
-  controllers: [DevDatabaseController],
-  providers: [DatabaseMaintenanceService],
-  exports: [DatabaseMaintenanceService],
 })
 export class DatabaseModule {}

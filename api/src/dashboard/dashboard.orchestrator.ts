@@ -1,7 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AccountsService } from "../accounts/accounts.service";
-import { Account } from "../accounts/entities/account.entity";
 import { CategoriesService } from "../categories/categories.service";
 import { AppConfig } from "../config/configuration";
 import { CalculationsService } from "../shared/calculations/calculations.service";
@@ -43,7 +42,7 @@ export class DashboardOrchestrator {
 
     const [transactions, categories, accounts] = await Promise.all([
       this.transactionsService.listOwnedTransactions(userId),
-      this.categoriesService.listCategories(),
+      this.categoriesService.listCategories(userId),
       this.accountsService.listOwnedAccounts(userId),
     ]);
 
@@ -94,32 +93,13 @@ export class DashboardOrchestrator {
 
     // CAL-001: net worth is the sum of the account balances. Past points of the
     // series are the same sum evaluated at the end of each month.
-    const balanceOf = (account: Account, end?: string): number => {
-      let balance = account.initialBalance;
-      for (const transaction of transactions) {
-        if (transaction.accountId !== account.id) continue;
-        if (end && transaction.date > end) continue;
-        balance +=
-          transaction.type === "expense"
-            ? -transaction.amount
-            : transaction.amount;
-      }
-      return balance;
-    };
-
-    const netWorth = accounts.reduce(
-      (total, account) => total + balanceOf(account),
-      0,
-    );
+    const netWorth = this.calculations.netWorthAt(accounts, transactions);
 
     const netWorthSeries = months.map((month) => {
       const date = this.calculations.monthEnd(month);
       return {
         date,
-        value: accounts.reduce(
-          (total, account) => total + balanceOf(account, date),
-          0,
-        ),
+        value: this.calculations.netWorthAt(accounts, transactions, date),
       };
     });
 

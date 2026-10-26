@@ -83,7 +83,7 @@ Test scripts (example):
   - `amount.utils.test.ts` next to `amount.utils.ts`.
   - `amount.test.tsx` next to the component `index.tsx` (name the test after the component).
   - `use-amount-color.test.ts` next to the hook.
-- Integration tests live in `components/features/<feature>/*.test.tsx` or a `__tests__/` folder inside the feature.
+- Integration tests live next to the route/feature they cover: `app/<route>/_components/__tests__/` or `app/(group)/_components/<domain>/__tests__/`.
 - E2E tests live in `client/e2e/`.
 - `describe` names the unit; `it`/`test` names the behavior in plain language, ideally "does X when Y".
 
@@ -121,7 +121,7 @@ export const renderWithProviders = (ui: ReactElement) => {
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
 
-// components/features/accounts/accounts-table/index.test.tsx
+// app/(app)/_components/accounts/accounts-list/__tests__/accounts-list.test.tsx
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "@/lib/test/render";

@@ -34,6 +34,7 @@ export const makeCategory = (overrides: Partial<Category> = {}): Category => ({
   type: "expense",
   color: "#ef4444",
   icon: null,
+  isSystem: true,
   ...overrides,
 });
 

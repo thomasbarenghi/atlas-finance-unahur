@@ -26,7 +26,7 @@
 |---|---|---|---|
 | 0.1 | 04/09/2026 | Barenghi, Thomas | Versión inicial. Especificación funcional del Gestor Financiero Personal. |
 | 0.2 | 02/10/2026 | Barenghi, Thomas | Se agregan 5 requerimientos funcionales, 1 no funcional y 1 regla de cálculo; se modifican FR-DAS-007, FR-IA-009 y CAL-001, y se actualiza la regla de negocio RN-002 (patrimonio neto). |
-| 0.3 | 16/10/2026 | Barenghi, Thomas | Se reduce el alcance del proyecto: se eliminan los módulos Presupuestos (FR-PRE), Activos, inversiones y deudas (FR-ACT), Cotizaciones de mercado (FR-MER) y Objetivos financieros (FR-OBJ). Se redefinen RN-002 y CAL-001 (patrimonio neto como suma de saldos de cuentas), se ajustan Dashboard, Reportes, entidades, pantallas y datos de demostración, y se conservan HU-001, HU-002 y HU-006. Se restringe el asistente de inteligencia artificial a solo consulta. Se quita la multimoneda (moneda única), el tema claro/oscuro, la entrada por voz y el archivado de cuentas (eliminación directa, sin restaurar); las categorías pasan a ser fijas y se elimina el tipo de cuenta tarjeta. Se eliminan además RN-007, RN-014, FR-AUT-003, FR-AUT-004, FR-TRX-006, el módulo Reportes y los requerimientos de IA FR-IA-001, FR-IA-008, FR-IA-009, FR-IA-010 y FR-IA-014, junto con el servicio de correo y la entidad Conversación IA. Se elimina además NFR-CAL-006 (empaquetado Android). |
+| 0.3 | 16/10/2026 | Barenghi, Thomas | Se ajusta el alcance de la versión y se consolida la documentación en torno a los flujos principales: acceso, cuentas, movimientos, panel y asistente de consulta. Se actualizan los requerimientos, las reglas de negocio y de cálculo, las entidades, las pantallas y los datos de demostración, y se amplían las User Stories para cubrir todos los módulos vigentes. El asistente queda definido como de solo consulta. |
 
 ## 2. Alcance
 
@@ -62,9 +62,9 @@ Límite funcional: la aplicación organiza y explica información cargada por el
 
 El alcance de la versión inicial incluye registro, inicio y cierre de sesión con perfil; alta, edición y eliminación de cuentas manuales; ingresos, gastos y transferencias con categorías; dashboard con indicadores y gráficos; y un asistente de inteligencia artificial opcional de solo consulta.
 
-La aplicación opera con una única moneda y un catálogo fijo de categorías definido por el sistema.
+La aplicación opera con una única moneda, cinco categorías fijas del sistema y categorías propias que cada usuario puede crear, editar y eliminar.
 
-Quedan fuera de alcance la sincronización automática con bancos o billeteras, la ejecución de pagos u operaciones reales, la compraventa de activos y la conexión de billeteras digitales, el asesoramiento financiero, legal, impositivo o contable, la liquidación de impuestos y la conciliación bancaria avanzada, las cuentas familiares o multiusuario con permisos compartidos, las aplicaciones móviles nativas, las notificaciones push y las automatizaciones complejas, y una aplicación para iOS. También quedan fuera de alcance de esta versión la gestión de presupuestos, la valuación de activos e inversiones, la administración de deudas, los objetivos financieros y las cotizaciones de mercado.
+Quedan fuera de alcance la sincronización automática con bancos o billeteras, la ejecución de pagos u operaciones reales, la compraventa de activos y la conexión de billeteras digitales, el asesoramiento financiero, legal, impositivo o contable, la liquidación de impuestos y la conciliación bancaria avanzada, las cuentas familiares o multiusuario con permisos compartidos, las aplicaciones móviles nativas, las notificaciones push y las automatizaciones complejas, y una aplicación para iOS. Las capacidades de gestión patrimonial avanzada y de integración con proveedores de mercado quedan para una iteración posterior.
 
 **Actores**
 
@@ -72,7 +72,6 @@ Quedan fuera de alcance la sincronización automática con bancos o billeteras, 
 |---|---|---|
 | Visitante | Persona sin sesión iniciada. | Registrarse e iniciar sesión. |
 | Usuario registrado | Propietario de sus datos financieros. | Gestionar cuentas y movimientos y usar el asistente si lo desea. |
-| Proceso programado | Tarea interna del sistema. | Ejecutar mantenimientos controlados. |
 | Proveedor de IA | Servicio externo de lenguaje natural. | Generar una respuesta sobre contexto mínimo autorizado. |
 
 **Prioridades**
@@ -90,7 +89,7 @@ Quedan fuera de alcance la sincronización automática con bancos o billeteras, 
 | Usuario | Un usuario ficticio sin datos personales reales. |
 | Cuentas | Tres cuentas. |
 | Movimientos | Tres meses de ingresos, gastos y transferencias. |
-| Categorías | Cinco categorías fijas definidas por el sistema. |
+| Categorías | Cinco categorías fijas del sistema + categorías propias por usuario. |
 | Consultas de IA | Consultas preparadas para comparar gastos y evolución patrimonial. |
 
 ## 3. Información de Requerimientos de Negocio
@@ -130,6 +129,14 @@ Quedan fuera de alcance la sincronización automática con bancos o billeteras, 
 | HU-001 — Registrar un movimiento | Como usuario registrado, quiero cargar un ingreso o gasto para mantener actualizados mis saldos. | • Los campos obligatorios se validan antes de guardar.<br>• El monto debe ser mayor que cero.<br>• El movimiento aparece en el listado y actualiza saldo y dashboard.<br>• La API verifica que cuenta y categoría pertenezcan al usuario autenticado. |
 | HU-002 — Transferir entre cuentas | Como usuario registrado, quiero mover dinero entre dos cuentas propias sin alterar mis ingresos o gastos. | • Origen y destino son diferentes y pertenecen al usuario.<br>• Se registran efectos opuestos por el mismo monto.<br>• La operación es atómica y no queda incompleta ante una falla.<br>• La transferencia se excluye del flujo de fondos consolidado. |
 | HU-006 — Consultar al asistente | Como usuario registrado, quiero preguntar por mis gastos para entender mi comportamiento financiero. | • El asistente requiere sesión válida.<br>• Solo utiliza datos propios y el mínimo contexto necesario.<br>• La respuesta identifica período y categorías considerados.<br>• Los totales coinciden con el dashboard del mismo período.<br>• El asistente es de solo consulta: no crea, edita ni elimina datos, y declara insuficiencia si faltan datos. |
+| HU-007 — Registrarme e iniciar sesión | Como visitante, quiero registrarme e iniciar sesión para acceder a mi información financiera. | • El registro valida los campos obligatorios y rechaza el correo duplicado.<br>• Al cerrar sesión, la sesión se invalida y las pantallas financieras redirigen al acceso. |
+| HU-008 — Gestionar mis cuentas | Como usuario registrado, quiero crear, editar y eliminar mis cuentas para reflejar dónde está mi dinero. | • Se registran nombre, tipo y saldo inicial.<br>• El saldo actual se calcula desde el saldo inicial y los movimientos.<br>• La eliminación elimina en cascada los movimientos asociados y solo alcanza cuentas propias. |
+| HU-009 — Ver el resumen del panel | Como usuario registrado, quiero ver mi patrimonio, ingresos, gastos y ahorro del período para entender mi situación de un vistazo. | • El panel muestra los cuatro indicadores del período seleccionado.<br>• Los totales coinciden con los movimientos registrados. |
+| HU-010 — Ver los gráficos del panel | Como usuario registrado, quiero ver la evolución del patrimonio, la comparación entre ingresos y gastos y la distribución de gastos por categoría. | • El panel muestra los tres gráficos.<br>• Los gráficos coinciden con los datos del período seleccionado. |
+| HU-011 — Corregir un movimiento | Como usuario registrado, quiero editar o eliminar un movimiento propio para arreglar errores de carga. | • Solo se editan o eliminan movimientos del usuario autenticado.<br>• Los saldos, el panel y los cálculos se actualizan en consecuencia. |
+| HU-012 — Elegir el período y ver estados vacíos | Como usuario registrado, quiero elegir el período de análisis y ver una guía cuando falten datos. | • El período seleccionado afecta a los indicadores y gráficos.<br>• Sin datos se muestra un estado vacío con una acción sugerida. |
+| HU-013 — Límites del asistente | Como usuario registrado, quiero que el asistente solo consulte y reconozca cuándo no hay datos suficientes. | • El asistente no crea, edita ni elimina información.<br>• Declara insuficiencia cuando no puede concluir e indica el período consultado. |
+| HU-014 — Proteger mis datos | Como usuario registrado, quiero que mi información quede separada de la de otros usuarios. | • El servidor verifica la pertenencia de cada recurso al usuario autenticado antes de leerlo o modificarlo. |
 
 **Requerimientos funcionales por módulo**
 
@@ -168,7 +175,7 @@ Los identificadores de requerimiento son estables entre versiones y no se renume
 | ID | Prioridad | Requerimiento |
 |---|---|---|
 | FR-TRX-001 | P0 | Crear movimientos de tipo ingreso, gasto o transferencia. |
-| FR-TRX-002 | P0 | Registrar monto positivo, fecha, cuenta, categoría, descripción y notas opcionales. Las categorías provienen de un catálogo fijo del sistema y no pueden crearse, editarse ni eliminarse. |
+| FR-TRX-002 | P0 | Registrar monto positivo, fecha, cuenta, categoría, descripción y notas opcionales. Las categorías del sistema son fijas; el usuario puede crear, editar y eliminar sus propias categorías y asignarlas a sus movimientos. |
 | FR-TRX-003 | P0 | Editar o eliminar únicamente movimientos pertenecientes al usuario autenticado. |
 | FR-TRX-004 | P0 | En una transferencia, las cuentas de origen y destino deberán ser diferentes. |
 | FR-TRX-005 | P0 | Aplicar ambos lados de una transferencia de manera atómica; si uno falla, no se guarda ninguno. |
@@ -224,11 +231,11 @@ Para cada período seleccionado, el sistema aplica las siguientes reglas de cál
 | ID | Pantalla | Contenido y componentes previstos |
 |---|---|---|
 | SC-001 | Acceso | Registro e inicio de sesión; Card, Form, Input, Button y Alert. |
-| SC-002 | Dashboard | Indicadores, gráficos, alertas y accesos rápidos; Card, Tabs, Chart, Progress y Skeleton. |
+| SC-002 | Dashboard | Indicadores, gráficos y accesos rápidos; Card, Chart y Skeleton. |
 | SC-003 | Cuentas | Listado, saldo y formularios; Data Table, Badge, Dialog y Dropdown Menu. |
 | SC-004 | Movimientos | Tabla y alta o edición; Data Table, Date Picker, Select, Form y Alert Dialog. |
 | SC-009 | Asistente IA | Conversación y alcance del asistente; Scroll Area, Textarea, Button y Alert. |
-| SC-010 | Configuración | Perfil y privacidad; Form, Switch y Alert Dialog. |
+| SC-010 | Configuración | Perfil; Form y Alert Dialog. |
 
 ## 6. Glosario
 

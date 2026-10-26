@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { AuthHeading } from "@/components/features/auth/auth-heading";
-import { LoginForm } from "@/components/features/auth/login-form";
+import { AuthHeading } from "@/app/(auth)/_components/auth-heading";
+import { LoginForm } from "@/app/(auth)/login/_components/login-form";
 
 const LoginPage = () => {
   return (
