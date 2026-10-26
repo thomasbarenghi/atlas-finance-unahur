@@ -21,6 +21,12 @@ const ARS_ACCOUNT_2 = makeAccount({
   id: "55555555-5555-4555-8555-555555555555",
   name: "Banco ARS",
 });
+const USD_ACCOUNT = makeAccount({
+  id: "66666666-6666-4666-8666-666666666666",
+  name: "Billetera USD",
+  type: "wallet",
+  currency: "USD",
+});
 const EXPENSE_CATEGORY = makeCategory({
   id: "22222222-2222-4222-8222-222222222222",
   name: "Supermercado",
@@ -182,9 +188,57 @@ describe("TransactionFormDialog", () => {
     expect(payload).toMatchObject({
       type: "transfer",
       amount: 500,
+      transferAmount: 500,
       categoryId: null,
       transferAccountId: ARS_ACCOUNT_2.id,
     });
+  });
+
+  it("computes the destination amount for a multi-currency transfer", async () => {
+    const user = userEvent.setup();
+    const getBody = captureTransactionPost();
+    server.use(
+      http.get("*/currencies/rates", () =>
+        HttpResponse.json({
+          primaryCurrency: "ARS",
+          rates: [
+            {
+              currency: "USD",
+              name: "Dólar estadounidense",
+              symbol: "US$",
+              rate: 1180,
+              rateDate: "2026-10-25",
+              source: "api",
+            },
+          ],
+          updatedAt: null,
+        }),
+      ),
+    );
+    renderDialog({ accounts: [ARS_ACCOUNT, USD_ACCOUNT] });
+
+    await user.click(screen.getByRole("button", { name: "Transferencia" }));
+    await openCombobox(user, "Cuenta destino");
+    await user.click(
+      await screen.findByRole("option", { name: /Billetera USD/ }),
+    );
+    await typeAmount(user, "1180");
+    await user.type(screen.getByPlaceholderText("Opcional"), "Compra USD");
+    await user.click(screen.getByRole("button", { name: "Crear movimiento" }));
+
+    await waitFor(() => expect(getBody()).toBeDefined());
+    const payload = getBody()!;
+    expect(payload).toMatchObject({
+      type: "transfer",
+      amount: 1180,
+      transferAccountId: USD_ACCOUNT.id,
+    });
+    expect(payload.transferAmount).toBeCloseTo(1, 4);
+    const result = await validateApiPayload(
+      apiRequestDtos.CreateTransactionDto,
+      payload as unknown as Record<string, unknown>,
+    );
+    expect(result.errors).toEqual([]);
   });
 
   it("requires a destination different from the origin for transfers", async () => {

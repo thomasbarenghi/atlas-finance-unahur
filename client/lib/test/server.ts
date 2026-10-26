@@ -1,12 +1,14 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll } from "vitest";
+import { CURRENCY_CATALOG } from "../../../api/src/currencies/currency-catalog";
 import type {
   AuthResponse,
   Category,
   CreateAccountInput,
   CreateCategoryInput,
   CreateTransactionInput,
+  CurrencySettings,
   DashboardData,
   UpdateAccountInput,
   UpdateCategoryInput,
@@ -95,9 +97,15 @@ const monthEnd = (month: string): string => {
   return `${month}-${String(lastDay).padStart(2, "0")}`;
 };
 
-const flowBetween = (from: string, to: string) => {
+const flowBetween = (from: string, to: string, currency?: string) => {
   const period = testState.transactions.filter(
-    (transaction) => transaction.date >= from && transaction.date <= to,
+    (transaction) =>
+      transaction.date >= from &&
+      transaction.date <= to &&
+      (!currency ||
+        testState.accounts.find(
+          (account) => account.id === transaction.accountId,
+        )?.currency === currency),
   );
   const income = period
     .filter((transaction) => transaction.type === "income")
@@ -122,33 +130,53 @@ const previousRange = (from: string, to: string) => {
   return { from: isoDate(previousStart), to: isoDate(previousEnd) };
 };
 
-const buildDashboard = (from: string, to: string): DashboardData => {
-  const user = requireUser();
+const buildDashboard = (
+  from: string,
+  to: string,
+  scope?: string,
+): DashboardData => {
+  const user = requireUser()!;
+  const primaryCurrency = user.primaryCurrency ?? "ARS";
+  const currency = scope ?? primaryCurrency;
   const ownedTransactions = testState.transactions.filter(
-    (transaction) => transaction.userId === user?.id,
+    (transaction) => transaction.userId === user.id,
   );
   const activeAccounts = testState.accounts.filter(
-    (account) => account.userId === user?.id,
+    (account) => account.userId === user.id,
   );
-  const initialTotal = activeAccounts.reduce(
-    (total, account) => total + account.initialBalance,
-    0,
-  );
-  const netWorthAt = (end: string): number =>
-    initialTotal +
-    ownedTransactions
-      .filter((transaction) => transaction.date <= end)
-      .reduce((total, transaction) => total + signedAmount(transaction), 0);
+  const rateFor = (code: string): number => {
+    if (code === "ARS") return 1;
+    return (
+      testState.currencyRates.find((row) => row.currency === code)?.rate ?? 1
+    );
+  };
+  const primaryRate = rateFor(primaryCurrency);
+  const accountCurrency = (accountId: string): string =>
+    activeAccounts.find((account) => account.id === accountId)?.currency ??
+    primaryCurrency;
+  const netWorthAt = (end?: string): number =>
+    activeAccounts.reduce((total, account) => {
+      const balance =
+        account.initialBalance +
+        ownedTransactions
+          .filter(
+            (transaction) =>
+              transaction.accountId === account.id &&
+              (!end || transaction.date <= end),
+          )
+          .reduce((sum, transaction) => sum + signedAmount(transaction), 0);
+      return total + (balance * rateFor(account.currency)) / primaryRate;
+    }, 0);
 
-  const current = flowBetween(from, to);
+  const current = flowBetween(from, to, currency);
   const previous = previousRange(from, to);
-  const previousFlow = flowBetween(previous.from, previous.to);
+  const previousFlow = flowBetween(previous.from, previous.to, currency);
   const months = monthRange(from, to);
   const rangeDays = dayRange(from, to).length;
   const daily = rangeDays <= 31;
 
   const monthly = (month: string) =>
-    flowBetween(`${month}-01`, monthEnd(month));
+    flowBetween(`${month}-01`, monthEnd(month), currency);
 
   const incomeExpenseByMonth = months.map((month) => ({
     month,
@@ -160,7 +188,7 @@ const buildDashboard = (from: string, to: string): DashboardData => {
         bucket: "week" as const,
         start,
         end,
-        ...flowBetween(start, end),
+        ...flowBetween(start, end, currency),
       }))
     : months.map((month) => ({
         bucket: "month" as const,
@@ -183,6 +211,7 @@ const buildDashboard = (from: string, to: string): DashboardData => {
   for (const transaction of ownedTransactions) {
     if (transaction.type !== "expense" || !transaction.categoryId) continue;
     if (transaction.date < from || transaction.date > to) continue;
+    if (accountCurrency(transaction.accountId) !== currency) continue;
     expensesByCategory.set(
       transaction.categoryId,
       (expensesByCategory.get(transaction.categoryId) ?? 0) +
@@ -190,15 +219,62 @@ const buildDashboard = (from: string, to: string): DashboardData => {
     );
   }
 
-  const netWorth = activeAccounts.reduce(
-    (total, account) => total + deriveTestAccount(account).currentBalance,
-    0,
-  );
+  const netWorth = netWorthAt();
   const seriesStart = netWorthSeries[0]?.value ?? netWorth;
+
+  const groups = new Map<string, { balance: number; accounts: number }>();
+  for (const account of activeAccounts) {
+    const bucket = groups.get(account.currency) ?? { balance: 0, accounts: 0 };
+    bucket.balance +=
+      account.initialBalance +
+      ownedTransactions
+        .filter((transaction) => transaction.accountId === account.id)
+        .reduce((sum, transaction) => sum + signedAmount(transaction), 0);
+    bucket.accounts += 1;
+    groups.set(account.currency, bucket);
+  }
+  const breakdown = [...groups.entries()]
+    .map(([code, bucket]) => ({
+      currency: code,
+      balance: bucket.balance,
+      accounts: bucket.accounts,
+      converted: (bucket.balance * rateFor(code)) / primaryRate,
+    }))
+    .sort((first, second) => {
+      if (first.currency === primaryCurrency) return -1;
+      if (second.currency === primaryCurrency) return 1;
+      return second.converted - first.converted;
+    });
+  const availableCurrencies = [
+    ...new Set([
+      ...activeAccounts.map((account) => account.currency),
+      currency,
+    ]),
+  ].sort((first, second) => {
+    if (first === primaryCurrency) return -1;
+    if (second === primaryCurrency) return 1;
+    return first.localeCompare(second);
+  });
+  const rates = availableCurrencies.map((code) => ({
+    currency: code,
+    rate: rateFor(code) / primaryRate,
+    rateDate:
+      testState.currencyRates.find((row) => row.currency === code)?.rateDate ??
+      isoDate(new Date()),
+  }));
 
   return {
     period: { from, to },
-    currency: "ARS",
+    currency,
+    primaryCurrency,
+    rateDate:
+      testState.currencyRates
+        .map((row) => row.rateDate)
+        .sort()
+        .at(-1) ?? null,
+    availableCurrencies,
+    breakdown,
+    rates,
     kpis: {
       netWorth,
       netWorthDeltaPct: pctDelta(netWorth, seriesStart),
@@ -251,7 +327,60 @@ const buildAssistantAnswer = (question: string): string => {
   return "En el período indicado tus ingresos fueron $ 900.000,00 y tus gastos $ 324.000,00.";
 };
 
+const buildCurrencySettings = (): CurrencySettings => {
+  const user = requireUser();
+  const primaryCurrency = user?.primaryCurrency ?? "ARS";
+  const activeAccounts = testState.accounts.filter(
+    (account) => account.userId === user?.id,
+  );
+  const rateFor = (code: string): number =>
+    code === "ARS"
+      ? 1
+      : (testState.currencyRates.find((row) => row.currency === code)?.rate ??
+        1);
+  const primaryRate = rateFor(primaryCurrency);
+  const currencies = [
+    ...new Set(activeAccounts.map((account) => account.currency)),
+  ]
+    .filter((currency) => currency !== primaryCurrency)
+    .sort();
+  return {
+    primaryCurrency,
+    rates: currencies.map((currency) => {
+      const catalog = CURRENCY_CATALOG.find((item) => item.code === currency);
+      const row = testState.currencyRates.find(
+        (item) => item.currency === currency,
+      );
+      return {
+        currency,
+        name: catalog?.name ?? currency,
+        symbol: catalog?.symbol ?? currency,
+        rate: rateFor(currency) / primaryRate,
+        rateDate: row?.rateDate ?? isoDate(new Date()),
+        source: row?.source ?? "seed",
+      };
+    }),
+    updatedAt:
+      testState.currencyRates
+        .map((row) => row.rateDate)
+        .sort()
+        .at(-1) ?? null,
+  };
+};
+
 const handlers = [
+  http.get("*/currencies", ({ request }) => {
+    logRequest(request);
+    if (!requireUser()) return unauthorized();
+    return json(CURRENCY_CATALOG);
+  }),
+
+  http.get("*/currencies/rates", ({ request }) => {
+    logRequest(request);
+    if (!requireUser()) return unauthorized();
+    return json(buildCurrencySettings());
+  }),
+
   http.get("*/auth/me", ({ request }) => {
     logRequest(request);
     const user = requireUser();
@@ -296,6 +425,7 @@ const handlers = [
       id: testId(),
       name: body.name,
       email: body.email.toLowerCase(),
+      primaryCurrency: "ARS",
       createdAt: new Date().toISOString(),
     };
     testState.users.push({ user, password: body.password });
@@ -347,6 +477,7 @@ const handlers = [
       userId: user.id,
       name: body.name,
       type: body.type,
+      currency: body.currency,
       initialBalance: body.initialBalance ?? 0,
       currentBalance: body.initialBalance ?? 0,
       notes: body.notes ?? null,
@@ -366,6 +497,25 @@ const handlers = [
     );
     if (!account) return fail(404, "NOT_FOUND", "La cuenta no existe");
     const body = (await request.json()) as UpdateAccountInput;
+    if (body.currency && body.currency !== account.currency) {
+      const hasTransactions = testState.transactions.some(
+        (transaction) =>
+          transaction.userId === user.id &&
+          transaction.accountId === account.id,
+      );
+      if (hasTransactions) {
+        return fail(
+          400,
+          "VALIDATION_ERROR",
+          "No podés cambiar la moneda de una cuenta con movimientos",
+          {
+            currency: [
+              "La moneda no se puede cambiar si la cuenta ya tiene movimientos",
+            ],
+          },
+        );
+      }
+    }
     Object.assign(account, body, { updatedAt: new Date().toISOString() });
     return json(deriveTestAccount(account));
   }),
@@ -544,7 +694,7 @@ const handlers = [
       const inbound: TestTransaction = {
         ...outbound,
         id: testId(),
-        amount: Math.abs(body.amount),
+        amount: Math.abs(body.transferAmount ?? body.amount),
         accountId: body.transferAccountId,
         transferAccountId: body.accountId,
       };
@@ -591,7 +741,9 @@ const handlers = [
           amount:
             item.amount < 0
               ? -Math.abs(body.amount ?? Math.abs(item.amount))
-              : Math.abs(body.amount ?? Math.abs(item.amount)),
+              : Math.abs(
+                  body.transferAmount ?? body.amount ?? Math.abs(item.amount),
+                ),
           date: body.date ?? item.date,
           description: body.description ?? item.description,
           notes: body.notes ?? item.notes,
@@ -635,7 +787,9 @@ const handlers = [
       isoDate(
         new Date(new Date(`${to}T00:00:00.000Z`).getTime() - 180 * DAY_MS),
       );
-    return json(buildDashboard(from, to));
+    return json(
+      buildDashboard(from, to, url.searchParams.get("currency") ?? undefined),
+    );
   }),
 
   http.post("*/assistant/messages", async ({ request }) => {
@@ -644,6 +798,7 @@ const handlers = [
     const body = (await request.json()) as {
       question: string;
       period?: { from: string; to: string };
+      currency?: string;
     };
     const answer = buildAssistantAnswer(body.question);
     const encoder = new TextEncoder();
@@ -658,7 +813,7 @@ const handlers = [
         };
         send("meta", {
           period: body.period,
-          currency: "ARS",
+          currency: body.currency ?? "ARS",
           sources: ["transactions"],
           disclaimer: "Información de tus datos.",
         });

@@ -8,6 +8,10 @@ const build = () => {
       async (_u: string, _i: string, dto: unknown) => dto,
     ),
     getTransaction: jest.fn(),
+    getTransferGroup: jest.fn().mockResolvedValue({
+      outbound: { id: "t1", accountId: "a1", amount: -100 },
+      inbound: { id: "t2", accountId: "a2", amount: 100 },
+    }),
   };
   const accountsService = {
     assertAccountOwned: jest.fn(async (_u: string, id: string) => ({ id })),
@@ -138,6 +142,10 @@ describe("TransactionsOrchestrator", () => {
       type: "transfer",
       accountId: "a1",
       transferAccountId: null,
+    });
+    transactionsService.getTransferGroup.mockResolvedValue({
+      outbound: { id: "t1", accountId: "a1", amount: -100 },
+      inbound: { id: "t2", accountId: null, amount: 100 },
     });
 
     await expect(

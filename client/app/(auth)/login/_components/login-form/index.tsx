@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -14,7 +14,6 @@ import { applyApiFieldErrors } from "@/lib/forms";
 import { useLogin } from "@/lib/query/auth";
 import { loginSchema, type LoginFormValues } from "@/lib/validation/auth";
 import { LoginField } from "./components/login-field";
-import { useRememberedEmail } from "./hooks/use-remembered-email";
 
 const DEMO_EMAIL = "demo@atlassfin.app";
 const DEMO_PASSWORD = "Demo1234!";
@@ -27,16 +26,10 @@ export const LoginForm = () => {
     defaultValues: { email: "", password: "" },
   });
   const [showPassword, setShowPassword] = useState(false);
-  const { storedEmail, remember, setRemember, persist } = useRememberedEmail();
-
-  useEffect(() => {
-    if (storedEmail) form.setValue("email", storedEmail);
-  }, [storedEmail, form]);
 
   const onSubmit = async (values: LoginFormValues) => {
     try {
       await login.mutateAsync(values);
-      persist(remember ? values.email : null);
       router.replace("/dashboard");
     } catch (error) {
       applyApiFieldErrors(form.setError, error);
@@ -67,6 +60,7 @@ export const LoginForm = () => {
           icon={Lock}
           type={showPassword ? "text" : "password"}
           autoComplete="current-password"
+          placeholder="Tu contraseña"
           inputClassName="pr-10"
           trailing={
             <button
@@ -85,29 +79,6 @@ export const LoginForm = () => {
             </button>
           }
         />
-
-        <div className="flex items-center justify-between gap-3">
-          <label className="text-ink2 flex items-center gap-2 text-[11px] leading-[15px]">
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(event) => setRemember(event.target.checked)}
-              className="accent-primary border-border size-[15px] rounded"
-            />
-            Recordarme
-          </label>
-          <button
-            type="button"
-            onClick={() =>
-              toast.error(
-                "La recuperación de contraseña no está disponible en la demo.",
-              )
-            }
-            className="text-primary text-[11px] font-semibold hover:underline"
-          >
-            ¿Olvidaste tu contraseña?
-          </button>
-        </div>
 
         <Button
           type="submit"

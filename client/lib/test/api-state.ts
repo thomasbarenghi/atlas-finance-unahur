@@ -14,6 +14,12 @@ export interface TestState {
   accounts: TestAccount[];
   categories: Category[];
   transactions: TestTransaction[];
+  currencyRates: {
+    currency: string;
+    rate: number;
+    rateDate: string;
+    source: "api" | "seed";
+  }[];
   sessionUserId: string | null;
   requests: { method: string; path: string }[];
 }
@@ -39,6 +45,7 @@ const createInitialState = (): TestState => {
     id: testId(),
     name: "Demo",
     email: TEST_DEMO_EMAIL,
+    primaryCurrency: "ARS",
     createdAt: timestamp,
   };
 
@@ -47,6 +54,7 @@ const createInitialState = (): TestState => {
     userId: demoUser.id,
     name: "Caja ARS",
     type: "cash",
+    currency: "ARS",
     initialBalance: 50_000,
     currentBalance: 0,
     notes: null,
@@ -58,6 +66,7 @@ const createInitialState = (): TestState => {
     userId: demoUser.id,
     name: "Banco ARS",
     type: "bank",
+    currency: "ARS",
     initialBalance: 300_000,
     currentBalance: 0,
     notes: null,
@@ -69,6 +78,7 @@ const createInitialState = (): TestState => {
     userId: demoUser.id,
     name: "Ahorro",
     type: "wallet",
+    currency: "ARS",
     initialBalance: 100_000,
     currentBalance: 0,
     notes: null,
@@ -167,6 +177,20 @@ const createInitialState = (): TestState => {
     accounts: [caja, banco, ahorro],
     categories: [sueldo, freelance, supermercado, transporte, servicios],
     transactions,
+    currencyRates: [
+      {
+        currency: "USD",
+        rate: 1180,
+        rateDate: toIsoDate(now),
+        source: "api",
+      },
+      {
+        currency: "EUR",
+        rate: 1275.4,
+        rateDate: toIsoDate(now),
+        source: "api",
+      },
+    ],
     sessionUserId: demoUser.id,
     requests: [],
   };

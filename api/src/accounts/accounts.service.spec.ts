@@ -9,6 +9,7 @@ const account = (overrides: Partial<Account> = {}): Account =>
     userId: "u1",
     name: "Caja",
     type: "cash",
+    currency: "ARS",
     initialBalance: 1000,
     notes: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -23,6 +24,7 @@ const build = () => {
   const balances = {
     signedTotalsByAccount: jest.fn().mockResolvedValue(new Map([["a1", 50]])),
     currentBalanceOf: jest.fn().mockResolvedValue(1050),
+    hasTransactions: jest.fn().mockResolvedValue(false),
   };
   const service = new AccountsService(repository as any, balances as any);
   return { service, repository, balances };
@@ -61,9 +63,27 @@ describe("AccountsService", () => {
     const result = await service.createAccount("u1", {
       name: "  Caja  ",
       type: "cash",
+      currency: "ARS",
     } as any);
     expect(result.initialBalance).toBe(0);
     expect(result.currentBalance).toBe(0);
+    expect(result.currency).toBe("ARS");
+  });
+
+  it("allows changing the currency only when the account has no movements", async () => {
+    const { service, repository, balances } = build();
+    repository.findOneBy.mockResolvedValue(account({ currency: "ARS" }));
+
+    balances.hasTransactions.mockResolvedValue(true);
+    await expect(
+      service.updateAccount("u1", "a1", { currency: "USD" } as any),
+    ).rejects.toMatchObject({ response: { code: ErrorCode.VALIDATION_ERROR } });
+
+    balances.hasTransactions.mockResolvedValue(false);
+    const updated = await service.updateAccount("u1", "a1", {
+      currency: "USD",
+    } as any);
+    expect(updated.currency).toBe("USD");
   });
 
   it("updates only the provided fields", async () => {

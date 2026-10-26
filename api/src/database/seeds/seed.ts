@@ -4,6 +4,12 @@ import { randomUUID } from "crypto";
 import { DataSource, EntityManager, IsNull } from "typeorm";
 import { Account } from "../../accounts/entities/account.entity";
 import { Category } from "../../categories/entities/category.entity";
+import { CURRENCY_CATALOG } from "../../currencies/currency-catalog";
+import { CurrencyRate } from "../../currencies/entities/currency-rate.entity";
+import {
+  ExchangeRatesProvider,
+  type FetchedRates,
+} from "../../currencies/exchange-rates.provider";
 import { Transaction } from "../../transactions/entities/transaction.entity";
 import { User } from "../../users/entities/user.entity";
 
@@ -84,11 +90,49 @@ interface SeededUser {
 const createUser = async (
   manager: EntityManager,
   passwordHash: string,
-  data: { name: string; email: string },
+  data: { name: string; email: string; primaryCurrency?: string },
 ): Promise<SeededUser> => {
   const repo = manager.getRepository(User);
-  const user = await repo.save(repo.create({ ...data, passwordHash }));
+  const user = await repo.save(
+    repo.create({
+      ...data,
+      primaryCurrency: data.primaryCurrency ?? "ARS",
+      passwordHash,
+    }),
+  );
   return { id: user.id, name: user.name };
+};
+
+const ensureCurrencyRates = async (
+  manager: EntityManager,
+  fetched: FetchedRates | null,
+): Promise<void> => {
+  if (!fetched) {
+    logger.warn(
+      "No se pudieron obtener cotizaciones de la API; la API las reintentará al iniciar",
+    );
+    return;
+  }
+  const repo = manager.getRepository(CurrencyRate);
+  const existing = await repo.find();
+  const existingCodes = new Set(existing.map((row) => row.currency));
+  const missing = CURRENCY_CATALOG.filter(
+    (entry) =>
+      !existingCodes.has(entry.code) &&
+      (entry.code === "ARS" || fetched.rates[entry.code]),
+  );
+  if (missing.length === 0) return;
+  await repo.save(
+    missing.map((entry) =>
+      repo.create({
+        currency: entry.code,
+        rate: entry.code === "ARS" ? 1 : fetched.rates[entry.code],
+        rateDate: fetched.date,
+        source: "api",
+      }),
+    ),
+  );
+  logger.log(`Seeded ${missing.length} global currency rates from the API`);
 };
 
 /** Full, deterministic dataset for the `demo@atlassfin.app` account. */
@@ -97,6 +141,7 @@ const seedDemoDataset = async (
   user: SeededUser,
   categoryIds: Map<string, string>,
   reference: Date,
+  rates: FetchedRates | null,
 ): Promise<void> => {
   const categoryId = (name: string): string => {
     const id = categoryIds.get(name);
@@ -104,12 +149,26 @@ const seedDemoDataset = async (
     return id;
   };
 
+  // A user-owned category complements the fixed catalog and matches the demo
+  // screen ("Reintegro · Otros"). It is scoped to the demo user.
+  const categoryRepo = manager.getRepository(Category);
+  const other = await categoryRepo.save(
+    categoryRepo.create({
+      userId: user.id,
+      name: "Otros",
+      type: "income",
+      color: "#64748b",
+      icon: "circle",
+    }),
+  );
+
   const accountRepo = manager.getRepository(Account);
-  const [cash, bank, wallet] = await accountRepo.save([
+  const [cash, bank, wallet, usdWallet] = await accountRepo.save([
     accountRepo.create({
       userId: user.id,
       name: "Caja",
       type: "cash",
+      currency: "ARS",
       initialBalance: 50000,
       notes: "Efectivo en mano",
     }),
@@ -117,6 +176,7 @@ const seedDemoDataset = async (
       userId: user.id,
       name: "Banco",
       type: "bank",
+      currency: "ARS",
       initialBalance: 300000,
       notes: "Cuenta principal",
     }),
@@ -124,8 +184,17 @@ const seedDemoDataset = async (
       userId: user.id,
       name: "Billetera virtual",
       type: "wallet",
+      currency: "ARS",
       initialBalance: 15000,
       notes: null,
+    }),
+    accountRepo.create({
+      userId: user.id,
+      name: "Billetera USD",
+      type: "wallet",
+      currency: "USD",
+      initialBalance: 500,
+      notes: "Dólares",
     }),
   ]);
 
@@ -207,6 +276,93 @@ const seedDemoDataset = async (
     );
   });
 
+  // USD account movements (amounts live in the account's currency).
+  transactions.push(
+    transactionRepo.create({
+      userId: user.id,
+      type: "income",
+      amount: 200,
+      date: isoDate(reference, 0, 18),
+      description: "Honorarios freelance",
+      notes: null,
+      accountId: usdWallet.id,
+      categoryId: categoryId("Freelance"),
+    }),
+    transactionRepo.create({
+      userId: user.id,
+      type: "income",
+      amount: 60,
+      date: isoDate(reference, 0, 12),
+      description: "Venta de usados",
+      notes: null,
+      accountId: usdWallet.id,
+      categoryId: other.id,
+    }),
+    transactionRepo.create({
+      userId: user.id,
+      type: "income",
+      amount: 60,
+      date: isoDate(reference, 0, 2),
+      description: "Reintegro",
+      notes: null,
+      accountId: usdWallet.id,
+      categoryId: other.id,
+    }),
+    transactionRepo.create({
+      userId: user.id,
+      type: "expense",
+      amount: 40,
+      date: isoDate(reference, 0, 8),
+      description: "Suscripción Figma",
+      notes: null,
+      accountId: usdWallet.id,
+      categoryId: categoryId("Servicios"),
+    }),
+    transactionRepo.create({
+      userId: user.id,
+      type: "expense",
+      amount: 60,
+      date: isoDate(reference, 0, 5),
+      description: "Servicios cloud",
+      notes: null,
+      accountId: usdWallet.id,
+      categoryId: categoryId("Servicios"),
+    }),
+  );
+
+  // Multi-currency transfer at the API quote: 100.000 ARS become USD.
+  const usdRate = rates?.rates.USD;
+  if (usdRate && usdRate > 0) {
+    const conversionGroupId = randomUUID();
+    const convertedAmount = Math.round((100000 / usdRate) * 10000) / 10000;
+    transactions.push(
+      transactionRepo.create({
+        userId: user.id,
+        type: "transfer",
+        amount: -100000,
+        date: isoDate(reference, 0, 15),
+        description: "Compra de dólares",
+        notes: null,
+        accountId: bank.id,
+        transferAccountId: usdWallet.id,
+        categoryId: null,
+        transferGroupId: conversionGroupId,
+      }),
+      transactionRepo.create({
+        userId: user.id,
+        type: "transfer",
+        amount: convertedAmount,
+        date: isoDate(reference, 0, 15),
+        description: "Compra de dólares",
+        notes: null,
+        accountId: usdWallet.id,
+        transferAccountId: bank.id,
+        categoryId: null,
+        transferGroupId: conversionGroupId,
+      }),
+    );
+  }
+
   transactions.push(
     transactionRepo.create({
       userId: user.id,
@@ -236,9 +392,11 @@ const seedDemoDataset = async (
 
 export const runSeed = async (dataSource: DataSource): Promise<void> => {
   const reference = new Date();
+  const rates = await new ExchangeRatesProvider().fetch();
 
   await dataSource.transaction(async (manager) => {
     await ensureCategories(manager);
+    await ensureCurrencyRates(manager, rates);
     const categoryIds = await loadCategoryIds(manager);
 
     const userRepo = manager.getRepository(User);
@@ -255,19 +413,22 @@ export const runSeed = async (dataSource: DataSource): Promise<void> => {
     const demo = await createUser(manager, passwordHash, {
       name: "Demo",
       email: DEMO_EMAIL,
+      primaryCurrency: "ARS",
     });
-    await seedDemoDataset(manager, demo, categoryIds, reference);
+    await seedDemoDataset(manager, demo, categoryIds, reference, rates);
 
     // Empty user: no financial data, to exercise empty states (FR-DAS-008).
     await createUser(manager, passwordHash, {
       name: "Sin Datos",
       email: EMPTY_EMAIL,
+      primaryCurrency: "ARS",
     });
 
     // Second user with a minimal dataset, to test ownership isolation.
     const second = await createUser(manager, passwordHash, {
       name: "Ana Probadora",
       email: SECOND_EMAIL,
+      primaryCurrency: "ARS",
     });
     const accountRepo = manager.getRepository(Account);
     const transactionRepo = manager.getRepository(Transaction);
@@ -276,6 +437,7 @@ export const runSeed = async (dataSource: DataSource): Promise<void> => {
         userId: second.id,
         name: "Cuenta de Ana",
         type: "bank",
+        currency: "ARS",
         initialBalance: 100000,
         notes: null,
       }),

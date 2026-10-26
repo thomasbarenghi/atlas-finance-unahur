@@ -1,6 +1,28 @@
+export interface DashboardBreakdown {
+  currency: string;
+  balance: number;
+  accounts: number;
+  /** Equivalent in the primary currency. */
+  converted: number;
+}
+
+export interface DashboardRate {
+  currency: string;
+  /** How many units of the primary currency one unit buys. */
+  rate: number;
+  rateDate: string;
+}
+
 export class DashboardData {
   period: { from: string; to: string };
+  /** Currency scope of the period indicators and charts. */
   currency: string;
+  /** Currency in which net worth is reported. */
+  primaryCurrency: string;
+  rateDate: string | null;
+  availableCurrencies: string[];
+  breakdown: DashboardBreakdown[];
+  rates: DashboardRate[];
   kpis: {
     netWorth: number;
     netWorthDeltaPct: number | null;

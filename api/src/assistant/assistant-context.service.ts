@@ -48,10 +48,15 @@ export class AssistantContextService {
     }
 
     const [dashboard, accounts] = await Promise.all([
-      this.dashboardOrchestrator.getDashboard(userId, { from, to }),
+      this.dashboardOrchestrator.getDashboard(userId, {
+        from,
+        to,
+        currency: dto.currency,
+      }),
       this.accountsService.listAccounts(userId),
     ]);
     const { kpis } = dashboard;
+    const displayCurrency = dashboard.currency;
 
     const topCategories = dashboard.expensesByCategory
       .slice(0, 5)
@@ -68,32 +73,48 @@ export class AssistantContextService {
     const accountBalances = accounts
       .map(
         (account) =>
-          `${account.name} (${account.type}) ${account.currentBalance}`,
+          `${account.name} (${account.type}, ${account.currency}) ${account.currentBalance}`,
+      )
+      .join(", ");
+
+    const breakdown = (dashboard.breakdown ?? [])
+      .map(
+        (item) =>
+          `${item.currency} ${item.balance}${
+            item.currency === displayCurrency
+              ? ""
+              : ` (≈ ${item.converted} ${displayCurrency})`
+          }`,
       )
       .join(", ");
 
     const summary = [
       `Fecha de hoy: ${toIsoDate(new Date())}.`,
-      `Período analizado: ${from} a ${to} (moneda ${dashboard.currency}).`,
-      `Ingresos del período: ${kpis.income}.`,
-      `Gastos del período: ${kpis.expenses}.`,
-      `Ahorro (ingresos - gastos): ${kpis.savings}.`,
+      `Período analizado: ${from} a ${to}.`,
+      `Alcance de moneda de los indicadores: ${dashboard.currency}. Los flujos se calculan por moneda y no se suman entre monedas.`,
+      `Ingresos del período (${dashboard.currency}): ${kpis.income}.`,
+      `Gastos del período (${dashboard.currency}): ${kpis.expenses}.`,
+      `Ahorro (ingresos - gastos, ${dashboard.currency}): ${kpis.savings}.`,
       topCategories
-        ? `Mayores gastos por categoría del período: ${topCategories}.`
+        ? `Mayores gastos por categoría del período (${dashboard.currency}): ${topCategories}.`
         : "Sin gastos por categoría en el período.",
-      `Patrimonio neto (Σ saldos de cuentas): ${kpis.netWorth}.`,
+      `Patrimonio neto en ${displayCurrency} (Σ saldos convertidos con la cotización de Ajustes): ${kpis.netWorth}.`,
+      breakdown
+        ? `Desglose del patrimonio por moneda: ${breakdown}.`
+        : "El usuario no tiene cuentas.",
+      `Moneda de lectura: ${displayCurrency}. El patrimonio convertido solo se informa con su desglose por moneda.`,
       monthlyFlow
-        ? `Evolución mensual (ingresos/gastos): ${monthlyFlow}.`
+        ? `Evolución mensual (ingresos/gastos, ${dashboard.currency}): ${monthlyFlow}.`
         : "Sin evolución mensual en el período.",
       accountBalances
-        ? `Saldos de cuentas del usuario: ${accountBalances}.`
+        ? `Saldos de cuentas del usuario (cada uno en su moneda): ${accountBalances}.`
         : "El usuario no tiene cuentas.",
     ].join("\n");
 
     return {
       period: { from, to },
       currency: dashboard.currency,
-      sources: ["transactions", "accounts", "categories"],
+      sources: ["transactions", "accounts", "categories", "currencies"],
       summary,
     };
   }

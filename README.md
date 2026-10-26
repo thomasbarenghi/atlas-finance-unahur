@@ -2,7 +2,7 @@
 
 A personal finance manager with rich analytics and an integrated AI assistant. University project for **UNAHUR**.
 
-Atlass Fin helps you organize and understand the money you enter yourself: accounts, income/expense transactions, atomic transfers, and categories (system plus your own). Its two distinguishing features are **analytics/charts** and a **conversational AI agent** that answers questions about your own data. The app uses a single system currency.
+Atlass Fin helps you organize and understand the money you enter yourself: accounts, income/expense transactions, atomic transfers, and categories (system plus your own). It supports multiple currencies: each account declares its currency, quotes come from the API, and the dashboard can be read in any currency in use. Its two distinguishing features are **analytics/charts** and a **conversational AI agent** that answers questions about your own data.
 
 > **Scope note.** The app organizes and explains user-entered information. It does **not** connect to banks, execute payments or investments, and does **not** provide financial advice.
 
@@ -90,7 +90,7 @@ every time. See [`docs/architecture/backend.md`](docs/architecture/backend.md) Â
 
 ## Features
 
-- **Auth & profile:** register, login/logout, and profile name editing. Single system currency (no currency picker) and local light/dark/system theme.
+- **Auth & profile:** register, login/logout, and profile name editing. Multi-currency accounts with API-provided quotes, a primary currency, and a dashboard reading-currency selector. Local light/dark/system theme.
 - **Dashboard:** net-worth, income, expenses and savings KPIs; daily/weekly or monthly net-worth evolution and income-vs-expenses charts; expenses by category; selectable period (`This month`, `Last 30 days`, `6 months`, `12 months`).
 - **Accounts:** cash, bank, wallet or other; current balance from initial balance + movements; direct deletion.
 - **Transactions:** income, expense, and atomic transfers; paginated list with search, filters (type, account, category, period), and CSV export.

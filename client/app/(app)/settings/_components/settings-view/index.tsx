@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { MobileSettings } from "./components/mobile-settings";
 import { PreferencesCard } from "./components/preferences-card";
 import { ProfileCard } from "./components/profile-card";
+import { CurrenciesCard } from "./components/currencies-card";
 import { SideSettings } from "./components/side-settings";
 import { useSettingsForm } from "./hooks/use-settings-form";
 
@@ -61,6 +62,7 @@ export const SettingsView = () => {
           <div className="flex flex-col gap-[18px]">
             <ProfileCard user={user} />
             <PreferencesCard />
+            <CurrenciesCard />
           </div>
           <SideSettings />
         </div>

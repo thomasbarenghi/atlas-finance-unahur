@@ -6,6 +6,10 @@ const build = () => {
     getDashboard: jest.fn().mockResolvedValue({
       period: { from: "2026-03-01", to: "2026-03-31" },
       currency: "ARS",
+      primaryCurrency: "ARS",
+      breakdown: [
+        { currency: "ARS", balance: 4000, accounts: 1, converted: 4000 },
+      ],
       kpis: {
         income: 1000,
         expenses: 400,
@@ -20,11 +24,15 @@ const build = () => {
     }),
   };
   const accountsService = {
-    listAccounts: jest
-      .fn()
-      .mockResolvedValue([
-        { id: "a1", name: "Banco", type: "bank", currentBalance: 4000 },
-      ]),
+    listAccounts: jest.fn().mockResolvedValue([
+      {
+        id: "a1",
+        name: "Banco",
+        type: "bank",
+        currency: "ARS",
+        currentBalance: 4000,
+      },
+    ]),
   };
 
   const service = new AssistantContextService(
@@ -43,8 +51,14 @@ describe("AssistantContextService", () => {
 
     expect(context.period).toEqual({ from: "2026-03-01", to: "2026-03-31" });
     expect(context.currency).toBe("ARS");
-    expect(context.sources).toEqual(["transactions", "accounts", "categories"]);
-    expect(context.summary).toContain("Ingresos del período: 1000");
+    expect(context.sources).toEqual([
+      "transactions",
+      "accounts",
+      "categories",
+      "currencies",
+    ]);
+    expect(context.summary).toContain("Ingresos del período (ARS): 1000");
+    expect(context.summary).toContain("Patrimonio neto en ARS");
     expect(context.summary).toContain("Comida");
     expect(context.summary).toContain("Banco");
   });
@@ -54,6 +68,8 @@ describe("AssistantContextService", () => {
     dashboardOrchestrator.getDashboard.mockResolvedValue({
       period: { from: "2026-03-01", to: "2026-03-31" },
       currency: "ARS",
+      primaryCurrency: "ARS",
+      breakdown: [],
       kpis: { income: 0, expenses: 0, savings: 0, netWorth: 0 },
       expensesByCategory: [],
       incomeExpenseByMonth: [],

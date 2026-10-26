@@ -1,6 +1,7 @@
 /**
- * v0.3: the system has a single currency (`DEFAULT_CURRENCY`, `ARS`). It is
- * informational in API responses — there is no per-user or per-view selector.
+ * Default/fallback currency. v0.4 is multi-currency: amounts carry their own
+ * currency and the user's primary currency lives in the session. `CURRENCY` is
+ * only a fallback for legacy helpers/tests.
  */
 export const CURRENCY = "ARS";
 

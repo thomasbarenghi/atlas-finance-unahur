@@ -28,9 +28,9 @@
 
 ## 1. Visión general y stack
 
-Backend monolítico que sirve una API REST para Atlass Fin. Organiza y explica la información cargada por el usuario; **no** se conecta a bancos, no ejecuta pagos ni inversiones y no brinda asesoramiento financiero. La única integración externa es el proveedor de IA, y se realiza exclusivamente desde el backend.
+Backend monolítico que sirve una API REST para Atlass Fin. Organiza y explica la información cargada por el usuario; **no** se conecta a bancos, no ejecuta pagos ni inversiones y no brinda asesoramiento financiero. Las integraciones externas son el proveedor de IA y la API pública de cotizaciones, y se realizan exclusivamente desde el backend.
 
-La aplicación opera con **una única moneda del sistema** (`DEFAULT_CURRENCY`, por defecto `ARS`): no hay multimoneda, ni conversión de divisas, ni cotizaciones de mercado. Existen cinco categorías globales definidas por el sistema (solo lectura) y cada usuario puede crear, editar y eliminar las suyas.
+La aplicación opera con **multimoneda**: cada cuenta declara su moneda, el usuario elige una **moneda principal** para el patrimonio y las cotizaciones son globales y las provee la API (no las crea ni edita el usuario). El dashboard tiene un **selector de moneda de lectura** en el header (antes del período) que re-expresa todos los valores; por defecto usa la moneda principal. Cada flujo se convierte a la moneda de lectura con la cotización de la API antes de agregarse; el patrimonio se informa en la misma moneda con desglose por moneda. La cotización de una transferencia multimoneda se puede sobrescribir en la operación, pero **no se persiste**. Existen cinco categorías globales definidas por el sistema (solo lectura) y cada usuario puede crear, editar y eliminar las suyas.
 
 | Área          | Tecnología                                                        | Notas                                                                                               |
 | :------------ | :---------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------- |
@@ -58,7 +58,7 @@ La aplicación opera con **una única moneda del sistema** (`DEFAULT_CURRENCY`, 
 | Auth                | JWT (access token) + sesión persistida                                                             | Permite invalidar sesión al cerrar (FR-AUT-002). Transporte por cookie o Bearer según el cliente. |
 | Transporte de token | Cookie `HttpOnly; Secure; SameSite` (web) + `Authorization: Bearer` (clientes que no usan cookies) | Mitiga XSS y admite clientes que no persisten cookies; consistente con NFR-SEG-004.               |
 | IDs                 | `uuid` (gen_random_uuid)                                                                           | Identificadores no predecibles (NFR-SEG-005).                                                     |
-| Moneda              | Única moneda del sistema (`DEFAULT_CURRENCY`, default `ARS`)                                       | Sin multimoneda ni conversión; se expone como dato **informativo** en las respuestas con dinero.  |
+| Moneda              | Multimoneda: moneda por cuenta + moneda principal del usuario + cotizaciones globales de la API | El dashboard re-expresa todos los valores en la moneda de lectura (default: principal); CAL-001/002. |
 | Streaming IA        | SSE                                                                                                | UI reactiva y cancelable (NFR-PR-004).                                                            |
 
 ---
@@ -136,6 +136,12 @@ api/
 │   │   ├── dto/{ create-account, update-account, account-response }.dto.ts
 │   │   └── entities/account.entity.ts
 │   ├── categories/                  # categorías del sistema + propias (CRUD)
+│   ├── currencies/                  # catálogo global + cotizaciones de la API
+│   │   ├── currencies.module.ts / currencies.controller.ts / currencies.service.ts
+│   │   ├── currency-catalog.ts
+│   │   ├── exchange-rates.provider.ts
+│   │   ├── dto/currency-response.dto.ts
+│   │   └── entities/currency-rate.entity.ts
 │   ├── transactions/               # orquestador por transferencias
 │   │   ├── transactions.module.ts / transactions.controller.ts
 │   │   ├── transactions.service.ts / transactions.orchestrator.ts
@@ -195,9 +201,10 @@ Tablas derivadas de las entidades principales del FRD v0.3 (§3.2) más las nece
 | name                    | text        |                           |
 | email                   | text UNIQUE | lowercase                 |
 | password_hash           | text        | argon2                    |
+| primary_currency        | text        | moneda principal, default `ARS` |
 | created_at / updated_at | timestamptz |                           |
 
-> No hay preferencias de moneda, tema ni IA en el usuario: la moneda es una constante del sistema y el asistente es de solo consulta (siempre disponible con sesión válida).
+> El usuario elige su **moneda principal** (`primary_currency`). Las cotizaciones son globales y las provee la API; el usuario no las crea ni las edita. El asistente es de solo consulta (siempre disponible con sesión válida).
 
 ### 5.2 `sessions`
 
@@ -218,11 +225,12 @@ Tablas derivadas de las entidades principales del FRD v0.3 (§3.2) más las nece
 | user_id                 | uuid FK       |                                         |
 | name                    | text          |                                         |
 | type                    | text          | 'cash' \| 'bank' \| 'wallet' \| 'other' |
+| currency                | text          | ISO 4217 de la cuenta (RN-015)          |
 | initial_balance         | numeric(18,4) |                                         |
 | notes                   | text NULL     |                                         |
 | created_at / updated_at | timestamptz   |                                         |
 
-> Saldo actual = `initial_balance` + Σ(movimientos) (calculado, FR-CUE-004). La **eliminación** de una cuenta elimina en cascada sus movimientos asociados (FR-CUE-005); no hay archivado ni restauración. Sin campo `currency` (moneda única del sistema) ni tipo `card`.
+> Saldo actual = `initial_balance` + Σ(movimientos) (calculado, FR-CUE-004), siempre en la moneda de la cuenta. La **eliminación** de una cuenta elimina en cascada sus movimientos asociados (FR-CUE-005); no hay archivado ni restauración. La moneda **no se puede cambiar** si la cuenta ya tiene movimientos (RN-015). No hay tipo `card`.
 
 ### 5.4 `categories` — del sistema y propias (FR-CAT-001..003)
 
@@ -254,7 +262,19 @@ Tablas derivadas de las entidades principales del FRD v0.3 (§3.2) más las nece
 | transfer_group_id       | uuid NULL                 | agrupa las dos patas de una transferencia (FR-TRX-005)                                                                         |
 | created_at / updated_at | timestamptz               |                                                                                                                                |
 
-> Las transferencias se persisten como **dos filas** (`type='transfer'`, montos con signo opuesto en cuentas distintas) en una transacción de base de datos con el mismo `transfer_group_id` (atomicidad, FR-TRX-005). Se excluyen de ingresos/gastos consolidados (CAL-003). Sin campo `currency` ni filtros/búsqueda.
+> Las transferencias se persisten como **dos filas** (`type='transfer'`) en una transacción de base de datos con el mismo `transfer_group_id` (atomicidad, FR-TRX-005). En una transferencia multimoneda cada pata lleva el monto en la moneda de su cuenta (monto origen y monto destino); la cotización usada en la UI **no se persiste** (RN-017). Se excluyen de ingresos/gastos consolidados (CAL-003). Sin campo `currency` en el movimiento: el monto vive en la moneda de la cuenta. Las transferencias se pueden filtrar en la UI; la API mantiene paginación.
+
+### 5.6 `currency_rates` — cotizaciones globales
+
+| Columna                 | Tipo          | Notas                                                        |
+| :---------------------- | :------------ | :----------------------------------------------------------- |
+| currency                | text PK       | ISO 4217                                                     |
+| rate                    | numeric(18,6) | ARS por una unidad de la moneda (base interna)               |
+| rate_date               | date          | fecha de la cotización provista por la API                   |
+| source                  | text          | `api` (proveedor público)                                    |
+| updated_at              | timestamptz   |                                                              |
+
+> Tabla **global**, no por usuario. El usuario no crea ni edita cotizaciones; el backend las refresca desde el proveedor público y guarda la última cotización válida. La UI usa estas cotizaciones para re-expresar el dashboard en la moneda de lectura y para el desglose por moneda.
 
 ---
 
@@ -310,12 +330,13 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 
 | Método | Ruta        | FR                                                               |
 | :----- | :---------- | :--------------------------------------------------------------- |
-| PATCH  | `/users/me` | actualiza el perfil (`name`); sin preferencias de moneda/tema/IA |
+| PATCH  | `/users/me` | actualiza el perfil (`name`) y la moneda principal (`primaryCurrency`) |
 
 ```jsonc
 // PATCH /users/me — body
-{ "name": "Ana" }
-// 200 → User
+{ "name": "Ana", "primaryCurrency": "ARS" }
+// 200 → User (incluye primaryCurrency)
+```
 ```
 
 ### 7.3 Accounts
@@ -328,7 +349,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 | PATCH  | `/accounts/:id` | FR-CUE-003                                                  |
 | DELETE | `/accounts/:id` | FR-CUE-003; elimina en cascada sus movimientos (FR-CUE-005) |
 
-> **Eliminados:** `POST /accounts/:id/archive` y `/restore`, el campo `currency` y el tipo `card`.
+> **Eliminados:** `POST /accounts/:id/archive` y `/restore` y el tipo `card`. La cuenta expone `currency` (RN-015) y no permite cambiarla si ya tiene movimientos.
 
 ### 7.4 Categories
 
@@ -351,13 +372,13 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 | PATCH  | `/transactions/:id`           | FR-TRX-003                                            |
 | DELETE | `/transactions/:id`           | FR-TRX-003                                            |
 
-> **Eliminados:** filtros/búsqueda (`from`, `to`, `type`, `accountId`, `categoryId`, `search`) y el campo `currency`.
+> **Filtros de la UI:** la búsqueda, el tipo, la cuenta, la categoría, la moneda y el período se aplican en el cliente sobre la página cargada. La API mantiene paginación (`page`, `pageSize`). En transferencias multimoneda el request incluye `transferAmount` (monto que llega a destino); la cotización no se envía ni se persiste.
 
 ### 7.6 Dashboard
 
 | Método | Ruta                 | FR                                                                      |
 | :----- | :------------------- | :---------------------------------------------------------------------- |
-| GET    | `/dashboard?from&to` | agrega en una sola llamada: KPIs y series del período (FR-DAS-001..004) |
+| GET    | `/dashboard?from&to&currency` | agrega KPIs y series del período; `currency` es la moneda de visualización (default: principal) |
 
 ```ts
 // 200 → DashboardData
@@ -366,7 +387,12 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
     from: string;
     to: string;
   }
-  currency: string; // moneda única del sistema (informativa)
+  currency: string; // moneda de visualización (default: principal)
+  primaryCurrency: string; // moneda principal elegida por el usuario
+  rateDate: string | null;
+  availableCurrencies: string[];
+  breakdown: { currency: string; balance: number; accounts: number; converted: number }[];
+  rates: { currency: string; rate: number; rateDate: string }[];
   kpis: {
     netWorth: number;
     netWorthDeltaPct: number | null;
@@ -407,11 +433,13 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 }
 ```
 
-- **Período (FR-DAS-007):** `from`/`to` son seleccionables (default: últimos 180 días). No hay selector de moneda: se usa la moneda única del sistema.
-- **Patrimonio neto (CAL-001, §8):** Σ saldos de las cuentas del usuario. La serie histórica evalúa esa suma por día si el rango tiene ≤ 31 días (mes en curso o últimos 30 días) y al cierre de cada mes en el resto de los rangos.
+- **Período (FR-DAS-007):** `from`/`to` son seleccionables (default: últimos 180 días). El header de Inicio tiene el **selector de moneda de lectura** antes del período (CH-77), con las monedas en uso y **“Otra moneda”** para el catálogo completo; por defecto usa la moneda principal y `currency` permite re-expresar todo el dashboard en otra unidad.
+- **Patrimonio neto (CAL-001, §8):** Σ (saldo × cotización) de las cuentas, en la moneda de lectura. La serie histórica evalúa esa suma por día si el rango tiene ≤ 31 días (mes en curso o últimos 30 días) y al cierre de cada mes en el resto de los rangos. `breakdown` expone cada moneda nativa y su equivalente en la moneda de lectura; `rates` expone la cotización usada y su fecha.
+- **Flujos (CAL-002):** cada ingreso/gasto se convierte desde la moneda de su cuenta a la moneda de lectura con la cotización de la API y luego se suma. Las transferencias se excluyen (CAL-003). El header de Inicio tiene el selector de moneda de lectura antes del período (CH-77); Categorías tiene el mismo selector de visualización.
+- **Moneda de lectura:** la UI de Inicio usa la moneda principal por defecto y el selector del header permite ver todos los valores en otra unidad sin alterar datos (RN-019). El desglose por moneda del hero solo aparece cuando hay cuentas en más de una moneda.
 - **Granularidad (FR-DAS-003/007):** para rangos de ≤ 31 días, `incomeExpenseByPeriod` devuelve tramos semanales (`bucket: "week"`); para rangos mayores, tramos mensuales (`bucket: "month"`). `incomeExpenseByMonth` se conserva para el contexto del asistente.
-- **Tasa de ahorro (CAL-010, §8):** `kpis.savingsRateDeltaPp` expresa en **puntos porcentuales** la variación de la tasa de ahorro contra el período anterior.
-- **Eliminados:** query `currency`, `kpis.assets/debts/accounts/investmentsDeltaPct`, `assetsValueByMonth`, `categoryChanges`, `assetsComposition`, `netWorthComposition`, `cashflow`, `investments`, `budgetAlerts`.
+- **Tasa de ahorro (CAL-010, §8):** `kpis.savingsRateDeltaPp` expresa en **puntos porcentuales** la variación de la tasa de ahorro contra el período anterior, calculada sobre los flujos convertidos.
+- **Eliminados:** `kpis.assets/debts/accounts/investmentsDeltaPct`, `assetsValueByMonth`, `categoryChanges`, `assetsComposition`, `netWorthComposition`, `cashflow`, `investments`, `budgetAlerts`.
 
 ### 7.7 Assistant — solo consulta (FR-IA-002/011/015)
 
@@ -424,12 +452,34 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 - El estado del asistente no es una preferencia del usuario: con sesión válida siempre está disponible.
 - **Eliminados:** `GET/DELETE /assistant/conversations*`, `POST /assistant/actions/:id/confirm|cancel`, los eventos `action_proposal`/`action_error`, las preferencias `aiEnabled`/`assistantDestructiveEnabled` y la confirmación de escrituras.
 
+### 7.8 Currencies — catálogo y cotizaciones
+
+| Método | Ruta               | FR/RN                                              |
+| :----- | :----------------- | :------------------------------------------------- |
+| GET    | `/currencies`      | catálogo global de 54 monedas ISO 4217             |
+| GET    | `/currencies/rates` | moneda principal + cotizaciones de las monedas usadas por las cuentas |
+
+```jsonc
+// GET /currencies → [{ code, name, symbol, decimals }]
+// GET /currencies/rates
+{
+  "primaryCurrency": "ARS",
+  "rates": [
+    { "currency": "USD", "name": "Dólar estadounidense", "symbol": "US$",
+      "rate": 1521.625293, "rateDate": "2026-10-26", "source": "api" }
+  ],
+  "updatedAt": "2026-10-26T13:06:19.000Z"
+}
+```
+
+> Endpoints de **solo lectura**. El usuario no crea monedas ni edita cotizaciones (RN-016); el backend refresca las cotizaciones globales desde la API y conserva la última válida. `rate` está expresada en la moneda principal.
+
 ### 7.9 Convenciones de contrato
 
 - **Casing:** la base de datos usa `snake_case`; la **API JSON usa `camelCase`**. Las entidades TypeORM no se exponen: se serializan con DTOs/mappers (`initial_balance` → `initialBalance`).
 - **IDs:** `uuid` v4.
 - **Fechas:** los campos `date` viajan como `"YYYY-MM-DD"`; los `timestamptz` como ISO 8601 UTC (`"2026-09-11T14:30:00.000Z"`).
-- **Decimales:** `numeric` se serializa como **number** (no string). Máx. 4 decimales para montos. Implementar un `transformer` de TypeORM (`parseFloat` al leer) o mappers de salida.
+- **Decimales:** `numeric` se serializa como **number** (no string). Máx. 4 decimales para montos y 6 para cotizaciones. Implementar un `transformer` de TypeORM (`parseFloat` al leer) o mappers de salida.
 - **Paginación:** query `page` (default 1) y `pageSize` (default 20, máx. 100). Respuesta: `{ items, page, pageSize, total, totalPages }`. Solo `/transactions` es paginado; `/accounts` y `/categories` devuelven un **array** completo.
 - **Errores:** `{ statusCode, code, message, fieldErrors? }`; `fieldErrors` es `{ [campo]: string[] }` para validación (para mapeo a formularios). El filtro global nunca expone detalles internos.
 - **Auth:** cookie `HttpOnly` o `Authorization: Bearer`. Los endpoints `@Public()` son: `/auth/register`, `/auth/login`, `/auth/refresh`, `/assistant/messages` (§7.12) y `/health`.
@@ -444,9 +494,9 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 | `CategoryType`       | `income` \| `expense`                   |
 | `UserApprovalStatus` | `pending` \| `approved` \| `rejected`   |
 
-- **Moneda:** única, definida por env `DEFAULT_CURRENCY` (default `ARS`). Se expone como dato informativo en las respuestas con dinero; no existe `GET /currencies` ni validación de moneda por entidad.
+- **Moneda:** catálogo global de 54 códigos ISO 4217 (`GET /currencies`). Cada cuenta declara su moneda; el usuario elige `primaryCurrency`. Las cotizaciones son globales (`GET /currencies/rates`) y las refresca el backend desde la API; el cliente no las crea ni edita.
 - **Categorías** (semilla): income (`Sueldo`, `Freelance`), expense (`Supermercado`, `Transporte`, `Servicios`). Son globales y de solo lectura; cada usuario puede crear las suyas (ver §7.4).
-- **Eliminados:** `AssetType`, `DebtType`, `BudgetStatus`, `GoalStatus`, `Theme`, `ValuationSource`, el catálogo de mercado y el catálogo de monedas soportadas.
+- **Eliminados:** `AssetType`, `DebtType`, `BudgetStatus`, `GoalStatus`, `Theme`, `ValuationSource` y el catálogo de mercado.
 
 ### 7.11 Esquemas de request/response por módulo
 
@@ -466,16 +516,16 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 // 200 → { "accessToken": "...", "refreshToken": "..." }  (rotación)
 
 // User
-{ "id": "uuid", "name": "Ana", "email": "ana@example.com", "createdAt": "ISO" }
+{ "id": "uuid", "name": "Ana", "email": "ana@example.com", "primaryCurrency": "ARS", "createdAt": "ISO" }
 ```
 
 **Accounts**
 
 ```jsonc
 // POST /accounts — body
-{ "name": "Caja", "type": "cash", "initialBalance": 50000, "notes": null }
+{ "name": "Caja", "type": "cash", "currency": "ARS", "initialBalance": 50000, "notes": null }
 // Account
-{ "id": "uuid", "name": "Caja", "type": "cash",
+{ "id": "uuid", "name": "Caja", "type": "cash", "currency": "ARS",
   "initialBalance": 50000, "currentBalance": 73500, "notes": null,
   "createdAt": "ISO", "updatedAt": "ISO" }
 ```
@@ -502,8 +552,9 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
   "description": "Supermercado", "notes": null, "accountId": "uuid", "categoryId": "uuid" }
 
 // POST /transactions — transfer (un solo request, dos filas atómicas)
-{ "type": "transfer", "amount": 30000, "date": "2026-09-10",
-  "description": "Ahorro", "accountId": "uuid-origen", "transferAccountId": "uuid-destino" }
+{ "type": "transfer", "amount": 100000, "transferAmount": 65.72,
+  "date": "2026-10-15", "description": "Compra de dólares",
+  "accountId": "uuid-origen-ARS", "transferAccountId": "uuid-destino-USD" }
 
 // Transaction
 { "id": "uuid", "type": "expense", "amount": 12000, "date": "2026-09-10",
@@ -512,7 +563,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
   "transferGroupId": null, "createdAt": "ISO", "updatedAt": "ISO" }
 ```
 
-- `amount` es positivo en `income`/`expense` (el signo lo determina `type`, CAL-002/003). En transferencias, cada pata se persiste con signo opuesto: negativa en la cuenta origen y positiva en la destino.
+- `amount` es positivo en `income`/`expense` (el signo lo determina `type`, CAL-002/003). En transferencias, cada pata se persiste con signo opuesto: negativa en la cuenta origen y positiva en la destino; en multimoneda `transferAmount` es el monto que llega a destino y la cotización no se persiste.
 - `transferGroupId` no nulo agrupa las dos patas de una transferencia.
 - `DELETE /transactions/:id` de una transferencia elimina **ambas patas** del grupo.
 - `PATCH /transactions/:id` de una transferencia edita **ambas patas** atómicamente (si cambian `accountId`/`transferAccountId`, se reasignan).
@@ -529,7 +580,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 { "question": "¿Y lo del auto?", "period": { "from": "2026-09-01", "to": "2026-09-30" }, "history": [{ "role": "user", "content": "¿Es inteligente comprar un auto por 2.750.000?" }, { "role": "assistant", "content": "Equivale a casi todo tu patrimonio." }] }
 
 // Eventos SSE (cada uno: `event: <nombre>\ndata: <json>\n\n`)
-event: meta    data: { "period": {...}, "currency": "ARS", "sources": ["transactions", "accounts", "categories"], "disclaimer": "Respuesta informativa calculada a partir de tus datos; no constituye asesoramiento financiero." }
+event: meta    data: { "period": {...}, "currency": "ARS", "sources": ["transactions", "accounts", "categories", "currencies"], "disclaimer": "Respuesta informativa calculada a partir de tus datos; no constituye asesoramiento financiero." }
 event: token   data: { "delta": "Este mes " }
 event: token   data: { "delta": "gastaste más en..." }
 event: done    data: { "insufficient": false }
@@ -564,7 +615,7 @@ event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 | :----- | :-------- | :--------------------------------------------- |
 | GET    | `/health` | `{ "status": "ok", "db": "up" }` — `@Public()` |
 
-> **Eliminado:** `GET /currencies`.
+> `GET /currencies` y `GET /currencies/rates` son de solo lectura: catálogo global y cotizaciones de las monedas usadas por las cuentas. No existen endpoints para crear monedas ni para editar cotizaciones.
 
 ### 7.15 Referencia de la API
 
@@ -578,10 +629,10 @@ Centralizadas en `calculations.service.ts` para garantizar consistencia entre da
 
 | Regla                   | Implementación                                                                                                                                                                                                                                                                   |
 | :---------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CAL-001 Patrimonio neto | Σ saldos netos de las cuentas del usuario (RN-002). Implementado en `calculations.service.calculateNetWorth(accounts, transactions)` y reutilizado por `dashboard.orchestrator` para los KPIs y las series; `assistant-context.service` lo consume vía el dashboard.             |
-| CAL-002 Flujo de fondos | Σ ingresos − Σ gastos del período (excluye transferencias). Implementado en `calculations.service.calculatePeriodFlows`.                                                                                                                                                         |
-| CAL-003 Transferencias  | `type='transfer'` se excluye de ingresos/gastos consolidados (RN-003).                                                                                                                                                                                                           |
-| CAL-010 Tasa de ahorro  | ahorro del período / ingresos del período × 100; si los ingresos del período son 0, la tasa es 0. Su **variación** se expresa en **puntos porcentuales**: `kpis.savingsRateDeltaPp = (tasa actual − tasa del período anterior) × 100`. Implementado en `dashboard.orchestrator`. |
+| CAL-001 Patrimonio neto | Σ (saldo × cotización) de las cuentas del usuario, en la moneda de lectura. Implementado en `calculations.service.netWorthInCurrency` y reutilizado por `dashboard.orchestrator` para los KPIs y las series; `assistant-context.service` lo consume vía el dashboard. |
+| CAL-002 Flujo de fondos | Σ ingresos − Σ gastos del período (excluye transferencias); cada flujo se convierte a la moneda de lectura con la cotización global. Implementado en `calculations.service.calculatePeriodFlows`. |
+| CAL-003 Transferencias  | `type='transfer'` se excluye de ingresos/gastos consolidados (RN-003); en multimoneda cada pata guarda su monto y la cotización usada no se persiste. |
+| CAL-010 Tasa de ahorro  | ahorro del período / ingresos del período × 100, calculado sobre los flujos convertidos a la moneda de lectura; si los ingresos del período son 0, la tasa es 0. Su **variación** se expresa en **puntos porcentuales**: `kpis.savingsRateDeltaPp = (tasa actual − tasa del período anterior) × 100`. Implementado en `dashboard.orchestrator`. |
 
 > **Eliminadas:** CAL-004 (consumo de presupuesto), CAL-005 (valor de posición), CAL-006 (ganancia nominal), CAL-007 (progreso de objetivo), CAL-008/CAL-009 (conversión y trazabilidad cambiaria).
 
@@ -611,7 +662,7 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 - `assistant/assistant.controller.ts`: `POST /assistant/messages` (SSE); ante falla emite `event: error`.
 - El cliente consume el stream real en `client/lib/api/assistant-stream.ts`.
 
-> **Eliminados:** proveedor de mercado (Binance/currency-api), servicio de correo (SMTP) y `@nestjs/schedule` para cotizaciones.
+> **Eliminados:** Binance, servicio de correo (SMTP) y `@nestjs/schedule`. La **currency-api de Fawaz Ahmed** (pública, sin API key) se usa en `ExchangeRatesProvider` para refrescar las cotizaciones globales; el backend conserva la última cotización válida si el proveedor falla.
 
 ---
 
@@ -673,9 +724,10 @@ Todos comparten la contraseña **`Demo1234!`**:
 
 Datos **reproducibles** (sin información financiera real, NFR-CAL-005 / FRD §2.6). Para `demo@atlassfin.app`:
 
-- **5 categorías fijas del sistema**: income (`Sueldo`, `Freelance`), expense (`Supermercado`, `Transporte`, `Servicios`). Las categorías propias no se siembran: se crean desde la app.
-- **3 cuentas**: `cash` (Caja), `bank` (Banco) y `wallet` (Billetera virtual).
-- **3 meses de movimientos**: sueldos, gastos por categoría, transferencias atómicas (dos patas con `transfer_group_id`), un ingreso sin categoría y un ingreso freelance.
+- **5 categorías fijas del sistema**: income (`Sueldo`, `Freelance`), expense (`Supermercado`, `Transporte`, `Servicios`). Además crea la categoría propia `Otros` para el usuario demo.
+- **4 cuentas**: `cash` (Caja, ARS), `bank` (Banco, ARS), `wallet` (Billetera virtual, ARS) y `wallet` (Billetera USD, USD).
+- **3 meses de movimientos** en ARS y USD: sueldos, gastos por categoría, transferencias atómicas (dos patas con `transfer_group_id`), un ingreso sin categoría, un ingreso freelance y una transferencia multimoneda con los dos montos.
+- **Cotizaciones globales** (`currency_rates`) obtenidas de la API pública al correr el seed; si el proveedor falla, la API las reintenta al primer request y conserva la última cotización válida.
 
 Para `ana@atlassfin.app` genera un dataset reducido (una cuenta bancaria y un ingreso) para probar aislamiento y propiedades.
 
@@ -724,7 +776,7 @@ AI_MODEL=deepseek-chat         # deepseek-chat | deepseek-reasoner (u otro)
 AI_TIMEOUT_MS=30000
 AI_DEV_USER_EMAIL=demo@atlassfin.app   # solo dev: usuario del stream sin JWT
 
-# Moneda única del sistema
+# Moneda principal por defecto (las cuentas declaran su propia moneda)
 DEFAULT_CURRENCY=ARS
 
 # Tests de integración (e2e)

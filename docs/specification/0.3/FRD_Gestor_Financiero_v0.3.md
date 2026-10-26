@@ -27,7 +27,7 @@
 | 0.1 | 04/09/2026 | Barenghi, Thomas | Versión inicial. Especificación funcional del Gestor Financiero Personal. |
 | 0.2 | 02/10/2026 | Barenghi, Thomas | Se agregan 5 requerimientos funcionales, 1 no funcional y 1 regla de cálculo; se modifican FR-DAS-007, FR-IA-009 y CAL-001, y se actualiza la regla de negocio RN-002 (patrimonio neto). |
 | 0.3 | 16/10/2026 | Barenghi, Thomas | Se ajusta el alcance de la versión y se consolida la documentación en torno a los flujos principales: acceso, cuentas, movimientos, panel y asistente de consulta. Se actualizan los requerimientos, las reglas de negocio y de cálculo, las entidades, las pantallas y los datos de demostración, y se amplían las User Stories para cubrir todos los módulos vigentes. El asistente queda definido como de solo consulta. |
-| 0.3.1 | 26/10/2026 | Barenghi, Thomas | Se alinea el documento con la implementación vigente: búsqueda, filtros y exportación CSV de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria y semanal del panel; y continuidad de la conversación del asistente en memoria del cliente. |
+| 0.3.1 | 26/10/2026 | Barenghi, Thomas | Se alinea el documento con la implementación vigente: búsqueda, filtros y exportación CSV de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria y semanal del panel; continuidad de la conversación del asistente en memoria del cliente; y multimoneda (moneda por cuenta, moneda principal, cotizaciones automáticas de la API, transferencias multimoneda y selector de moneda de lectura). |
 
 ## 2. Alcance
 
@@ -58,6 +58,7 @@ La preferencia de tema (claro, oscuro o automático) es local al navegador y no 
 | Servicio | Datos intercambiados | Comportamiento ante falla |
 |---|---|---|
 | Proveedor de IA | Pregunta y contexto financiero mínimo ya calculado. | Informar indisponibilidad; no perder ni modificar datos financieros. |
+| Proveedor de cotizaciones (currency-api) | Tasas de cambio globales para las monedas del catálogo. | Mantener la última cotización válida y reintentar; no bloquear la carga de datos financieros. |
 | Base de datos relacional | Cuentas, movimientos y categorías del usuario. | Reintentar la operación e informar el error; no confirmar la acción como exitosa. |
 | Plataforma de despliegue | Aplicación, configuración y secretos del entorno. | Conservar la versión anterior disponible si el despliegue falla. |
 
@@ -65,7 +66,7 @@ La preferencia de tema (claro, oscuro o automático) es local al navegador y no 
 
 El alcance de la versión inicial incluye registro, inicio y cierre de sesión con perfil; alta, edición y eliminación de cuentas manuales; ingresos, gastos y transferencias con categorías; dashboard con indicadores y gráficos; y un asistente de inteligencia artificial opcional de solo consulta.
 
-La aplicación opera con una única moneda, cinco categorías fijas del sistema y categorías propias que cada usuario puede crear, editar y eliminar.
+La aplicación opera con **multimoneda** (cada cuenta declara su moneda y el dashboard permite leer los valores en la moneda principal o en otra moneda en uso, con cotizaciones provistas por la API), cinco categorías fijas del sistema y categorías propias que cada usuario puede crear, editar y eliminar.
 
 La versión incorpora búsqueda, filtros y exportación CSV de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria o semanal del panel según la duración del rango; y continuidad de la conversación del asistente en memoria del cliente.
 
@@ -82,6 +83,7 @@ Quedan fuera de alcance la sincronización automática con bancos o billeteras, 
 | Visitante | Persona sin sesión iniciada. | Registrarse e iniciar sesión. |
 | Usuario registrado | Propietario de sus datos financieros. | Gestionar cuentas y movimientos y usar el asistente si lo desea. |
 | Proveedor de IA | Servicio externo de lenguaje natural. | Generar una respuesta sobre contexto mínimo autorizado. |
+| Proveedor de cotizaciones | API pública de tipos de cambio. | Proveer las cotizaciones globales usadas por el dashboard. |
 
 **Prioridades**
 
@@ -96,7 +98,8 @@ Quedan fuera de alcance la sincronización automática con bancos o billeteras, 
 | Elemento | Detalle |
 |---|---|
 | Usuario | Un usuario ficticio sin datos personales reales. |
-| Cuentas | Tres cuentas. |
+| Cuentas | Cuatro cuentas: tres en ARS y una en USD. |
+| Monedas | ARS como moneda principal y USD; cotizaciones globales provistas por la API. |
 | Movimientos | Tres meses de ingresos, gastos y transferencias. |
 | Categorías | Cinco categorías fijas del sistema; las propias se crean desde la app y no se siembran. |
 | Consultas de IA | Consultas preparadas para comparar gastos y evolución patrimonial. |
@@ -108,9 +111,16 @@ Quedan fuera de alcance la sincronización automática con bancos o billeteras, 
 | Regla | Descripción |
 |---|---|
 | RN-001 | Todo registro financiero tendrá un propietario único y solo será accesible dentro de su sesión autorizada. |
-| RN-002 | Patrimonio neto = suma de los saldos netos de las cuentas del usuario. |
+| RN-002 | Patrimonio neto = Σ (saldo × cotización) de las cuentas del usuario, expresado en la moneda de lectura. |
 | RN-003 | Una transferencia no se contabiliza como ingreso ni como gasto. |
 | RN-004 | Toda transferencia válida descuenta en la cuenta de origen y acredita en la cuenta de destino dentro de una única operación. |
+| RN-014 | Hay una moneda principal. El patrimonio se informa en la moneda de lectura (default: principal); los flujos se convierten a esa moneda con la cotización de la API. |
+| RN-015 | Cada cuenta tiene una moneda fija; no se puede cambiar si ya tiene movimientos. |
+| RN-016 | Las cotizaciones son globales y las provee la API; el usuario no las crea ni las edita. |
+| RN-017 | Una transferencia entre monedas distintas registra los dos montos. La cotización es opcional y se puede sobrescribir en la operación; no se persiste. |
+| RN-018 | Los indicadores del período incluyen todas las monedas, convirtiendo cada flujo a la moneda de lectura; el patrimonio se informa con desglose por moneda. |
+| RN-019 | La moneda de lectura es una vista, no un dato: cambiarla no altera ningún registro. |
+| RN-020 | El total convertido nunca aparece solo: siempre con su desglose por moneda cuando hay más de una moneda en uso. |
 | RN-012 | La inteligencia artificial será de solo consulta: podrá leer la información del propio usuario con los permisos de su sesión, pero nunca crearla, editarla ni eliminarla. |
 | RN-013 | Los totales entregados al asistente serán calculados previamente por el sistema para el período consultado; el historial de conversación solo aporta continuidad y la respuesta incluirá período y aclaración informativa. |
 | RN-015 | Las cinco categorías del sistema son globales y de solo lectura. Cada categoría propia pertenece a un único usuario y solo él puede crearla, editarla o eliminarla. |
@@ -128,8 +138,9 @@ Quedan fuera de alcance la sincronización automática con bancos o billeteras, 
 | Entidad | Atributos mínimos | Relaciones clave |
 |---|---|---|
 | Usuario | id, nombre, email | Propietario de todas las entidades financieras. |
-| Cuenta | id, tipo, nombre, saldo inicial | Tiene movimientos. |
-| Movimiento | id, tipo, monto, fecha, descripción | Pertenece a cuenta y categoría; transferencia vincula dos cuentas. |
+| Cuenta | id, tipo, nombre, moneda, saldo inicial | Tiene movimientos; la moneda es fija si ya tiene movimientos. |
+| Movimiento | id, tipo, monto, fecha, descripción | Pertenece a cuenta y categoría; transferencia vincula dos cuentas y guarda el monto de cada pata. |
+| Cotización | moneda, tasa, fecha, fuente | Global, provista por la API; no la edita el usuario. |
 | Categoría | id, nombre, tipo, color/icono, `user_id` opcional | Catálogo global (`user_id` nulo) o propia del usuario; clasifica movimientos. |
 
 > La preferencia de tema se guarda en el navegador y no es una entidad del dominio financiero.
@@ -141,11 +152,11 @@ Quedan fuera de alcance la sincronización automática con bancos o billeteras, 
 | Historia | Descripción | Criterios de aceptación |
 |---|---|---|
 | HU-001 — Registrar un movimiento | Como usuario registrado, quiero cargar un ingreso o gasto para mantener actualizados mis saldos. | • Los campos obligatorios se validan antes de guardar.<br>• El monto debe ser mayor que cero.<br>• El movimiento aparece en el listado y actualiza saldo y dashboard.<br>• La API verifica que cuenta y categoría pertenezcan al usuario autenticado. |
-| HU-002 — Transferir entre cuentas | Como usuario registrado, quiero mover dinero entre dos cuentas propias sin alterar mis ingresos o gastos. | • Origen y destino son diferentes y pertenecen al usuario.<br>• Se registran efectos opuestos por el mismo monto.<br>• La operación es atómica y no queda incompleta ante una falla.<br>• La transferencia se excluye del flujo de fondos consolidado. |
+| HU-002 — Transferir entre cuentas | Como usuario registrado, quiero mover dinero entre dos cuentas propias, incluso de monedas distintas, sin alterar mis ingresos o gastos. | • Origen y destino son diferentes y pertenecen al usuario.<br>• Se registran efectos opuestos; en multimoneda se guardan el monto origen y el monto destino.<br>• La cotización usada se puede sobrescribir y no se persiste.<br>• La operación es atómica y no queda incompleta ante una falla.<br>• La transferencia se excluye del flujo de fondos consolidado. |
 | HU-006 — Consultar al asistente | Como usuario registrado, quiero preguntar por mis gastos para entender mi comportamiento financiero. | • El asistente requiere sesión válida.<br>• Solo utiliza datos propios y el mínimo contexto necesario.<br>• La respuesta identifica período y categorías considerados.<br>• Los totales coinciden con el dashboard del mismo período.<br>• El asistente es de solo consulta: no crea, edita ni elimina datos, y declara insuficiencia si faltan datos.<br>• Puede recibir turnos recientes de la conversación como contexto, sin persistirlos en el servidor. |
 | HU-007 — Registrarme e iniciar sesión | Como visitante, quiero registrarme e iniciar sesión para acceder a mi información financiera. | • El registro valida los campos obligatorios y rechaza el correo duplicado.<br>• Al cerrar sesión, la sesión se invalida y las pantallas financieras redirigen al acceso. |
-| HU-008 — Gestionar mis cuentas | Como usuario registrado, quiero crear, editar y eliminar mis cuentas para reflejar dónde está mi dinero. | • Se registran nombre, tipo y saldo inicial.<br>• El saldo actual se calcula desde el saldo inicial y los movimientos.<br>• La eliminación elimina en cascada los movimientos asociados y solo alcanza cuentas propias. |
-| HU-009 — Ver el resumen del panel | Como usuario registrado, quiero ver mi patrimonio, ingresos, gastos y ahorro del período para entender mi situación de un vistazo. | • El panel muestra los cuatro indicadores del período seleccionado.<br>• Los totales coinciden con los movimientos registrados. |
+| HU-008 — Gestionar mis cuentas | Como usuario registrado, quiero crear, editar y eliminar mis cuentas para reflejar dónde está mi dinero. | • Se registran nombre, tipo, moneda y saldo inicial.<br>• El saldo actual se calcula desde el saldo inicial y los movimientos, en la moneda de la cuenta.<br>• La moneda no se cambia si la cuenta tiene movimientos.<br>• La eliminación elimina en cascada los movimientos asociados y solo alcanza cuentas propias. |
+| HU-009 — Ver el resumen del panel | Como usuario registrado, quiero ver mi patrimonio, ingresos, gastos y ahorro del período para entender mi situación de un vistazo. | • El panel muestra los cuatro indicadores del período seleccionado.<br>• Incluye todas las monedas convertidas a la moneda de lectura.<br>• Los totales coinciden con los movimientos registrados. |
 | HU-010 — Ver los gráficos del panel | Como usuario registrado, quiero ver la evolución del patrimonio, la comparación entre ingresos y gastos y la distribución de gastos por categoría. | • El panel muestra los tres gráficos.<br>• Los gráficos coinciden con los datos del período seleccionado.<br>• La evolución del patrimonio es diaria y las barras son semanales para rangos de hasta 31 días; en rangos mayores son mensuales. |
 | HU-011 — Corregir un movimiento | Como usuario registrado, quiero editar o eliminar un movimiento propio para arreglar errores de carga. | • Solo se editan o eliminan movimientos del usuario autenticado.<br>• Los saldos, el panel y los cálculos se actualizan en consecuencia. |
 | HU-012 — Elegir el período y ver estados vacíos | Como usuario registrado, quiero elegir el período de análisis y ver una guía cuando falten datos. | • El período (Este mes, Últimos 30 días, 6 meses, 12 meses) es compartido por panel, movimientos y asistente.<br>• El período seleccionado afecta a los indicadores y gráficos.<br>• Sin datos se muestra un estado vacío con una acción sugerida. |
@@ -171,11 +182,11 @@ Los identificadores de requerimiento son estables entre versiones y no se renume
 
 | ID | Prioridad | Requerimiento |
 |---|---|---|
-| FR-DAS-001 | P0 | Mostrar patrimonio neto, ingresos, gastos y ahorro del período seleccionado. |
+| FR-DAS-001 | P0 | Mostrar patrimonio neto, ingresos, gastos y ahorro del período seleccionado, incluyendo todas las monedas convertidas a la moneda de lectura. |
 | FR-DAS-002 | P0 | Mostrar la evolución temporal del patrimonio neto: diaria para rangos de hasta 31 días y al cierre de cada mes para rangos mayores. |
 | FR-DAS-003 | P0 | Comparar ingresos y gastos por tramo: semanal para rangos de hasta 31 días y mensual para rangos mayores. |
 | FR-DAS-004 | P0 | Distribuir los gastos por categoría. |
-| FR-DAS-007 | P1 | Permitir cambiar el período de análisis (Este mes, Últimos 30 días, 6 meses y 12 meses); el período es compartido por dashboard, movimientos y asistente. |
+| FR-DAS-007 | P1 | Permitir cambiar el período de análisis (Este mes, Últimos 30 días, 6 meses y 12 meses) y la moneda de lectura del dashboard; el período es compartido por dashboard, movimientos y asistente. |
 | FR-DAS-008 | P0 | Mostrar estados vacíos con una acción sugerida cuando falten datos. |
 
 **Cuentas**
@@ -183,7 +194,7 @@ Los identificadores de requerimiento son estables entre versiones y no se renume
 | ID | Prioridad | Requerimiento |
 |---|---|---|
 | FR-CUE-001 | P0 | Crear cuentas de efectivo, bancaria manual, billetera u otra. |
-| FR-CUE-002 | P0 | Registrar nombre, tipo, saldo inicial y observaciones opcionales. |
+| FR-CUE-002 | P0 | Registrar nombre, tipo, moneda, saldo inicial y observaciones opcionales. La moneda no se puede cambiar si la cuenta ya tiene movimientos. |
 | FR-CUE-003 | P0 | Editar y eliminar cuentas propias. |
 | FR-CUE-004 | P0 | Calcular el saldo actual a partir del saldo inicial y los movimientos asociados. |
 | FR-CUE-005 | P0 | La eliminación de una cuenta elimina en cascada sus movimientos asociados. |
@@ -193,7 +204,7 @@ Los identificadores de requerimiento son estables entre versiones y no se renume
 | ID | Prioridad | Requerimiento |
 |---|---|---|
 | FR-TRX-001 | P0 | Crear movimientos de tipo ingreso, gasto o transferencia. |
-| FR-TRX-002 | P0 | Registrar monto positivo, fecha, cuenta, categoría, descripción y notas opcionales. Las categorías del sistema son fijas; el usuario puede asignar sus propias categorías (FR-CAT-*). |
+| FR-TRX-002 | P0 | Registrar monto positivo, fecha, cuenta, categoría, descripción y notas opcionales. En transferencias entre monedas distintas se registran el monto origen y el monto destino; la cotización puede sobrescribirse y no se persiste. Las categorías del sistema son fijas; el usuario puede asignar sus propias categorías (FR-CAT-*). |
 | FR-TRX-003 | P0 | Editar o eliminar únicamente movimientos pertenecientes al usuario autenticado. |
 | FR-TRX-004 | P0 | En una transferencia, las cuentas de origen y destino deberán ser diferentes. La operación puede iniciarse desde el detalle de una cuenta con el origen precargado. |
 | FR-TRX-005 | P0 | Aplicar ambos lados de una transferencia de manera atómica; si uno falla, no se guarda ninguno. |
@@ -242,10 +253,10 @@ Para cada período seleccionado, el sistema aplica las siguientes reglas de cál
 
 | ID | Regla | Resultado esperado |
 |---|---|---|
-| CAL-001 | Patrimonio neto | Σ saldos netos de las cuentas. |
-| CAL-002 | Flujo de fondos | Σ ingresos − Σ gastos del período. |
+| CAL-001 | Patrimonio neto | Σ (saldo × cotización) de las cuentas, en la moneda de lectura. |
+| CAL-002 | Flujo de fondos | Σ ingresos − Σ gastos del período, convirtiendo cada flujo a la moneda de lectura. |
 | CAL-003 | Transferencias | Se excluyen de ingresos y gastos consolidados. |
-| CAL-010 | Tasa de ahorro | Ahorro del período / ingresos del período × 100. Su variación se expresa en puntos porcentuales. |
+| CAL-010 | Tasa de ahorro | Ahorro del período / ingresos del período × 100, sobre los flujos convertidos a la moneda de lectura. Su variación se expresa en puntos porcentuales. |
 
 **Requerimientos no funcionales**
 
@@ -271,11 +282,11 @@ Para cada período seleccionado, el sistema aplica las siguientes reglas de cál
 | ID | Pantalla | Contenido y componentes previstos |
 |---|---|---|
 | SC-001 | Acceso | Registro e inicio de sesión; Card, Form, Input, Button y Alert. |
-| SC-002 | Dashboard | Indicadores, gráficos, período compartido y accesos rápidos; Card, Chart y Skeleton. |
+| SC-002 | Dashboard | Indicadores, gráficos, selector de moneda de lectura en el header, período compartido y accesos rápidos; Card, Chart y Skeleton. |
 | SC-003 | Cuentas | Listado, saldo, transferencia desde el detalle y formularios; Data Table, Badge, Dialog y Dropdown Menu. |
 | SC-004 | Movimientos | Listado agrupado por mes, búsqueda, filtros y alta o edición; Data Table, Date Picker, Select, Form, Alert Dialog y exportación CSV. |
 | SC-009 | Asistente IA | Conversación con historial en memoria, período y alcance del asistente; Scroll Area, Textarea, Button y Alert. |
-| SC-010 | Configuración | Perfil, preferencia de tema, exportación y sesión; Form, Segmented Control y Alert Dialog. |
+| SC-010 | Configuración | Perfil, preferencia de tema, moneda principal (cuando hay más de una moneda), exportación y sesión; Form, Segmented Control y Alert Dialog. |
 | SC-011 | Categorías | Listado con uso del período, alta y edición; Tabs, Badge, Progress, Dialog y Alert Dialog. |
 
 ## 6. Glosario
@@ -290,7 +301,7 @@ Para cada período seleccionado, el sistema aplica las siguientes reglas de cál
 | Categoría del sistema | Categoría global definida por la aplicación y compartida por todos los usuarios; no se edita ni se elimina. |
 | Categoría propia | Categoría creada por un usuario, editable y eliminable solo por su propietario. |
 | Transferencia | Movimiento que descuenta una cuenta de origen y acredita una de destino sin alterar ingresos ni gastos. |
-| Patrimonio neto | Suma de los saldos netos de las cuentas del usuario. |
+| Patrimonio neto | Σ (saldo × cotización) de las cuentas del usuario, expresado en la moneda de lectura. |
 | Flujo de fondos | Resultado de ingresos menos gastos dentro de un período. |
 | Preferencias locales | Configuración de la interfaz (tema) guardada en el navegador del usuario. |
 | Historial de conversación | Turnos recientes que el cliente reenvía al asistente para interpretar preguntas de seguimiento; no se almacenan en el servidor. |

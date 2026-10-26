@@ -16,6 +16,7 @@ const toAccountResponse = (
   id: account.id,
   name: account.name,
   type: account.type,
+  currency: account.currency,
   initialBalance: account.initialBalance,
   currentBalance,
   notes: account.notes,
@@ -72,6 +73,7 @@ export class AccountsService {
       userId,
       name: dto.name.trim(),
       type: dto.type,
+      currency: dto.currency,
       initialBalance: dto.initialBalance ?? 0,
       notes: dto.notes?.trim() || null,
     });
@@ -88,6 +90,25 @@ export class AccountsService {
 
     if (dto.name !== undefined) account.name = dto.name.trim();
     if (dto.type !== undefined) account.type = dto.type;
+    if (dto.currency !== undefined && dto.currency !== account.currency) {
+      const hasMovements = await this.balances.hasTransactions(
+        account.id,
+        userId,
+      );
+      if (hasMovements) {
+        throw new ApiException(
+          ErrorCode.VALIDATION_ERROR,
+          HttpStatus.BAD_REQUEST,
+          "No podés cambiar la moneda de una cuenta con movimientos",
+          {
+            currency: [
+              "La moneda no se puede cambiar si la cuenta ya tiene movimientos",
+            ],
+          },
+        );
+      }
+      account.currency = dto.currency;
+    }
     if (dto.initialBalance !== undefined) {
       account.initialBalance = dto.initialBalance;
     }

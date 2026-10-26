@@ -71,6 +71,7 @@ export class AuthService {
         name: dto.name.trim(),
         email,
         passwordHash,
+        primaryCurrency: this.config.get("defaultCurrency", { infer: true }),
       }),
     );
 

@@ -4,7 +4,7 @@
 |---|---|
 | **Proyecto** | Gestor Financiero Personal |
 | **Documento** | Plan de Pruebas |
-| **Versión** | 1.1 |
+| **Versión** | 1.2 |
 | **Fecha** | Octubre 2026 |
 | **Sponsor Operación** | Secretaría Académica UNAHUR |
 | **Sponsor Organización** | UNAHUR |
@@ -20,6 +20,7 @@
 |---|---|---|---|
 | 1.0 | Octubre 2026 | Barenghi, Thomas | Versión inicial del plan de pruebas, alineada con el alcance reducido (BRD/FRD v0.3). |
 | 1.1 | Octubre 2026 | Barenghi, Thomas | Se agregan casos para búsqueda, filtros y exportación CSV; gestión y uso de categorías propias; granularidad diaria/semanal del panel; preferencia local de tema; y continuidad de la conversación del asistente. |
+| 1.2 | Octubre 2026 | Barenghi, Thomas | Se agregan casos de multimoneda: moneda por cuenta, moneda principal, selector de moneda de lectura, transferencias multimoneda, cotizaciones automáticas de la API y conversión de indicadores/categorías. |
 
 ---
 
@@ -32,12 +33,13 @@ El objetivo operativo es **obtener evidencia suficiente y reproducible para apro
 ## 2. Alcance del Testing
 
 - **Acceso:** registro, inicio y cierre de sesión.
-- **Cuentas** y saldos.
-- **Movimientos:** ingresos, gastos y transferencias, con categorías del sistema y propias.
+- **Cuentas** y saldos, con moneda por cuenta y moneda principal.
+- **Movimientos:** ingresos, gastos y transferencias (incluidas las multimoneda), con categorías del sistema y propias.
 - **Búsqueda, filtros y exportación CSV** de movimientos.
 - **Categorías propias:** alta, edición, eliminación y uso por período.
-- **Dashboard** y cálculo de patrimonio neto, con granularidad diaria/semanal o mensual.
+- **Dashboard** y cálculo de patrimonio neto, con granularidad diaria/semanal o mensual y selector de moneda de lectura.
 - **Reglas de cálculo** (CAL-001, CAL-002, CAL-003 y CAL-010).
+- **Cotizaciones automáticas** de la API, sin edición por parte del usuario.
 - **Asistente de IA**, de solo consulta y con continuidad conversacional en memoria del cliente.
 - **Preferencias locales:** tema de la interfaz.
 - **Seguridad básica:** autorización por propietario, hash de contraseñas y validación de entradas.
@@ -124,14 +126,14 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 |---|---|---|
 | Acceso y sesión | 2 | P0 |
 | Seguridad y autorización | 3 | P0 |
-| Cuentas | 2 | P0 |
-| Movimientos | 5 | P0/P1 |
-| Categorías | 1 | P1 |
-| Dashboard y patrimonio | 5 | P0/P1 |
+| Cuentas | 3 | P0 |
+| Movimientos | 6 | P0/P1 |
+| Categorías | 2 | P1 |
+| Dashboard y patrimonio | 6 | P0/P1 |
 | Cálculos | 4 | P0 |
 | No funcionales | 2 | P0/P1 |
 | Asistente de IA | 4 | P1 |
-| Configuración y preferencias | 1 | P1 |
+| Configuración y preferencias | 2 | P1 |
 
 ### 5.2. Acceso y sesión
 
@@ -152,8 +154,9 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-CUE-01 | Alta y edición de cuenta | Crear una cuenta (nombre, tipo, saldo inicial) y editarla | La cuenta aparece en el listado con su saldo y refleja la edición; solo su propietario la ve. | P0 | FR-CUE-001/002/003 |
-| CP-CUE-02 | Cálculo de saldo y eliminación | Registrar movimientos sobre una cuenta, consultar el saldo y eliminar la cuenta | Saldo actual = saldo inicial + movimientos. La eliminación elimina en cascada los movimientos asociados. | P0 | FR-CUE-004/005 |
+| CP-CUE-01 | Alta y edición de cuenta | Crear una cuenta (nombre, tipo, moneda, saldo inicial) y editarla | La cuenta aparece en el listado con su saldo en su moneda y refleja la edición; solo su propietario la ve. | P0 | FR-CUE-001/002/003 |
+| CP-CUE-02 | Cálculo de saldo y eliminación | Registrar movimientos sobre una cuenta, consultar el saldo y eliminar la cuenta | Saldo actual = saldo inicial + movimientos, en la moneda de la cuenta. La eliminación elimina en cascada los movimientos asociados. | P0 | FR-CUE-004/005 |
+| CP-CUE-03 | Moneda fija con movimientos | Crear una cuenta, cargarle un movimiento e intentar cambiar su moneda | El servidor y la UI rechazan el cambio de moneda mientras la cuenta tenga movimientos. | P0 | RN-015 |
 
 ### 5.5. Movimientos
 
@@ -163,32 +166,35 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 | CP-TRX-02 | Transferencia válida y atómica | Transferir entre dos cuentas propias; simular una falla a mitad de la operación | Se descuenta origen y se acredita destino en una única operación (ambos o ninguno); origen distinto de destino; se excluye del flujo de fondos. | P0 | FR-TRX-004/005, RN-003/004, CAL-003 |
 | CP-TRX-03 | Edición, eliminación y propiedad | Editar y eliminar un movimiento propio; intentar operar sobre uno ajeno | La operación propia se aplica; sobre un recurso ajeno se rechaza. | P0 | FR-TRX-003 |
 | CP-TRX-04 | Gestión de categorías propias | Crear una categoría, asignarla a un movimiento, editarla y eliminarla; intentar operar sobre una del sistema o de otro usuario | La categoría propia se crea, asigna, edita y elimina; las del sistema y las ajenas se rechazan. | P0 | FR-CAT-002/003 |
-| CP-TRX-05 | Búsqueda, filtros y exportación | Buscar por concepto, nota, categoría y monto; combinar filtros de tipo, cuenta, categoría y período; exportar el resultado | La lista muestra solo los movimientos que cumplen todos los filtros y el CSV descargado coincide con esa lista e incluye fecha, tipo, descripción, categoría, cuenta, monto y notas. | P1 | FR-TRX-007/008, HU-015 |
+| CP-TRX-05 | Búsqueda, filtros y exportación | Buscar por concepto, nota, categoría y monto; combinar filtros de tipo, cuenta, categoría, moneda y período; exportar el resultado | La lista muestra solo los movimientos que cumplen todos los filtros y el CSV descargado coincide con esa lista e incluye fecha, tipo, descripción, categoría, cuenta, moneda, monto y notas. | P1 | FR-TRX-007/008, HU-015 |
+| CP-TRX-06 | Transferencia multimoneda | Transferir desde una cuenta ARS a una cuenta USD, editar la cotización sugerida y confirmar | Se registran los dos montos coherentes con la cotización; la cotización no se persiste; editar la transferencia conserva la coherencia de ambos montos. | P0 | RN-017, FR-TRX-004/005 |
 
 ### 5.6. Categorías
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-CAT-01 | Listado, origen y uso | Abrir Categorías; alternar Gastos/Ingresos; cambiar el período | Se listan las cinco categorías del sistema y las propias con badge de origen; se muestra cantidad, monto y porcentaje del período, ordenado por uso; las del sistema no muestran acciones. | P1 | FR-CAT-001/004 |
+| CP-CAT-01 | Listado, origen y uso | Abrir Categorías; alternar Gastos/Ingresos; cambiar el período y la moneda de visualización | Se listan las cinco categorías del sistema y las propias con badge de origen; se muestra cantidad, monto y porcentaje del período incluido en todas las monedas, convertido a la moneda de visualización, ordenado por uso; las del sistema no muestran acciones. | P1 | FR-CAT-001/004 |
+| CP-CAT-02 | Moneda de visualización | Cambiar el selector de moneda de Categorías entre ARS y USD | Los montos y porcentajes se re-expresan en la moneda elegida, sin excluir movimientos de otras monedas. | P1 | RN-018/RN-019 |
 
 ### 5.7. Dashboard y patrimonio
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-DAS-01 | Patrimonio neto | Cargar cuentas y movimientos; consultar el dashboard | Patrimonio neto = Σ saldos netos de las cuentas. | P0 | CAL-001, RN-002, FR-DAS-001 |
-| CP-DAS-02 | Indicadores del período | Seleccionar un período con ingresos y gastos | Se muestran ingresos, gastos y ahorro; la tasa de ahorro = ahorro / ingresos × 100. | P0 | FR-DAS-001, CAL-002, CAL-010 |
+| CP-DAS-01 | Patrimonio neto | Cargar cuentas en ARS y USD y movimientos; consultar el dashboard | Patrimonio neto = Σ (saldo × cotización) de las cuentas, en la moneda de lectura; incluye el desglose por moneda. | P0 | CAL-001, RN-002, FR-DAS-001 |
+| CP-DAS-02 | Indicadores del período | Seleccionar un período con ingresos y gastos en distintas monedas | Se muestran ingresos, gastos y ahorro incluyendo todas las monedas convertidas a la moneda de lectura; la tasa de ahorro = ahorro / ingresos × 100. | P0 | FR-DAS-001, CAL-002, CAL-010 |
 | CP-DAS-03 | Consistencia y estados vacíos | Comparar los totales del dashboard con los movimientos cargados; abrir la aplicación con el usuario sin datos | Los totales coinciden con los movimientos registrados; sin datos se muestra un estado vacío con acción sugerida. | P0 | FR-DAS-008, criterio de bondad |
-| CP-DAS-04 | Gráficos y período | Abrir el panel y cambiar el período; revisar los gráficos | Los gráficos de evolución del patrimonio, ingresos frente a gastos y gastos por categoría reflejan el período seleccionado. | P0 | FR-DAS-002/003/004/007 |
+| CP-DAS-04 | Gráficos y período | Abrir el panel y cambiar el período; revisar los gráficos | Los gráficos de evolución del patrimonio, ingresos frente a gastos y gastos por categoría reflejan el período seleccionado y la moneda de lectura. | P0 | FR-DAS-002/003/004/007 |
 | CP-DAS-05 | Granularidad diaria y semanal | Comparar `Este mes`/`Últimos 30 días` con `6 meses`/`12 meses` | En rangos de hasta 31 días el patrimonio se muestra por día y las barras por semana; en rangos mayores, por mes. Los totales coinciden con los movimientos del período. | P1 | FR-DAS-002/003/007, HU-010 |
+| CP-DAS-06 | Selector de moneda de lectura | Abrir el selector del header, elegir USD y luego “Otra moneda” (EUR); volver a ARS | Todos los valores del dashboard se re-expresan en la moneda elegida sin alterar datos; el desglose por moneda se mantiene; “Otra moneda” permite elegir cualquier moneda del catálogo. | P0 | FR-DAS-007, RN-019 |
 
 ### 5.8. Cálculos (pruebas unitarias)
 
 | ID | Regla | Entrada de ejemplo | Resultado esperado |
 |---|---|---|---|
-| CP-CAL-001 | CAL-001 Patrimonio neto | Saldos de las cuentas del usuario | Σ saldos netos de las cuentas. |
-| CP-CAL-002 | CAL-002 Flujo de fondos | Ingresos y gastos de un período | Ingresos − gastos del período. |
-| CP-CAL-003 | CAL-003 Transferencias | Una transferencia entre cuentas | Se excluye de ingresos y gastos consolidados. |
-| CP-CAL-010 | CAL-010 Tasa de ahorro | Ahorro e ingresos del período | Ahorro / ingresos × 100; la variación se expresa en puntos porcentuales. |
+| CP-CAL-001 | CAL-001 Patrimonio neto | Saldos de las cuentas en distintas monedas y cotizaciones de la API | Σ (saldo × cotización) de las cuentas, en la moneda de lectura. |
+| CP-CAL-002 | CAL-002 Flujo de fondos | Ingresos y gastos de un período en distintas monedas | Cada flujo se convierte a la moneda de lectura y se calcula ingresos − gastos. |
+| CP-CAL-003 | CAL-003 Transferencias | Una transferencia entre cuentas, incluso de monedas distintas | Se excluye de ingresos y gastos consolidados; cada pata conserva su monto. |
+| CP-CAL-010 | CAL-010 Tasa de ahorro | Ahorro e ingresos del período convertidos | Ahorro / ingresos × 100; la variación se expresa en puntos porcentuales. |
 
 ### 5.9. Asistente de IA
 
@@ -210,7 +216,8 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-CFG-01 | Tema y exportación | Cambiar el tema, exportar el CSV desde Ajustes y recargar la aplicación | El tema persiste en el navegador; el CSV se descarga con los campos esperados y sin modificar los datos financieros; la preferencia no se sincroniza entre dispositivos. | P1 | FR-CFG-001/003, FR-TRX-008 |
+| CP-CFG-01 | Tema y exportación | Cambiar el tema, exportar el CSV desde Ajustes y recargar la aplicación | El tema persiste en el navegador; el CSV se descarga con los campos esperados (incluida la moneda) y sin modificar los datos financieros; la preferencia no se sincroniza entre dispositivos. | P1 | FR-CFG-001/003, FR-TRX-008 |
+| CP-CFG-02 | Moneda principal | Con cuentas en más de una moneda, cambiar la moneda principal en Ajustes y volver al dashboard | La preferencia se guarda; el dashboard usa la nueva moneda principal como lectura por defecto; las cotizaciones siguen siendo automáticas y no editables. | P1 | RN-014, RN-016 |
 
 ## 6. Datos de Prueba
 
@@ -219,8 +226,9 @@ Se utilizan **usuarios ficticios sin datos personales reales** y un conjunto de 
 | Elemento | Detalle |
 |---|---|
 | Usuarios | Tres usuarios ficticios: demo@atlassfin.app (con datos), sin-datos@atlassfin.app (sin movimientos, para estados vacíos) y ana@atlassfin.app (para el aislamiento entre propietarios). |
-| Cuentas | Tres cuentas del usuario con datos. |
-| Movimientos | Tres meses de ingresos, gastos y transferencias. |
+| Cuentas | Cuatro cuentas del usuario con datos: tres en ARS y una en USD. |
+| Monedas | ARS como moneda principal y USD; cotizaciones globales de la API. |
+| Movimientos | Tres meses de ingresos, gastos y transferencias, con movimientos en ARS y USD y una transferencia multimoneda. |
 | Categorías | Cinco categorías fijas del sistema; las propias se crean durante la ejecución. |
 
 > Los casos de búsqueda, filtros, uso de categorías y exportación se ejecutan sobre los movimientos cargados en la vista (hasta 100 registros). El dashboard y los cálculos se validan contra el conjunto completo del período.

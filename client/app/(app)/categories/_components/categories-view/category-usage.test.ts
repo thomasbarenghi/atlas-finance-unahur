@@ -71,4 +71,54 @@ describe("buildCategoryUsage", () => {
     expect(result.items[0]).toMatchObject({ amount: 400, count: 2, pct: 0.8 });
     expect(result.items[1]).toMatchObject({ amount: 100, count: 1, pct: 0.2 });
   });
+
+  it("includes every currency and converts the amounts to the display currency", () => {
+    const supermercado = makeCategory({
+      id: "cat-super",
+      name: "Supermercado",
+      type: "expense",
+      isSystem: true,
+    });
+    const result = buildCategoryUsage(
+      [supermercado],
+      [
+        makeTransaction({
+          type: "expense",
+          amount: 1180,
+          categoryId: supermercado.id,
+          accountId: "acc-ars",
+          date: "2026-10-10",
+        }),
+        makeTransaction({
+          type: "expense",
+          amount: 1,
+          categoryId: supermercado.id,
+          accountId: "acc-usd",
+          date: "2026-10-12",
+        }),
+      ],
+      "expense",
+      range,
+      "USD",
+      new Map([
+        ["acc-ars", "ARS"],
+        ["acc-usd", "USD"],
+      ]),
+      [
+        {
+          currency: "USD",
+          name: "Dólar",
+          symbol: "US$",
+          rate: 1180,
+          rateDate: "2026-10-25",
+          source: "api",
+        },
+      ],
+      "ARS",
+    );
+
+    expect(result.total).toBeCloseTo(2, 6);
+    expect(result.items[0].amount).toBeCloseTo(2, 6);
+    expect(result.items[0].count).toBe(2);
+  });
 });

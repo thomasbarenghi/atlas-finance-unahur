@@ -24,7 +24,9 @@ export const transactionSchema = z
   .refine(
     (data) =>
       data.type !== "transfer" ||
-      (data.transferAccountId && data.transferAccountId !== data.accountId),
+      Boolean(
+        data.transferAccountId && data.transferAccountId !== data.accountId,
+      ),
     {
       path: ["transferAccountId"],
       message: "Elegí una cuenta de destino distinta",

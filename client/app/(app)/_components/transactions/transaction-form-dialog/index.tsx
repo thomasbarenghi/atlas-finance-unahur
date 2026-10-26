@@ -12,6 +12,7 @@ import { TRANSACTION_TYPE_LABELS } from "@/lib/labels";
 import { TransactionAccountFields } from "./components/account-fields";
 import { TransactionAmountPanel } from "./components/amount-panel";
 import { TransactionDetailFields } from "./components/detail-fields";
+import { TransferExchangeFields } from "./components/transfer-exchange-fields";
 import { useTransactionForm } from "./hooks/use-transaction-form";
 
 const TYPE_OPTIONS = (["expense", "income", "transfer"] as const).map(
@@ -41,11 +42,16 @@ export const TransactionFormDialog = ({
     form,
     type,
     selectedAccount,
+    destinationAccount,
     destinationAccounts,
     categoryOptions,
     amountInput,
     isEditing,
     isPending,
+    isCrossCurrency,
+    rateInput,
+    destinationAmount,
+    changeRate,
     selectType,
     onSubmit,
   } = useTransactionForm({
@@ -95,6 +101,15 @@ export const TransactionFormDialog = ({
         account={selectedAccount}
         amountInput={amountInput}
       />
+      {isCrossCurrency && selectedAccount && destinationAccount ? (
+        <TransferExchangeFields
+          sourceAccount={selectedAccount}
+          destinationAccount={destinationAccount}
+          rateInput={rateInput}
+          onRateChange={changeRate}
+          destinationAmount={destinationAmount}
+        />
+      ) : null}
       <TransactionDetailFields form={form} />
     </FormDialog>
   );

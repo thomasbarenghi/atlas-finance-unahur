@@ -1,4 +1,5 @@
-import type { Category, Transaction } from "@/lib/api/types";
+import { convertAmount } from "@/lib/currency";
+import type { Category, CurrencyRate, Transaction } from "@/lib/api/types";
 import type { PeriodRange } from "@/lib/api/types";
 
 export interface CategoryUsage {
@@ -18,17 +19,34 @@ export const buildCategoryUsage = (
   transactions: Transaction[],
   type: Category["type"],
   range: PeriodRange,
+  displayCurrency?: string,
+  accountCurrencyById?: Map<string, string>,
+  rates: CurrencyRate[] = [],
+  primaryCurrency = displayCurrency ?? "ARS",
 ): CategoryUsageResult => {
   const byCategory = new Map<string, { amount: number; count: number }>();
 
   for (const transaction of transactions) {
     if (!transaction.categoryId) continue;
     if (transaction.date < range.from || transaction.date > range.to) continue;
+    const sourceCurrency =
+      accountCurrencyById?.get(transaction.accountId) ??
+      displayCurrency ??
+      primaryCurrency;
+    const amount = displayCurrency
+      ? convertAmount(
+          Math.abs(transaction.amount),
+          sourceCurrency,
+          displayCurrency,
+          rates,
+          primaryCurrency,
+        )
+      : Math.abs(transaction.amount);
     const bucket = byCategory.get(transaction.categoryId) ?? {
       amount: 0,
       count: 0,
     };
-    bucket.amount += Math.abs(transaction.amount);
+    bucket.amount += amount;
     bucket.count += 1;
     byCategory.set(transaction.categoryId, bucket);
   }

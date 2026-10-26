@@ -56,6 +56,7 @@ describe("data query hooks", () => {
       await result.current.mutateAsync({
         name: "Nueva",
         type: "cash",
+        currency: "ARS",
         initialBalance: 100,
         notes: null,
       });

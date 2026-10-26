@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useQueryParam } from "@/hooks/use-query-param";
+import { buildTransferDetails } from "@/app/(app)/_components/transactions/transaction-list/transaction-list.utils";
 import { useAccounts } from "@/lib/query/accounts";
 import { useTransactions } from "@/lib/query/transactions";
 
@@ -50,12 +51,18 @@ export const useAccountDetail = () => {
     [transactions],
   );
 
+  const transferDetails = useMemo(
+    () => buildTransferDetails(transactionsQuery.data?.items ?? []),
+    [transactionsQuery.data],
+  );
+
   return {
     account,
     accounts,
     isLoading: accountsQuery.isLoading,
     transactions,
     isLoadingTransactions: transactionsQuery.isLoading,
+    transferDetails,
     movementCount: transactions.length,
     summary,
   };

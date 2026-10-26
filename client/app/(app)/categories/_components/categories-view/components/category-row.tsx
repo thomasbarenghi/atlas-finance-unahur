@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { RowActionsMenu } from "@/components/common/row-actions-menu";
 import type { Category } from "@/lib/api/types";
-import { CURRENCY, formatCurrency, formatPercent } from "@/lib/format";
+import { formatCurrency, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { CategoryUsage } from "../category-usage";
 import { categoryIcon } from "../category-icon";
@@ -12,6 +12,7 @@ import { categoryIcon } from "../category-icon";
 export interface CategoryRowProps {
   item: CategoryUsage;
   index: number;
+  currency: string;
   onEdit: (category: Category) => void;
   onDelete: (category: Category) => void;
 }
@@ -61,6 +62,7 @@ const UsageBar = ({
 export const CategoryRow = ({
   item,
   index,
+  currency,
   onEdit,
   onDelete,
 }: CategoryRowProps) => {
@@ -110,7 +112,7 @@ export const CategoryRow = ({
           </span>
 
           <span className="text-ink w-[96px] shrink-0 text-right text-[13px] leading-[18px] font-semibold tabular-nums md:w-[130px] md:text-[14.5px] md:leading-[20px]">
-            {formatCurrency(item.amount, CURRENCY)}
+            {formatCurrency(item.amount, currency)}
           </span>
 
           {category.isSystem ? (

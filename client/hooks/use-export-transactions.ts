@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import type { Transaction } from "@/lib/api/types";
 import { buildTransactionLookups } from "@/app/(app)/_components/transactions/transaction-lookups";
 import { downloadCsv, transactionsToCsv } from "@/lib/csv";
-import { CURRENCY, formatCurrency, todayIso } from "@/lib/format";
+import { formatCurrency, todayIso } from "@/lib/format";
 import { TRANSACTION_TYPE_LABELS } from "@/lib/labels";
 import { useAccounts } from "@/lib/query/accounts";
 import { useCategories } from "@/lib/query/categories";
@@ -16,7 +16,7 @@ export const useExportTransactions = () => {
   const categoriesQuery = useCategories();
   const transactionsQuery = useTransactions({ page: 1, pageSize: 100 });
 
-  const { accountNameById, categoryNameById } = useMemo(
+  const { accountNameById, accountCurrencyById, categoryNameById } = useMemo(
     () =>
       buildTransactionLookups(
         accountsQuery.data ?? [],
@@ -38,6 +38,8 @@ export const useExportTransactions = () => {
         const targetName = transaction.transferAccountId
           ? accountNameById.get(transaction.transferAccountId)
           : undefined;
+        const currency =
+          accountCurrencyById.get(transaction.accountId) ?? "ARS";
         return {
           date: transaction.date,
           type: TRANSACTION_TYPE_LABELS[transaction.type],
@@ -46,7 +48,8 @@ export const useExportTransactions = () => {
             ? (categoryNameById.get(transaction.categoryId) ?? "")
             : "Sin categoría",
           account: targetName ? `${accountName} → ${targetName}` : accountName,
-          amount: formatCurrency(transaction.amount, CURRENCY),
+          currency,
+          amount: formatCurrency(transaction.amount, currency),
           notes: transaction.notes ?? "",
         };
       });
@@ -54,7 +57,12 @@ export const useExportTransactions = () => {
       downloadCsv(`movimientos-${todayIso()}.csv`, transactionsToCsv(rows));
       toast.success("Movimientos exportados");
     },
-    [accountNameById, categoryNameById, transactionsQuery.data],
+    [
+      accountCurrencyById,
+      accountNameById,
+      categoryNameById,
+      transactionsQuery.data,
+    ],
   );
 
   return {

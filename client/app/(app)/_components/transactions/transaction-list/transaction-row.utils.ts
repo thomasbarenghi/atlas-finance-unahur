@@ -1,11 +1,15 @@
 import type { Transaction } from "@/lib/api/types";
-import { formatDate, formatDayMonth } from "@/lib/format";
+import { formatCurrency, formatDate, formatDayMonth } from "@/lib/format";
+import type { TransferDetails } from "./transaction-list.utils";
 
 export interface TransactionSubtitleInput {
   transaction: Transaction;
   accountNameById: Map<string, string>;
+  accountCurrencyById: Map<string, string>;
   categoryNameById: Map<string, string>;
   contextAccountId?: string;
+  transferDetails?: TransferDetails;
+  showCents?: boolean;
 }
 
 export interface TransactionSubtitle {
@@ -16,8 +20,11 @@ export interface TransactionSubtitle {
 export const buildTransactionSubtitle = ({
   transaction,
   accountNameById,
+  accountCurrencyById,
   categoryNameById,
   contextAccountId,
+  transferDetails,
+  showCents = true,
 }: TransactionSubtitleInput): TransactionSubtitle => {
   const accountName = accountNameById.get(transaction.accountId) ?? "Cuenta";
   const target = transaction.transferAccountId
@@ -26,20 +33,33 @@ export const buildTransactionSubtitle = ({
   const isAccountContext = Boolean(contextAccountId);
 
   if (transaction.type === "transfer") {
-    const contextLabel = target
-      ? `${transaction.amount < 0 ? "a" : "de"} ${target}`
+    const targetCurrency = transferDetails
+      ? (accountCurrencyById.get(transferDetails.toAccountId) ?? "ARS")
+      : "ARS";
+    const sourceCurrency = accountCurrencyById.get(transaction.accountId);
+    const isCrossCurrency = Boolean(
+      transferDetails && sourceCurrency && sourceCurrency !== targetCurrency,
+    );
+    const destinationLabel =
+      isCrossCurrency && transferDetails
+        ? formatCurrency(transferDetails.toAmount, targetCurrency, undefined, {
+            showCents,
+          })
+        : target;
+    const contextLabel = destinationLabel
+      ? `${transaction.amount < 0 ? "a" : "de"} ${destinationLabel}`
       : "Transferencia";
     return {
       mobile: `${formatDayMonth(transaction.date)} · ${
         isAccountContext
           ? contextLabel
-          : `${accountName}${target ? ` → ${target}` : ""}`
+          : `${accountName}${destinationLabel ? ` → ${destinationLabel}` : ""}`
       }`,
       desktop: `${formatDate(transaction.date)} · Transferencia · ${
         isAccountContext
           ? contextLabel
-          : target
-            ? `${accountName} → ${target}`
+          : destinationLabel
+            ? `${accountName} → ${destinationLabel}`
             : accountName
       }`,
     };

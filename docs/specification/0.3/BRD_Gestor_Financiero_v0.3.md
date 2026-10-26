@@ -27,7 +27,7 @@
 | 0.1 | 04/09/2026 | Barenghi, Thomas | Versión inicial del documento. |
 | 0.2 | 02/10/2026 | Barenghi, Thomas | Se actualiza el cálculo de patrimonio neto (RN-002 y glosario) conforme a la nueva definición de CAL-001. No se modifican los requerimientos de negocio. |
 | 0.3 | 16/10/2026 | Barenghi, Thomas | Se ajusta el alcance de la versión y se consolida la documentación en torno a los flujos principales: acceso, cuentas, movimientos, panel y asistente de consulta. Se actualizan las reglas de negocio, los criterios de bondad, las pantallas y el glosario, y se amplían las historias de usuario para cubrir todos los módulos vigentes. |
-| 0.3.1 | 26/10/2026 | Barenghi, Thomas | Se alinea el documento con la implementación vigente: búsqueda, filtros y exportación CSV de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria y semanal del panel; y continuidad de la conversación del asistente en memoria del cliente. |
+| 0.3.1 | 26/10/2026 | Barenghi, Thomas | Se alinea el documento con la implementación vigente: búsqueda, filtros y exportación CSV de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria y semanal del panel; continuidad de la conversación del asistente en memoria del cliente; y multimoneda (moneda por cuenta, moneda principal, cotizaciones automáticas de la API, transferencias multimoneda y selector de moneda de lectura). |
 
 ## 2. Alcance
 
@@ -57,13 +57,13 @@
 
 ### 2.5. Dependencias
 
-**El producto depende de un proveedor de inteligencia artificial para las respuestas en lenguaje natural, de una base de datos relacional para la persistencia y de una plataforma de despliegue segura y reproducible para la demostración. Todas las integraciones externas se realizan exclusivamente desde el backend.**
+**El producto depende de un proveedor de inteligencia artificial para las respuestas en lenguaje natural, de una API pública de cotizaciones para las tasas de cambio, de una base de datos relacional para la persistencia y de una plataforma de despliegue segura y reproducible para la demostración. Todas las integraciones externas se realizan exclusivamente desde el backend.**
 
 ### 2.6. Alcance del Proyecto
 
 **El alcance de la versión inicial incluye registro, inicio y cierre de sesión con perfil; alta, edición y eliminación de cuentas manuales; ingresos, gastos y transferencias con categorías; dashboard con indicadores y gráficos; y un asistente de inteligencia artificial opcional de solo consulta.**
 
-**La aplicación opera con una única moneda, cinco categorías fijas del sistema y categorías propias que cada usuario puede crear, editar y eliminar.**
+**La aplicación opera con multimoneda** (cada cuenta declara su moneda y el dashboard permite leer los valores en la moneda principal o en otra moneda en uso, con cotizaciones provistas por la API), cinco categorías fijas del sistema y categorías propias que cada usuario puede crear, editar y eliminar.
 
 **La versión incorpora búsqueda, filtros y exportación CSV de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria o semanal del panel según la duración del rango; y continuidad de la conversación del asistente en memoria del cliente, sin persistencia en el servidor.**
 
@@ -80,9 +80,16 @@
 | Regla | Descripción |
 |---|---|
 | RN-001 | Todo registro financiero tendrá un propietario único y solo será accesible dentro de su sesión autorizada. |
-| RN-002 | Patrimonio neto = suma de los saldos netos de las cuentas del usuario. |
+| RN-002 | Patrimonio neto = Σ (saldo × cotización) de las cuentas del usuario, expresado en la moneda de lectura. |
 | RN-003 | Una transferencia no se contabiliza como ingreso ni como gasto. |
 | RN-004 | Toda transferencia válida descuenta en la cuenta de origen y acredita en la cuenta de destino dentro de una única operación. |
+| RN-014 | Hay una moneda principal. El patrimonio se informa en la moneda de lectura (default: principal); los flujos se convierten a esa moneda con la cotización de la API. |
+| RN-015 | Cada cuenta tiene una moneda fija; no se puede cambiar si ya tiene movimientos. |
+| RN-016 | Las cotizaciones son globales y las provee la API; el usuario no las crea ni las edita. |
+| RN-017 | Una transferencia entre monedas distintas registra los dos montos. La cotización es opcional y se puede sobrescribir en la operación; no se persiste. |
+| RN-018 | Los indicadores del período incluyen todas las monedas, convirtiendo cada flujo a la moneda de lectura; el patrimonio se informa con desglose por moneda. |
+| RN-019 | La moneda de lectura es una vista, no un dato: cambiarla no altera ningún registro. |
+| RN-020 | El total convertido nunca aparece solo: siempre con su desglose por moneda cuando hay más de una moneda en uso. |
 | RN-012 | La inteligencia artificial será de solo consulta: podrá leer la información del propio usuario con los permisos de su sesión, pero nunca crearla, editarla ni eliminarla. |
 | RN-013 | Los totales entregados al asistente serán calculados previamente por el sistema para el período consultado; el historial de conversación solo aporta continuidad y la respuesta incluirá período y aclaración informativa. |
 | RN-015 | Las cinco categorías del sistema son globales y de solo lectura. Cada categoría propia pertenece a un único usuario y solo él puede crearla, editarla o eliminarla. |
@@ -104,12 +111,12 @@
 | US-001 | Como usuario registrado, quiero visualizar mi situación financiera consolidada, para comprender mi patrimonio de un vistazo. | El dashboard muestra patrimonio neto, ingresos, gastos y ahorro del período. | Dashboard (FR-DAS-001) · HU-009 |
 | US-002 | Como usuario registrado, quiero reunir mis cuentas y movimientos en un solo lugar, para no depender de planillas separadas. | Cuentas y movimientos se listan y consolidan en la vista patrimonial de su propietario. | Cuentas (FR-CUE-*) · Movimientos (FR-TRX-*) · HU-001, HU-002, HU-008 |
 | US-003 | Como usuario registrado, quiero registrar ingresos y gastos con categoría, fecha y descripción, para analizar mi comportamiento financiero. | Cada movimiento admite tipo, monto, fecha, cuenta, categoría y descripción. | Movimientos (FR-TRX-001/002) · HU-001 |
-| US-005 | Como usuario registrado, quiero ver la evolución de mi patrimonio y de mi flujo de fondos con cálculos trazables, para confiar en los resultados. | Los totales del dashboard coinciden con los movimientos registrados y provienen de fórmulas centralizadas. | Dashboard (FR-DAS-*) · CAL-001, CAL-002 |
+| US-005 | Como usuario registrado, quiero ver la evolución de mi patrimonio y de mi flujo de fondos con cálculos trazables, para confiar en los resultados. | Los totales del dashboard coinciden con los movimientos registrados, incluyen todas las monedas convertidas a la moneda de lectura y provienen de fórmulas centralizadas. | Dashboard (FR-DAS-*) · CAL-001, CAL-002 |
 | US-010 | Como usuario registrado, quiero consultar un asistente de inteligencia artificial únicamente con información autorizada, para entender mejor mis finanzas. | El asistente requiere sesión válida, indica período y datos considerados y es de solo consulta: no crea, edita ni elimina información. | Asistente (FR-IA-002) · HU-006, HU-013 |
 | US-011 | Como usuario registrado, quiero que mi información permanezca privada y separada de la de otros usuarios, para proteger mis datos. | El servidor verifica la pertenencia de cada recurso al usuario autenticado antes de leerlo o modificarlo. | NFR-SEG-001 a NFR-SEG-003 · HU-014 |
 | US-013 | Como visitante, quiero registrarme e iniciar sesión, para acceder a mi información financiera. | El registro valida los campos y crea el usuario; al cerrar sesión se invalida la sesión y las pantallas financieras redirigen al acceso. | Autenticación y perfil (FR-AUT-001/002) · HU-007 |
-| US-014 | Como usuario registrado, quiero crear, editar y eliminar mis cuentas con su saldo inicial, para mantener actualizado dónde está mi dinero. | La cuenta admite nombre, tipo y saldo inicial; el saldo actual se calcula desde los movimientos; la eliminación es en cascada y solo alcanza cuentas propias. | Cuentas (FR-CUE-001 a FR-CUE-005) · HU-008 |
-| US-015 | Como usuario registrado, quiero transferir dinero entre dos cuentas propias, para mover fondos sin alterar mis ingresos ni mis gastos. | Origen y destino son distintos y propios; ambos lados se aplican de forma atómica; la transferencia se excluye del flujo de fondos. | Movimientos (FR-TRX-004/005) · CAL-003 · HU-002 |
+| US-014 | Como usuario registrado, quiero crear, editar y eliminar mis cuentas con su moneda y saldo inicial, para mantener actualizado dónde está mi dinero. | La cuenta admite nombre, tipo, moneda y saldo inicial; el saldo actual se calcula desde los movimientos; la moneda no cambia si hay movimientos; la eliminación es en cascada y solo alcanza cuentas propias. | Cuentas (FR-CUE-001 a FR-CUE-005) · HU-008 |
+| US-015 | Como usuario registrado, quiero transferir dinero entre dos cuentas propias, incluso de monedas distintas, para mover fondos sin alterar mis ingresos ni mis gastos. | Origen y destino son distintos y propios; ambos lados se aplican de forma atómica; en multimoneda se registran los dos montos y la cotización usada no se persiste; la transferencia se excluye del flujo de fondos. | Movimientos (FR-TRX-004/005) · CAL-003 · HU-002 |
 | US-016 | Como usuario registrado, quiero corregir o eliminar un movimiento propio, para arreglar errores de carga. | Solo se editan o eliminan movimientos del usuario autenticado y los totales se actualizan en consecuencia. | Movimientos (FR-TRX-003) · HU-011 |
 | US-017 | Como usuario registrado, quiero ver gráficos de la evolución del patrimonio, de ingresos frente a gastos y de gastos por categoría, para interpretar mis finanzas. | El panel muestra los tres gráficos y coinciden con los datos del período seleccionado; la evolución y las barras se adaptan a la duración del rango (diaria/semanal o mensual). | Dashboard (FR-DAS-002/003/004) · HU-010 |
 | US-018 | Como usuario registrado, quiero elegir el período de análisis y ver una guía cuando falten datos, para no interpretar información incompleta. | El período seleccionado (Este mes, Últimos 30 días, 6 meses, 12 meses) es compartido por panel, movimientos y asistente y afecta a indicadores y gráficos; sin datos se muestra un estado vacío con una acción sugerida. | Dashboard (FR-DAS-007/008) · HU-012 |
@@ -136,10 +143,10 @@
 
 | ID | Regla | Resultado esperado |
 |---|---|---|
-| CAL-001 | Patrimonio neto | Σ saldos netos de las cuentas. |
-| CAL-002 | Flujo de fondos | Σ ingresos − Σ gastos del período. |
+| CAL-001 | Patrimonio neto | Σ (saldo × cotización) de las cuentas, en la moneda de lectura. |
+| CAL-002 | Flujo de fondos | Σ ingresos − Σ gastos del período, convirtiendo cada flujo a la moneda de lectura. |
 | CAL-003 | Transferencias | Se excluyen de ingresos y gastos consolidados. |
-| CAL-010 | Tasa de ahorro | Ahorro del período / ingresos del período × 100. Su variación se expresa en puntos porcentuales. |
+| CAL-010 | Tasa de ahorro | Ahorro del período / ingresos del período × 100, sobre los flujos convertidos a la moneda de lectura. Su variación se expresa en puntos porcentuales. |
 
 ## 5. Pantallas de Usuario
 
@@ -163,7 +170,7 @@
 | Categoría del sistema | Categoría global definida por la aplicación y compartida por todos los usuarios; no se edita ni se elimina. |
 | Categoría propia | Categoría creada por un usuario, editable y eliminable solo por su propietario. |
 | Transferencia | Movimiento que descuenta una cuenta de origen y acredita una de destino sin alterar ingresos ni gastos. |
-| Patrimonio neto | Suma de los saldos netos de las cuentas del usuario. |
+| Patrimonio neto | Σ (saldo × cotización) de las cuentas del usuario, expresado en la moneda de lectura. |
 | Flujo de fondos | Resultado de ingresos menos gastos dentro de un período. |
 | Preferencias locales | Configuración de la interfaz (tema) guardada en el navegador del usuario. |
 | Historial de conversación | Turnos recientes que el cliente reenvía al asistente para interpretar preguntas de seguimiento; no se almacenan en el servidor. |

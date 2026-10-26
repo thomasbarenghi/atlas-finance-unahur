@@ -9,11 +9,22 @@ import { PeriodSelector } from "@/components/common/period-selector";
 import { ResponsiveActionButton } from "@/components/common/responsive-action-button";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useAuth } from "@/hooks/use-auth";
 import { useConfirmAction } from "@/hooks/use-confirm-action";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { usePeriod } from "@/hooks/use-period";
 import type { Category, CategoryType } from "@/lib/api/types";
+import { sortCurrencyCodes } from "@/lib/currency";
+import { useAccounts } from "@/lib/query/accounts";
 import { useCategories, useDeleteCategory } from "@/lib/query/categories";
+import { useCurrencyRates } from "@/lib/query/currencies";
 import { useTransactions } from "@/lib/query/transactions";
 import { CategoryFormDialog } from "../category-form-dialog";
 import { CategoryList } from "./components/category-list";
@@ -24,13 +35,39 @@ const TAB_TRIGGER =
 
 export const CategoriesView = () => {
   const isDesktop = useMediaQuery("(min-width: 768px)");
+  const { user } = useAuth();
   const { range } = usePeriod();
   const categoriesQuery = useCategories();
+  const accountsQuery = useAccounts();
+  const currencyRatesQuery = useCurrencyRates();
   const transactionsQuery = useTransactions({ page: 1, pageSize: 100 });
   const deleteCategory = useDeleteCategory();
   const [tab, setTab] = useState<CategoryType>("expense");
+  const [currency, setCurrency] = useState<string | undefined>(undefined);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
+  const primaryCurrency = user?.primaryCurrency ?? "ARS";
+  const activeCurrency = currency ?? primaryCurrency;
+  const accounts = useMemo(
+    () => accountsQuery.data ?? [],
+    [accountsQuery.data],
+  );
+  const availableCurrencies = useMemo(
+    () =>
+      sortCurrencyCodes(
+        [primaryCurrency, ...accounts.map((account) => account.currency)],
+        primaryCurrency,
+      ),
+    [accounts, primaryCurrency],
+  );
+  const accountCurrencyById = useMemo(
+    () => new Map(accounts.map((account) => [account.id, account.currency])),
+    [accounts],
+  );
+  const rates = useMemo(
+    () => currencyRatesQuery.data?.rates ?? [],
+    [currencyRatesQuery.data?.rates],
+  );
 
   const deleteAction = useConfirmAction<Category>({
     run: (category) => deleteCategory.mutateAsync(category.id),
@@ -45,8 +82,21 @@ export const CategoriesView = () => {
         transactionsQuery.data?.items ?? [],
         tab,
         range,
+        activeCurrency,
+        accountCurrencyById,
+        rates,
+        primaryCurrency,
       ),
-    [categoriesQuery.data, transactionsQuery.data, tab, range],
+    [
+      categoriesQuery.data,
+      transactionsQuery.data,
+      tab,
+      range,
+      activeCurrency,
+      accountCurrencyById,
+      rates,
+      primaryCurrency,
+    ],
   );
 
   const openCreate = () => {
@@ -64,8 +114,34 @@ export const CategoriesView = () => {
     if (!open) setEditing(null);
   };
 
-  const isLoading = categoriesQuery.isLoading || transactionsQuery.isLoading;
-  const isError = categoriesQuery.isError || transactionsQuery.isError;
+  const isLoading =
+    categoriesQuery.isLoading ||
+    transactionsQuery.isLoading ||
+    accountsQuery.isLoading ||
+    currencyRatesQuery.isLoading;
+  const isError =
+    categoriesQuery.isError ||
+    transactionsQuery.isError ||
+    accountsQuery.isError;
+
+  const currencySelect =
+    availableCurrencies.length > 1 ? (
+      <Select value={activeCurrency} onValueChange={setCurrency}>
+        <SelectTrigger
+          aria-label="Moneda de visualización"
+          className="bg-card border-border text-ink2 h-[30px]! w-fit gap-1 rounded-full px-3 py-0 text-[11.5px] leading-[16px] font-medium shadow-none md:h-[38px]! md:px-4 md:text-[13px] md:leading-[18px]"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {availableCurrencies.map((code) => (
+            <SelectItem key={code} value={code}>
+              {code}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    ) : null;
 
   const tabs = (
     <TabsList className="bg-secondary grid h-10 w-full grid-cols-2 rounded-full p-[3px] md:flex md:w-fit">
@@ -88,11 +164,17 @@ export const CategoriesView = () => {
         title="Categorías"
         description={isDesktop ? "Clasificá tus ingresos y gastos" : undefined}
         titleAddon={
-          isDesktop ? null : <PeriodSelector showCalendar display="month" />
+          isDesktop ? null : (
+            <span className="ml-auto flex items-center gap-2">
+              {currencySelect}
+              <PeriodSelector showCalendar display="month" />
+            </span>
+          )
         }
         actions={
           <>
             {isDesktop ? <PeriodSelector showCalendar display="month" /> : null}
+            {isDesktop ? currencySelect : null}
             {isDesktop ? tabs : null}
             <ResponsiveActionButton
               label="Nueva categoría"
@@ -127,6 +209,7 @@ export const CategoriesView = () => {
           tab={tab}
           usage={usage}
           isLoading={isLoading}
+          currency={activeCurrency}
           onEdit={openEdit}
           onDelete={deleteAction.request}
         />

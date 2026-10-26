@@ -44,6 +44,7 @@ describe("query mutations", () => {
       await create.result.current.mutateAsync({
         name: "Nueva",
         type: "wallet",
+        currency: "ARS",
         initialBalance: 0,
       });
     });

@@ -18,6 +18,7 @@ import type { TransactionTypeFilter } from "../filters";
 import {
   AccountFilter,
   CategoryFilter,
+  CurrencyFilter,
   FILTER_TRIGGER,
   PeriodFilter,
 } from "./filter-selects";
@@ -38,6 +39,9 @@ export interface TransactionFiltersProps {
   onAccountChange: (value: string) => void;
   categoryId: string;
   onCategoryChange: (value: string) => void;
+  currency: string;
+  onCurrencyChange: (value: string) => void;
+  currencies: string[];
   preset: PeriodPreset;
   range: PeriodRange;
   onPresetChange: (value: PeriodPreset) => void;
@@ -56,6 +60,9 @@ export const TransactionFilters = ({
   onAccountChange,
   categoryId,
   onCategoryChange,
+  currency,
+  onCurrencyChange,
+  currencies,
   preset,
   range,
   onPresetChange,
@@ -76,6 +83,13 @@ export const TransactionFilters = ({
         onChange={onCategoryChange}
         categories={categories}
       />
+      {currencies.length > 1 ? (
+        <CurrencyFilter
+          value={currency}
+          onChange={onCurrencyChange}
+          currencies={currencies}
+        />
+      ) : null}
       <PeriodFilter preset={preset} range={range} onChange={onPresetChange} />
     </>
   );

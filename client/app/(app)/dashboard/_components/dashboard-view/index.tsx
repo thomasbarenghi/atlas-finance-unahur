@@ -1,15 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import { TriangleAlert } from "lucide-react";
 import { CategoryDonut } from "@/app/(app)/dashboard/_components/charts/category-donut";
 import { IncomeExpenseChart } from "@/app/(app)/dashboard/_components/charts/income-expense-chart";
+import { DashboardCurrencySelector } from "@/app/(app)/dashboard/_components/dashboard-currency-selector";
+import { CurrencyPickerSheet } from "@/components/common/currency-picker";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { NetWorthHero } from "@/app/(app)/dashboard/_components/net-worth-hero";
+import { useAuth } from "@/hooks/use-auth";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { usePeriod } from "@/hooks/use-period";
-import { CURRENCY } from "@/lib/format";
 import { useDashboard } from "@/lib/query/dashboard";
 import { AccountsSection } from "./components/accounts-section";
 import { HeaderActions } from "./components/header-actions";
@@ -20,11 +23,33 @@ import { buildBarsHint, buildPeriodLabel } from "./components/period-summary";
 
 export const DashboardView = () => {
   const isDesktop = useMediaQuery("(min-width: 768px)");
+  const { user } = useAuth();
   const { preset, range } = usePeriod();
-  const dashboardQuery = useDashboard({ from: range.from, to: range.to });
+  const [displayCurrency, setDisplayCurrency] = useState<string | undefined>(
+    undefined,
+  );
+  const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
+  const dashboardQuery = useDashboard({
+    from: range.from,
+    to: range.to,
+    currency: displayCurrency,
+  });
   const data = dashboardQuery.data;
   const periodLabel = buildPeriodLabel(range);
   const barsHint = buildBarsHint(data, preset, range);
+  const currency =
+    displayCurrency ?? data?.currency ?? user?.primaryCurrency ?? "ARS";
+  const currencies = data?.availableCurrencies ?? [
+    user?.primaryCurrency ?? "ARS",
+  ];
+  const currencySelector = (
+    <DashboardCurrencySelector
+      value={currency}
+      options={currencies}
+      onChange={setDisplayCurrency}
+      onOther={() => setCurrencyPickerOpen(true)}
+    />
+  );
 
   return (
     <div className="flex flex-col gap-4 md:gap-[22px]">
@@ -33,12 +58,15 @@ export const DashboardView = () => {
         description={isDesktop ? periodLabel : undefined}
         titleAddon={
           isDesktop ? null : (
-            <span className="ml-auto">
+            <span className="ml-auto flex items-center gap-2">
+              {currencySelector}
               <PeriodSelector />
             </span>
           )
         }
-        actions={isDesktop ? <HeaderActions /> : undefined}
+        actions={
+          isDesktop ? <HeaderActions leading={currencySelector} /> : undefined
+        }
       />
 
       {dashboardQuery.isError ? (
@@ -59,7 +87,8 @@ export const DashboardView = () => {
           <NetWorthHero
             value={data.kpis.netWorth}
             deltaPct={data.kpis.netWorthDeltaPct}
-            currency={CURRENCY}
+            currency={data.currency}
+            breakdown={data.breakdown}
             series={data.netWorthSeries}
             income={data.kpis.income}
             expenses={data.kpis.expenses}
@@ -77,7 +106,7 @@ export const DashboardView = () => {
             >
               <IncomeExpenseChart
                 data={data.incomeExpenseByPeriod}
-                currency={CURRENCY}
+                currency={data.currency}
               />
             </WidgetCard>
             <WidgetCard
@@ -86,7 +115,7 @@ export const DashboardView = () => {
             >
               <CategoryDonut
                 data={data.expensesByCategory}
-                currency={CURRENCY}
+                currency={data.currency}
               />
             </WidgetCard>
           </div>
@@ -94,6 +123,16 @@ export const DashboardView = () => {
       )}
 
       <AccountsSection />
+
+      <CurrencyPickerSheet
+        open={currencyPickerOpen}
+        onOpenChange={setCurrencyPickerOpen}
+        selected={currency}
+        onSelect={(code) => {
+          setDisplayCurrency(code);
+          setCurrencyPickerOpen(false);
+        }}
+      />
     </div>
   );
 };

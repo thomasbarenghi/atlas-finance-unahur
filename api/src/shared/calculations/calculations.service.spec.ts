@@ -173,6 +173,51 @@ describe("CalculationsService", () => {
     });
   });
 
+  describe("multimoneda (CAL-001/002)", () => {
+    it("filters flows by the selected currency and never sums currencies", () => {
+      const transactions = [
+        transaction({ type: "income", amount: 100, currency: "ARS" }),
+        transaction({ type: "income", amount: 10, currency: "USD" }),
+        transaction({ type: "expense", amount: 40, currency: "USD" }),
+      ];
+
+      expect(
+        service.calculatePeriodFlows(
+          transactions,
+          "2026-03-01",
+          "2026-03-31",
+          "ARS",
+        ),
+      ).toEqual({ income: 100, expenses: 0, savings: 100 });
+      expect(
+        service.calculatePeriodFlows(
+          transactions,
+          "2026-03-01",
+          "2026-03-31",
+          "USD",
+        ),
+      ).toEqual({ income: 10, expenses: 40, savings: -30 });
+    });
+
+    it("converts net worth with the single quote and supports another unit", () => {
+      const accounts = [
+        { id: "a1", initialBalance: 1000, currency: "ARS" },
+        { id: "a2", initialBalance: 10, currency: "USD" },
+      ];
+      const rates = new Map([
+        ["ARS", 1],
+        ["USD", 1180],
+      ]);
+
+      expect(service.netWorthInCurrency(accounts, [], rates, "ARS")).toBe(
+        12800,
+      );
+      expect(
+        service.netWorthInCurrency(accounts, [], rates, "USD"),
+      ).toBeCloseTo(12800 / 1180, 6);
+    });
+  });
+
   describe("period helpers", () => {
     it("lists the months in a range", () => {
       expect(service.monthRange("2026-01-15", "2026-03-02")).toEqual([

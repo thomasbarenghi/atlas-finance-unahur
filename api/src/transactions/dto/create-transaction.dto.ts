@@ -48,6 +48,16 @@ export class CreateTransactionDto {
   @IsUUID()
   transferAccountId?: string | null;
 
+  /**
+   * Amount that reaches the destination account. Required when the two
+   * accounts use different currencies; for same-currency transfers it defaults
+   * to `amount` (RN-017).
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(0.0001)
+  transferAmount?: number;
+
   @IsOptional()
   @IsUUID()
   categoryId?: string | null;

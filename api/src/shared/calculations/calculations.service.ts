@@ -3,6 +3,7 @@ import type {
   BalanceAccount,
   MoneyTransaction,
   PeriodFlows,
+  RateMap,
 } from "./calculations.types";
 
 const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
@@ -11,6 +12,10 @@ const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
  * Single source of truth for the financial formulas of the v0.3 scope
  * (CAL-001..003 y CAL-010, backend.md §8). Dashboard and the AI reuse it so a
  * formula never gets duplicated (AGENTS rule 7).
+ *
+ * Multimoneda (v0.4): flows are always calculated for one currency at a time
+ * (RN-018). Net worth is the only cross-currency aggregate; it converts each
+ * account balance with the single quote from Settings (CAL-001).
  */
 export const signedAmount = (
   transaction: Pick<MoneyTransaction, "type" | "amount">,
@@ -23,12 +28,14 @@ export class CalculationsService {
     transactions: MoneyTransaction[],
     from: string,
     to: string,
+    currency?: string,
   ): PeriodFlows {
     let income = 0;
     let expenses = 0;
 
     for (const transaction of transactions) {
       if (transaction.date < from || transaction.date > to) continue;
+      if (currency && transaction.currency !== currency) continue;
       if (transaction.type === "income") income += transaction.amount;
       else if (transaction.type === "expense") expenses += transaction.amount;
     }
@@ -40,12 +47,14 @@ export class CalculationsService {
     transactions: MoneyTransaction[],
     from: string,
     to: string,
+    currency?: string,
   ): Map<string, number> {
     const expensesByCategory = new Map<string, number>();
 
     for (const transaction of transactions) {
       if (transaction.type !== "expense" || !transaction.categoryId) continue;
       if (transaction.date < from || transaction.date > to) continue;
+      if (currency && transaction.currency !== currency) continue;
       expensesByCategory.set(
         transaction.categoryId,
         (expensesByCategory.get(transaction.categoryId) ?? 0) +
@@ -100,6 +109,45 @@ export class CalculationsService {
     transactions: MoneyTransaction[],
   ): number {
     return this.netWorthAt(accounts, transactions);
+  }
+
+  /**
+   * Converts an amount using rates expressed in the same base (ARS per unit).
+   * A missing rate falls back to 1 so a partially configured user never breaks
+   * the page; the settings screen shows the quote and lets the user fix it.
+   */
+  convertAmount(
+    value: number,
+    from: string,
+    to: string,
+    rates: RateMap,
+  ): number {
+    if (from === to) return value;
+    const fromRate = rates.get(from) ?? 1;
+    const toRate = rates.get(to) ?? 1;
+    if (!fromRate || !toRate) return value;
+    return (value * fromRate) / toRate;
+  }
+
+  /**
+   * CAL-001 multimoneda: Σ (saldo × cotización de Ajustes). The target is the
+   * user's primary currency; historical points use the same current quote (the
+   * design deliberately avoids a quote per movement).
+   */
+  netWorthInCurrency(
+    accounts: BalanceAccount[],
+    transactions: MoneyTransaction[],
+    rates: RateMap,
+    targetCurrency: string,
+    end?: string,
+  ): number {
+    const targetRate = rates.get(targetCurrency) ?? 1;
+    return accounts.reduce((total, account) => {
+      const balance = this.balanceAt(account, transactions, end);
+      const accountCurrency = account.currency ?? targetCurrency;
+      const accountRate = rates.get(accountCurrency) ?? 1;
+      return total + (balance * accountRate) / targetRate;
+    }, 0);
   }
 
   pctDelta(current: number, previous: number): number | null {

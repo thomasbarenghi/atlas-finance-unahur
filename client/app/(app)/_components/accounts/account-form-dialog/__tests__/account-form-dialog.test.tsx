@@ -40,6 +40,7 @@ describe("AccountFormDialog", () => {
     expect(payload).toMatchObject({
       name: "Nueva Caja",
       type: "cash",
+      currency: "ARS",
       initialBalance: 1000,
     });
   });

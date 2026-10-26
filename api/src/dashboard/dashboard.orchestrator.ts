@@ -1,12 +1,15 @@
 import { Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { AccountsService } from "../accounts/accounts.service";
 import { CategoriesService } from "../categories/categories.service";
-import { AppConfig } from "../config/configuration";
+import { CurrenciesService } from "../currencies/currencies.service";
 import { CalculationsService } from "../shared/calculations/calculations.service";
 import { TransactionsService } from "../transactions/transactions.service";
 import { DashboardQueryDto } from "./dto/dashboard-query.dto";
-import { DashboardData } from "./dto/dashboard-response.dto";
+import {
+  DashboardBreakdown,
+  DashboardData,
+  DashboardRate,
+} from "./dto/dashboard-response.dto";
 
 const DAY_MS = 86_400_000;
 const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
@@ -14,8 +17,13 @@ const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
 /**
  * Read-model orchestrator for the dashboard (FR-DAS-001..004, FR-DAS-007/008).
  * It coordinates the primary services and holds no database queries.
- * CAL-001 (net worth = Σ account balances), CAL-002/CAL-003 and CAL-010 are
- * assembled here reusing `calculations.service` (backend.md §8).
+ *
+ * Multimoneda (RN-014..020, CH-71/CH-77):
+ * - `currency` is the reading/display currency for the whole dashboard; every
+ *   flow and the net worth are converted with the API quote (default: primary).
+ *   Changing it never alters records (RN-019).
+ * - `primaryCurrency` is still reported for settings/assistant context.
+ * - The transfer rate override is not persisted; each leg stores its own amount.
  */
 @Injectable()
 export class DashboardOrchestrator {
@@ -24,7 +32,7 @@ export class DashboardOrchestrator {
     private readonly transactionsService: TransactionsService,
     private readonly categoriesService: CategoriesService,
     private readonly calculations: CalculationsService,
-    private readonly config: ConfigService<AppConfig, true>,
+    private readonly currencies: CurrenciesService,
   ) {}
 
   async getDashboard(
@@ -38,13 +46,36 @@ export class DashboardOrchestrator {
       toIsoDate(
         new Date(new Date(`${to}T00:00:00.000Z`).getTime() - 180 * DAY_MS),
       );
-    const currency = this.config.get("defaultCurrency", { infer: true });
+
+    const rateContext = await this.currencies.getRateContext(userId);
+    const displayCurrency = query.currency ?? rateContext.primaryCurrency;
 
     const [transactions, categories, accounts] = await Promise.all([
       this.transactionsService.listOwnedTransactions(userId),
       this.categoriesService.listCategories(userId),
       this.accountsService.listOwnedAccounts(userId),
     ]);
+
+    const currencyByAccount = new Map(
+      accounts.map((account) => [account.id, account.currency ?? "ARS"]),
+    );
+    // Period indicators aggregate every currency, converting each flow with
+    // the API quote to the display currency (default: primary currency).
+    const displayedTransactions = transactions.map((transaction) => {
+      const sourceCurrency =
+        currencyByAccount.get(transaction.accountId) ??
+        rateContext.primaryCurrency;
+      return {
+        ...transaction,
+        currency: displayCurrency,
+        amount: this.calculations.convertAmount(
+          transaction.amount,
+          sourceCurrency,
+          displayCurrency,
+          rateContext.rates,
+        ),
+      };
+    });
 
     const categoryById = new Map(
       categories.map((category) => [category.id, category]),
@@ -55,15 +86,17 @@ export class DashboardOrchestrator {
       categoryById.get(id)?.color ?? "#64748b";
 
     const current = this.calculations.calculatePeriodFlows(
-      transactions,
+      displayedTransactions,
       from,
       to,
+      displayCurrency,
     );
     const previous = this.calculations.previousRange(from, to);
     const previousFlow = this.calculations.calculatePeriodFlows(
-      transactions,
+      displayedTransactions,
       previous.from,
       previous.to,
+      displayCurrency,
     );
 
     const months = this.calculations.monthRange(from, to);
@@ -77,9 +110,10 @@ export class DashboardOrchestrator {
 
     const incomeExpenseByMonth = months.map((month) => {
       const flows = this.calculations.calculatePeriodFlows(
-        transactions,
+        displayedTransactions,
         `${month}-01`,
         this.calculations.monthEnd(month),
+        displayCurrency,
       );
       return { month, income: flows.income, expenses: flows.expenses };
     });
@@ -87,9 +121,10 @@ export class DashboardOrchestrator {
     const incomeExpenseByPeriod = dailyGranularity
       ? this.calculations.weekRange(from, to).map(({ start, end }) => {
           const flows = this.calculations.calculatePeriodFlows(
-            transactions,
+            displayedTransactions,
             start,
             end,
+            displayCurrency,
           );
           return {
             bucket: "week" as const,
@@ -103,9 +138,10 @@ export class DashboardOrchestrator {
           const start = `${month}-01`;
           const end = this.calculations.monthEnd(month);
           const flows = this.calculations.calculatePeriodFlows(
-            transactions,
+            displayedTransactions,
             start,
             end,
+            displayCurrency,
           );
           return {
             bucket: "month" as const,
@@ -117,9 +153,10 @@ export class DashboardOrchestrator {
         });
 
     const currentByCategory = this.calculations.calculateExpensesByCategory(
-      transactions,
+      displayedTransactions,
       from,
       to,
+      displayCurrency,
     );
     const expensesByCategory = [...currentByCategory.entries()]
       .map(([categoryId, value]) => ({
@@ -130,22 +167,53 @@ export class DashboardOrchestrator {
       }))
       .sort((first, second) => second.value - first.value);
 
-    // CAL-001: net worth is the sum of the account balances. Past points of the
-    // series are the same sum evaluated at the end of each month.
-    const netWorth = this.calculations.netWorthAt(accounts, transactions);
+    // CAL-001: each account balance is converted to the display currency.
+    const netWorth = this.calculations.netWorthInCurrency(
+      accounts,
+      transactions,
+      rateContext.rates,
+      displayCurrency,
+    );
 
     const netWorthSeries = dailyGranularity
       ? this.calculations.dayRange(from, to).map((date) => ({
           date,
-          value: this.calculations.netWorthAt(accounts, transactions, date),
+          value: this.calculations.netWorthInCurrency(
+            accounts,
+            transactions,
+            rateContext.rates,
+            displayCurrency,
+            date,
+          ),
         }))
       : months.map((month) => {
           const date = this.calculations.monthEnd(month);
           return {
             date,
-            value: this.calculations.netWorthAt(accounts, transactions, date),
+            value: this.calculations.netWorthInCurrency(
+              accounts,
+              transactions,
+              rateContext.rates,
+              displayCurrency,
+              date,
+            ),
           };
         });
+
+    const breakdown = this.buildBreakdown(
+      accounts,
+      transactions,
+      rateContext,
+      displayCurrency,
+    );
+    const availableCurrencies = this.buildAvailableCurrencies(
+      accounts,
+      displayCurrency,
+      rateContext.primaryCurrency,
+    );
+    const rates = availableCurrencies.map((currency) =>
+      this.buildRate(currency, rateContext, displayCurrency),
+    );
 
     const seriesStart = netWorthSeries[0];
     const savingsRateDeltaPp =
@@ -157,7 +225,12 @@ export class DashboardOrchestrator {
 
     return {
       period: { from, to },
-      currency,
+      currency: displayCurrency,
+      primaryCurrency: rateContext.primaryCurrency,
+      rateDate: rateContext.rateDate,
+      availableCurrencies,
+      breakdown,
+      rates,
       kpis: {
         netWorth,
         netWorthDeltaPct: seriesStart
@@ -184,6 +257,81 @@ export class DashboardOrchestrator {
       incomeExpenseByPeriod,
       incomeExpenseByMonth,
       expensesByCategory,
+    };
+  }
+
+  private buildBreakdown(
+    accounts: Awaited<ReturnType<AccountsService["listOwnedAccounts"]>>,
+    transactions: Awaited<
+      ReturnType<TransactionsService["listOwnedTransactions"]>
+    >,
+    rateContext: Awaited<ReturnType<CurrenciesService["getRateContext"]>>,
+    targetCurrency: string,
+  ): DashboardBreakdown[] {
+    const byCurrency = new Map<string, { balance: number; accounts: number }>();
+    for (const account of accounts) {
+      const currency = account.currency ?? "ARS";
+      const bucket = byCurrency.get(currency) ?? { balance: 0, accounts: 0 };
+      bucket.balance += this.calculations.balanceAt(account, transactions);
+      bucket.accounts += 1;
+      byCurrency.set(currency, bucket);
+    }
+
+    return [...byCurrency.entries()]
+      .map(([currency, bucket]) => ({
+        currency,
+        balance: bucket.balance,
+        accounts: bucket.accounts,
+        converted: this.calculations.convertAmount(
+          bucket.balance,
+          currency,
+          targetCurrency,
+          rateContext.rates,
+        ),
+      }))
+      .sort((first, second) => {
+        if (first.currency === targetCurrency) return -1;
+        if (second.currency === targetCurrency) return 1;
+        return second.converted - first.converted;
+      });
+  }
+
+  private buildAvailableCurrencies(
+    accounts: Awaited<ReturnType<AccountsService["listOwnedAccounts"]>>,
+    scope: string,
+    primaryCurrency: string,
+  ): string[] {
+    const used = [
+      ...new Set([
+        ...accounts.map((account) => account.currency),
+        primaryCurrency,
+      ]),
+    ];
+    if (!used.includes(scope)) used.push(scope);
+    return used.sort((first, second) => {
+      if (first === primaryCurrency) return -1;
+      if (second === primaryCurrency) return 1;
+      return first.localeCompare(second);
+    });
+  }
+
+  private buildRate(
+    currency: string,
+    rateContext: Awaited<ReturnType<CurrenciesService["getRateContext"]>>,
+    targetCurrency: string,
+  ): DashboardRate {
+    return {
+      currency,
+      rate: this.calculations.convertAmount(
+        1,
+        currency,
+        targetCurrency,
+        rateContext.rates,
+      ),
+      rateDate:
+        rateContext.rateDates.get(currency) ??
+        rateContext.rateDate ??
+        toIsoDate(new Date()),
     };
   }
 }

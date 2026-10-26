@@ -71,6 +71,21 @@ export class TransactionsService {
     return toTransactionResponse(await this.findOwnedTransaction(userId, id));
   }
 
+  async getTransferGroup(
+    userId: string,
+    id: string,
+  ): Promise<{ outbound: Transaction; inbound: Transaction } | null> {
+    const transaction = await this.findOwnedTransaction(userId, id);
+    if (!transaction.transferGroupId) return null;
+    const group = await this.transactionsRepository.find({
+      where: { userId, transferGroupId: transaction.transferGroupId },
+    });
+    if (group.length < 2) return null;
+    const outbound = group.find((item) => item.amount < 0) ?? group[0];
+    const inbound = group.find((item) => item.id !== outbound.id) ?? group[1];
+    return { outbound, inbound };
+  }
+
   async createTransaction(
     userId: string,
     dto: CreateTransactionDto,
@@ -173,6 +188,7 @@ export class TransactionsService {
 
     const transferGroupId = randomUUID();
     const amount = Math.abs(dto.amount);
+    const transferAmount = Math.abs(dto.transferAmount ?? dto.amount);
     const outbound = this.transactionsRepository.create({
       userId,
       type: "transfer",
@@ -188,7 +204,7 @@ export class TransactionsService {
     const inbound = this.transactionsRepository.create({
       ...outbound,
       id: undefined,
-      amount,
+      amount: transferAmount,
       accountId: dto.transferAccountId,
       transferAccountId: dto.accountId,
     });
@@ -235,13 +251,17 @@ export class TransactionsService {
       dto.amount !== undefined
         ? Math.abs(dto.amount)
         : Math.abs(outbound.amount);
+    const transferAmount =
+      dto.transferAmount !== undefined
+        ? Math.abs(dto.transferAmount)
+        : Math.abs(inbound.amount);
 
     outbound.accountId = origin;
     outbound.transferAccountId = destination;
     outbound.amount = -amount;
     inbound.accountId = destination;
     inbound.transferAccountId = origin;
-    inbound.amount = amount;
+    inbound.amount = transferAmount;
 
     for (const leg of [outbound, inbound]) {
       if (dto.date !== undefined) leg.date = dto.date;

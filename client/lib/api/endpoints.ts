@@ -6,6 +6,8 @@ import type {
   CreateAccountInput,
   CreateCategoryInput,
   CreateTransactionInput,
+  CurrencyCatalogItem,
+  CurrencySettings,
   DashboardData,
   LoginInput,
   Paginated,
@@ -73,6 +75,17 @@ export const transactionEndpoints = {
 };
 
 export const dashboardEndpoints = {
-  get: (params: { from: string; to: string }): Promise<DashboardData> =>
+  get: (params: {
+    from: string;
+    to: string;
+    currency?: string;
+  }): Promise<DashboardData> =>
     get<DashboardData>(`/dashboard${query(params)}`),
+};
+
+export const currencyEndpoints = {
+  catalog: (): Promise<CurrencyCatalogItem[]> =>
+    get<CurrencyCatalogItem[]>("/currencies"),
+  settings: (): Promise<CurrencySettings> =>
+    get<CurrencySettings>("/currencies/rates"),
 };

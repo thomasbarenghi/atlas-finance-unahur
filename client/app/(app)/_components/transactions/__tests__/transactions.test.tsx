@@ -48,6 +48,10 @@ describe("TransactionList", () => {
     ["acc-1", "Banco"],
     ["acc-2", "Caja"],
   ]);
+  const accountCurrencyById = new Map([
+    ["acc-1", "ARS"],
+    ["acc-2", "ARS"],
+  ]);
 
   it("renders income, expense and transfer rows", () => {
     const category = makeCategory();
@@ -70,6 +74,7 @@ describe("TransactionList", () => {
           }),
         ]}
         accountNameById={accountNameById}
+        accountCurrencyById={accountCurrencyById}
         categoryNameById={new Map([[category.id, category.name]])}
       />,
     );
@@ -85,6 +90,7 @@ describe("TransactionList", () => {
       <TransactionList
         transactions={[]}
         accountNameById={new Map()}
+        accountCurrencyById={new Map()}
         categoryNameById={new Map()}
         emptyAction={<button type="button">Nuevo</button>}
       />,
@@ -104,6 +110,7 @@ describe("TransactionList", () => {
           makeTransaction({ id: "1", description: "Sueldo", type: "income" }),
         ]}
         accountNameById={accountNameById}
+        accountCurrencyById={accountCurrencyById}
         categoryNameById={new Map()}
         onDelete={onDelete}
         onSelect={onSelect}

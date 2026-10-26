@@ -8,17 +8,19 @@ import {
   useAccountCreation,
 } from "@/app/(app)/_components/accounts/account-creation";
 import { ACCOUNT_TYPE_ICONS } from "@/app/(app)/_components/accounts/account-icon";
+import { useAuth } from "@/hooks/use-auth";
+import { groupAccountsByCurrency } from "@/lib/currency";
+import { formatCurrency } from "@/lib/format";
 import { useAccounts } from "@/lib/query/accounts";
-import { formatCurrency, CURRENCY } from "@/lib/format";
 
 export const SidebarAccounts = () => {
+  const { user } = useAuth();
   const accountsQuery = useAccounts();
   const creation = useAccountCreation();
   const accounts = accountsQuery.data ?? [];
-  const total = accounts.reduce(
-    (sum, account) => sum + account.currentBalance,
-    0,
-  );
+  const primaryCurrency = user?.primaryCurrency ?? "ARS";
+  const groups = groupAccountsByCurrency(accounts, primaryCurrency);
+  const orderedAccounts = groups.flatMap((group) => group.accounts);
 
   return (
     <section className="flex flex-col pt-[26px]" aria-label="Cuentas">
@@ -53,7 +55,7 @@ export const SidebarAccounts = () => {
             Todavía no hay cuentas.
           </p>
         ) : (
-          accounts.map((account) => {
+          orderedAccounts.map((account) => {
             const Icon = ACCOUNT_TYPE_ICONS[account.type];
             return (
               <Link
@@ -69,9 +71,14 @@ export const SidebarAccounts = () => {
                   {account.name}
                 </span>
                 <span className="text-muted-foreground text-[11.5px] leading-[16px] font-normal tabular-nums">
-                  {formatCurrency(account.currentBalance, CURRENCY, undefined, {
-                    showCents: false,
-                  })}
+                  {formatCurrency(
+                    account.currentBalance,
+                    account.currency,
+                    undefined,
+                    {
+                      showCents: false,
+                    },
+                  )}
                 </span>
               </Link>
             );
@@ -79,15 +86,44 @@ export const SidebarAccounts = () => {
         )}
       </div>
 
-      <div className="border-line2 border-t" />
-      <div className="flex h-10 items-center justify-between px-2.5">
-        <span className="text-muted-foreground text-[11.5px] leading-[16px]">
-          Total
-        </span>
-        <span className="font-heading text-ink text-[12.5px] leading-[16px] font-semibold tabular-nums">
-          {formatCurrency(total, CURRENCY, undefined, { showCents: false })}
-        </span>
-      </div>
+      {groups.length > 0 ? (
+        <>
+          <div className="border-line2 border-t" />
+          {groups.length > 1 ? (
+            groups.map((group) => (
+              <div
+                key={group.currency}
+                className="flex h-10 items-center justify-between px-2.5"
+              >
+                <span className="text-muted-foreground text-[11.5px] leading-[16px]">
+                  Total {group.currency}
+                </span>
+                <span className="font-heading text-ink text-[12.5px] leading-[16px] font-semibold tabular-nums">
+                  {formatCurrency(group.total, group.currency, undefined, {
+                    showCents: false,
+                  })}
+                </span>
+              </div>
+            ))
+          ) : (
+            <div className="flex h-10 items-center justify-between px-2.5">
+              <span className="text-muted-foreground text-[11.5px] leading-[16px]">
+                Total
+              </span>
+              <span className="font-heading text-ink text-[12.5px] leading-[16px] font-semibold tabular-nums">
+                {formatCurrency(
+                  groups[0].total,
+                  groups[0].currency,
+                  undefined,
+                  {
+                    showCents: false,
+                  },
+                )}
+              </span>
+            </div>
+          )}
+        </>
+      ) : null}
 
       <AccountCreation creation={creation} />
     </section>

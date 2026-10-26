@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 import { SettingsView } from "@/app/(app)/settings/_components/settings-view";
-import { makeUser } from "@/lib/test/factories";
+import { makeAccount, makeUser } from "@/lib/test/factories";
 import { renderWithProviders } from "@/lib/test/render";
 import { testState } from "@/lib/test/api-state";
 import { setupTestServer } from "@/lib/test/server";
@@ -53,6 +53,34 @@ describe("SettingsView", () => {
     );
     expect(toast.success).toHaveBeenCalledWith("Preferencias guardadas");
     expect(save).toBeDisabled();
+    expect(screen.queryByText("Moneda principal")).not.toBeInTheDocument();
+  });
+
+  it("only shows the primary currency selector when a foreign account exists", async () => {
+    const currentUser = makeUser({
+      name: "Demo",
+      email: "demo@atlassfin.app",
+    });
+    testState.accounts.push({
+      ...makeAccount({
+        id: "77777777-7777-4777-8777-777777777777",
+        name: "Billetera USD",
+        type: "wallet",
+        currency: "USD",
+        currentBalance: 100,
+      }),
+      userId: testState.users[0].user.id,
+    });
+
+    renderWithProviders(<SettingsView />, { user: currentUser });
+
+    expect(await screen.findByText("Moneda principal")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Monedas con cotización"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Agregar moneda/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("applies the theme preference", async () => {

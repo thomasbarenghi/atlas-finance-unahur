@@ -29,6 +29,9 @@ export class UsersService {
     const user = await this.findOwned(userId);
 
     if (dto.name !== undefined) user.name = dto.name.trim();
+    if (dto.primaryCurrency !== undefined) {
+      user.primaryCurrency = dto.primaryCurrency;
+    }
 
     return toUserResponse(await this.usersRepository.save(user));
   }

@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
+import { CurrencyFormField } from "@/components/common/currency-form-field";
 import { FormDialog } from "@/components/common/form-dialog";
 import { FormMoneyField } from "@/components/common/form-money-field";
 import { FormTextField } from "@/components/common/form-text-field";
@@ -15,6 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/use-auth";
 import { getErrorMessage } from "@/lib/api/errors";
 import type { Account, AccountType } from "@/lib/api/types";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/labels";
@@ -32,6 +34,7 @@ export interface AccountFormDialogProps {
   onOpenChange: (open: boolean) => void;
   account?: Account;
   initialType?: AccountType;
+  currencyLocked?: boolean;
 }
 
 const HELPER_TEXT: Record<AccountType, string> = {
@@ -46,7 +49,9 @@ export const AccountFormDialog = ({
   onOpenChange,
   account,
   initialType,
+  currencyLocked = false,
 }: AccountFormDialogProps) => {
+  const { user } = useAuth();
   const createAccount = useCreateAccount();
   const updateAccount = useUpdateAccount();
   const isEditing = Boolean(account);
@@ -57,17 +62,20 @@ export const AccountFormDialog = ({
     defaultValues: {
       name: account?.name ?? "",
       type: account?.type ?? initialType ?? "cash",
+      currency: account?.currency ?? user?.primaryCurrency ?? "ARS",
       initialBalance: account?.initialBalance ?? 0,
       notes: account?.notes ?? "",
     },
   });
 
   const type = useWatch({ control: form.control, name: "type" });
+  const currency = useWatch({ control: form.control, name: "currency" });
 
   const onSubmit = async (values: AccountFormValues) => {
     const payload = {
       name: values.name,
       type: values.type,
+      currency: values.currency,
       initialBalance: values.initialBalance,
       notes: values.notes ?? null,
     };
@@ -90,7 +98,11 @@ export const AccountFormDialog = ({
       open={open}
       onOpenChange={onOpenChange}
       title={isEditing ? "Editar cuenta" : "Nueva cuenta"}
-      description="Definí el nombre, el tipo y el saldo."
+      description={
+        isEditing
+          ? "Actualizá los datos de la cuenta."
+          : "Completá los datos de la cuenta."
+      }
       form={form}
       onSubmit={onSubmit}
       submitLabel={isEditing ? "Guardar" : "Crear cuenta"}
@@ -132,7 +144,21 @@ export const AccountFormDialog = ({
         )}
       />
 
-      <FormMoneyField name="initialBalance" label="Saldo inicial" />
+      <CurrencyFormField
+        name="currency"
+        disabled={currencyLocked}
+        hint={
+          currencyLocked
+            ? "No se puede cambiar porque la cuenta ya tiene movimientos."
+            : "La moneda no se puede cambiar una vez que la cuenta tiene movimientos."
+        }
+      />
+
+      <FormMoneyField
+        name="initialBalance"
+        label="Saldo inicial"
+        currency={currency}
+      />
 
       <FormTextField name="notes" label="Observaciones" multiline />
     </FormDialog>

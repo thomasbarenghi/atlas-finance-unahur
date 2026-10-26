@@ -16,13 +16,14 @@ describe("csv", () => {
         description: "Trabajo freelance",
         category: "Freelance",
         account: "Banco",
+        currency: "ARS",
         amount: "$ 180.000,00",
         notes: "",
       },
     ]);
 
     expect(csv.split("\r\n")[0]).toBe(
-      '"Fecha","Tipo","Descripción","Categoría","Cuenta","Monto","Notas"',
+      '"Fecha","Tipo","Descripción","Categoría","Cuenta","Moneda","Monto","Notas"',
     );
     expect(csv).toContain('"Trabajo freelance"');
   });

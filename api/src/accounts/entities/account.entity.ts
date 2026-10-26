@@ -31,6 +31,9 @@ export class Account {
   @Column({ type: "text" })
   type: AccountType;
 
+  @Column({ type: "text", default: "ARS" })
+  currency: string;
+
   @Column({
     name: "initial_balance",
     type: "numeric",

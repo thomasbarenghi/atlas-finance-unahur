@@ -71,4 +71,4 @@ client/
 
 - Desktop (≥ `md`): fixed sidebar with navigation, accounts summary and the account menu.
 - Mobile: bottom app-style bar with 4 equal items (`Inicio`, `Movimientos`, `Asistente`, `Perfil`); `Categories` and `Settings` are reachable from `Profile`.
-- `Ajustes` includes local theme (`Claro/Oscuro/Auto`) and CSV export. There is no currency selector.
+- `Ajustes` includes local theme (`Claro/Oscuro/Auto`), CSV export and the **primary currency** selector. The dashboard header has a **reading-currency** selector before the period; it re-expresses the values without altering data.

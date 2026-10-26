@@ -7,10 +7,15 @@ const base = {
   type: "all" as const,
   accountId: "",
   categoryId: "",
+  currency: "",
   range: { from: "2026-01-01", to: "2026-12-31" },
   categoryNameById: new Map([
     ["cat-super", "Supermercado"],
     ["cat-sueldo", "Sueldo"],
+  ]),
+  accountCurrencyById: new Map([
+    ["acc-banco", "ARS"],
+    ["acc-caja", "USD"],
   ]),
 };
 
@@ -69,6 +74,14 @@ describe("filterTransactions", () => {
         range: { from: "2026-10-01", to: "2026-10-31" },
       }).map((item) => item.id),
     ).toEqual(["income", "expense"]);
+  });
+
+  it("filters by the currency of either transfer leg", () => {
+    expect(
+      filterTransactions(transactions, { ...base, currency: "USD" }).map(
+        (item) => item.id,
+      ),
+    ).toEqual(["expense", "transfer"]);
   });
 
   it("searches description, notes, category name and amount", () => {

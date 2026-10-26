@@ -30,7 +30,7 @@
 
 **Atlass Fin** es una aplicación de gestión financiera personal: cuentas, movimientos (ingresos, gastos y transferencias), categorías del sistema y propias, y un dashboard con la evolución del patrimonio y del flujo de fondos. Sus dos distintivos propios son **analítica/gráficos ricos** y un **agente de IA conversacional de solo consulta** que responde sobre los datos financieros del usuario.
 
-La aplicación opera con **una única moneda** (definida por el backend), cinco categorías fijas del sistema y categorías propias que cada usuario puede gestionar. No hay presupuestos, activos, inversiones, deudas, objetivos, reportes, multimoneda ni entrada por voz. El tema claro/oscuro es una preferencia local del cliente.
+La aplicación opera con **multimoneda**: cada cuenta declara su moneda, el usuario elige una moneda principal y el dashboard permite leer todos los valores en otra moneda de visualización (selector en el header). Las cotizaciones las provee la API. Existen cinco categorías fijas del sistema y categorías propias que cada usuario puede gestionar. No hay presupuestos, activos, inversiones, deudas, objetivos, reportes ni entrada por voz. El tema claro/oscuro es una preferencia local del cliente.
 
 | Área            | Tecnología                                                                  | Versión objetivo    |
 | :-------------- | :-------------------------------------------------------------------------- | :------------------ |
@@ -71,7 +71,7 @@ La aplicación opera con **una única moneda** (definida por el backend), cinco 
 | Gráficos      | Recharts vía `Chart` de shadcn              | Accesible, con tooltip personalizable y datos tabulados alternativos.    |
 | IA            | Streaming SSE al backend                    | UI reactiva, cancelable, con timeout (NFR-PR-004).                       |
 | Sesión        | Cookie `HttpOnly` (web)                     | El cliente no maneja tokens en JS; el backend valida en cada request.    |
-| Moneda/fecha  | `Intl.NumberFormat` / `Intl.DateTimeFormat` | Localización real (NFR-CAL-003). La moneda es una constante del sistema. |
+| Moneda/fecha  | `Intl.NumberFormat` / `Intl.DateTimeFormat` | Localización real (NFR-CAL-003). Cada monto usa la moneda de su cuenta o la moneda de lectura elegida. |
 | Tema          | `next-themes`                               | Preferencia local `Claro/Oscuro/Auto` con aplicación temprana de la clase `.dark`. |
 
 ---
@@ -113,7 +113,7 @@ La aplicación opera con **una única moneda** (definida por el backend), cinco 
 - Safe-areas (`env(safe-area-inset-bottom)`) para el notch/gesto de home.
 
 > **Tema:** preferencia local `Claro | Oscuro | Auto` en Ajustes (persistida en `localStorage`; aplica la clase `.dark`).
-> **Sin selector de moneda:** la moneda es una constante del sistema.
+> **Selector de moneda de lectura:** el dashboard lo tiene en el header, antes del período; re-expresa el patrimonio, los KPIs y los gráficos sin alterar datos. Cada cuenta mantiene su moneda nativa.
 
 ---
 
@@ -131,9 +131,9 @@ Cada página lista: FRs cubiertos, componentes shadcn, y comportamiento esperado
 
 ### 4.2 `/dashboard` — SC-002 (FR-DAS-001..004, 007, 008)
 
-Vista de aterrizaje **"Tu resumen"**: un **layout fijo** de indicadores y gráficos + la sección de cuentas, con `Skeleton` mientras carga.
+Vista de aterrizaje **"Tu resumen"**: un **layout fijo** de indicadores y gráficos + la sección de cuentas, con `Skeleton` mientras carga. El header incluye el **selector de moneda de lectura** antes del período (CH-77); re-expresa el patrimonio, los KPIs y los gráficos con la cotización de la API. Los indicadores incluyen todas las monedas convertidas a la moneda de lectura; el desglose por moneda del hero aparece solo cuando hay más de una moneda en uso.
 
-- **Patrimonio neto** (ancho completo): `NetWorthHero` compacto (≈290 px) con valor, variación vs. período anterior (`TrendBadge`), mini-stats (Ingresos/Gastos/Ahorro/Tasa) en una fila de 4 (2×2 en mobile) y evolución diaria o mensual según el rango, con eje, escala adaptativa, tooltip y punto final. El patrimonio es la suma de los saldos de las cuentas (CAL-001) y coincide con lo que informa el asistente.
+- **Patrimonio neto** (ancho completo): `NetWorthHero` compacto (≈290 px) con valor, variación vs. período anterior (`TrendBadge`), mini-stats (Ingresos/Gastos/Ahorro/Tasa) en una fila de 4 (2×2 en mobile) y evolución diaria o mensual según el rango, con eje, escala adaptativa, tooltip y punto final. El patrimonio es Σ (saldo × cotización) de las cuentas (CAL-001), en la moneda de lectura; el desglose por moneda aparece cuando hay más de una moneda en uso. El selector de moneda de lectura del header re-expresa el hero, los KPIs y los gráficos.
 - **Ingresos vs. gastos** (FR-DAS-003): barras semanales para `Este mes`/`Últimos 30 días` y mensuales para `6/12 meses`.
 - **Gastos por categoría** (FR-DAS-004): donut con el color de cada categoría y leyenda alineada con monto + porcentaje. El título del donut no lleva tooltip; el % se explica desde Categorías.
 - Los tres bloques se muestran en una grilla fija (patrimonio a ancho completo; barras 700 px y donut 378 px en desktop, apilados en mobile). **No hay personalización** de widgets (sin arrastrar y soltar, ocultar ni cambiar ancho) ni layout persistido.
@@ -144,15 +144,15 @@ Vista de aterrizaje **"Tu resumen"**: un **layout fijo** de indicadores y gráfi
 
 ### 4.3 Cuentas — SC-003 (FR-CUE-001..005)
 
-El **listado de cuentas vive en el inicio** (`/dashboard`, §4.2). Las cuentas se muestran con `AccountsList`, una lista de items con `ListSkeleton` y `EmptyState`. La **creación** arranca con un **selector de tipo en grilla** (`AccountTypePicker`: Efectivo, Bancaria, Billetera y Otra); al elegir un tipo se abre el `AccountFormDialog` con ese tipo precargado (nombre, tipo, saldo inicial, observaciones; FR-CUE-001/002).
+El **listado de cuentas vive en el inicio** (`/dashboard`, §4.2). Las cuentas se muestran con `AccountsList`, agrupadas por moneda cuando hay más de una, con `ListSkeleton` y `EmptyState`. La **creación** arranca con un **selector de tipo en grilla** (`AccountTypePicker`: Efectivo, Bancaria, Billetera y Otra); al elegir un tipo se abre el `AccountFormDialog` con ese tipo precargado (nombre, tipo, moneda, saldo inicial, observaciones; FR-CUE-001/002).
 
-El **formulario** (`AccountFormDialog`) es un editor visual: hero con ícono del tipo y **nombre editables**, chips de **tipo** (scroll horizontal) y campos de saldo inicial y observaciones. **No hay moneda** (moneda única del sistema) ni tipo tarjeta.
+El **formulario** (`AccountFormDialog`) es un editor visual: hero con ícono del tipo y **nombre editables**, chips de **tipo** (scroll horizontal), **selector de moneda** (dropdown anclado en desktop, bottom sheet en mobile) y campos de saldo inicial y observaciones. La moneda no se puede cambiar si la cuenta ya tiene movimientos (RN-015). No hay tipo tarjeta.
 
 #### 4.3.1 `/accounts/detail?id=<id>` — Detalle de cuenta
 
-- **Encabezado** (`PageHeader` sin breadcrumb en desktop; back nativo en mobile): nombre con H1 compacto en mobile (20 px). En desktop las acciones son `Editar`, `Transferir` y `Eliminar`; en mobile `Editar` + menú `⋯` con `Transferir` y `Eliminar cuenta`.
-- **Hero**: ícono por tipo, tipo de cuenta y saldo actual grande, en una tarjeta compacta con el mismo gradiente del dashboard. El tipo se muestra debajo del ícono en desktop y mobile.
-- **Stats**: saldo inicial, ingresos y gastos del período (`usePeriod`) en tres tarjetas en fila (también en mobile).
+- **Encabezado** (`PageHeader` sin breadcrumb en desktop; back nativo en mobile): nombre con H1 compacto. En desktop las acciones son `Editar` y `Eliminar`; en mobile `Editar` + menú `⋯` con `Eliminar cuenta`.
+- **Hero**: ícono por tipo, tipo de cuenta (y moneda cuando hay más de una) y saldo actual grande, en una tarjeta compacta con el mismo gradiente del dashboard. Si la cuenta es en moneda extranjera, muestra el equivalente en la moneda principal y la cotización usada.
+- **Stats**: saldo inicial, ingresos y gastos del período (`usePeriod`) en tres tarjetas en fila (también en mobile), en la moneda de la cuenta.
 - **Movimientos**: tarjeta `TransactionList` con header `Movimientos (n)` + `Ver todos`; las filas permiten editar o eliminar el movimiento. El subtítulo de cada fila omite la cuenta actual (`fecha · categoría`; en transferencias `fecha · a/de cuenta destino`). `Transferir` abre el alta de transferencia con la cuenta de origen precargada.
 - **Editar** reutiliza `AccountFormDialog`; **eliminar** usa el `ConfirmActionDialog` (bottom sheet en mobile, modal en desktop) con el detalle de la cuenta, la cantidad de movimientos y la advertencia de saldo antes de borrar (FR-CUE-003/005).
 - La ruta usa `?id=` en vez de `/accounts/:id` para ser compatible con el **static export** de Next; el id se lee con `useQueryParam`.
@@ -160,16 +160,16 @@ El **formulario** (`AccountFormDialog`) es un editor visual: hero con ícono del
 ### 4.4 `/transactions` — SC-004 (FR-TRX-001..005, 007, 008)
 
 - **Lista de items** (`TransactionList`) agrupada por mes con subtotal neto y ⓘ que explica su fórmula, paginación client-side (NFR-PR-002) y menú por fila (editar/eliminar) desplegado desde el botón de acciones, también en mobile: ícono por tipo, descripción, `fecha · categoría · cuenta` y monto (color por signo); en mobile los montos de fila se muestran sin centavos. Cada fila abre la edición. **Las transferencias se colapsan en una sola fila** (`collapseTransfers` por `transferGroupId`, conservando la pata origen): subtítulo `fecha · Cuenta origen → destino` y monto **neutro** (sin verde/rojo); no afectan ingresos, gastos, ahorro ni patrimonio (CAL-003).
-- **Búsqueda y filtros:** buscador por concepto, nota, categoría o monto, segmentado de tipo (`Todos/Ingresos/Gastos/Transferencias`) y filtros de cuenta, categoría y período. En mobile el buscador ocupa todo el ancho, no hay botón de filtros y los chips quedan siempre visibles; el chip de fecha muestra el mes activo. Los filtros se aplican en cliente sobre la página cargada (máx. 100 registros) y `Limpiar` los restablece. El subtítulo mobile muestra `n registros · n páginas`.
-- **Exportar:** botón `Exportar` que descarga un CSV de los movimientos filtrados (fecha, tipo, descripción, categoría, cuenta, monto y notas).
+- **Búsqueda y filtros:** buscador por concepto, nota, categoría o monto, segmentado de tipo (`Todos/Ingresos/Gastos/Transferencias`) y filtros de cuenta, categoría, moneda y período. En mobile el buscador ocupa todo el ancho, no hay botón de filtros y los chips quedan siempre visibles; el chip de fecha muestra el mes activo. Los filtros se aplican en cliente sobre la página cargada (máx. 100 registros) y `Limpiar` los restablece. El filtro de moneda aparece solo cuando hay más de una moneda en uso.
+- **Exportar:** botón `Exportar` que descarga un CSV de los movimientos filtrados (fecha, tipo, descripción, categoría, cuenta, moneda, monto y notas).
 - **CTA de alta**: `Exportar` + `Nuevo movimiento` en el `PageHeader` (desktop) y botón `+` en mobile; botón `Nuevo movimiento` en el estado vacío.
-- **Alta/edición** como editor moderno estilo app (`Dialog` desktop / bottom sheet mobile, FR-TRX-001/002/003): **segmented de tipo** (Gasto/Ingreso/Transferencia), campos con label persistente de cuenta y categoría (categoría obligatoria en ingreso/gasto, del **catálogo del sistema + propias**), **teclado numérico** (`AmountKeypad`) con operaciones `+ − × ÷`, **cálculo en vivo** (sin botón `=`), monto grande con signo por tipo y saldo disponible (oculto en transferencias), fecha + comentario y notas. El monto se evalúa con un evaluador propio (sin `eval`) en `transaction-form-dialog/amount-expression.ts` y se valida `> 0`. Si es transferencia, selector origen/destino que excluye la otra cuenta elegida (FR-TRX-004).
+- **Alta/edición** como editor moderno estilo app (`Dialog` desktop / bottom sheet mobile, FR-TRX-001/002/003): **segmented de tipo** (Gasto/Ingreso/Transferencia), campos con label persistente de cuenta y categoría (categoría obligatoria en ingreso/gasto, del **catálogo del sistema + propias**), **teclado numérico** (`AmountKeypad`) con operaciones `+ − × ÷`, **cálculo en vivo** (sin botón `=`), monto grande con signo por tipo y saldo disponible (oculto en transferencias), fecha + comentario y notas. El monto se evalúa con un evaluador propio (sin `eval`) en `transaction-form-dialog/amount-expression.ts` y se valida `> 0`. Si es transferencia, selector origen/destino que excluye la otra cuenta elegida; cuando las monedas difieren, se muestra la cotización editable (sugerida por la API o la última usada) y el monto que llega a destino. La cotización no se persiste (FR-TRX-004, RN-017).
 - **Eliminar** con `DeleteTransactionDialog` sobre `ConfirmActionDialog`; en una transferencia elimina ambas patas y el texto de confirmación lo advierte.
 
 ### 4.5 `/categories` — SC-011 (FR-CAT-001..004, FR-TRX-002)
 
-- Página **`/categories`**, accesible desde la sidebar (desktop) y desde **Perfil** (mobile). Tiene un **selector de período visible** (desktop y mobile) junto a las **tabs** para elegir **Gastos** o **Ingresos**, y lista las cinco categorías del sistema más las propias del usuario.
-- Cada fila muestra **ícono con el color de la categoría**, nombre, badge `Del sistema`/`Propia`, cantidad de movimientos, **monto y porcentaje del gasto/ingreso del período** y una barra de proporción. El header de la tarjeta muestra el total del período; la lista se ordena por uso.
+- Página **`/categories`**, accesible desde la sidebar (desktop) y desde **Perfil** (mobile). Tiene un **selector de período visible** (desktop y mobile), un **selector de moneda de visualización** cuando hay más de una moneda y las **tabs** para elegir **Gastos** o **Ingresos**. Lista las cinco categorías del sistema más las propias del usuario.
+- Cada fila muestra **ícono con el color de la categoría**, nombre, badge `Del sistema`/`Propia`, cantidad de movimientos, **monto y porcentaje del gasto/ingreso del período** y una barra de proporción. Los montos incluyen movimientos de todas las monedas convertidos a la moneda de visualización. El header de la tarjeta muestra el total del período; la lista se ordena por uso.
 - **Alta/edición** (`CategoryFormDialog`): acción `Nueva categoría` en el header para crear y menú por fila para las propias. Campos: nombre, tipo (inmutable al editar) y color de una paleta. Las categorías del sistema (`isSystem`) no muestran acciones.
 - **Eliminar** una categoría propia pide confirmación; los movimientos que la usaban quedan como “Sin categoría”.
 - **Estados vacíos y error:** `EmptyState` con reintento si fallan las consultas.
@@ -181,7 +181,7 @@ Ver §10. Página propia en desktop y mobile: **`PageHeader`** con `Nuevo chat`,
 ### 4.7 `/profile` — SC-010 (perfil) y `/settings` (ajustes; FR-CFG-001/003)
 
 - **`/profile`** (`ProfileMenu`): tarjeta de perfil (avatar con iniciales, nombre, email), contadores de cuentas/movimientos/categorías, accesos a **Categorías** y **Ajustes**, y **Cerrar sesión**. Es el ítem `Perfil` de la barra inferior.
-- **`/settings`** (`SettingsView`): editar el **nombre** del perfil (`PATCH /users/me`, email no editable), **Tema** (`Claro/Oscuro/Auto`), **Exportar movimientos (CSV)**. `Guardar cambios` vive en el header y se habilita al modificar el nombre. No hay selector de moneda ni interruptor de IA.
+- **`/settings`** (`SettingsView`): editar el **nombre** del perfil (`PATCH /users/me`, email no editable), **Tema** (`Claro/Oscuro/Auto`), **Exportar movimientos (CSV)** y la **moneda principal** (visible cuando hay cuentas en más de una moneda). `Guardar cambios` vive en el header y se habilita al modificar el nombre. No hay interruptor de IA ni edición de cotizaciones.
 - **Sesión:** cerrar sesión (`POST /auth/logout`, FR-AUT-002).
 
 ---
@@ -252,11 +252,12 @@ client/
 │       └── section-icons.ts
 ├── lib/
 │   ├── utils.ts                   # cn()
-│   ├── format.ts                  # CURRENCY, formatCurrency, formato de fechas, parseo de montos
+│   ├── format.ts                  # CURRENCY (fallback), formatCurrency, fechas, parseo de montos
+│   ├── currency.ts                # catálogo, conversión, tasas y agrupación por moneda
 │   ├── period.ts / labels.ts / categories.ts
 │   ├── sections.ts / forms.ts
 │   ├── api/                       # client, types, endpoints, errors, assistant-stream
-│   ├── query/                     # hooks de TanStack Query por dominio (+ keys.ts)
+│   ├── query/                     # hooks de TanStack Query por dominio (+ keys.ts, incluye currencies)
 │   ├── validation/                # schemas Zod por formulario
 ├── hooks/                         # hooks compartidos (auth, período, confirm, …)
 ├── providers/                     # app-providers, auth, query, período (tema vía next-themes)
@@ -274,13 +275,13 @@ client/
 - Los componentes de **una sola ruta** viven en `app/<ruta>/_components/`; los compartidos por varias rutas de un grupo, en `app/(grupo)/_components/<dominio>/`. Esas carpetas son privadas de Next (no generan rutas) y sus archivos no se importan desde fuera de la ruta/grupo dueño.
 - `components/common/` agrupa solo genéricos con **≥ 2 consumidores** reales (`Amount`, `EmptyState`, `PageHeader`, `ListSkeleton`, `ListPagination`, formularios compartidos…). `components/layout/` es el shell de `(app)` (sidebar, tab bar, user menu, auth guard).
 - Las clases repetidas sobre primitivas de `components/ui/` viven en `components/common/ui-classes.ts` (TypeScript, para que `cn`/tailwind-merge resuelvan overrides). Los patrones de markup sin overrides se centralizan en `app/globals.css` (`surface-card`, `surface-list`, `segmented`, `list-row`, …).
-- Cada dominio de datos tiene su archivo de hooks en `lib/query/`, que encapsula las `queryKey`s y las mutaciones con su invalidación. Las claves están centralizadas en `lib/query/keys.ts`.
+- Cada dominio de datos tiene su archivo de hooks en `lib/query/`, que encapsula las `queryKey`s y las mutaciones con su invalidación. Las claves están centralizadas en `lib/query/keys.ts`; `currencies.ts` expone catálogo y cotizaciones.
 - La lógica transversal vive en hooks compartidos: `use-confirm-action` (confirmar + mutar + toast), `use-period`, etc.
 - Los schemas Zod viven en `lib/validation/` y reflejan los DTOs de `lib/api/types.ts`.
 - `next.config.ts` usa `output: "export"` e `images: { unoptimized: true }` para generar el sitio estático.
 - No existe `middleware.ts`: el guard de sesión es `auth-guard.tsx` en cliente. La seguridad real la impone el backend.
 
-> **Eliminados:** `lib/budget.ts`, `lib/goal.ts`, `lib/patrimony.ts`, `lib/query/{budgets,assets,debts,goals,positions,quotes,reference,assistant}.ts`, `lib/validation/{budgets,assets,goals,categories}.ts`, las páginas `budgets`, `goals`, `patrimony/**`, `reports/**`, `forgot-password` y `reset-password`, y los componentes `currency-selector`, `theme-toggle`, `period-currency-filters`, `allocation-list`, `status-badge`, `warning-badge`, `signed-money`, `budget-progress`, `form-currency-field`, `archived-sheet` y `coming-soon`.
+> **Eliminados:** `lib/budget.ts`, `lib/goal.ts`, `lib/patrimony.ts`, `lib/query/{budgets,assets,debts,goals,positions,quotes,reference,assistant}.ts`, `lib/validation/{budgets,assets,goals,categories}.ts`, las páginas `budgets`, `goals`, `patrimony/**`, `reports/**`, `forgot-password` y `reset-password`, y los componentes `theme-toggle`, `period-currency-filters`, `allocation-list`, `status-badge`, `warning-badge`, `signed-money`, `budget-progress`, `archived-sheet` y `coming-soon`.
 
 ---
 
@@ -314,7 +315,7 @@ npx shadcn@latest add breadcrumb avatar
 
 - **`Amount`**: formatea monto con signo y color (`income` positivo, `expense` gasto, `muted` transferencia). Respeta NFR-UA-005 (signo + color, no solo color). Las transferencias sin signo usan `formatCurrency` directamente.
 - **`NetWorthHero`**: hero de patrimonio neto con variación, mini-stats del período (opcionales vía `showPeriodStats`) y evolución diaria con eje de fechas, escala adaptativa, tooltip y punto final. `TrendBadge` es un subcomponente privado suyo.
-- **`PeriodSelector`**: control compartido por Dashboard, Movimientos, Categorías y Asistente, con cuatro rangos: `Este mes`, `Últimos 30 días`, `6 meses` y `12 meses`. No hay selector de moneda.
+- **`PeriodSelector`**: control compartido por Dashboard, Movimientos, Categorías y Asistente, con cuatro rangos: `Este mes`, `Últimos 30 días`, `6 meses` y `12 meses`. El Dashboard y Categorías tienen además un selector de moneda de lectura; Movimientos mantiene un filtro por moneda.
 - **`MetricInfo`**: icono ⓘ y popover accesible con la fórmula y un ejemplo del período; se usa en las métricas del dashboard, categorías, cuentas y movimientos.
 - **`EmptyState`**: ícono, título, descripción, acción CTA (FR-DAS-008); base de los estados vacíos y de error.
 - **Listas de dominio** (`AccountsList`, `TransactionList`, `CategoryList`): cada una compone `ListSkeleton`, `EmptyState` y `ListPagination`; **no hay tablas** (`DataTable` eliminado).
@@ -405,6 +406,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  primaryCurrency: string;
   createdAt: string;
 }
 export interface AuthResponse {
@@ -418,6 +420,7 @@ export interface Account {
   id: string;
   name: string;
   type: AccountType;
+  currency: string;
   initialBalance: number;
   currentBalance: number;
   notes: string | null;
@@ -449,7 +452,18 @@ export interface Transaction {
 // ── Dashboard ─────────────────────────────────────────────────────────────
 export interface DashboardData {
   period: { from: string; to: string };
+  /** Moneda de lectura (default: principal). */
   currency: string;
+  primaryCurrency: string;
+  rateDate: string | null;
+  availableCurrencies: string[];
+  breakdown: {
+    currency: string;
+    balance: number;
+    accounts: number;
+    converted: number;
+  }[];
+  rates: { currency: string; rate: number; rateDate: string }[];
   kpis: {
     netWorth: number;
     netWorthDeltaPct: number | null;
@@ -484,13 +498,13 @@ export interface AssistantStreamMeta {
 }
 ```
 
-> **Eliminados:** `Budget`, `BudgetStatus`, `Asset`, `AssetType`, `Valuation`, `ValuationSource`, `Debt`, `DebtType`, `Position`, `Quote`, `Goal`, `GoalStatus`, `Theme`, `CurrenciesResponse`, `ReportSummary`, `ReportByCategory`, `NetWorthPoint`, `BudgetReportRow`, `Conversation`, `AssistantActionProposal` y `AssistantActionError`.
+> **Eliminados:** `Budget`, `BudgetStatus`, `Asset`, `AssetType`, `Valuation`, `ValuationSource`, `Debt`, `DebtType`, `Position`, `Quote`, `Goal`, `GoalStatus`, `Theme`, `ReportSummary`, `ReportByCategory`, `NetWorthPoint`, `BudgetReportRow`, `Conversation`, `AssistantActionProposal` y `AssistantActionError`. Los tipos de moneda vigentes son `CurrencyCatalogItem`, `CurrencyRate` y `CurrencySettings`.
 
 > **Contrato:** el contrato REST vive en `backend.md` §7 (camelCase, fechas `YYYY-MM-DD`, decimales `number`). La API no publica Swagger/OpenAPI ni una referencia interactiva; cualquier cambio de endpoint debe reflejarse en estos tipos y en la doc.
 
 ### 7.4 Hooks de Query (`lib/query/*`)
 
-- Claves consistentes: `["accounts"]`, `["transactions", page]`, `["dashboard", period]`, `["categories"]`, etc.
+- Claves consistentes: `["accounts"]`, `["transactions", page]`, `["dashboard", period]`, `["categories"]`, `["currencies"]`, `["currencies", "rates"]`, etc.
 - Mutaciones con invalidación en cascada: al crear un movimiento se invalidan `transactions`, `accounts` y `dashboard`.
 - `staleTime` corto para datos financieros; `retry` configurado.
 
@@ -521,7 +535,7 @@ La analítica es el diferenciador. Directrices:
 - **Datos tabulados**: cada gráfico tiene su tabla equivalente para NFR-UA-004.
 - **Período compartido**: el `PeriodSelector` del dashboard actualiza el `PeriodProvider`; Movimientos lo usa para filtrar y el Asistente para el contexto de sus preguntas.
 - **Granularidad:** `Este mes` y `Últimos 30 días` usan serie diaria y barras semanales; `6 meses` y `12 meses` usan serie y barras mensuales. La regla vive en el backend (`DashboardOrchestrator`).
-- **Moneda**: la moneda es una constante del sistema; los montos llegan calculados por el backend. El front no convierte ni ofrece cambio de moneda.
+- **Moneda**: el dashboard tiene un selector de moneda de lectura en el header, antes del período (CH-77), con las monedas en uso y **“Otra moneda”** para elegir cualquier moneda del catálogo. Re-expresa el patrimonio, los KPIs y los gráficos con la cotización de la API. El patrimonio se informa con desglose por moneda; Categorías tiene su propio selector de visualización. El cliente no crea ni edita cotizaciones.
 
 ---
 
@@ -593,7 +607,7 @@ export const formatPercent = (v: number, locale: string = DEFAULT_LOCALE) =>
 ```
 
 - `es-AR` como locale por defecto (no `navigator.language`, para que el export estático no dependa del cliente).
-- La **moneda del sistema** llega en las respuestas con dinero (`currency`) y se usa para formatear; no hay selector de moneda. Las filas de movimientos en mobile y el resumen del sidebar formatean sin centavos (`showCents: false`).
+- Cada monto se formatea con la **moneda de su cuenta**; el dashboard usa la **moneda de lectura** elegida en el header (default: principal) y convierte todos los valores con la cotización de la API. El resumen del sidebar muestra los totales nativos por moneda; las filas de movimientos en mobile y el resumen formatean sin centavos (`showCents: false`). No se editan cotizaciones desde el cliente.
 - Rangos y fechas se calculan con `Date`/`Intl`; no se usa `date-fns`.
 
 ---
@@ -613,7 +627,7 @@ export const formatPercent = (v: number, locale: string = DEFAULT_LOCALE) =>
 | NFR-CAL-003 (localización)         | `Intl` (§11).                                                                                                   |
 | NFR-CAL-005 (datos demo)           | Consumir el seed del backend; ningún dato real.                                                                 |
 
-> **Eliminados:** NFR-PR-003 (cotizaciones). NFR-CAL-002 (temas) se cubre con la preferencia local `Claro/Oscuro/Auto`.
+> Las cotizaciones son globales y se refrescan desde la API; no hay edición de cotizaciones desde el cliente. NFR-CAL-002 (temas) se cubre con la preferencia local `Claro/Oscuro/Auto`.
 
 ---
 

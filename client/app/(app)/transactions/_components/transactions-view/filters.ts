@@ -11,8 +11,10 @@ export interface TransactionFiltersValue {
   type: TransactionTypeFilter;
   accountId: string;
   categoryId: string;
+  currency: string;
   range: PeriodRange;
   categoryNameById: Map<string, string>;
+  accountCurrencyById: Map<string, string>;
 }
 
 const normalized = (value: string): string =>
@@ -60,6 +62,20 @@ export const filterTransactions = (
     }
     if (filters.categoryId && transaction.categoryId !== filters.categoryId) {
       return false;
+    }
+    if (filters.currency) {
+      const originCurrency = filters.accountCurrencyById.get(
+        transaction.accountId,
+      );
+      const destinationCurrency = transaction.transferAccountId
+        ? filters.accountCurrencyById.get(transaction.transferAccountId)
+        : undefined;
+      if (
+        originCurrency !== filters.currency &&
+        destinationCurrency !== filters.currency
+      ) {
+        return false;
+      }
     }
     if (
       transaction.date < filters.range.from ||

@@ -2,6 +2,7 @@
 
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 import {
   AccountCreation,
   useAccountCreation,
@@ -10,9 +11,13 @@ import { AccountsList } from "@/app/(app)/_components/accounts/accounts-list";
 import { useAccounts } from "@/lib/query/accounts";
 
 export const AccountsSection = () => {
+  const { user } = useAuth();
   const accountsQuery = useAccounts();
   const creation = useAccountCreation();
   const accounts = accountsQuery.data ?? [];
+  const primaryCurrency = user?.primaryCurrency ?? "ARS";
+  const hasMultipleCurrencies =
+    new Set(accounts.map((account) => account.currency)).size > 1;
 
   return (
     <section className="flex flex-col gap-2.5">
@@ -34,6 +39,8 @@ export const AccountsSection = () => {
       <AccountsList
         accounts={accounts}
         isLoading={accountsQuery.isLoading}
+        groupByCurrency={hasMultipleCurrencies}
+        primaryCurrency={primaryCurrency}
         emptyAction={
           <Button size="sm" onClick={creation.openPicker}>
             <Plus /> Cargar una cuenta

@@ -9,6 +9,9 @@ export const useUpdateMe = () => {
     mutationFn: (input: UpdateUserInput) => userEndpoints.updateMe(input),
     onSuccess: (user) => {
       queryClient.setQueryData(queryKeys.auth.me, user);
+      queryClient.invalidateQueries({ queryKey: queryKeys.currencyRates });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardBase });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts });
     },
   });
 };

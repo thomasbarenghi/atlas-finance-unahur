@@ -2,7 +2,7 @@
 
 import { ListSkeleton } from "@/components/common/list-skeleton";
 import type { Category } from "@/lib/api/types";
-import { CURRENCY, formatCurrency } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import type { CategoryUsageResult } from "../category-usage";
 import { CategoryRow } from "./category-row";
 
@@ -10,6 +10,7 @@ export interface CategoryListProps {
   tab: "expense" | "income";
   usage: CategoryUsageResult;
   isLoading: boolean;
+  currency: string;
   onEdit: (category: Category) => void;
   onDelete: (category: Category) => void;
 }
@@ -18,6 +19,7 @@ export const CategoryList = ({
   tab,
   usage,
   isLoading,
+  currency,
   onEdit,
   onDelete,
 }: CategoryListProps) => {
@@ -34,7 +36,7 @@ export const CategoryList = ({
             <span className="flex items-center gap-2">
               <span className="text-muted-foreground text-[10.5px]">Total</span>
               <span className="text-ink text-[11.5px] font-semibold tabular-nums">
-                {formatCurrency(usage.total, CURRENCY)}
+                {formatCurrency(usage.total, currency)}
               </span>
             </span>
           </header>
@@ -45,6 +47,7 @@ export const CategoryList = ({
                 key={item.category.id}
                 item={item}
                 index={index}
+                currency={currency}
                 onEdit={onEdit}
                 onDelete={onDelete}
               />

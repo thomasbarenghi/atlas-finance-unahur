@@ -50,6 +50,7 @@ describe("account endpoints", () => {
     await accountEndpoints.create({
       name: "Caja",
       type: "cash",
+      currency: "ARS",
       initialBalance: 1000,
       notes: null,
     });

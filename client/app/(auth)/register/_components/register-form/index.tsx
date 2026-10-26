@@ -44,18 +44,25 @@ export const RegisterForm = () => {
 
   return (
     <FormShell form={form} onSubmit={onSubmit}>
-      <FormTextField name="name" label="Nombre" autoComplete="name" />
+      <FormTextField
+        name="name"
+        label="Nombre"
+        autoComplete="name"
+        placeholder="Tu nombre"
+      />
       <FormTextField
         name="email"
         label="Email"
         type="email"
         autoComplete="email"
+        placeholder="tu@email.com"
       />
       <FormTextField
         name="password"
         label="Contraseña"
         type="password"
         autoComplete="new-password"
+        placeholder="Mínimo 8 caracteres"
         description="8 a 72 caracteres, con al menos una letra y un número."
       />
       <FormTextField
@@ -63,6 +70,7 @@ export const RegisterForm = () => {
         label="Confirmar contraseña"
         type="password"
         autoComplete="new-password"
+        placeholder="Repetí tu contraseña"
       />
       <Button
         type="submit"

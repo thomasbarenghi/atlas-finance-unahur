@@ -21,6 +21,7 @@ erDiagram
     text name
     text email UK
     text password_hash
+    text primary_currency
     timestamptz created_at
     timestamptz updated_at
   }
@@ -39,6 +40,7 @@ erDiagram
     uuid user_id FK
     text name
     text type
+    text currency
     numeric initial_balance
     text notes
     timestamptz created_at
@@ -69,6 +71,14 @@ erDiagram
     timestamptz created_at
     timestamptz updated_at
   }
+
+  currency_rates {
+    text currency PK
+    numeric rate
+    date rate_date
+    text source
+    timestamptz updated_at
+  }
 ```
 
 > La relación de la transferencia consigo misma no es una FK: los dos lados de
@@ -85,6 +95,7 @@ erDiagram
 | `name` | text | no | 2–80 |
 | `email` | text | no | UNIQUE, `lowercase` |
 | `password_hash` | text | no | argon2 (NFR-SEG-003) |
+| `primary_currency` | text | no | moneda principal; default `ARS` |
 | `created_at` | timestamptz | no | |
 | `updated_at` | timestamptz | no | |
 
@@ -107,13 +118,14 @@ erDiagram
 | `user_id` | uuid | no | FK → `users.id` `ON DELETE CASCADE` (indexado) |
 | `name` | text | no | |
 | `type` | text | no | `cash` \| `bank` \| `wallet` \| `other` |
+| `currency` | text | no | ISO 4217; fija si la cuenta ya tiene movimientos (RN-015) |
 | `initial_balance` | numeric(18,4) | no | |
 | `notes` | text | sí | |
 | `created_at` | timestamptz | no | |
 | `updated_at` | timestamptz | no | |
 
-> Saldo actual = `initial_balance` + Σ movimientos de la cuenta (calculado, FR-CUE-004).
-> Eliminar la cuenta elimina en cascada sus movimientos (FR-CUE-005).
+> Saldo actual = `initial_balance` + Σ movimientos de la cuenta (calculado, FR-CUE-004), en la moneda de la cuenta.
+> Eliminar la cuenta elimina en cascada sus movimientos (FR-CUE-005). La moneda no se puede cambiar si ya tiene movimientos (RN-015).
 
 ### `categories` — Categoría (sistema + propias)
 
@@ -130,6 +142,20 @@ erDiagram
 > Cada usuario puede crear, editar y eliminar las suyas. Al eliminar una propia,
 > `transactions.category_id` pasa a `NULL` (`ON DELETE SET NULL`).
 
+### `currency_rates` — Cotizaciones globales
+
+| Columna | Tipo | Nulo | Notas |
+| :--- | :--- | :--- | :--- |
+| `currency` | text | no | PK; ISO 4217 |
+| `rate` | numeric(18,6) | no | ARS por una unidad de la moneda |
+| `rate_date` | date | no | fecha de la cotización de la API |
+| `source` | text | no | `api` |
+| `updated_at` | timestamptz | no | |
+
+> Tabla **global**, no por usuario. El usuario no crea ni edita cotizaciones;
+> el backend las refresca desde la API pública y conserva la última válida.
+> Se usan para convertir el patrimonio y los flujos a la moneda de lectura.
+
 ### `transactions` — Movimiento (FR-TRX-001..005)
 
 | Columna | Tipo | Nulo | Notas |
@@ -137,7 +163,7 @@ erDiagram
 | `id` | uuid | no | PK |
 | `user_id` | uuid | no | FK → `users.id` `ON DELETE CASCADE` (indexado) |
 | `type` | text | no | `income` \| `expense` \| `transfer` |
-| `amount` | numeric(18,4) | no | positivo en income/expense; con signo en transfer |
+| `amount` | numeric(18,4) | no | positivo en income/expense; con signo en transfer. En transferencia multimoneda cada fila lleva el monto en la moneda de su cuenta |
 | `date` | date | no | `YYYY-MM-DD` |
 | `description` | text | no | |
 | `notes` | text | sí | |
@@ -154,16 +180,18 @@ erDiagram
   cuelgan de `users.id`; toda lectura/escritura filtra por el `user_id`
   autenticado. `categories` tiene las cinco globales (`user_id NULL`) más las
   propias de cada usuario.
-- **Transferencias (FR-TRX-004/005, RN-003/004):** origen ≠ destino; se
-  persisten **dos filas** (`type='transfer'`, montos de signo opuesto en cuentas
-  distintas) con el mismo `transfer_group_id`, de forma atómica. Se excluyen de
+- **Transferencias (FR-TRX-004/005, RN-003/004/017):** origen ≠ destino; se
+  persisten **dos filas** (`type='transfer'`) con el mismo `transfer_group_id`,
+  de forma atómica. En multimoneda cada fila guarda el monto en la moneda de su
+  cuenta; la cotización usada en la UI no se persiste. Se excluyen de
   ingresos/gastos consolidados (CAL-003).
-- **CAL-001 Patrimonio neto:** Σ saldos netos de las cuentas del usuario.
-- **CAL-002 Flujo de fondos:** Σ ingresos − Σ gastos del período.
-- **Moneda:** única del sistema; no hay columna de moneda ni multimoneda.
+- **CAL-001 Patrimonio neto:** Σ (saldo × cotización) de las cuentas, en la moneda de lectura.
+- **CAL-002 Flujo de fondos:** Σ ingresos − Σ gastos del período, convirtiendo cada flujo a la moneda de lectura.
+- **Moneda:** multimoneda con cotizaciones globales provistas por la API; cada cuenta declara su moneda y el patrimonio se convierte a la moneda de lectura.
 
 ## Fuera de alcance (v0.3)
 
 No existen tablas para: presupuestos, activos/valuaciones, deudas, posiciones,
-cotizaciones, objetivos, tipos de cambio, conversaciones de IA ni acciones del
-asistente. Ver `docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md` §1.
+objetivos, conversaciones de IA ni acciones del asistente. Las cotizaciones
+viven en la tabla global `currency_rates` (no son datos del usuario). Ver
+`docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md` §1.

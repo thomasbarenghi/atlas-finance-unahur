@@ -4,6 +4,7 @@ export interface CsvRow {
   description: string;
   category: string;
   account: string;
+  currency: string;
   amount: string;
   notes: string;
 }
@@ -17,13 +18,23 @@ export const toCsv = (headers: string[], rows: string[][]): string =>
 
 export const transactionsToCsv = (rows: CsvRow[]): string =>
   toCsv(
-    ["Fecha", "Tipo", "Descripción", "Categoría", "Cuenta", "Monto", "Notas"],
+    [
+      "Fecha",
+      "Tipo",
+      "Descripción",
+      "Categoría",
+      "Cuenta",
+      "Moneda",
+      "Monto",
+      "Notas",
+    ],
     rows.map((row) => [
       row.date,
       row.type,
       row.description,
       row.category,
       row.account,
+      row.currency,
       row.amount,
       row.notes,
     ]),

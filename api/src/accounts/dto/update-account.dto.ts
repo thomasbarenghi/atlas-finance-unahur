@@ -6,6 +6,7 @@ import {
   Length,
   MaxLength,
 } from "class-validator";
+import { CURRENCY_CODES } from "../../currencies/currency-catalog";
 import { AccountType } from "../../common/types/financial-enums";
 import { ACCOUNT_TYPE_VALUES } from "./create-account.dto";
 
@@ -18,6 +19,10 @@ export class UpdateAccountDto {
   @IsOptional()
   @IsIn(ACCOUNT_TYPE_VALUES)
   type?: AccountType;
+
+  @IsOptional()
+  @IsIn(CURRENCY_CODES)
+  currency?: string;
 
   @IsOptional()
   @IsNumber()

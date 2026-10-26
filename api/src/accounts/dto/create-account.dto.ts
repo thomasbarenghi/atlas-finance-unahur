@@ -6,6 +6,7 @@ import {
   Length,
   MaxLength,
 } from "class-validator";
+import { CURRENCY_CODES } from "../../currencies/currency-catalog";
 import { AccountType } from "../../common/types/financial-enums";
 
 export const ACCOUNT_TYPE_VALUES: AccountType[] = [
@@ -22,6 +23,9 @@ export class CreateAccountDto {
 
   @IsIn(ACCOUNT_TYPE_VALUES)
   type: AccountType;
+
+  @IsIn(CURRENCY_CODES)
+  currency: string;
 
   @IsOptional()
   @IsNumber()

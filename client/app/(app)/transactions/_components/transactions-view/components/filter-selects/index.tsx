@@ -88,6 +88,37 @@ export const CategoryFilter = ({
   );
 };
 
+export interface CurrencyFilterProps {
+  value: string;
+  onChange: (value: string) => void;
+  currencies: string[];
+}
+
+export const CurrencyFilter = ({
+  value,
+  onChange,
+  currencies,
+}: CurrencyFilterProps) => {
+  return (
+    <Select
+      value={value || "all"}
+      onValueChange={(next) => onChange(next === "all" ? "" : next)}
+    >
+      <SelectTrigger aria-label="Filtrar por moneda" className={SELECT_TRIGGER}>
+        <SelectValue placeholder="Moneda" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">Moneda</SelectItem>
+        {currencies.map((currency) => (
+          <SelectItem key={currency} value={currency}>
+            {currency}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+};
+
 export interface PeriodFilterProps {
   preset: PeriodPreset;
   range: PeriodRange;

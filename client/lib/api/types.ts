@@ -26,6 +26,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  primaryCurrency: string;
   createdAt: string;
 }
 
@@ -39,6 +40,7 @@ export interface Account {
   id: string;
   name: string;
   type: AccountType;
+  currency: string;
   initialBalance: number;
   currentBalance: number;
   notes: string | null;
@@ -80,9 +82,31 @@ export interface Transaction {
   updatedAt: string;
 }
 
+export interface DashboardBreakdown {
+  currency: string;
+  balance: number;
+  accounts: number;
+  /** Equivalent in the primary currency. */
+  converted: number;
+}
+
+export interface DashboardRate {
+  currency: string;
+  /** How many units of the primary currency one unit buys. */
+  rate: number;
+  rateDate: string;
+}
+
 export interface DashboardData {
   period: PeriodRange;
+  /** Currency scope of the period indicators and charts. */
   currency: string;
+  /** Currency in which net worth is reported. */
+  primaryCurrency: string;
+  rateDate: string | null;
+  availableCurrencies: string[];
+  breakdown: DashboardBreakdown[];
+  rates: DashboardRate[];
   kpis: {
     netWorth: number;
     netWorthDeltaPct: number | null;
@@ -111,6 +135,31 @@ export interface DashboardData {
   }[];
 }
 
+export interface CurrencyCatalogItem {
+  code: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+}
+
+export type CurrencyRateSource = "api" | "seed";
+
+export interface CurrencyRate {
+  currency: string;
+  name: string;
+  symbol: string;
+  /** How many units of the user's primary currency one unit buys. */
+  rate: number;
+  rateDate: string;
+  source: CurrencyRateSource;
+}
+
+export interface CurrencySettings {
+  primaryCurrency: string;
+  rates: CurrencyRate[];
+  updatedAt: string | null;
+}
+
 export interface AssistantHistoryMessage {
   role: "user" | "assistant";
   content: string;
@@ -119,6 +168,7 @@ export interface AssistantHistoryMessage {
 export interface AssistantMessageInput {
   question: string;
   period?: PeriodRange;
+  currency?: string;
   /** Turnos previos de la conversación en memoria, para preguntas de seguimiento. */
   history?: AssistantHistoryMessage[];
 }
@@ -138,11 +188,13 @@ export interface RegisterInput {
 
 export interface UpdateUserInput {
   name?: string;
+  primaryCurrency?: string;
 }
 
 export interface CreateAccountInput {
   name: string;
   type: AccountType;
+  currency: string;
   initialBalance?: number;
   notes?: string | null;
 }
@@ -161,6 +213,7 @@ export interface CreateTransactionInput {
   notes?: string | null;
   accountId: string;
   transferAccountId?: string | null;
+  transferAmount?: number;
   categoryId?: string | null;
 }
 

@@ -15,9 +15,10 @@ import {
   type RowAction,
 } from "@/components/common/row-actions-menu";
 import type { Transaction, TransactionType } from "@/lib/api/types";
-import { CURRENCY, formatCurrency } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { buildTransactionSubtitle } from "../transaction-row.utils";
+import type { TransferDetails } from "../transaction-list.utils";
 
 const TYPE_PRESENTATION: Record<
   TransactionType,
@@ -44,8 +45,10 @@ const TEXT_SIZE = {
 export interface TransactionRowProps {
   transaction: Transaction;
   accountNameById: Map<string, string>;
+  accountCurrencyById: Map<string, string>;
   categoryNameById: Map<string, string>;
   contextAccountId?: string;
+  transferDetails?: TransferDetails;
   compact?: boolean;
   showCents: boolean;
   onSelect?: (transaction: Transaction) => void;
@@ -55,19 +58,25 @@ export interface TransactionRowProps {
 export const TransactionRow = ({
   transaction,
   accountNameById,
+  accountCurrencyById,
   categoryNameById,
   contextAccountId,
+  transferDetails,
   compact = false,
   showCents,
   onSelect,
   onDelete,
 }: TransactionRowProps) => {
   const { icon, badge } = TYPE_PRESENTATION[transaction.type];
+  const currency = accountCurrencyById.get(transaction.accountId) ?? "ARS";
   const subtitle = buildTransactionSubtitle({
     transaction,
     accountNameById,
+    accountCurrencyById,
     categoryNameById,
     contextAccountId,
+    transferDetails,
+    showCents,
   });
   const variant = compact ? "compact" : "default";
   const isTransfer = transaction.type === "transfer";
@@ -134,14 +143,14 @@ export const TransactionRow = ({
               TEXT_SIZE[variant],
             )}
           >
-            {formatCurrency(Math.abs(transaction.amount), CURRENCY, undefined, {
+            {formatCurrency(Math.abs(transaction.amount), currency, undefined, {
               showCents,
             })}
           </span>
         ) : (
           <Amount
             value={transaction.amount}
-            currency={CURRENCY}
+            currency={currency}
             type={transaction.type}
             showCents={showCents}
             className={cn(

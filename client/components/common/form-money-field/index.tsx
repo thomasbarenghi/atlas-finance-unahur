@@ -14,9 +14,14 @@ import { MoneyFieldInput } from "./components/money-field-input";
 export interface FormMoneyFieldProps {
   name: string;
   label?: string;
+  currency?: string;
 }
 
-export const FormMoneyField = ({ name, label }: FormMoneyFieldProps) => {
+export const FormMoneyField = ({
+  name,
+  label,
+  currency,
+}: FormMoneyFieldProps) => {
   const { control } = useFormContext();
 
   return (
@@ -33,6 +38,7 @@ export const FormMoneyField = ({ name, label }: FormMoneyFieldProps) => {
               value={(field.value ?? null) as number | null}
               onChange={(value) => field.onChange(value)}
               onBlur={field.onBlur}
+              currency={currency}
             />
           </FormControl>
           <FormMessage />

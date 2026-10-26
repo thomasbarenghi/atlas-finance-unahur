@@ -8,6 +8,7 @@ import {
   Length,
   ValidateNested,
 } from "class-validator";
+import { CURRENCY_CODES } from "../../currencies/currency-catalog";
 import { PeriodDto } from "../../common/dto/period.dto";
 
 export class AssistantHistoryMessageDto {
@@ -28,6 +29,10 @@ export class AssistantMessageDto {
   @ValidateNested()
   @Type(() => PeriodDto)
   period?: PeriodDto;
+
+  @IsOptional()
+  @IsIn(CURRENCY_CODES)
+  currency?: string;
 
   @IsOptional()
   @IsArray()

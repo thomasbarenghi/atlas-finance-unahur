@@ -10,14 +10,20 @@ import type { Transaction } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 import type { ListPaginationProps } from "@/components/common/list-pagination";
 import { TransactionRow } from "./components/transaction-row";
-import { collapseTransfers } from "./transaction-list.utils";
+import {
+  buildTransferDetails,
+  collapseTransfers,
+  type TransferDetails,
+} from "./transaction-list.utils";
 import { groupTransactionsByMonth } from "./group-transactions";
 
 export interface TransactionListProps {
   transactions: Transaction[];
   accountNameById: Map<string, string>;
+  accountCurrencyById: Map<string, string>;
   contextAccountId?: string;
   categoryNameById: Map<string, string>;
+  transferDetails?: Map<string, TransferDetails>;
   isLoading?: boolean;
   pagination?: ListPaginationProps;
   groupByMonth?: boolean;
@@ -31,8 +37,10 @@ export interface TransactionListProps {
 export const TransactionList = ({
   transactions,
   accountNameById,
+  accountCurrencyById,
   contextAccountId,
   categoryNameById,
+  transferDetails: providedTransferDetails,
   isLoading,
   pagination,
   groupByMonth = false,
@@ -44,6 +52,11 @@ export const TransactionList = ({
 }: TransactionListProps) => {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const rows = useMemo(() => collapseTransfers(transactions), [transactions]);
+  const computedTransferDetails = useMemo(
+    () => buildTransferDetails(transactions),
+    [transactions],
+  );
+  const transferDetails = providedTransferDetails ?? computedTransferDetails;
   const groups = useMemo(() => groupTransactionsByMonth(rows), [rows]);
 
   if (!isLoading && rows.length === 0) {
@@ -61,8 +74,14 @@ export const TransactionList = ({
     <TransactionRow
       transaction={transaction}
       accountNameById={accountNameById}
+      accountCurrencyById={accountCurrencyById}
       categoryNameById={categoryNameById}
       contextAccountId={contextAccountId}
+      transferDetails={
+        transaction.transferGroupId
+          ? transferDetails.get(transaction.transferGroupId)
+          : undefined
+      }
       compact={compact}
       showCents={isDesktop}
       onSelect={onSelect}

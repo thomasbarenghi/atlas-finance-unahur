@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useExportTransactions } from "@/hooks/use-export-transactions";
 import { useSignOut } from "@/hooks/use-sign-out";
 import { THEMES, type ThemePreference } from "../themes";
+import { MobileCurrenciesDialog } from "./mobile-currencies-dialog";
 
 export const MobileSettings = () => {
   const { user } = useAuth();
@@ -67,6 +68,10 @@ export const MobileSettings = () => {
             </SelectContent>
           </Select>
         </div>
+      </section>
+
+      <section className="surface-list py-1">
+        <MobileCurrenciesDialog />
       </section>
 
       <section className="surface-list py-1">

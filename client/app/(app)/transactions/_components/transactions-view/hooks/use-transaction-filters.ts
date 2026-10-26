@@ -7,6 +7,7 @@ import { useAccounts } from "@/lib/query/accounts";
 import { useCategories } from "@/lib/query/categories";
 import { useTransactions } from "@/lib/query/transactions";
 import { collapseTransfers } from "@/app/(app)/_components/transactions/transaction-list/transaction-list.utils";
+import { buildTransferDetails } from "@/app/(app)/_components/transactions/transaction-list/transaction-list.utils";
 import { filterTransactions, type TransactionTypeFilter } from "../filters";
 
 const PAGE_SIZE = 10;
@@ -21,12 +22,23 @@ export const useTransactionFilters = () => {
   const [type, setTypeState] = useState<TransactionTypeFilter>("all");
   const [accountId, setAccountIdState] = useState("");
   const [categoryId, setCategoryIdState] = useState("");
+  const [currency, setCurrencyState] = useState("");
   const [page, setPage] = useState(1);
 
-  const accounts = accountsQuery.data ?? [];
-  const categories = categoriesQuery.data ?? [];
+  const accounts = useMemo(
+    () => accountsQuery.data ?? [],
+    [accountsQuery.data],
+  );
+  const categories = useMemo(
+    () => categoriesQuery.data ?? [],
+    [categoriesQuery.data],
+  );
+  const currencies = useMemo(
+    () => [...new Set(accounts.map((account) => account.currency))].sort(),
+    [accounts],
+  );
 
-  const { accountNameById, categoryNameById } = useMemo(
+  const { accountNameById, accountCurrencyById, categoryNameById } = useMemo(
     () =>
       buildTransactionLookups(
         accountsQuery.data ?? [],
@@ -42,8 +54,10 @@ export const useTransactionFilters = () => {
         type,
         accountId,
         categoryId,
+        currency,
         range,
         categoryNameById,
+        accountCurrencyById,
       }),
     [
       transactionsQuery.data,
@@ -51,12 +65,18 @@ export const useTransactionFilters = () => {
       type,
       accountId,
       categoryId,
+      currency,
       range,
       categoryNameById,
+      accountCurrencyById,
     ],
   );
 
   const collapsed = useMemo(() => collapseTransfers(filtered), [filtered]);
+  const transferDetails = useMemo(
+    () => buildTransferDetails(filtered),
+    [filtered],
+  );
   const totalPages = Math.max(1, Math.ceil(collapsed.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pageItems = collapsed.slice(
@@ -82,25 +102,36 @@ export const useTransactionFilters = () => {
     setCategoryIdState(value);
     resetPage();
   };
+  const setCurrency = (value: string) => {
+    setCurrencyState(value);
+    resetPage();
+  };
 
   const clearFilters = () => {
     setSearchState("");
     setTypeState("all");
     setAccountIdState("");
     setCategoryIdState("");
+    setCurrencyState("");
     setPage(1);
   };
 
   const hasActiveFilters =
-    search !== "" || type !== "all" || accountId !== "" || categoryId !== "";
+    search !== "" ||
+    type !== "all" ||
+    accountId !== "" ||
+    categoryId !== "" ||
+    currency !== "";
 
   return {
     accounts,
     categories,
     accountNameById,
+    accountCurrencyById,
     categoryNameById,
     filtered,
     pageItems,
+    transferDetails,
     total: collapsed.length,
     page: safePage,
     pageSize: PAGE_SIZE,
@@ -114,6 +145,9 @@ export const useTransactionFilters = () => {
     setAccountId,
     categoryId,
     setCategoryId,
+    currency,
+    setCurrency,
+    currencies,
     preset,
     setPreset,
     range,

@@ -29,6 +29,12 @@ export class AccountBalancesService {
     );
   }
 
+  async hasTransactions(accountId: string, userId: string): Promise<boolean> {
+    return this.transactionsRepository.exists({
+      where: { accountId, userId },
+    });
+  }
+
   async signedTotalsByAccount(userId: string): Promise<Map<string, number>> {
     const transactions = await this.transactionsRepository.find({
       where: { userId },

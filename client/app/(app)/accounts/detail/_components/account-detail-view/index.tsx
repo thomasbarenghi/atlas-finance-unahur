@@ -31,6 +31,7 @@ export const AccountDetailView = () => {
     isLoading,
     transactions,
     isLoadingTransactions,
+    transferDetails,
     movementCount,
     summary,
   } = useAccountDetail();
@@ -51,7 +52,7 @@ export const AccountDetailView = () => {
   const deleteTransactionAction = useDeleteTransactionAction();
 
   const categories = categoriesQuery.data ?? [];
-  const { accountNameById, categoryNameById } = useMemo(
+  const { accountNameById, accountCurrencyById, categoryNameById } = useMemo(
     () => buildTransactionLookups(accounts, categoriesQuery.data ?? []),
     [accounts, categoriesQuery.data],
   );
@@ -106,7 +107,9 @@ export const AccountDetailView = () => {
         isLoading={isLoadingTransactions}
         contextAccountId={account.id}
         accountNameById={accountNameById}
+        accountCurrencyById={accountCurrencyById}
         categoryNameById={categoryNameById}
+        transferDetails={transferDetails}
         compact
         onSelect={setEditTransaction}
         onDelete={deleteTransactionAction.request}
@@ -131,6 +134,7 @@ export const AccountDetailView = () => {
         open={editOpen}
         onOpenChange={setEditOpen}
         account={account}
+        currencyLocked={movementCount > 0}
       />
       <TransactionFormDialog
         key={editTransaction?.id ?? "edit-transaction"}

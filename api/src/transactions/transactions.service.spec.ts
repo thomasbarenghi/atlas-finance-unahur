@@ -154,6 +154,28 @@ describe("TransactionsService", () => {
     expect(result.transferGroupId).toBeTruthy();
   });
 
+  it("stores a different destination amount for a multi-currency transfer", async () => {
+    const { service, dataSource } = build();
+    const save = jest.fn(async (entity: any) => entity);
+    dataSource.transaction.mockImplementation(async (cb: any) => cb({ save }));
+
+    await service.createTransaction(
+      "u1",
+      baseDto({
+        type: "transfer",
+        amount: 1180,
+        transferAmount: 1,
+        accountId: "a1",
+        transferAccountId: "a2",
+        categoryId: null,
+      }),
+    );
+
+    const [outbound, inbound] = save.mock.calls.map((c) => c[0]);
+    expect(outbound.amount).toBe(-1180);
+    expect(inbound.amount).toBe(1);
+  });
+
   it("rejects a transfer without destination or to the same account", async () => {
     const { service } = build();
     await expect(

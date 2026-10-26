@@ -117,6 +117,7 @@ describe("account schema", () => {
   const valid = {
     name: "Caja",
     type: "cash" as const,
+    currency: "ARS",
     initialBalance: 0,
     notes: "",
   };
@@ -211,6 +212,7 @@ describe("transaction schema", () => {
       type: "transfer",
       categoryId: "",
       transferAccountId: UUID_2,
+      transferAmount: 100,
     });
     expect(ok.success).toBe(true);
   });

@@ -39,6 +39,8 @@ export const TransactionAccountFields = ({
   destinationAccounts,
   categoryOptions,
 }: TransactionAccountFieldsProps) => {
+  const hasMultipleCurrencies =
+    new Set(accounts.map((account) => account.currency)).size > 1;
   return (
     <>
       <FormField
@@ -46,7 +48,9 @@ export const TransactionAccountFields = ({
         name="accountId"
         render={({ field }) => (
           <FormItem className="gap-1.5">
-            <FormLabel className={labelClass}>Cuenta</FormLabel>
+            <FormLabel className={labelClass}>
+              {type === "transfer" ? "Desde" : "Cuenta"}
+            </FormLabel>
             <Select value={field.value} onValueChange={field.onChange}>
               <FormControl>
                 <SelectTrigger className={triggerClass}>
@@ -61,6 +65,7 @@ export const TransactionAccountFields = ({
                 {accounts.map((account) => (
                   <SelectItem key={account.id} value={account.id}>
                     {account.name}
+                    {hasMultipleCurrencies ? ` · ${account.currency}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -76,7 +81,7 @@ export const TransactionAccountFields = ({
           name="transferAccountId"
           render={({ field }) => (
             <FormItem className="gap-1.5">
-              <FormLabel className={labelClass}>Cuenta destino</FormLabel>
+              <FormLabel className={labelClass}>Hacia</FormLabel>
               <Select value={field.value ?? ""} onValueChange={field.onChange}>
                 <FormControl>
                   <SelectTrigger className={triggerClass}>
@@ -87,6 +92,7 @@ export const TransactionAccountFields = ({
                   {destinationAccounts.map((account) => (
                     <SelectItem key={account.id} value={account.id}>
                       {account.name}
+                      {hasMultipleCurrencies ? ` · ${account.currency}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>

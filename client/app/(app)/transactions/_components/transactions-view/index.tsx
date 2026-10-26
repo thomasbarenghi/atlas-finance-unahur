@@ -19,9 +19,11 @@ export const TransactionsView = () => {
     accounts,
     categories,
     accountNameById,
+    accountCurrencyById,
     categoryNameById,
     filtered,
     pageItems,
+    transferDetails,
     total,
     page,
     pageSize,
@@ -35,6 +37,9 @@ export const TransactionsView = () => {
     setAccountId,
     categoryId,
     setCategoryId,
+    currency,
+    setCurrency,
+    currencies,
     preset,
     setPreset,
     range,
@@ -85,6 +90,9 @@ export const TransactionsView = () => {
         onAccountChange={setAccountId}
         categoryId={categoryId}
         onCategoryChange={setCategoryId}
+        currency={currency}
+        onCurrencyChange={setCurrency}
+        currencies={currencies}
         preset={preset}
         range={range}
         onPresetChange={setPreset}
@@ -98,7 +106,9 @@ export const TransactionsView = () => {
         transactions={pageItems}
         isLoading={isLoading}
         accountNameById={accountNameById}
+        accountCurrencyById={accountCurrencyById}
         categoryNameById={categoryNameById}
+        transferDetails={transferDetails}
         groupByMonth
         onSelect={setEditTarget}
         onDelete={deleteAction.request}

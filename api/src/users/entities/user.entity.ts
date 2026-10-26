@@ -20,6 +20,9 @@ export class User {
   @Column({ name: "password_hash", type: "text" })
   passwordHash: string;
 
+  @Column({ name: "primary_currency", type: "text", default: "ARS" })
+  primaryCurrency: string;
+
   @CreateDateColumn({ name: "created_at", type: "timestamptz" })
   createdAt: Date;
 

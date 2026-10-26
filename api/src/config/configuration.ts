@@ -44,7 +44,7 @@ export interface AppConfig {
   cookie: CookieConfig;
   cors: CorsConfig;
   ai: AiConfig;
-  /** Única moneda del sistema, usada para mostrar montos (FR de alcance 0.3). */
+  /** Moneda principal por defecto para usuarios nuevos (cada cuenta elige la suya). */
   defaultCurrency: string;
   /**
    * TTL del cache en memoria de sesiones validadas (ms). `0` lo desactiva.

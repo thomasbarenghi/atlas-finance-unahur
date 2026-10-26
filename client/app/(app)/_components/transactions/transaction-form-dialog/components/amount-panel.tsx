@@ -3,7 +3,7 @@
 import type { UseFormReturn } from "react-hook-form";
 import { FormField, FormItem, FormMessage } from "@/components/ui/form";
 import type { Account, TransactionType } from "@/lib/api/types";
-import { CURRENCY, formatCurrency } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import type { TransactionFormValues } from "@/lib/validation/transactions";
 import { AmountKeypad } from "./amount-keypad";
 import {
@@ -25,6 +25,7 @@ export const TransactionAmountPanel = ({
   amountInput,
 }: TransactionAmountPanelProps) => {
   const { expression, evaluated, hasOperator, handleKey } = amountInput;
+  const currency = account?.currency ?? "ARS";
 
   return (
     <>
@@ -36,11 +37,11 @@ export const TransactionAmountPanel = ({
         ) : null}
         <span className="font-heading text-foreground text-[34px] leading-[43px] font-semibold tabular-nums sm:text-[38px] sm:leading-[48px]">
           {signForTransactionType(type)}
-          {formatCurrency(evaluated, CURRENCY)}
+          {formatCurrency(evaluated, currency)}
         </span>
         {type !== "transfer" ? (
           <span className="text-muted-foreground text-[10px] leading-[14px] sm:text-[10.5px]">
-            Disponible {formatCurrency(account?.currentBalance ?? 0, CURRENCY)}
+            Disponible {formatCurrency(account?.currentBalance ?? 0, currency)}
           </span>
         ) : null}
         <FormField

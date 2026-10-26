@@ -1,7 +1,7 @@
 import type { DashboardData } from "@/lib/api/types";
 import { MetricInfo } from "@/components/common/metric-info";
-import { formatCurrency } from "@/lib/format";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { buildChartTicks } from "./components/chart-ticks";
 import { buildPeriodSummaryStats } from "./components/period-stats";
@@ -12,6 +12,7 @@ export interface NetWorthHeroProps {
   value: number;
   deltaPct: number | null;
   currency: string;
+  breakdown: DashboardData["breakdown"];
   series: DashboardData["netWorthSeries"];
   income: number;
   expenses: number;
@@ -22,6 +23,7 @@ export const NetWorthHero = ({
   value,
   deltaPct,
   currency,
+  breakdown,
   series,
   income,
   expenses,
@@ -35,6 +37,13 @@ export const NetWorthHero = ({
     savings,
     currency,
   );
+  const primaryBucket = breakdown.find((item) => item.currency === currency);
+  const foreignBuckets = breakdown.filter((item) => item.currency !== currency);
+  const orderedBreakdown = [
+    ...(primaryBucket ? [primaryBucket] : []),
+    ...foreignBuckets,
+  ];
+  const hasMultipleCurrencies = foreignBuckets.length > 0;
 
   return (
     <div
@@ -45,8 +54,16 @@ export const NetWorthHero = ({
         Patrimonio neto
         <MetricInfo
           label="Patrimonio neto"
-          formula="Σ saldos de todas las cuentas"
-          description={`Suma del saldo de tus cuentas: ${formatCurrency(value, currency)}. Las transferencias entre cuentas no cambian el total.`}
+          formula={
+            hasMultipleCurrencies
+              ? `Σ (saldo × cotización) en ${currency}`
+              : "Σ saldos de todas las cuentas"
+          }
+          description={
+            hasMultipleCurrencies
+              ? `Suma de tus cuentas convertidas a ${currency} con la cotización de Ajustes: ${formatCurrency(value, currency)}. Las transferencias entre cuentas no cambian el total.`
+              : `Suma del saldo de tus cuentas: ${formatCurrency(value, currency)}. Las transferencias entre cuentas no cambian el total.`
+          }
         />
       </span>
 
@@ -62,7 +79,37 @@ export const NetWorthHero = ({
         </div>
       </div>
 
-      <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2.5 md:mt-4 md:grid-cols-4 md:gap-11">
+      {hasMultipleCurrencies ? (
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 md:mt-3.5 md:gap-x-5">
+          {orderedBreakdown.map((item) => (
+            <span
+              key={item.currency}
+              className="flex items-baseline gap-1.5 text-[10.5px] leading-[15px] md:text-[12px] md:leading-[17px]"
+            >
+              <span className="text-muted-foreground font-semibold tracking-[0.08em]">
+                {item.currency}
+              </span>
+              <span className="text-ink font-semibold tabular-nums">
+                {formatCurrency(item.balance, item.currency)}
+              </span>
+              {item.currency !== currency ? (
+                <span className="text-muted-foreground tabular-nums">
+                  ≈ {formatCurrency(item.converted, currency)}
+                </span>
+              ) : null}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="mt-3 md:mt-4">
+        <span className="text-muted-foreground text-[9.5px] leading-[13px] font-bold tracking-[0.11em] uppercase md:text-[10px] md:leading-[14px]">
+          <span className="hidden md:inline">Indicadores del período</span>
+          <span className="md:hidden">Indicadores</span>
+        </span>
+      </div>
+
+      <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-2.5 md:mt-2 md:grid-cols-4 md:gap-11">
         {periodStats.map((stat) => (
           <div
             key={stat.label}
