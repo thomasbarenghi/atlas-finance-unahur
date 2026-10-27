@@ -12,6 +12,7 @@ import type { ClassConstructor } from "class-transformer";
 import { RegisterDto } from "../../../api/src/auth/dto/register.dto";
 import { LoginDto } from "../../../api/src/auth/dto/login.dto";
 import { UpdateUserDto } from "../../../api/src/users/dto/update-user.dto";
+import { ChangePasswordDto } from "../../../api/src/users/dto/change-password.dto";
 import { CreateAccountDto } from "../../../api/src/accounts/dto/create-account.dto";
 import { UpdateAccountDto } from "../../../api/src/accounts/dto/update-account.dto";
 import { CreateCategoryDto } from "../../../api/src/categories/dto/create-category.dto";
@@ -25,6 +26,7 @@ export const apiRequestDtos = {
   RegisterDto,
   LoginDto,
   UpdateUserDto,
+  ChangePasswordDto,
   CreateAccountDto,
   UpdateAccountDto,
   CreateCategoryDto,

@@ -5,6 +5,7 @@ import { CURRENCY_CATALOG } from "../../../api/src/currencies/currency-catalog";
 import type {
   AuthResponse,
   Category,
+  ChangePasswordInput,
   CreateAccountInput,
   CreateCategoryInput,
   CreateTransactionInput,
@@ -447,8 +448,40 @@ const handlers = [
     const body = (await request.json()) as UpdateUserInput;
     const record = testState.users.find((item) => item.user.id === user.id);
     if (!record) return fail(404, "NOT_FOUND", "El usuario no existe");
+    if (body.email !== undefined) {
+      const email = body.email.trim().toLowerCase();
+      const duplicate = testState.users.some(
+        (item) => item.user.id !== user.id && item.user.email === email,
+      );
+      if (duplicate) {
+        return fail(409, "EMAIL_IN_USE", "Ese email ya está registrado", {
+          email: ["Ese email ya está registrado"],
+        });
+      }
+      record.user = { ...record.user, ...body, email };
+      return json(record.user);
+    }
     record.user = { ...record.user, ...body };
     return json(record.user);
+  }),
+
+  http.patch("*/users/me/password", async ({ request }) => {
+    logRequest(request);
+    const user = requireUser();
+    if (!user) return unauthorized();
+    const record = testState.users.find((item) => item.user.id === user.id);
+    if (!record) return fail(404, "NOT_FOUND", "El usuario no existe");
+    const body = (await request.json()) as ChangePasswordInput;
+    if (record.password !== body.currentPassword) {
+      return fail(
+        400,
+        "VALIDATION_ERROR",
+        "La contraseña actual no es correcta",
+        { currentPassword: ["La contraseña actual no es correcta"] },
+      );
+    }
+    record.password = body.newPassword;
+    return new HttpResponse(null, { status: 204 });
   }),
 
   http.get("*/accounts", ({ request }) => {

@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| Versión | 0.3.1 |
+| Versión | 0.3.2 |
 | Estado | En desarrollo — versión preliminar, no finalizada |
-| Fecha | 26/10/2026 |
+| Fecha | 27/10/2026 |
 | Sponsor Operación | Secretaría Académica UNAHUR |
 | Sponsor Organización | UNAHUR |
 | Autor | Barenghi, Thomas |
@@ -28,6 +28,7 @@
 | 0.2 | 02/10/2026 | Barenghi, Thomas | Se agregan 5 requerimientos funcionales, 1 no funcional y 1 regla de cálculo; se modifican FR-DAS-007, FR-IA-009 y CAL-001, y se actualiza la regla de negocio RN-002 (patrimonio neto). |
 | 0.3 | 16/10/2026 | Barenghi, Thomas | Se ajusta el alcance de la versión y se consolida la documentación en torno a los flujos principales: acceso, cuentas, movimientos, panel y asistente de consulta. Se actualizan los requerimientos, las reglas de negocio y de cálculo, las entidades, las pantallas y los datos de demostración, y se amplían las User Stories para cubrir todos los módulos vigentes. El asistente queda definido como de solo consulta. |
 | 0.3.1 | 26/10/2026 | Barenghi, Thomas | Se alinea el documento con la implementación vigente: búsqueda y filtros de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria y semanal del panel; continuidad de la conversación del asistente en memoria del cliente; multimoneda (moneda por cuenta, moneda principal, cotizaciones automáticas de la API consultadas en cada lectura y sin persistencia, transferencias multimoneda y selector de moneda de lectura); autenticación JWT stateless sin tabla de sesiones y con transporte exclusivo por cookie HttpOnly; consolidación de reglas y criterios para eliminar duplicidades; y retiro de requisitos de estados vacíos, atomicidad de transferencias, exportación CSV e insuficiencia del asistente. |
+| 0.3.2 | 27/10/2026 | Barenghi, Thomas | Se agrega la edición del correo electrónico y el cambio de contraseña desde el perfil, con validación de la contraseña actual; no se incorpora recuperación de contraseña. |
 
 ## 2. Alcance
 
@@ -136,7 +137,7 @@ Quedan fuera de alcance la sincronización automática con bancos o billeteras, 
 | HU-001 — Registrar un movimiento | Como usuario registrado, quiero cargar un ingreso o gasto para mantener actualizados mis saldos. | • Los campos obligatorios se validan antes de guardar.<br>• El monto debe ser mayor que cero.<br>• El movimiento aparece en el listado y actualiza saldo y dashboard.<br>• La API verifica que cuenta y categoría pertenezcan al usuario autenticado. |
 | HU-002 — Transferir entre cuentas | Como usuario registrado, quiero mover dinero entre dos cuentas propias, incluso de monedas distintas, sin alterar mis ingresos o gastos. | • Origen y destino son diferentes y pertenecen al usuario.<br>• Se registran efectos opuestos; en multimoneda se guardan el monto origen y el monto destino.<br>• La cotización usada se puede sobrescribir y no se persiste.<br>• La transferencia se excluye del flujo de fondos consolidado. |
 | HU-006 — Consultar al asistente | Como usuario registrado, quiero preguntar por mis gastos para entender mi comportamiento financiero. | • El asistente requiere sesión válida.<br>• Solo utiliza datos propios y el mínimo contexto necesario.<br>• La respuesta identifica período y categorías considerados.<br>• Los totales coinciden con el dashboard del mismo período.<br>• El asistente es de solo consulta: no crea, edita ni elimina datos.<br>• Puede recibir turnos recientes de la conversación como contexto, sin persistirlos en el servidor. |
-| HU-007 — Registrarme e iniciar sesión | Como visitante, quiero registrarme e iniciar sesión para acceder a mi información financiera. | • El registro valida los campos obligatorios, incluida la moneda principal, y rechaza el correo duplicado.<br>• Al cerrar sesión se limpian las cookies y las pantallas financieras redirigen al acceso; el token emitido expira según su vigencia. |
+| HU-007 — Registrarme e iniciar sesión | Como visitante, quiero registrarme e iniciar sesión para acceder a mi información financiera. | • El registro valida los campos obligatorios, incluida la moneda principal, y rechaza el correo duplicado.<br>• Desde el perfil puedo actualizar mi correo y mi contraseña; el correo debe ser único y el cambio de contraseña exige la actual.<br>• Al cerrar sesión se limpian las cookies y las pantallas financieras redirigen al acceso; el token emitido expira según su vigencia. |
 | HU-008 — Gestionar mis cuentas | Como usuario registrado, quiero crear, editar y eliminar mis cuentas para reflejar dónde está mi dinero. | • Se registran nombre, tipo, moneda y saldo inicial.<br>• El saldo actual se calcula desde el saldo inicial y los movimientos, en la moneda de la cuenta.<br>• La moneda no se cambia si la cuenta tiene movimientos.<br>• La eliminación elimina en cascada los movimientos asociados y solo alcanza cuentas propias. |
 | HU-009 — Ver el resumen del panel | Como usuario registrado, quiero ver mi patrimonio, ingresos, gastos y ahorro del período para entender mi situación de un vistazo. | • El panel muestra los cuatro indicadores del período seleccionado.<br>• Incluye todas las monedas convertidas a la moneda de lectura.<br>• Los totales coinciden con los movimientos registrados. |
 | HU-010 — Ver los gráficos del panel | Como usuario registrado, quiero ver la evolución del patrimonio, la comparación entre ingresos y gastos y la distribución de gastos por categoría. | • El panel muestra los tres gráficos.<br>• Los gráficos coinciden con los datos del período seleccionado.<br>• La evolución del patrimonio es diaria y las barras son semanales para rangos de hasta 31 días; en rangos mayores son mensuales. |
@@ -204,7 +205,7 @@ Los identificadores de requerimiento son estables entre versiones y no se renume
 | ID | Prioridad | Requerimiento |
 |---|---|---|
 | FR-CFG-001 | P1 | Permitir elegir el tema de la interfaz (claro, oscuro o automático) y persistirlo localmente. |
-| FR-CFG-003 | P1 | Permitir editar el nombre del perfil y mostrar la identidad del usuario con contadores de cuentas, movimientos y categorías. |
+| FR-CFG-003 | P1 | Permitir editar el nombre, el correo electrónico y la contraseña del perfil; el correo debe ser único y el cambio de contraseña requiere la actual. Mostrar la identidad del usuario con contadores de cuentas, movimientos y categorías. |
 
 **Asistente de inteligencia artificial**
 

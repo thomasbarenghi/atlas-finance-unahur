@@ -10,7 +10,10 @@ import {
 import { loginSchema, registerSchema } from "@/lib/validation/auth";
 import { accountSchema } from "@/lib/validation/accounts";
 import { transactionSchema } from "@/lib/validation/transactions";
-import { settingsSchema } from "@/lib/validation/settings";
+import {
+  changePasswordSchema,
+  settingsSchema,
+} from "@/lib/validation/settings";
 
 const UUID = "11111111-1111-4111-8111-111111111111";
 const UUID_2 = "22222222-2222-4222-8222-222222222222";
@@ -232,16 +235,52 @@ describe("transaction schema", () => {
 });
 
 describe("settings schema", () => {
-  const valid = { name: "Demo" };
+  const valid = { name: "Demo", email: "demo@atlassfin.app" };
 
   it("accepts valid settings", () => {
     expect(settingsSchema.safeParse(valid).success).toBe(true);
   });
 
   it("rejects a one-character or oversized name", () => {
-    expect(settingsSchema.safeParse({ name: "D" }).success).toBe(false);
-    expect(settingsSchema.safeParse({ name: "a".repeat(81) }).success).toBe(
+    expect(settingsSchema.safeParse({ ...valid, name: "D" }).success).toBe(
       false,
     );
+    expect(
+      settingsSchema.safeParse({ ...valid, name: "a".repeat(81) }).success,
+    ).toBe(false);
+  });
+
+  it("requires a valid email", () => {
+    expect(
+      settingsSchema.safeParse({ ...valid, email: "no-es-email" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("change password schema", () => {
+  const valid = {
+    currentPassword: "Demo1234!",
+    newPassword: "Nueva1234!",
+    confirmPassword: "Nueva1234!",
+  };
+
+  it("accepts a valid password change", () => {
+    expect(changePasswordSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("requires the new password policy and matching confirmation", () => {
+    expect(
+      changePasswordSchema.safeParse({
+        ...valid,
+        newPassword: "corta",
+        confirmPassword: "corta",
+      }).success,
+    ).toBe(false);
+    expect(
+      changePasswordSchema.safeParse({
+        ...valid,
+        confirmPassword: "Otra1234!",
+      }).success,
+    ).toBe(false);
   });
 });

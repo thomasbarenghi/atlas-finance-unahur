@@ -4,7 +4,7 @@
 |---|---|
 | **Proyecto** | Gestor Financiero Personal |
 | **Documento** | Plan de Pruebas |
-| **Versión** | 1.2 |
+| **Versión** | 1.6 |
 | **Fecha** | Octubre 2026 |
 | **Sponsor Operación** | Secretaría Académica UNAHUR |
 | **Sponsor Organización** | UNAHUR |
@@ -24,6 +24,7 @@
 | 1.3 | Octubre 2026 | Barenghi, Thomas | Se ajusta el caso de acceso al auth JWT stateless web-only: logout limpia cookies y el token emitido expira por vigencia. |
 | 1.4 | Octubre 2026 | Barenghi, Thomas | Se eliminan reglas y criterios redundantes; se consolida la regla multimoneda en RN-014 y se corrigen los IDs duplicados. |
 | 1.5 | Octubre 2026 | Barenghi, Thomas | Se retiran los casos asociados a FR-DAS-008, FR-TRX-005, FR-TRX-008 y FR-IA-011. |
+| 1.6 | Octubre 2026 | Barenghi, Thomas | Se agrega el caso de edición de correo y cambio de contraseña desde el perfil. |
 
 ---
 
@@ -35,7 +36,7 @@ El objetivo operativo es **obtener evidencia suficiente y reproducible para apro
 
 ## 2. Alcance del Testing
 
-- **Acceso:** registro, inicio y cierre de sesión.
+- **Acceso:** registro, inicio y cierre de sesión; edición de nombre, correo y contraseña desde el perfil.
 - **Cuentas** y saldos, con moneda por cuenta y moneda principal.
 - **Movimientos:** ingresos, gastos y transferencias (incluidas las multimoneda), con categorías del sistema y propias.
 - **Búsqueda y filtros** de movimientos.
@@ -218,8 +219,9 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-CFG-01 | Tema | Cambiar el tema y recargar la aplicación | El tema persiste en el navegador y no modifica los datos financieros; la preferencia no se sincroniza entre dispositivos. | P1 | FR-CFG-001/003 |
+| CP-CFG-01 | Tema | Cambiar el tema y recargar la aplicación | El tema persiste en el navegador y no modifica los datos financieros; la preferencia no se sincroniza entre dispositivos. | P1 | FR-CFG-001 |
 | CP-CFG-02 | Moneda principal | Con cuentas en más de una moneda, cambiar la moneda principal en Ajustes y volver al dashboard | La preferencia se guarda; el dashboard usa la nueva moneda principal como lectura por defecto; las cotizaciones siguen siendo automáticas y no editables. | P1 | RN-014, RN-016 |
+| CP-CFG-03 | Correo y contraseña | En Ajustes, cambiar el correo por uno nuevo y luego cambiar la contraseña ingresando la actual; probar correo duplicado, contraseña actual incorrecta y contraseña nueva inválida | El correo se normaliza y se guarda si es único; el cambio de contraseña exige la actual y aplica la misma política del registro; los errores se informan sin cerrar la sesión. | P1 | FR-CFG-003, NFR-SEG-003 |
 
 ## 6. Datos de Prueba
 

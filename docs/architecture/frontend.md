@@ -92,7 +92,7 @@ La aplicación opera con **multimoneda**: cada cuenta declara su moneda, el usua
     ├── /categories           # categorías del sistema + propias (SC-011)
     ├── /assistant            # chat con la IA, solo consulta (SC-009)
     ├── /profile              # hub de perfil: tarjeta, secciones y cierre de sesión (SC-010)
-    └── /settings             # ajustes: nombre del perfil (SC-010)
+    └── /settings             # ajustes: perfil, correo y contraseña (SC-010)
 ```
 
 **Reglas de enrutamiento:**
@@ -181,7 +181,7 @@ Ver §10. Página propia en desktop y mobile: **`PageHeader`** con `Nuevo chat`,
 ### 4.7 `/profile` — SC-010 (perfil) y `/settings` (ajustes; FR-CFG-001/003)
 
 - **`/profile`** (`ProfileMenu`): tarjeta de perfil (avatar con iniciales, nombre, email), contadores de cuentas/movimientos/categorías, accesos a **Categorías** y **Ajustes**, y **Cerrar sesión**. Es el ítem `Perfil` de la barra inferior.
-- **`/settings`** (`SettingsView`): editar el **nombre** del perfil (`PATCH /users/me`, email no editable), **Tema** (`Claro/Oscuro/Auto`), **Exportar movimientos (CSV)** y la **moneda principal** (visible cuando hay cuentas en más de una moneda). `Guardar cambios` vive en el header y se habilita al modificar el nombre. No hay interruptor de IA ni edición de cotizaciones.
+- **`/settings`** (`SettingsView`): editar el **nombre** y el **correo** del perfil (`PATCH /users/me`), cambiar la **contraseña** (`PATCH /users/me/password`, con contraseña actual), **Tema** (`Claro/Oscuro/Auto`), **Exportar movimientos (CSV)** y la **moneda principal** (visible cuando hay cuentas en más de una moneda). `Guardar cambios` vive en el header y se habilita al modificar nombre o correo; el cambio de contraseña tiene su propio botón. En mobile se muestran los mismos formularios dentro de Ajustes. No hay recuperación de contraseña ni interruptor de IA ni edición de cotizaciones.
 - **Sesión:** cerrar sesión (`POST /auth/logout`, FR-AUT-002).
 
 ---
@@ -209,7 +209,7 @@ client/
 │       ├── _components/           # compartidos entre rutas de (app)
 │       │   ├── accounts/          # account-creation, account-form-dialog, account-type-picker, accounts-list, account-icon
 │       │   ├── transactions/      # transaction-form-dialog (+ hooks), transaction-list, delete-transaction-dialog, transaction-lookups
-│       │   └── assistant/         # assistant-chat (+ components/hooks)
+│       │   └── assistant/         # assistant-chat (+ components/hooks, markdown-text)
 │       ├── dashboard/
 │       │   ├── page.tsx
 │       │   └── _components/       # dashboard-view (+ dashboard-skeleton/header-actions/period-summary), net-worth-hero, charts/
@@ -234,7 +234,7 @@ client/
 │   ├── common/                    # genéricos domain-agnostic (folder + index.tsx)
 │   │   ├── amount/  chart-data-table/  date-picker/  empty-state/
 │   │   ├── list-pagination/  list-skeleton/  menu-row/
-│   │   ├── page-header/  page-loader/  markdown-text/  metric-info/
+│   │   ├── page-header/  page-loader/  metric-info/
 │   │   ├── row-actions-menu/  menu-row/  segmented-control/  period-selector/
 │   │   ├── responsive-action-button/  confirm-action-dialog/
 │   │   ├── dialog-shell/  bottom-sheet-handle/
@@ -327,7 +327,6 @@ npx shadcn@latest add breadcrumb avatar
 - **`PageLoader`**: estado de carga a pantalla completa usado por el redirect raíz y el `AuthGuard`.
 - **`PageHeader`**: título, subtítulo opcional, acciones, breadcrumb opcional (`eyebrow`) y `titleAddon`; `BackButton` privado solo mobile en rutas no raíz.
 - **`DatePicker`**: selector de fecha reutilizable en formularios.
-- **`MarkdownText`**: render seguro de Markdown del asistente sin `dangerouslySetInnerHTML` (NFR-SEG-006).
 - **Formularios compartidos** (`FormShell`, `FormDialog`, `FormTextField`, `FormMoneyField`): eliminan el scaffold de RHF y los campos repetidos en todos los formularios.
 
 Los detalles de una sola pantalla viven como subcomponentes privados dentro de su feature: `DetailPage`/`DetailMetric` en `account-detail-view`, `FormHero` en `account-form-dialog`, `AmountKeypad` en `transaction-form-dialog`, `WidgetCard`/`AccountsSection` en `dashboard-view`.
@@ -569,7 +568,7 @@ export const streamAssistantMessage = (
 };
 ```
 
-- **Render**: la respuesta se acumula desde los `delta` y se renderiza **Markdown de forma segura** con `components/common/markdown-text` (produce elementos React para negrita/cursiva/código/listas; **nunca** usa `dangerouslySetInnerHTML`, NFR-SEG-006). El front marca la respuesta como informativa. El `ScrollArea` de la conversación usa `min-h-0` para poder scrollear dentro de la página; una respuesta interrumpida se muestra como tal.
+- **Render**: la respuesta se acumula desde los `delta` y se renderiza **Markdown de forma segura** con `assistant-chat/components/markdown-text` (produce elementos React para negrita/cursiva/código/listas; **nunca** usa `dangerouslySetInnerHTML`, NFR-SEG-006). El front marca la respuesta como informativa. El `ScrollArea` de la conversación usa `min-h-0` para poder scrollear dentro de la página; una respuesta interrumpida se muestra como tal.
 - **Límites**: si llega `done` con `insufficient: true`, mostrar el mensaje sin fallar; si llega `error`, mostrar aviso genérico y permitir reintento.
 - **Seguridad de prompts**: el front **nunca** concatena datos del usuario con instrucciones de sistema; envía la pregunta, el período y los turnos previos como contexto separado.
 - **Conversación única:** no hay historial persistido. `use-assistant-conversation` mantiene una sola conversación en memoria y envía sus últimos turnos como `history` para permitir seguimientos; `Nuevo chat` la descarta. No hay propuestas ni acciones.
@@ -678,7 +677,7 @@ Progresivo y validable al final de cada tanda. Cada tanda deja la app compilando
 ### Tanda 4 — Categorías (sistema + propias) + Perfil/Ajustes — ✅ Hecho
 
 - Página `/categories` con tabs Gastos/Ingresos, uso por período y CRUD de categorías propias (FR-CAT-001..004, FR-TRX-002).
-- `/profile` (hub) y `/settings` (nombre, tema y exportación), cierre de sesión.
+- `/profile` (hub) y `/settings` (nombre, correo, contraseña, tema y exportación), cierre de sesión.
 - **Aceptación**: FR-CAT-001..004, FR-CFG-001/003, FR-TRX-002, FR-AUT-001/002.
 
 ### Tanda 5 — Asistente IA (solo consulta) — ✅ Hecho

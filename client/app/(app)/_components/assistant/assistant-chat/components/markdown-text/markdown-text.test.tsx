@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { MarkdownText } from "@/components/common/markdown-text";
+import { MarkdownText } from ".";
 
 describe("MarkdownText", () => {
   it("renders headings, paragraphs, inline styles and lists", () => {

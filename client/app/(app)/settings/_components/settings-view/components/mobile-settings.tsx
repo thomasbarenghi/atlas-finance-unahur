@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
+import { Check, Download, Loader2, LogOut } from "lucide-react";
 import { useTheme } from "next-themes";
-import { Download, LogOut, Pencil } from "lucide-react";
+import { FormShell } from "@/components/common/form-shell";
 import { MenuRow } from "@/components/common/menu-row";
-import { UserIdentity } from "@/components/layout/user-identity";
+import { PRIMARY_ACTION_BUTTON } from "@/components/common/ui-classes";
 import {
   Select,
   SelectContent,
@@ -12,14 +12,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
 import { useExportTransactions } from "@/hooks/use-export-transactions";
 import { useSignOut } from "@/hooks/use-sign-out";
+import { cn } from "@/lib/utils";
 import { THEMES, type ThemePreference } from "../themes";
+import { useSettingsForm } from "../hooks/use-settings-form";
 import { MobileCurrenciesDialog } from "./mobile-currencies-dialog";
+import { PasswordCard } from "./password-card";
+import { ProfileCard } from "./profile-card";
 
 export const MobileSettings = () => {
-  const { user } = useAuth();
+  const { user, form, onSubmit, isPending, isDirty } = useSettingsForm();
   const { theme, setTheme } = useTheme();
   const { signOut, isSigningOut } = useSignOut();
   const { exportTransactions } = useExportTransactions();
@@ -29,20 +33,28 @@ export const MobileSettings = () => {
 
   return (
     <div className="flex flex-col gap-3.5">
-      <section className="surface-card flex items-center gap-3 p-3.5">
-        <UserIdentity
-          name={user?.name}
-          email={user?.email}
-          className="flex-1"
-        />
-        <Link
-          href="/profile"
-          aria-label="Editar perfil"
-          className="border-line text-ink2 flex size-8 items-center justify-center rounded-full border"
+      <FormShell
+        id="mobile-settings-form"
+        form={form}
+        onSubmit={onSubmit}
+        className="gap-3"
+      >
+        <ProfileCard user={user} />
+        <Button
+          type="submit"
+          disabled={!isDirty || isPending}
+          className={cn(PRIMARY_ACTION_BUTTON, "w-full")}
         >
-          <Pencil className="size-[15px]" aria-hidden />
-        </Link>
-      </section>
+          {isPending ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <Check className="size-4" aria-hidden />
+          )}
+          Guardar cambios
+        </Button>
+      </FormShell>
+
+      <PasswordCard />
 
       <section className="surface-list py-1">
         <div className="flex h-[50px] items-center gap-2.5 px-3.5">

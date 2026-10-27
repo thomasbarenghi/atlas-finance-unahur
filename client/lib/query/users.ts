@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { userEndpoints } from "@/lib/api/endpoints";
-import type { UpdateUserInput } from "@/lib/api/types";
+import type { ChangePasswordInput, UpdateUserInput } from "@/lib/api/types";
 import { queryKeys } from "./keys";
 
 export const useUpdateMe = () => {
@@ -15,3 +15,9 @@ export const useUpdateMe = () => {
     },
   });
 };
+
+export const useChangePassword = () =>
+  useMutation({
+    mutationFn: (input: ChangePasswordInput) =>
+      userEndpoints.changePassword(input),
+  });

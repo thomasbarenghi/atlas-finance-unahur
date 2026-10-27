@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { MobileSettings } from "./components/mobile-settings";
+import { PasswordCard } from "./components/password-card";
 import { PreferencesCard } from "./components/preferences-card";
 import { ProfileCard } from "./components/profile-card";
 import { CurrenciesCard } from "./components/currencies-card";
@@ -52,21 +53,22 @@ export const SettingsView = () => {
         }
       />
 
-      <FormShell
-        id="settings-form"
-        form={form}
-        onSubmit={onSubmit}
-        className="gap-0"
-      >
-        <div className="grid items-start gap-[22px] lg:grid-cols-[720fr_358fr]">
-          <div className="flex flex-col gap-[18px]">
+      <div className="grid items-start gap-[22px] lg:grid-cols-[720fr_358fr]">
+        <div className="flex flex-col gap-[18px]">
+          <FormShell
+            id="settings-form"
+            form={form}
+            onSubmit={onSubmit}
+            className="gap-0"
+          >
             <ProfileCard user={user} />
-            <PreferencesCard />
-            <CurrenciesCard />
-          </div>
-          <SideSettings />
+          </FormShell>
+          <PasswordCard />
+          <PreferencesCard />
+          <CurrenciesCard />
         </div>
-      </FormShell>
+        <SideSettings />
+      </div>
     </div>
   );
 };

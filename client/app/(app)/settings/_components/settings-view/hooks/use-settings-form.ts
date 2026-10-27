@@ -18,12 +18,15 @@ export const useSettingsForm = () => {
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
-    defaultValues: { name: user?.name ?? "" },
+    defaultValues: {
+      name: user?.name ?? "",
+      email: user?.email ?? "",
+    },
   });
 
   useEffect(() => {
     if (!user) return;
-    form.reset({ name: user.name });
+    form.reset({ name: user.name, email: user.email });
   }, [user, form]);
 
   const onSubmit = async (values: SettingsFormValues) => {

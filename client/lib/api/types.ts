@@ -187,7 +187,13 @@ export interface RegisterInput {
 
 export interface UpdateUserInput {
   name?: string;
+  email?: string;
   primaryCurrency?: string;
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
 }
 
 export interface CreateAccountInput {

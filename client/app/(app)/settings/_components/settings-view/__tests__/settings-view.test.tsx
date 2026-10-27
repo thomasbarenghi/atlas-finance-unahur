@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { SettingsView } from "@/app/(app)/settings/_components/settings-view";
 import { makeAccount, makeUser } from "@/lib/test/factories";
 import { renderWithProviders } from "@/lib/test/render";
-import { testState } from "@/lib/test/api-state";
+import { testState, TEST_DEMO_PASSWORD } from "@/lib/test/api-state";
 import { setupTestServer } from "@/lib/test/server";
 
 vi.mock("next/navigation", () => import("@/lib/test/next-navigation"));
@@ -54,6 +54,49 @@ describe("SettingsView", () => {
     expect(toast.success).toHaveBeenCalledWith("Preferencias guardadas");
     expect(save).toBeDisabled();
     expect(screen.queryByText("Moneda principal")).not.toBeInTheDocument();
+  });
+
+  it("updates the email", async () => {
+    const user = userEvent.setup();
+    const currentUser = makeUser({
+      name: "Demo",
+      email: "demo@atlassfin.app",
+    });
+    renderWithProviders(<SettingsView />, { user: currentUser });
+
+    const email = screen.getByLabelText("Email");
+    await user.clear(email);
+    await user.type(email, "nuevo@atlassfin.app");
+    await user.click(screen.getByRole("button", { name: /Guardar cambios/ }));
+
+    await waitFor(() =>
+      expect(testState.users[0].user.email).toBe("nuevo@atlassfin.app"),
+    );
+  });
+
+  it("changes the password after entering the current one", async () => {
+    const user = userEvent.setup();
+    const currentUser = makeUser({
+      name: "Demo",
+      email: "demo@atlassfin.app",
+    });
+    renderWithProviders(<SettingsView />, { user: currentUser });
+
+    await user.type(
+      screen.getByLabelText("Contraseña actual"),
+      TEST_DEMO_PASSWORD,
+    );
+    await user.type(screen.getByLabelText("Nueva contraseña"), "Nueva1234!");
+    await user.type(
+      screen.getByLabelText("Confirmar nueva contraseña"),
+      "Nueva1234!",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Actualizar contraseña" }),
+    );
+
+    await waitFor(() => expect(testState.users[0].password).toBe("Nueva1234!"));
+    expect(toast.success).toHaveBeenCalledWith("Contraseña actualizada");
   });
 
   it("only shows the primary currency selector when a foreign account exists", async () => {

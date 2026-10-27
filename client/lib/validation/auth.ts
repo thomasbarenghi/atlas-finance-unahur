@@ -1,11 +1,5 @@
 import { z } from "zod";
-
-const password = z
-  .string()
-  .min(8, "La contraseña debe tener al menos 8 caracteres")
-  .max(72, "La contraseña no puede superar los 72 caracteres")
-  .regex(/[A-Za-z]/, "Debe incluir al menos una letra")
-  .regex(/[0-9]/, "Debe incluir al menos un número");
+import { newPasswordSchema } from "./common";
 
 export const loginSchema = z.object({
   email: z.string().email("Ingresá un email válido"),
@@ -23,7 +17,7 @@ export const registerSchema = z
       .min(2, "El nombre debe tener al menos 2 caracteres")
       .max(80, "El nombre no puede superar los 80 caracteres"),
     email: z.string().email("Ingresá un email válido"),
-    password,
+    password: newPasswordSchema,
     primaryCurrency: z.string().min(1, "Elegí una moneda"),
     confirmPassword: z.string(),
   })

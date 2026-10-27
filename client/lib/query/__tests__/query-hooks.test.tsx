@@ -12,7 +12,7 @@ import {
   useTransactions,
 } from "@/lib/query/transactions";
 import { useLogin, useLogout, useRegister } from "@/lib/query/auth";
-import { useUpdateMe } from "@/lib/query/users";
+import { useChangePassword, useUpdateMe } from "@/lib/query/users";
 import { useCategories } from "@/lib/query/categories";
 import { useDashboard } from "@/lib/query/dashboard";
 import { queryKeys } from "@/lib/query/keys";
@@ -192,6 +192,25 @@ describe("data query hooks", () => {
     expect(queryClient.getQueryData(queryKeys.auth.me)).toMatchObject({
       name: "Nuevo Nombre",
     });
+  });
+
+  it("changes the password", async () => {
+    const { result } = renderHook(() => useChangePassword(), {
+      wrapper: createWrapper(newClient()),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        currentPassword: "Demo1234!",
+        newPassword: "Nueva1234!",
+      });
+    });
+
+    expect(
+      testState.users.find(
+        (record) => record.user.id === testState.sessionUserId,
+      )?.password,
+    ).toBe("Nueva1234!");
   });
 
   it("loads categories", async () => {

@@ -309,16 +309,29 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 
 ### 7.2 Users
 
-| Método | Ruta        | FR                                                               |
-| :----- | :---------- | :--------------------------------------------------------------- |
-| PATCH  | `/users/me` | actualiza el perfil (`name`) y la moneda principal (`primaryCurrency`) |
+| Método | Ruta                 | FR          |
+| :----- | :------------------- | :---------- |
+| PATCH  | `/users/me`          | FR-CFG-003  |
+| PATCH  | `/users/me/password` | FR-CFG-003  |
 
 ```jsonc
-// PATCH /users/me — body
-{ "name": "Ana", "primaryCurrency": "ARS" }
+// PATCH /users/me — body (todos los campos son opcionales)
+{ "name": "Ana", "email": "ana@example.com", "primaryCurrency": "ARS" }
 // 200 → User (incluye primaryCurrency)
+// 409 EMAIL_IN_USE si otro usuario ya usa ese email
+
+// PATCH /users/me/password — body
+{ "currentPassword": "Secreta123", "newPassword": "Nueva123" }
+// 204 → sin body
+// 400 VALIDATION_ERROR si la contraseña actual no coincide o la nueva no cumple la política
+
+// Política de contraseña: 8–72 caracteres, al menos una letra y un número.
 ```
-```
+
+- El email se normaliza a lowercase y debe ser único entre usuarios.
+- El cambio de contraseña exige la contraseña actual y la hashea con argon2.
+- No existe recuperación de contraseña por email.
+- Al ser JWT stateless, cambiar la contraseña no revoca los tokens ya emitidos; siguen vigentes hasta expirar.
 
 ### 7.3 Accounts
 
@@ -789,7 +802,7 @@ Cada tanda deja la API compilando (`npm run lint && npm run build`) y con entida
 
 ### Tanda 1 — Autenticación — ✅ Hecho
 
-- `auth` + `users`: register, login, refresh, logout, me; `PATCH /users/me`; argon2 para contraseñas; JWT stateless para access y refresh; transporte exclusivo por cookie `HttpOnly`.
+- `auth` + `users`: register, login, refresh, logout, me; `PATCH /users/me` y `PATCH /users/me/password`; argon2 para contraseñas; JWT stateless para access y refresh; transporte exclusivo por cookie `HttpOnly`.
 - **Aceptación**: FR-AUT-001/002, NFR-SEG-003/004/010.
 
 ### Tanda 2 — Cuentas, categorías y movimientos — ✅ Hecho

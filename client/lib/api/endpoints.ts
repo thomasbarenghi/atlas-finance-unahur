@@ -3,6 +3,7 @@ import type {
   Account,
   AuthResponse,
   Category,
+  ChangePasswordInput,
   CreateAccountInput,
   CreateCategoryInput,
   CreateTransactionInput,
@@ -44,6 +45,8 @@ export const authEndpoints = {
 export const userEndpoints = {
   updateMe: (input: UpdateUserInput): Promise<User> =>
     patch<User>("/users/me", input),
+  changePassword: (input: ChangePasswordInput): Promise<void> =>
+    patch<void>("/users/me/password", input),
 };
 
 export const accountEndpoints = {

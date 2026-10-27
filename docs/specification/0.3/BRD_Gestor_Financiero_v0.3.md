@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| Versión | 0.3.1 |
+| Versión | 0.3.2 |
 | Estado | En desarrollo — versión preliminar, no finalizada |
-| Fecha | 26/10/2026 |
+| Fecha | 27/10/2026 |
 | Sponsor Operación | Secretaría Académica UNAHUR |
 | Sponsor Organización | UNAHUR |
 | Autor | Barenghi, Thomas |
@@ -28,6 +28,7 @@
 | 0.2 | 02/10/2026 | Barenghi, Thomas | Se actualiza el cálculo de patrimonio neto (RN-002 y glosario) conforme a la nueva definición de CAL-001. No se modifican los requerimientos de negocio. |
 | 0.3 | 16/10/2026 | Barenghi, Thomas | Se ajusta el alcance de la versión y se consolida la documentación en torno a los flujos principales: acceso, cuentas, movimientos, panel y asistente de consulta. Se actualizan las reglas de negocio, los criterios de bondad, las pantallas y el glosario, y se amplían las historias de usuario para cubrir todos los módulos vigentes. |
 | 0.3.1 | 26/10/2026 | Barenghi, Thomas | Se alinea el documento con la implementación vigente: búsqueda y filtros de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria y semanal del panel; continuidad de la conversación del asistente en memoria del cliente; multimoneda (moneda por cuenta, moneda principal, cotizaciones automáticas de la API consultadas en cada lectura y sin persistencia, transferencias multimoneda y selector de moneda de lectura); autenticación JWT stateless sin tabla de sesiones y con transporte exclusivo por cookie HttpOnly; consolidación de reglas y criterios para eliminar duplicidades; y retiro de requisitos de estados vacíos, atomicidad de transferencias, exportación CSV e insuficiencia del asistente. |
+| 0.3.2 | 27/10/2026 | Barenghi, Thomas | Se agrega la edición del correo electrónico y el cambio de contraseña desde el perfil, con validación de la contraseña actual; no se incorpora recuperación de contraseña. |
 
 ## 2. Alcance
 
@@ -96,7 +97,7 @@
 | US-005 | Como usuario registrado, quiero ver la evolución de mi patrimonio y de mi flujo de fondos con cálculos trazables, para confiar en los resultados. | Los totales del dashboard coinciden con los movimientos registrados, incluyen todas las monedas convertidas a la moneda de lectura y provienen de fórmulas centralizadas. | Dashboard (FR-DAS-*) · CAL-001, CAL-002 |
 | US-010 | Como usuario registrado, quiero consultar un asistente de inteligencia artificial únicamente con información autorizada, para entender mejor mis finanzas. | El asistente requiere sesión válida, indica período y datos considerados y es de solo consulta: no crea, edita ni elimina información. | Asistente (FR-IA-002) · HU-006, HU-013 |
 | US-011 | Como usuario registrado, quiero que mi información permanezca privada y separada de la de otros usuarios, para proteger mis datos. | El servidor verifica la pertenencia de cada recurso al usuario autenticado antes de leerlo o modificarlo. | NFR-SEG-001 a NFR-SEG-003 · HU-014 |
-| US-013 | Como visitante, quiero registrarme e iniciar sesión, para acceder a mi información financiera. | El registro valida los campos, incluida la moneda principal, y crea el usuario; al cerrar sesión se limpian las cookies y las pantallas financieras redirigen al acceso. El token emitido expira según su vigencia (JWT stateless). | Autenticación y perfil (FR-AUT-001/002) · HU-007 |
+| US-013 | Como visitante, quiero registrarme e iniciar sesión, para acceder a mi información financiera. | El registro valida los campos, incluida la moneda principal, y crea el usuario; desde el perfil puede actualizar su correo y contraseña (con la contraseña actual); al cerrar sesión se limpian las cookies y las pantallas financieras redirigen al acceso. El token emitido expira según su vigencia (JWT stateless). | Autenticación y perfil (FR-AUT-001/002, FR-CFG-003) · HU-007 |
 | US-014 | Como usuario registrado, quiero crear, editar y eliminar mis cuentas con su moneda y saldo inicial, para mantener actualizado dónde está mi dinero. | La cuenta admite nombre, tipo, moneda y saldo inicial; el saldo actual se calcula desde los movimientos; la moneda no cambia si hay movimientos; la eliminación es en cascada y solo alcanza cuentas propias. | Cuentas (FR-CUE-001 a FR-CUE-005) · HU-008 |
 | US-015 | Como usuario registrado, quiero transferir dinero entre dos cuentas propias, incluso de monedas distintas, para mover fondos sin alterar mis ingresos ni mis gastos. | Origen y destino son distintos y propios; en multimoneda se registran los dos montos y la cotización usada no se persiste; la transferencia se excluye del flujo de fondos. | Movimientos (FR-TRX-004) · CAL-003 · HU-002 |
 | US-016 | Como usuario registrado, quiero corregir o eliminar un movimiento propio, para arreglar errores de carga. | Solo se editan o eliminan movimientos del usuario autenticado y los totales se actualizan en consecuencia. | Movimientos (FR-TRX-003) · HU-011 |

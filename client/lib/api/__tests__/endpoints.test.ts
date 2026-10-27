@@ -283,12 +283,39 @@ describe("auth, user and dashboard endpoints", () => {
         return okJson({});
       }),
     );
-    await userEndpoints.updateMe({ name: "Demo" });
+    await userEndpoints.updateMe({
+      name: "Demo",
+      email: "demo@example.com",
+    });
     expect(
       (await validateApiPayload(apiRequestDtos.UpdateUserDto, body as never))
         .valid,
     ).toBe(true);
-    expect(body).toEqual({ name: "Demo" });
+    expect(body).toEqual({ name: "Demo", email: "demo@example.com" });
+  });
+
+  it("changes the password with a valid ChangePasswordDto", async () => {
+    let body: unknown;
+    server.use(
+      http.patch(`${BASE}/users/me/password`, async ({ request }) => {
+        body = await request.json();
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    await userEndpoints.changePassword({
+      currentPassword: "Demo1234!",
+      newPassword: "Nueva1234!",
+    });
+
+    expect(
+      (
+        await validateApiPayload(
+          apiRequestDtos.ChangePasswordDto,
+          body as never,
+        )
+      ).valid,
+    ).toBe(true);
   });
 
   it("serializes dashboard params and validates them", async () => {

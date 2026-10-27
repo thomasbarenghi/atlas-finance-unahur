@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Sparkles } from "lucide-react";
-import { MarkdownText } from "@/components/common/markdown-text";
+import { MarkdownText } from "./markdown-text";
 import type { AssistantChatMessage } from "../hooks/use-assistant-conversation";
 
 export interface AssistantMessagesProps {
