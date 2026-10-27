@@ -146,8 +146,8 @@ describe("TransactionsService", () => {
       }),
     );
 
-    expect(save).toHaveBeenCalledTimes(2);
-    const [outbound, inbound] = save.mock.calls.map((c) => c[0]);
+    expect(save).toHaveBeenCalledTimes(1);
+    const [outbound, inbound] = save.mock.calls[0][0];
     expect(outbound.amount).toBe(-100);
     expect(inbound.amount).toBe(100);
     expect(outbound.transferGroupId).toBe(inbound.transferGroupId);
@@ -171,7 +171,7 @@ describe("TransactionsService", () => {
       }),
     );
 
-    const [outbound, inbound] = save.mock.calls.map((c) => c[0]);
+    const [outbound, inbound] = save.mock.calls[0][0];
     expect(outbound.amount).toBe(-1180);
     expect(inbound.amount).toBe(1);
   });

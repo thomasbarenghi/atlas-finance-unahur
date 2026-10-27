@@ -62,11 +62,11 @@ api/
 ├── .agents/skills/      # agent skills
 ├── src/
 │   ├── main.ts / app.module.ts
-│   ├── config/          # env loading + validation
+│   ├── config/          # carga de env
 │   ├── database/        # datasource, maintenance scripts + seeds
-│   ├── common/          # guards, decorators, filters, interceptors, dto
+│   ├── common/          # guards, decorators, filters, dto
 │   ├── <feature>/       # auth, users, admin, accounts, transactions,
-│   │                    # categories, dashboard, assistant, health
+│   │                    # categories, dashboard, assistant
 │   └── shared/          # calculations, account-balances, ai
 ├── test/                # e2e
 └── .env.example

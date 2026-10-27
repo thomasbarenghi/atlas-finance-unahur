@@ -34,6 +34,7 @@ export class TransactionsOrchestrator {
     userId: string,
     dto: CreateTransactionDto,
   ): Promise<TransactionResponseDto> {
+    let transferAmount = dto.transferAmount;
     const origin = await this.accountsService.assertAccountOwned(
       userId,
       dto.accountId,
@@ -53,8 +54,8 @@ export class TransactionsOrchestrator {
         dto.transferAccountId,
       );
       if (origin.currency === destination.currency) {
-        dto.transferAmount = Math.abs(dto.amount);
-      } else if (dto.transferAmount === undefined) {
+        transferAmount = Math.abs(dto.amount);
+      } else if (transferAmount === undefined) {
         throw missingTransferAmount();
       }
     } else if (dto.categoryId) {
@@ -65,7 +66,10 @@ export class TransactionsOrchestrator {
       );
     }
 
-    return this.transactionsService.createTransaction(userId, dto);
+    return this.transactionsService.createTransaction(userId, {
+      ...dto,
+      transferAmount,
+    });
   }
 
   async updateTransaction(
@@ -73,6 +77,7 @@ export class TransactionsOrchestrator {
     id: string,
     dto: UpdateTransactionDto,
   ): Promise<TransactionResponseDto> {
+    let transferAmount = dto.transferAmount;
     const existing = await this.transactionsService.getTransaction(userId, id);
 
     if (existing.type === "transfer") {
@@ -100,7 +105,7 @@ export class TransactionsOrchestrator {
       ]);
 
       if (origin.currency === destination.currency) {
-        dto.transferAmount =
+        transferAmount =
           dto.amount !== undefined
             ? Math.abs(dto.amount)
             : Math.abs(group.inbound.amount);
@@ -112,7 +117,7 @@ export class TransactionsOrchestrator {
           dto.accountId !== undefined || dto.transferAccountId !== undefined;
         if (
           (amountChanged || accountsChanged) &&
-          dto.transferAmount === undefined
+          transferAmount === undefined
         ) {
           throw missingTransferAmount();
         }
@@ -137,6 +142,9 @@ export class TransactionsOrchestrator {
       }
     }
 
-    return this.transactionsService.updateTransaction(userId, id, dto);
+    return this.transactionsService.updateTransaction(userId, id, {
+      ...dto,
+      transferAmount,
+    });
   }
 }

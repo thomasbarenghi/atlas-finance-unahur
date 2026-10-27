@@ -76,14 +76,7 @@ export class TransactionsService {
     id: string,
   ): Promise<{ outbound: Transaction; inbound: Transaction } | null> {
     const transaction = await this.findOwnedTransaction(userId, id);
-    if (!transaction.transferGroupId) return null;
-    const group = await this.transactionsRepository.find({
-      where: { userId, transferGroupId: transaction.transferGroupId },
-    });
-    if (group.length < 2) return null;
-    const outbound = group.find((item) => item.amount < 0) ?? group[0];
-    const inbound = group.find((item) => item.id !== outbound.id) ?? group[1];
-    return { outbound, inbound };
+    return this.loadTransferGroup(userId, transaction.transferGroupId);
   }
 
   async createTransaction(
@@ -209,10 +202,9 @@ export class TransactionsService {
       transferAccountId: dto.accountId,
     });
 
-    await this.dataSource.transaction(async (manager) => {
-      await manager.save(outbound);
-      await manager.save(inbound);
-    });
+    await this.dataSource.transaction((manager) =>
+      manager.save([outbound, inbound]),
+    );
 
     return toTransactionResponse(outbound);
   }
@@ -222,19 +214,18 @@ export class TransactionsService {
     transaction: Transaction,
     dto: UpdateTransactionDto,
   ): Promise<TransactionResponseDto> {
-    const group = await this.transactionsRepository.find({
-      where: { userId, transferGroupId: transaction.transferGroupId ?? "" },
-    });
-    if (group.length < 2) {
+    const group = await this.loadTransferGroup(
+      userId,
+      transaction.transferGroupId,
+    );
+    if (!group) {
       throw new ApiException(
         ErrorCode.NOT_FOUND,
         HttpStatus.NOT_FOUND,
         "El movimiento no existe",
       );
     }
-
-    const outbound = group.find((item) => item.amount < 0) ?? group[0];
-    const inbound = group.find((item) => item.id !== outbound.id) ?? group[1];
+    const { outbound, inbound } = group;
 
     const origin = dto.accountId ?? outbound.accountId;
     const destination = dto.transferAccountId ?? inbound.accountId;
@@ -270,12 +261,25 @@ export class TransactionsService {
       if (dto.notes !== undefined) leg.notes = dto.notes?.trim() || null;
     }
 
-    await this.dataSource.transaction(async (manager) => {
-      await manager.save(outbound);
-      await manager.save(inbound);
-    });
+    await this.dataSource.transaction((manager) =>
+      manager.save([outbound, inbound]),
+    );
 
     return toTransactionResponse(outbound);
+  }
+
+  private async loadTransferGroup(
+    userId: string,
+    transferGroupId: string | null,
+  ): Promise<{ outbound: Transaction; inbound: Transaction } | null> {
+    if (!transferGroupId) return null;
+    const group = await this.transactionsRepository.find({
+      where: { userId, transferGroupId },
+    });
+    if (group.length < 2) return null;
+    const outbound = group.find((item) => item.amount < 0) ?? group[0];
+    const inbound = group.find((item) => item.id !== outbound.id) ?? group[1];
+    return { outbound, inbound };
   }
 
   private async findOwnedTransaction(

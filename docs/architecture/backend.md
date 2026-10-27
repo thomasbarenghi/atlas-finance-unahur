@@ -43,7 +43,7 @@ La aplicación opera con **multimoneda**: cada cuenta declara su moneda, el usua
 | Validación    | `class-validator` + `class-transformer` + `ValidationPipe` global | —                                                                                                   |
 | Hash          | `argon2`                                                          | Algoritmo adaptativo (NFR-SEG-003).                                                                 |
 | IA            | Proveedor de LLM (configurable, p. ej. DeepSeek/OpenAI)           | Solo contexto mínimo calculado; asistente de solo consulta.                                         |
-| Config        | `@nestjs/config` + validación de env                              | —                                                                                                   |
+| Config        | `@nestjs/config`                                                   | —                                                                                                   |
 
 ---
 
