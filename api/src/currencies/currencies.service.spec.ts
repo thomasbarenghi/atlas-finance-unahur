@@ -49,7 +49,6 @@ describe("CurrenciesService", () => {
     expect(context.rates.get("EUR")).toBe(1275.4);
     expect(context.rates.get("ARS")).toBe(1);
     expect(context.rateDate).toBe(RATE_DATE);
-    expect(context.rateDates.get("USD")).toBe(RATE_DATE);
     expect(provider.fetch).toHaveBeenCalledTimes(2);
   });
 

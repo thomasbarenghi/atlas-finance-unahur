@@ -6,6 +6,7 @@ import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
 import { User } from "../users/entities/user.entity";
 import {
+  BASE_CURRENCY,
   CURRENCY_CATALOG,
   getCurrency,
   type CurrencyCatalogEntry,
@@ -21,21 +22,19 @@ import {
 
 export interface UserRateContext {
   primaryCurrency: string;
-  /** ARS per one unit of every supported currency. */
+  /** Units of the internal base currency per one unit of every supported currency. */
   rates: Map<string, number>;
   rateDate: string | null;
-  /** Last quote date per currency (fallback: `rateDate`). */
-  rateDates: Map<string, string>;
 }
 
 /**
  * Global currency catalog and API-owned quotes (RN-016). Users never create
  * currencies nor set their rate; the settings screen only displays the quote
  * of the currencies their accounts use. A multi-currency transfer can override
- * the rate for that operation, but the override is not persisted (RN-017).
+ * the rate for that operation, but the override is not persisted (FR-TRX-002).
  *
  * Quotes are not persisted: every read fetches them from the public provider.
- * They are stored in ARS (the internal base) and converted to the user's
+ * They are stored in the internal base currency and converted to the user's
  * primary currency for display.
  */
 @Injectable()
@@ -61,23 +60,14 @@ export class CurrenciesService {
       this.findUser(userId),
       this.fetchRates(),
     ]);
-    const primaryCurrency = user.primaryCurrency || "ARS";
-    const rates = new Map<string, number>([["ARS", 1]]);
-    for (const [currency, rate] of Object.entries(fetched.rates)) {
-      if (Number.isFinite(rate) && rate > 0) rates.set(currency, rate);
-    }
+    const primaryCurrency = user.primaryCurrency || BASE_CURRENCY;
+    const rates = new Map(Object.entries(fetched.rates));
     if (!rates.has(primaryCurrency)) rates.set(primaryCurrency, 1);
-
-    const rateDates = new Map<string, string>();
-    for (const currency of rates.keys()) {
-      rateDates.set(currency, fetched.date);
-    }
 
     return {
       primaryCurrency,
       rates,
       rateDate: fetched.date,
-      rateDates,
     };
   }
 
@@ -91,11 +81,8 @@ export class CurrenciesService {
       this.fetchRates(),
       this.listAccountCurrencies(userId),
     ]);
-    const primaryCurrency = user.primaryCurrency || "ARS";
-    const rateFor = (currency: string): number => {
-      if (currency === "ARS") return 1;
-      return fetched.rates[currency] ?? 1;
-    };
+    const primaryCurrency = user.primaryCurrency || BASE_CURRENCY;
+    const rateFor = (currency: string): number => fetched.rates[currency] ?? 1;
     const primaryRate = rateFor(primaryCurrency);
 
     const currencies = [...new Set(accountCurrencies)]

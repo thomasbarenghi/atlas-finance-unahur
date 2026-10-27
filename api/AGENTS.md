@@ -81,4 +81,4 @@ Each feature follows: `<feature>.module.ts`, `<feature>.controller.ts`, `<featur
 - `JwtAuthGuard` is global; mark public routes with `@Public()`.
 - Logout only clears cookies; an issued token remains valid until it expires.
 - Refresh verifies the refresh JWT and issues new tokens; it does not rotate or revoke the previous refresh token.
-- The database pool is warmed at startup (`DatabaseWarmupService`, `min = DB_POOL_MAX`, `keepAlive`).
+- The database pool opens connections on demand (`min = DB_POOL_MAX`, `keepAlive`).

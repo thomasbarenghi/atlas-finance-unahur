@@ -14,7 +14,7 @@ export class DashboardQueryDto {
   @IsDateString({}, { message: "to debe ser una fecha válida" })
   to?: string;
 
-  /** Currency scope for the period indicators and charts (RN-019). */
+  /** Currency scope for the period indicators and charts (RN-014). */
   @IsOptional()
   @IsIn(CURRENCY_CODES)
   currency?: string;

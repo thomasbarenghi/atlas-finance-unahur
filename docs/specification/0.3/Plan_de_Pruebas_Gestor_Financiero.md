@@ -21,6 +21,9 @@
 | 1.0 | Octubre 2026 | Barenghi, Thomas | Versión inicial del plan de pruebas, alineada con el alcance reducido (BRD/FRD v0.3). |
 | 1.1 | Octubre 2026 | Barenghi, Thomas | Se agregan casos para búsqueda, filtros y exportación CSV; gestión y uso de categorías propias; granularidad diaria/semanal del panel; preferencia local de tema; y continuidad de la conversación del asistente. |
 | 1.2 | Octubre 2026 | Barenghi, Thomas | Se agregan casos de multimoneda: moneda por cuenta, moneda principal, selector de moneda de lectura, transferencias multimoneda, cotizaciones automáticas de la API y conversión de indicadores/categorías. |
+| 1.3 | Octubre 2026 | Barenghi, Thomas | Se ajusta el caso de acceso al auth JWT stateless web-only: logout limpia cookies y el token emitido expira por vigencia. |
+| 1.4 | Octubre 2026 | Barenghi, Thomas | Se eliminan reglas y criterios redundantes; se consolida la regla multimoneda en RN-014 y se corrigen los IDs duplicados. |
+| 1.5 | Octubre 2026 | Barenghi, Thomas | Se retiran los casos asociados a FR-DAS-008, FR-TRX-005, FR-TRX-008 y FR-IA-011. |
 
 ---
 
@@ -35,7 +38,7 @@ El objetivo operativo es **obtener evidencia suficiente y reproducible para apro
 - **Acceso:** registro, inicio y cierre de sesión.
 - **Cuentas** y saldos, con moneda por cuenta y moneda principal.
 - **Movimientos:** ingresos, gastos y transferencias (incluidas las multimoneda), con categorías del sistema y propias.
-- **Búsqueda, filtros y exportación CSV** de movimientos.
+- **Búsqueda y filtros** de movimientos.
 - **Categorías propias:** alta, edición, eliminación y uso por período.
 - **Dashboard** y cálculo de patrimonio neto, con granularidad diaria/semanal o mensual y selector de moneda de lectura.
 - **Reglas de cálculo** (CAL-001, CAL-002, CAL-003 y CAL-010).
@@ -43,7 +46,7 @@ El objetivo operativo es **obtener evidencia suficiente y reproducible para apro
 - **Asistente de IA**, de solo consulta y con continuidad conversacional en memoria del cliente.
 - **Preferencias locales:** tema de la interfaz.
 - **Seguridad básica:** autorización por propietario, hash de contraseñas y validación de entradas.
-- **Usabilidad básica:** diseño adaptable, precisión decimal y estados vacíos/carga/error.
+- **Usabilidad básica:** diseño adaptable, precisión decimal y estados de carga/error.
 
 ## 3. Estrategia de Pruebas
 
@@ -132,21 +135,21 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 | Dashboard y patrimonio | 6 | P0/P1 |
 | Cálculos | 4 | P0 |
 | No funcionales | 2 | P0/P1 |
-| Asistente de IA | 4 | P1 |
+| Asistente de IA | 3 | P1 |
 | Configuración y preferencias | 2 | P1 |
 
 ### 5.2. Acceso y sesión
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-ACC-01 | Registro de usuario | Completar el registro con datos válidos y enviar; luego probar con datos inválidos o email duplicado | Se crea el usuario, se informa éxito y se puede iniciar sesión. Los datos inválidos o duplicados se rechazan con mensaje. | P0 | FR-AUT-001 |
+| CP-ACC-01 | Registro de usuario | Completar el registro con nombre, email, moneda principal y contraseña; luego probar con datos inválidos, moneda no soportada o email duplicado | Se crea el usuario con la moneda elegida, se informa éxito y se puede iniciar sesión. Los datos inválidos o duplicados se rechazan con mensaje. | P0 | FR-AUT-001 |
 | CP-ACC-02 | Inicio y cierre de sesión | Iniciar sesión; navegar; cerrar sesión; intentar volver a una pantalla protegida | La sesión inicia correctamente; al cerrar se limpian las cookies y las pantallas financieras redirigen al acceso. El token ya emitido sigue vigente hasta expirar (JWT stateless). | P0 | FR-AUT-002, NFR-SEG-001 |
 
 ### 5.3. Seguridad y autorización
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-SEG-01 | Aislamiento entre usuarios | Con la sesión del Usuario A, intentar leer o modificar un recurso del Usuario B (por URL o API) | El servidor rechaza la operación (403/404) y no expone datos ajenos. | P0 | NFR-SEG-001, RN-001 |
+| CP-SEG-01 | Aislamiento entre usuarios | Con la sesión del Usuario A, intentar leer o modificar un recurso del Usuario B (por URL o API) | El servidor rechaza la operación (403/404) y no expone datos ajenos. | P0 | NFR-SEG-001 |
 | CP-SEG-02 | Validación de entradas | Enviar límites, tipos, longitudes y campos inesperados en formularios y API | Las entradas inválidas se rechazan con error controlado y no se persisten datos inconsistentes. | P0 | NFR-SEG-002 |
 | CP-SEG-03 | Almacenamiento de contraseñas y secretos | Inspeccionar la base de datos tras el registro; revisar el frontend y el repositorio | La contraseña se guarda con hash adaptativo (nunca en texto plano) y los secretos no están en el frontend ni en el repositorio. | P0 | NFR-SEG-003, NFR-SEG-007 |
 
@@ -156,36 +159,36 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 |---|---|---|---|---|---|
 | CP-CUE-01 | Alta y edición de cuenta | Crear una cuenta (nombre, tipo, moneda, saldo inicial) y editarla | La cuenta aparece en el listado con su saldo en su moneda y refleja la edición; solo su propietario la ve. | P0 | FR-CUE-001/002/003 |
 | CP-CUE-02 | Cálculo de saldo y eliminación | Registrar movimientos sobre una cuenta, consultar el saldo y eliminar la cuenta | Saldo actual = saldo inicial + movimientos, en la moneda de la cuenta. La eliminación elimina en cascada los movimientos asociados. | P0 | FR-CUE-004/005 |
-| CP-CUE-03 | Moneda fija con movimientos | Crear una cuenta, cargarle un movimiento e intentar cambiar su moneda | El servidor y la UI rechazan el cambio de moneda mientras la cuenta tenga movimientos. | P0 | RN-015 |
+| CP-CUE-03 | Moneda fija con movimientos | Crear una cuenta, cargarle un movimiento e intentar cambiar su moneda | El servidor y la UI rechazan el cambio de moneda mientras la cuenta tenga movimientos. | P0 | FR-CUE-002 |
 
 ### 5.5. Movimientos
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
 | CP-TRX-01 | Registrar ingreso y gasto | Cargar un ingreso y un gasto con monto, fecha, cuenta, categoría y descripción | Los movimientos aparecen en el listado y actualizan saldo y dashboard. Monto ≤ 0 o campos obligatorios vacíos se rechazan; las categorías del sistema no se editan y las propias sí. | P0 | FR-TRX-001/002 |
-| CP-TRX-02 | Transferencia válida y atómica | Transferir entre dos cuentas propias; simular una falla a mitad de la operación | Se descuenta origen y se acredita destino en una única operación (ambos o ninguno); origen distinto de destino; se excluye del flujo de fondos. | P0 | FR-TRX-004/005, RN-003/004, CAL-003 |
+| CP-TRX-02 | Transferencia válida | Transferir entre dos cuentas propias | Se descuenta origen y se acredita destino; origen distinto de destino; se excluye del flujo de fondos. | P0 | FR-TRX-004, CAL-003 |
 | CP-TRX-03 | Edición, eliminación y propiedad | Editar y eliminar un movimiento propio; intentar operar sobre uno ajeno | La operación propia se aplica; sobre un recurso ajeno se rechaza. | P0 | FR-TRX-003 |
 | CP-TRX-04 | Gestión de categorías propias | Crear una categoría, asignarla a un movimiento, editarla y eliminarla; intentar operar sobre una del sistema o de otro usuario | La categoría propia se crea, asigna, edita y elimina; las del sistema y las ajenas se rechazan. | P0 | FR-CAT-002/003 |
-| CP-TRX-05 | Búsqueda, filtros y exportación | Buscar por concepto, nota, categoría y monto; combinar filtros de tipo, cuenta, categoría, moneda y período; exportar el resultado | La lista muestra solo los movimientos que cumplen todos los filtros y el CSV descargado coincide con esa lista e incluye fecha, tipo, descripción, categoría, cuenta, moneda, monto y notas. | P1 | FR-TRX-007/008, HU-015 |
-| CP-TRX-06 | Transferencia multimoneda | Transferir desde una cuenta ARS a una cuenta USD, editar la cotización sugerida y confirmar | Se registran los dos montos coherentes con la cotización; la cotización no se persiste; editar la transferencia conserva la coherencia de ambos montos. | P0 | RN-017, FR-TRX-004/005 |
+| CP-TRX-05 | Búsqueda y filtros | Buscar por concepto, nota, categoría y monto; combinar filtros de tipo, cuenta, categoría, moneda y período | La lista muestra solo los movimientos que cumplen todos los filtros. | P1 | FR-TRX-007, HU-015 |
+| CP-TRX-06 | Transferencia multimoneda | Transferir desde una cuenta ARS a una cuenta USD, editar la cotización sugerida y confirmar | Se registran los dos montos coherentes con la cotización; la cotización no se persiste; editar la transferencia conserva la coherencia de ambos montos. | P0 | FR-TRX-002/004/005 |
 
 ### 5.6. Categorías
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-CAT-01 | Listado, origen y uso | Abrir Categorías; alternar Gastos/Ingresos; cambiar el período y la moneda de visualización | Se listan las cinco categorías del sistema y las propias con badge de origen; se muestra cantidad, monto y porcentaje del período incluido en todas las monedas, convertido a la moneda de visualización, ordenado por uso; las del sistema no muestran acciones. | P1 | FR-CAT-001/004 |
-| CP-CAT-02 | Moneda de visualización | Cambiar el selector de moneda de Categorías entre ARS y USD | Los montos y porcentajes se re-expresan en la moneda elegida, sin excluir movimientos de otras monedas. | P1 | RN-018/RN-019 |
+| CP-CAT-01 | Listado y uso | Abrir Categorías; alternar Gastos/Ingresos; cambiar el período y la moneda de visualización | Se listan las cinco categorías básicas del sistema y las propias; se muestra cantidad, monto y porcentaje del período incluido en todas las monedas, convertido a la moneda de visualización, ordenado por uso; las del sistema no muestran acciones. | P1 | FR-CAT-001/004 |
+| CP-CAT-02 | Moneda de visualización | Cambiar el selector de moneda de Categorías entre ARS y USD | Los montos y porcentajes se re-expresan en la moneda elegida, sin excluir movimientos de otras monedas. | P1 | RN-014 |
 
 ### 5.7. Dashboard y patrimonio
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-DAS-01 | Patrimonio neto | Cargar cuentas en ARS y USD y movimientos; consultar el dashboard | Patrimonio neto = Σ (saldo × cotización) de las cuentas, en la moneda de lectura; incluye el desglose por moneda. | P0 | CAL-001, RN-002, FR-DAS-001 |
+| CP-DAS-01 | Patrimonio neto | Cargar cuentas en ARS y USD y movimientos; consultar el dashboard | Patrimonio neto = Σ (saldo × cotización) de las cuentas, en la moneda de lectura; incluye el desglose por moneda. | P0 | CAL-001, FR-DAS-001 |
 | CP-DAS-02 | Indicadores del período | Seleccionar un período con ingresos y gastos en distintas monedas | Se muestran ingresos, gastos y ahorro incluyendo todas las monedas convertidas a la moneda de lectura; la tasa de ahorro = ahorro / ingresos × 100. | P0 | FR-DAS-001, CAL-002, CAL-010 |
-| CP-DAS-03 | Consistencia y estados vacíos | Comparar los totales del dashboard con los movimientos cargados; abrir la aplicación con el usuario sin datos | Los totales coinciden con los movimientos registrados; sin datos se muestra un estado vacío con acción sugerida. | P0 | FR-DAS-008, criterio de bondad |
+| CP-DAS-03 | Consistencia de cálculos | Comparar los totales del dashboard con los movimientos cargados | Los totales coinciden con los movimientos registrados. | P0 | Criterio de bondad |
 | CP-DAS-04 | Gráficos y período | Abrir el panel y cambiar el período; revisar los gráficos | Los gráficos de evolución del patrimonio, ingresos frente a gastos y gastos por categoría reflejan el período seleccionado y la moneda de lectura. | P0 | FR-DAS-002/003/004/007 |
 | CP-DAS-05 | Granularidad diaria y semanal | Comparar `Este mes`/`Últimos 30 días` con `6 meses`/`12 meses` | En rangos de hasta 31 días el patrimonio se muestra por día y las barras por semana; en rangos mayores, por mes. Los totales coinciden con los movimientos del período. | P1 | FR-DAS-002/003/007, HU-010 |
-| CP-DAS-06 | Selector de moneda de lectura | Abrir el selector del header, elegir USD y luego “Otra moneda” (EUR); volver a ARS | Todos los valores del dashboard se re-expresan en la moneda elegida sin alterar datos; el desglose por moneda se mantiene; “Otra moneda” permite elegir cualquier moneda del catálogo. | P0 | FR-DAS-007, RN-019 |
+| CP-DAS-06 | Selector de moneda de lectura | Abrir el selector del header, elegir USD y luego “Otra moneda” (EUR); volver a ARS | Todos los valores del dashboard se re-expresan en la moneda elegida sin alterar datos; el desglose por moneda se mantiene; “Otra moneda” permite elegir cualquier moneda del catálogo. | P0 | FR-DAS-007, RN-014 |
 
 ### 5.8. Cálculos (pruebas unitarias)
 
@@ -200,23 +203,22 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-IA-01 | Consulta verificable | Preguntar por gastos de un período con datos | Responde con período y categorías consideradas; los totales coinciden con el dashboard del mismo período. | P1 | FR-IA-002, RN-013, HU-006 |
-| CP-IA-02 | Datos insuficientes | Preguntar por un período sin movimientos | Responde que no hay información suficiente e indica el período consultado. | P1 | FR-IA-011, Caso 1 BRD |
-| CP-IA-03 | Solo consulta | Pedir al asistente que cree, edite o elimine un dato | El asistente no crea, edita ni elimina datos. | P1 | FR-IA-015, RN-012 |
-| CP-IA-04 | Continuidad conversacional | Hacer una pregunta, luego una de seguimiento que dependa del contexto; recargar la página y verificar que no hay historial persistido | El asistente interpreta la pregunta de seguimiento con los turnos recientes enviados por el cliente, mantiene las cifras del período vigente y no conserva la conversación en el servidor. | P1 | FR-IA-016, NFR-SEG-013, HU-018 |
+| CP-IA-01 | Consulta verificable | Preguntar por gastos de un período con datos | Responde con período y categorías consideradas; los totales coinciden con el dashboard del mismo período. | P1 | FR-IA-002, HU-006 |
+| CP-IA-03 | Solo consulta | Pedir al asistente que cree, edite o elimine un dato | El asistente no crea, edita ni elimina datos. | P1 | FR-IA-015 |
+| CP-IA-04 | Continuidad conversacional | Hacer una pregunta, luego una de seguimiento que dependa del contexto; recargar la página y verificar que no hay historial persistido | El asistente interpreta la pregunta de seguimiento con los turnos recientes enviados por el cliente, mantiene las cifras del período vigente y no conserva la conversación en el servidor. | P1 | FR-IA-016, HU-018 |
 
 ### 5.10. No funcionales y usabilidad
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
 | CP-NFR-01 | Diseño adaptable | Usar la aplicación en resoluciones de escritorio y móvil | Los flujos principales son usables y legibles en ambas resoluciones. | P1 | Criterio de bondad |
-| CP-NFR-02 | Estados de carga y error | Provocar una carga y un error (por ejemplo, proveedor de IA caído) | Se muestran estados de carga y error comprensibles, sin perder datos. | P0 | FR-DAS-008, Dependencias FRD |
+| CP-NFR-02 | Estados de carga y error | Provocar una carga y un error (por ejemplo, proveedor de IA caído) | Se muestran estados de carga y error comprensibles, sin perder datos. | P0 | Dependencias FRD |
 
 ### 5.11. Configuración y preferencias
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-CFG-01 | Tema y exportación | Cambiar el tema, exportar el CSV desde Ajustes y recargar la aplicación | El tema persiste en el navegador; el CSV se descarga con los campos esperados (incluida la moneda) y sin modificar los datos financieros; la preferencia no se sincroniza entre dispositivos. | P1 | FR-CFG-001/003, FR-TRX-008 |
+| CP-CFG-01 | Tema | Cambiar el tema y recargar la aplicación | El tema persiste en el navegador y no modifica los datos financieros; la preferencia no se sincroniza entre dispositivos. | P1 | FR-CFG-001/003 |
 | CP-CFG-02 | Moneda principal | Con cuentas en más de una moneda, cambiar la moneda principal en Ajustes y volver al dashboard | La preferencia se guarda; el dashboard usa la nueva moneda principal como lectura por defecto; las cotizaciones siguen siendo automáticas y no editables. | P1 | RN-014, RN-016 |
 
 ## 6. Datos de Prueba
@@ -231,7 +233,7 @@ Se utilizan **usuarios ficticios sin datos personales reales** y un conjunto de 
 | Movimientos | Tres meses de ingresos, gastos y transferencias, con movimientos en ARS y USD y una transferencia multimoneda. |
 | Categorías | Cinco categorías fijas del sistema; las propias se crean durante la ejecución. |
 
-> Los casos de búsqueda, filtros, uso de categorías y exportación se ejecutan sobre los movimientos cargados en la vista (hasta 100 registros). El dashboard y los cálculos se validan contra el conjunto completo del período.
+> Los casos de búsqueda, filtros y uso de categorías se ejecutan sobre los movimientos cargados en la vista. El dashboard y los cálculos se validan contra el conjunto completo del período.
 
 ## 7. Plan de Ejecución
 

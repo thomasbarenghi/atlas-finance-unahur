@@ -214,7 +214,7 @@ const seedDemoDataset = async (
         accountId: bank.id,
         categoryId: categoryId("Servicios"),
       }),
-      // Transfer: two atomic legs sharing `transferGroupId` (FR-TRX-005).
+      // Transfer: two legs sharing `transferGroupId`.
       transactionRepo.create({
         userId: user.id,
         type: "transfer",
@@ -361,7 +361,7 @@ export const runSeed = async (dataSource: DataSource): Promise<void> => {
   const rates = await new ExchangeRatesProvider().fetch();
   if (!rates) {
     logger.warn(
-      "No se pudo obtener la cotización USD de la API; se omite la transferencia multimoneda del seed",
+      "No se pudo obtener la cotización de la API; se omite la transferencia multimoneda del seed",
     );
   }
 
@@ -387,7 +387,7 @@ export const runSeed = async (dataSource: DataSource): Promise<void> => {
     });
     await seedDemoDataset(manager, demo, categoryIds, reference, rates);
 
-    // Empty user: no financial data, to exercise empty states (FR-DAS-008).
+    // Empty user: no financial data, to exercise empty states.
     await createUser(manager, passwordHash, {
       name: "Sin Datos",
       email: EMPTY_EMAIL,

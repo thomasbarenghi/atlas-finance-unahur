@@ -70,13 +70,13 @@ La aplicación opera con **multimoneda**: cada cuenta declara su moneda, el usua
 Frontend (Next.js) ───▶ │  NestJS (monolito)           │
                         │                              │
                         │  Global: Pipes, Guards,      │
-                        │  Filters, Interceptors       │
+                        │  Filters                     │
                         │                              │
                         │  Módulos de dominio:         │
                         │   auth, users,               │
                         │   accounts, transactions,    │
                         │   categories, dashboard,     │
-                        │   assistant, health          │
+                        │   assistant                  │
                         │                              │
                         │  Capa compartida:            │
                         │   calculations (reglas CAL), │
@@ -90,7 +90,7 @@ Frontend (Next.js) ───▶ │  NestJS (monolito)           │
 ```
 
 - **`ValidationPipe` global** con `whitelist: true, forbidNonWhitelisted: true, transform: true` (NFR-SEG-002).
-- **`JwtAuthGuard` global** por defecto (`APP_GUARD`), con decorador `@Public()` para rutas de auth (register/login/refresh/logout), assistant y health.
+- **`JwtAuthGuard` global** por defecto (`APP_GUARD`), con decorador `@Public()` para rutas de auth (register/login/refresh/logout).
 - **Resolución de propiedad**: los services filtran/validan **siempre** por `user_id` del recurso antes de leerlo o modificarlo (NFR-SEG-001).
 - **`GlobalExceptionFilter`** que normaliza errores y devuelve mensajes genéricos ante fallas sensibles (sin filtrar detalles internos).
 
@@ -105,12 +105,10 @@ api/
 │   ├── app.module.ts                # módulo raíz (importa todos los módulos + config)
 │   ├── app.setup.ts                 # configuración de la app (pipes, cookies, CORS, prefijo)
 │   ├── config/
-│   │   ├── configuration.ts         # carga y valida env
-│   │   └── env.validation.ts
+│   │   └── configuration.ts         # carga y normaliza env
 │   ├── database/
 │   │   ├── data-source.ts           # DataSource de los scripts (`seed`, `db:*`)
 │   │   ├── database-maintenance.service.ts  # vaciar/recrear/sembrar (scripts `db:*`)
-│   │   ├── database-warmup.service.ts       # precalienta el pool al arrancar
 │   │   ├── database.module.ts
 │   │   └── seeds/                   # seed determinístico + runners
 │   ├── common/
@@ -118,15 +116,13 @@ api/
 │   │   ├── dto/{ pagination, period }.dto.ts
 │   │   ├── errors/{ api.exception.ts, error-codes.ts }
 │   │   ├── filters/http-exception.filter.ts
-│   │   ├── guards/{ jwt-auth.guard.ts, optional-jwt-auth.guard.ts }
-│   │   ├── interceptors/logging.interceptor.ts
+│   │   ├── guards/{ jwt-auth.guard.ts }
 │   │   ├── transformers/numeric.transformer.ts
 │   │   └── types/{ auth-user.ts, financial-enums.ts }
 │   ├── auth/
 │   │   ├── auth.module.ts / auth.controller.ts / auth.service.ts
-│   │   ├── jwt.strategy.ts / session-validation-cache.service.ts
-│   │   ├── dto/{ register, login, refresh-token, auth-response }.dto.ts
-│   │   └── entities/session.entity.ts
+│   │   ├── jwt.strategy.ts
+│   │   └── dto/{ register, login, auth-response }.dto.ts
 │   ├── users/
 │   │   ├── users.module.ts / users.controller.ts / users.service.ts
 │   │   ├── dto/{ update-user.dto.ts, user-response.dto.ts }
@@ -153,7 +149,6 @@ api/
 │   │   ├── assistant.module.ts / assistant.controller.ts / assistant.service.ts
 │   │   ├── assistant-context.service.ts
 │   │   └── dto/assistant-message.dto.ts
-│   ├── health/
 │   └── shared/
 │       ├── account-balances/        # read model: saldo de cuenta (accounts + transactions)
 │       ├── ai/                      # cliente del proveedor de LLM
@@ -217,12 +212,12 @@ Tablas derivadas de las entidades principales del FRD v0.3 (§3.2). Todos los `i
 | user_id                 | uuid FK       |                                         |
 | name                    | text          |                                         |
 | type                    | text          | 'cash' \| 'bank' \| 'wallet' \| 'other' |
-| currency                | text          | ISO 4217 de la cuenta (RN-015)          |
+| currency                | text          | ISO 4217 de la cuenta (FR-CUE-002)      |
 | initial_balance         | numeric(18,4) |                                         |
 | notes                   | text NULL     |                                         |
 | created_at / updated_at | timestamptz   |                                         |
 
-> Saldo actual = `initial_balance` + Σ(movimientos) (calculado, FR-CUE-004), siempre en la moneda de la cuenta. La **eliminación** de una cuenta elimina en cascada sus movimientos asociados (FR-CUE-005); no hay archivado ni restauración. La moneda **no se puede cambiar** si la cuenta ya tiene movimientos (RN-015). No hay tipo `card`.
+> Saldo actual = `initial_balance` + Σ(movimientos) (calculado, FR-CUE-004), siempre en la moneda de la cuenta. La **eliminación** de una cuenta elimina en cascada sus movimientos asociados (FR-CUE-005); no hay archivado ni restauración. La moneda **no se puede cambiar** si la cuenta ya tiene movimientos (FR-CUE-002). No hay tipo `card`.
 
 ### 5.4 `categories` — del sistema y propias (FR-CAT-001..003)
 
@@ -251,10 +246,10 @@ Tablas derivadas de las entidades principales del FRD v0.3 (§3.2). Todos los `i
 | account_id              | uuid FK → accounts        |                                                                                                                                |
 | transfer_account_id     | uuid FK NULL → accounts   | solo transferencias; distinto de account_id (FR-TRX-004)                                                                       |
 | category_id             | uuid FK NULL → categories | obligatoria en `income`/`expense`; nula en transferencias                                                                      |
-| transfer_group_id       | uuid NULL                 | agrupa las dos patas de una transferencia (FR-TRX-005)                                                                         |
+| transfer_group_id       | uuid NULL                 | agrupa las dos patas de una transferencia                                                                                      |
 | created_at / updated_at | timestamptz               |                                                                                                                                |
 
-> Las transferencias se persisten como **dos filas** (`type='transfer'`) en una transacción de base de datos con el mismo `transfer_group_id` (atomicidad, FR-TRX-005). En una transferencia multimoneda cada pata lleva el monto en la moneda de su cuenta (monto origen y monto destino); la cotización usada en la UI **no se persiste** (RN-017). Se excluyen de ingresos/gastos consolidados (CAL-003). Sin campo `currency` en el movimiento: el monto vive en la moneda de la cuenta. Las transferencias se pueden filtrar en la UI; la API mantiene paginación.
+> Las transferencias se persisten como **dos filas** (`type='transfer'`) en una transacción de base de datos con el mismo `transfer_group_id`. En una transferencia multimoneda cada pata lleva el monto en la moneda de su cuenta (monto origen y monto destino); la cotización usada en la UI **no se persiste** (FR-TRX-002). Se excluyen de ingresos/gastos consolidados (CAL-003). Sin campo `currency` en el movimiento: el monto vive en la moneda de la cuenta. Las transferencias se pueden filtrar en la UI; la API mantiene paginación.
 
 ### 5.6 Cotizaciones (sin tabla)
 
@@ -266,8 +261,8 @@ Tablas derivadas de las entidades principales del FRD v0.3 (§3.2). Todos los `i
 
 ### 6.1 Registro (`POST /auth/register`)
 
-1. Valida nombre (2–80), email (formato, único, lowercase), contraseña. **Política de contraseña:** 8–72 caracteres, al menos una letra y un número. Rechaza campos inesperados (NFR-SEG-002).
-2. Hashea con argon2 y crea el usuario. Emite los tokens y responde con cookies/tokens (login automático).
+1. Valida nombre (2–80), email (formato, único, lowercase), contraseña y moneda principal (código ISO 4217 del catálogo). **Política de contraseña:** 8–72 caracteres, al menos una letra y un número. Rechaza campos inesperados (NFR-SEG-002).
+2. Hashea con argon2 y crea el usuario. Fija las cookies de access y refresh y responde `{ user }` (login automático).
 
 ### 6.2 Login (`POST /auth/login`)
 
@@ -335,7 +330,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 | PATCH  | `/accounts/:id` | FR-CUE-003                                                  |
 | DELETE | `/accounts/:id` | FR-CUE-003; elimina en cascada sus movimientos (FR-CUE-005) |
 
-> **Eliminados:** `POST /accounts/:id/archive` y `/restore` y el tipo `card`. La cuenta expone `currency` (RN-015) y no permite cambiarla si ya tiene movimientos.
+> **Eliminados:** `POST /accounts/:id/archive` y `/restore` y el tipo `card`. La cuenta expone `currency` (FR-CUE-002) y no permite cambiarla si ya tiene movimientos.
 
 ### 7.4 Categories
 
@@ -422,16 +417,16 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 - **Período (FR-DAS-007):** `from`/`to` son seleccionables (default: últimos 180 días). El header de Inicio tiene el **selector de moneda de lectura** antes del período (CH-77), con las monedas en uso y **“Otra moneda”** para el catálogo completo; por defecto usa la moneda principal y `currency` permite re-expresar todo el dashboard en otra unidad.
 - **Patrimonio neto (CAL-001, §8):** Σ (saldo × cotización) de las cuentas, en la moneda de lectura. La serie histórica evalúa esa suma por día si el rango tiene ≤ 31 días (mes en curso o últimos 30 días) y al cierre de cada mes en el resto de los rangos. `breakdown` expone cada moneda nativa y su equivalente en la moneda de lectura; `rates` expone la cotización usada y su fecha.
 - **Flujos (CAL-002):** cada ingreso/gasto se convierte desde la moneda de su cuenta a la moneda de lectura con la cotización de la API y luego se suma. Las transferencias se excluyen (CAL-003). El header de Inicio tiene el selector de moneda de lectura antes del período (CH-77); Categorías tiene el mismo selector de visualización.
-- **Moneda de lectura:** la UI de Inicio usa la moneda principal por defecto y el selector del header permite ver todos los valores en otra unidad sin alterar datos (RN-019). El desglose por moneda del hero solo aparece cuando hay cuentas en más de una moneda.
+- **Moneda de lectura:** la UI de Inicio usa la moneda principal por defecto y el selector del header permite ver todos los valores en otra unidad sin alterar datos (RN-014). El desglose por moneda del hero solo aparece cuando hay cuentas en más de una moneda.
 - **Granularidad (FR-DAS-003/007):** para rangos de ≤ 31 días, `incomeExpenseByPeriod` devuelve tramos semanales (`bucket: "week"`); para rangos mayores, tramos mensuales (`bucket: "month"`). `incomeExpenseByMonth` se conserva para el contexto del asistente.
 - **Tasa de ahorro (CAL-010, §8):** `kpis.savingsRateDeltaPp` expresa en **puntos porcentuales** la variación de la tasa de ahorro contra el período anterior, calculada sobre los flujos convertidos.
 - **Eliminados:** `kpis.assets/debts/accounts/investmentsDeltaPct`, `assetsValueByMonth`, `categoryChanges`, `assetsComposition`, `netWorthComposition`, `cashflow`, `investments`, `budgetAlerts`.
 
-### 7.7 Assistant — solo consulta (FR-IA-002/011/015)
+### 7.7 Assistant — solo consulta (FR-IA-002/015)
 
 | Método | Ruta                  | FR                                            |
 | :----- | :-------------------- | :-------------------------------------------- |
-| POST   | `/assistant/messages` | pregunta; responde con stream SSE (FR-IA-002) |
+| POST   | `/assistant/messages` | requiere sesión; responde con stream SSE (FR-IA-002) |
 
 - **Solo consulta:** no crea, edita ni elimina datos (FR-IA-015). Si el usuario pide una acción de escritura, el asistente explica que solo responde consultas.
 - **Sin estado:** no hay conversaciones persistidas ni acciones/propuestas. No existe historial en el servidor; el cliente puede enviar los turnos recientes en `history` para dar continuidad a la conversación (memoria en memoria del cliente, acotada).
@@ -468,7 +463,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 - **Decimales:** `numeric` se serializa como **number** (no string). Máx. 4 decimales para montos y 6 para cotizaciones. Implementar un `transformer` de TypeORM (`parseFloat` al leer) o mappers de salida.
 - **Paginación:** query `page` (default 1) y `pageSize` (default 20, máx. 100). Respuesta: `{ items, page, pageSize, total, totalPages }`. Solo `/transactions` es paginado; `/accounts` y `/categories` devuelven un **array** completo.
 - **Errores:** `{ statusCode, code, message, fieldErrors? }`; `fieldErrors` es `{ [campo]: string[] }` para validación (para mapeo a formularios). El filtro global nunca expone detalles internos.
-- **Auth:** exclusivamente cookie `HttpOnly`. Los endpoints `@Public()` son: `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/assistant/messages` (§7.12) y `/health`.
+- **Auth:** exclusivamente cookie `HttpOnly`. Los endpoints `@Public()` son: `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout` y `GET /currencies`.
 - **CORS:** con credenciales habilitadas; permitir `CORS_ORIGIN` exacto (no `*`); admite varios orígenes separados por coma.
 
 ### 7.10 Enums y catálogos
@@ -490,7 +485,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 
 ```jsonc
 // POST /auth/register — body
-{ "name": "Ana", "email": "ana@example.com", "password": "Secreta123" }
+{ "name": "Ana", "email": "ana@example.com", "password": "Secreta123", "primaryCurrency": "ARS" }
 // 201 → { "user": User }  (además fija las cookies de access y refresh)
 
 // POST /auth/login — body
@@ -572,10 +567,10 @@ event: done    data: { "insufficient": false }
 event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 ```
 
-- **Contexto mínimo (FR-IA-002, RN-013):** el `assistant-context.service` reutiliza el read model del dashboard (ingresos, gastos, ahorro, patrimonio neto, gastos por categoría, evolución mensual y saldos de cuentas) y arma un resumen textual. No re-deriva fórmulas ni consulta repositorios directamente.
-- **Sin estado y sin tools:** no hay historial persistido ni _function calling_. El historial conversacional es opcional (`history`, máx. 12 mensajes), lo envía el cliente desde su memoria y se usa solo como contexto del período actual (FR-IA-016, NFR-SEG-013). El prompt de sistema es fijo, separa instrucciones de datos y declara el alcance de **solo consulta** (FR-IA-015, NFR-SEG-012).
-- **Insuficiencia (FR-IA-011):** si el modelo no devuelve texto utilizable, se emite un mensaje explicativo y `done: { insufficient: true }`.
-- **Acceso dev del stream:** `POST /assistant/messages` está marcado `@Public()` pero resuelve el usuario así: si hay sesión válida la usa; si no, y `NODE_ENV !== "production"`, cae al usuario demo `AI_DEV_USER_EMAIL`; en producción sin sesión responde `401 UNAUTHENTICATED`. Permite probar el asistente desde el cliente en desarrollo sin implementar todo el auth.
+- **Contexto mínimo (FR-IA-002):** el `assistant-context.service` reutiliza el read model del dashboard (ingresos, gastos, ahorro, patrimonio neto, gastos por categoría, evolución mensual y saldos de cuentas) y arma un resumen textual. No re-deriva fórmulas ni consulta repositorios directamente.
+- **Sin estado y sin tools:** no hay historial persistido ni _function calling_. El historial conversacional es opcional (`history`, máx. 12 mensajes), lo envía el cliente desde su memoria y se usa solo como contexto del período actual (FR-IA-016). El prompt de sistema es fijo, separa instrucciones de datos y declara el alcance de **solo consulta** (FR-IA-015, NFR-SEG-012).
+- **Insuficiencia:** si el modelo no devuelve texto utilizable, se emite un mensaje explicativo y `done: { insufficient: true }`.
+- **Acceso:** `POST /assistant/messages` requiere sesión; el usuario se obtiene de `@CurrentUser()` y no hay fallback a un usuario demo.
 - La respuesta del modelo se sirve como texto plano; nunca como HTML (NFR-SEG-006/012).
 
 ### 7.13 Catálogo de códigos de error
@@ -595,15 +590,9 @@ event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 
 > **Eliminados:** `AI_DISABLED`, `DESTRUCTIVE_DISABLED`, `ACTION_NOT_ALLOWED`, `ACTION_ALREADY_EXECUTED`, `ACTION_EXPIRED`, `ACTION_DEPENDENCY_PENDING`, `ACCOUNT_ARCHIVED`, `CATEGORY_ARCHIVED`, `DUPLICATE_BUDGET`, `MARKET_UNAVAILABLE`.
 
-### 7.14 Health
-
-| Método | Ruta      | Respuesta                                      |
-| :----- | :-------- | :--------------------------------------------- |
-| GET    | `/health` | `{ "status": "ok", "db": "up" }` — `@Public()` |
-
 > `GET /currencies` y `GET /currencies/rates` son de solo lectura: catálogo global y cotizaciones de las monedas usadas por las cuentas. No existen endpoints para crear monedas ni para editar cotizaciones.
 
-### 7.15 Referencia de la API
+### 7.14 Referencia de la API
 
 El contrato REST de este documento (`backend.md` §7) es la fuente de verdad. La API **no** publica Swagger/OpenAPI ni una referencia interactiva (Scalar): se removieron para reducir la superficie.
 
@@ -617,7 +606,7 @@ Centralizadas en `calculations.service.ts` para garantizar consistencia entre da
 | :---------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | CAL-001 Patrimonio neto | Σ (saldo × cotización) de las cuentas del usuario, en la moneda de lectura. Implementado en `calculations.service.netWorthInCurrency` y reutilizado por `dashboard.orchestrator` para los KPIs y las series; `assistant-context.service` lo consume vía el dashboard. |
 | CAL-002 Flujo de fondos | Σ ingresos − Σ gastos del período (excluye transferencias); cada flujo se convierte a la moneda de lectura con la cotización global. Implementado en `calculations.service.calculatePeriodFlows`. |
-| CAL-003 Transferencias  | `type='transfer'` se excluye de ingresos/gastos consolidados (RN-003); en multimoneda cada pata guarda su monto y la cotización usada no se persiste. |
+| CAL-003 Transferencias  | `type='transfer'` se excluye de ingresos/gastos consolidados; en multimoneda cada pata guarda su monto y la cotización usada no se persiste. |
 | CAL-010 Tasa de ahorro  | ahorro del período / ingresos del período × 100, calculado sobre los flujos convertidos a la moneda de lectura; si los ingresos del período son 0, la tasa es 0. Su **variación** se expresa en **puntos porcentuales**: `kpis.savingsRateDeltaPp = (tasa actual − tasa del período anterior) × 100`. Implementado en `dashboard.orchestrator`. |
 
 > **Eliminadas:** CAL-004 (consumo de presupuesto), CAL-005 (valor de posición), CAL-006 (ganancia nominal), CAL-007 (progreso de objetivo), CAL-008/CAL-009 (conversión y trazabilidad cambiaria).
@@ -637,14 +626,14 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 3. Construye el **contexto mínimo** (solo datos del usuario autenticado) y envía la pregunta al LLM.
 4. El prompt de sistema es fijo y **separado** de los datos del usuario, que viajan como datos no confiables (NFR-SEG-012). Se valida la salida antes de presentarla.
 5. Adjunta metadatos: período, moneda y fuentes consideradas.
-6. Declara "información insuficiente" cuando los datos no permiten conclusión verificable (FR-IA-011).
+6. Declara "información insuficiente" cuando los datos no permiten conclusión verificable.
 7. **No** modifica datos: el asistente es de **solo consulta** (FR-IA-015). No hay herramientas de escritura ni confirmación de acciones.
 
 **Implementación actual (DeepSeek):**
 
 - `shared/ai/ai.service.ts` (`AiModule`): cliente del proveedor (DeepSeek/OpenAI-compatible) con `axios` `responseType: "stream"`, timeout de `AI_TIMEOUT_MS` y aborto; expone `streamChat(messages)` como `AsyncGenerator<string>`. Mapea fallas a `AI_UNAVAILABLE` (NFR-SEG-009).
 - `assistant/assistant-context.service.ts`: arma el contexto mínimo reutilizando `DashboardOrchestrator.getDashboard` (ingresos, gastos, ahorro, gastos por categoría, patrimonio neto, evolución mensual) y `AccountsService` (saldos de cuentas), y produce un resumen textual.
-- `assistant/assistant.service.ts`: resuelve el usuario, construye el prompt y el contexto, y devuelve un generador de eventos (`meta`/`token`/`done`). El prompt de sistema declara explícitamente el alcance de **solo consulta** y que no debe inventar cifras.
+- `assistant/assistant.service.ts`: recibe el usuario autenticado, construye el prompt y el contexto, y devuelve un generador de eventos (`meta`/`token`/`done`). El prompt de sistema declara explícitamente el alcance de **solo consulta** y que no debe inventar cifras.
 - `assistant/assistant.controller.ts`: `POST /assistant/messages` (SSE); ante falla emite `event: error`.
 - El cliente consume el stream real en `client/lib/api/assistant-stream.ts`.
 
@@ -666,7 +655,7 @@ Todas desde el backend, con timeout, validación de host, HTTPS y redirecciones 
 | NFR-SEG-008 | Logging sin contraseñas, tokens, prompts completos ni datos sensibles.                           |
 | NFR-SEG-009 | Llamadas salientes con HTTPS, timeout y sin seguir redirecciones (cliente `axios` de IA).        |
 | NFR-SEG-012 | Separación instrucciones/datos; validación de salida del modelo.                                 |
-| NFR-SEG-013 | Historial del asistente opcional, acotado (máx. 12 mensajes) y no persistido; tratado como contexto no confiable. |
+
 
 ---
 
@@ -703,24 +692,24 @@ Todos comparten la contraseña **`Demo1234!`**:
 | Email                     | Escenario                                                         |
 | :------------------------ | :---------------------------------------------------------------- |
 | `demo@atlassfin.app`      | Dataset completo (ver §11.4).                                     |
-| `sin-datos@atlassfin.app` | Usuario vacío, para estados vacíos y onboarding (FR-DAS-008).     |
+| `sin-datos@atlassfin.app` | Usuario vacío, para estados vacíos y onboarding.                  |
 | `ana@atlassfin.app`       | Segundo usuario con un dataset mínimo, para aislamiento/permisos. |
 
 ### 11.4 Qué genera el seed
 
-Datos **reproducibles** (sin información financiera real, NFR-CAL-005 / FRD §2.6). Para `demo@atlassfin.app`:
+Datos **estructuralmente reproducibles** (sin información financiera real, NFR-CAL-005 / FRD §2.6). Para `demo@atlassfin.app`:
 
 - **5 categorías fijas del sistema**: income (`Sueldo`, `Freelance`), expense (`Supermercado`, `Transporte`, `Servicios`). Además crea la categoría propia `Otros` para el usuario demo.
 - **4 cuentas**: `cash` (Caja, ARS), `bank` (Banco, ARS), `wallet` (Billetera virtual, ARS) y `wallet` (Billetera USD, USD).
 - **3 meses de movimientos** en ARS y USD: sueldos, gastos por categoría, transferencias atómicas (dos patas con `transfer_group_id`), un ingreso sin categoría, un ingreso freelance y una transferencia multimoneda con los dos montos.
-- **Cotizaciones globales**: el seed consulta la API pública solo para calcular el monto destino de la transferencia multimoneda; no guarda cotizaciones. El dashboard las obtiene de la API en cada lectura.
+- **Cotizaciones globales**: el seed consulta la API pública solo para calcular el monto destino de la transferencia multimoneda; no guarda cotizaciones. Ese monto puede variar según la cotización vigente al correr el seed. El dashboard obtiene las cotizaciones de la API en cada lectura.
 
 Para `ana@atlassfin.app` genera un dataset reducido (una cuenta bancaria y un ingreso) para probar aislamiento y propiedades.
 
 ### 11.5 Idempotencia y reproducibilidad
 
 - El seed verifica la existencia de `demo@atlassfin.app` antes de insertar; si ya existe, no pisa datos.
-- `db:reset` siempre parte de cero y deja el mismo estado conocido: **repetir el ciclo produce resultados consistentes**.
+- `db:reset` siempre parte de cero y deja la misma estructura, usuarios, cuentas y movimientos: **repetir el ciclo produce un estado equivalente**. El monto USD de la transferencia multimoneda puede variar con la cotización de la API.
 - Las fechas son relativas al mes en curso, por lo que el dashboard siempre tiene datos "actuales".
 
 ---
@@ -754,15 +743,10 @@ CORS_ORIGIN=http://localhost:3000   # admite varios orígenes separados por coma
 
 # IA (DeepSeek por defecto; OpenAI-compatible)
 # La API key SIEMPRE vive en el servidor: nunca exponerla con NEXT_PUBLIC_* en el cliente.
-AI_PROVIDER=deepseek           # deepseek | openai
 AI_API_KEY=...                 # sk-... (solo en .env del backend)
 AI_BASE_URL=https://api.deepseek.com
 AI_MODEL=deepseek-chat         # deepseek-chat | deepseek-reasoner (u otro)
 AI_TIMEOUT_MS=30000
-AI_DEV_USER_EMAIL=demo@atlassfin.app   # solo dev: usuario del stream sin JWT
-
-# Moneda principal por defecto (las cuentas declaran su propia moneda)
-DEFAULT_CURRENCY=ARS
 
 # Tests de integración (e2e)
 TEST_DATABASE_URL=postgresql://localhost:5432/atlas_finance_test
@@ -772,7 +756,7 @@ TEST_DATABASE_URL=postgresql://localhost:5432/atlas_finance_test
 
 ### 12.1 Pool de conexiones (Supabase)
 
-- El driver `pg` configura el pool con `DB_POOL_MAX` (default 5), `DB_CONNECTION_TIMEOUT_MS` (default 15000) y `DB_IDLE_TIMEOUT_MS` (default 300000). Al arrancar, `DatabaseWarmupService` abre `DB_POOL_MAX` conexiones; `min = DB_POOL_MAX` y `keepAlive: true` las mantienen calientes para no pagar el handshake TLS de Supabase (~1–2 s) en la primera request después de una pausa. En serverless, bajá `DB_POOL_MAX` (2–3) para no retener conexiones de más.
+- El driver `pg` configura el pool con `DB_POOL_MAX` (default 5), `DB_CONNECTION_TIMEOUT_MS` (default 15000) y `DB_IDLE_TIMEOUT_MS` (default 300000). El pool abre conexiones on demand; `min = DB_POOL_MAX` y `keepAlive: true` evitan que las conexiones ya abiertas se cierren por inactividad. En serverless, bajá `DB_POOL_MAX` (2–3) para no retener conexiones de más.
 - **Producción con Supabase:** usar la cadena del **transaction pooler** (puerto `6543`) para el `DATABASE_URL` del API y mantener `DB_POOL_MAX` chico (2–3) para no agotar el pooler. El dashboard es el más sensible porque ejecuta varias consultas en paralelo; sus lecturas usan proyecciones acotadas y las consultas independientes se ejecutan en paralelo.
 
 ---
@@ -800,8 +784,8 @@ Cada tanda deja la API compilando (`npm run lint && npm run build`) y con entida
 
 - Scaffold NestJS, config global (`@nestjs/config`), `ValidationPipe`, `Logger`, prefijo `/api`, CORS, cookies.
 - TypeORM + DataSource + entidades del modelo v0.3 (usuarios, cuentas, categorías, movimientos).
-- `common/` (guards, decorators, filters, interceptors, errors).
-- **Aceptación**: API levanta, sincroniza el esquema desde las entidades y responde `/api/health`.
+- `common/` (guards, decorators, filters, errors).
+- **Aceptación**: API levanta y sincroniza el esquema desde las entidades.
 
 ### Tanda 1 — Autenticación — ✅ Hecho
 
@@ -822,7 +806,7 @@ Cada tanda deja la API compilando (`npm run lint && npm run build`) y con entida
 ### Tanda 4 — Asistente IA (solo consulta) — ✅ Hecho
 
 - `assistant` + `shared/ai`: `POST /assistant/messages` con stream SSE (`meta`/`token`/`done`/`error`), contexto mínimo e insuficiencia. Sin escrituras ni historial persistido; el cliente puede enviar turnos recientes como contexto (FR-IA-016).
-- **Aceptación**: HU-006, FR-IA-002/011/015, NFR-SEG-012.
+- **Aceptación**: HU-006, FR-IA-002/015, NFR-SEG-012.
 
 ### Tanda 5 — Endurecimiento — ◐ Parcial
 

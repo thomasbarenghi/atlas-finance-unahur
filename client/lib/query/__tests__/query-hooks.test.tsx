@@ -173,6 +173,7 @@ describe("data query hooks", () => {
         name: "Ana",
         email: "ana@example.com",
         password: "Password1",
+        primaryCurrency: "ARS",
       });
     });
     expect(queryClient.getQueryData(queryKeys.auth.me)).toMatchObject({

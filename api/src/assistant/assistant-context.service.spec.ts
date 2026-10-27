@@ -57,10 +57,13 @@ describe("AssistantContextService", () => {
       "categories",
       "currencies",
     ]);
-    expect(context.summary).toContain("Ingresos del período (ARS): 1000");
-    expect(context.summary).toContain("Patrimonio neto en ARS");
-    expect(context.summary).toContain("Comida");
-    expect(context.summary).toContain("Banco");
+    expect(context.summary).toContain("Ingresos del período (ARS): 1000 ARS");
+    expect(context.summary).toContain(
+      "Patrimonio neto actual en ARS: 4000 ARS",
+    );
+    expect(context.summary).toContain("se convierten a ARS antes de agregarse");
+    expect(context.summary).toContain("Comida: 400 ARS");
+    expect(context.summary).toContain("Banco (bank, ARS): 4000 ARS");
   });
 
   it("defaults the period and reports empty data clearly", async () => {
@@ -82,16 +85,20 @@ describe("AssistantContextService", () => {
     expect(context.summary).toContain(
       "Sin gastos por categoría en el período.",
     );
-    expect(context.summary).toContain("El usuario no tiene cuentas.");
+    expect(context.summary).toContain("Sin cuentas.");
   });
 
-  it("rejects an inverted period", async () => {
+  it("lets the dashboard validate an inverted period", async () => {
     const { service, dashboardOrchestrator } = build();
+    dashboardOrchestrator.getDashboard.mockRejectedValue({
+      response: { code: ErrorCode.VALIDATION_ERROR },
+    });
+
     await expect(
       service.build("u1", {
         period: { from: "2026-04-01", to: "2026-03-01" },
       } as any),
     ).rejects.toMatchObject({ response: { code: ErrorCode.VALIDATION_ERROR } });
-    expect(dashboardOrchestrator.getDashboard).not.toHaveBeenCalled();
+    expect(dashboardOrchestrator.getDashboard).toHaveBeenCalled();
   });
 });

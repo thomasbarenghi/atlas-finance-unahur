@@ -367,7 +367,6 @@ const buildCurrencySettings = (): CurrencySettings => {
 const handlers = [
   http.get("*/currencies", ({ request }) => {
     logRequest(request);
-    if (!requireUser()) return unauthorized();
     return json(CURRENCY_CATALOG);
   }),
 
@@ -407,6 +406,7 @@ const handlers = [
       name: string;
       email: string;
       password: string;
+      primaryCurrency: string;
     };
     if (
       testState.users.some(
@@ -421,7 +421,7 @@ const handlers = [
       id: testId(),
       name: body.name,
       email: body.email.toLowerCase(),
-      primaryCurrency: "ARS",
+      primaryCurrency: body.primaryCurrency,
       createdAt: new Date().toISOString(),
     };
     testState.users.push({ user, password: body.password });

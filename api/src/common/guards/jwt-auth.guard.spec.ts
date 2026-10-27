@@ -1,7 +1,6 @@
 import { ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { JwtAuthGuard } from "./jwt-auth.guard";
-import { OptionalJwtAuthGuard } from "./optional-jwt-auth.guard";
 
 const buildContext = (): ExecutionContext =>
   ({
@@ -30,14 +29,5 @@ describe("JwtAuthGuard", () => {
     await expect(guard.canActivate(buildContext())).rejects.toBeInstanceOf(
       Error,
     );
-  });
-});
-
-describe("OptionalJwtAuthGuard", () => {
-  it("returns the user when present and undefined otherwise", () => {
-    const guard = new OptionalJwtAuthGuard();
-    const user = { id: "u1" };
-    expect(guard.handleRequest(null, user)).toBe(user);
-    expect(guard.handleRequest(null, undefined)).toBeUndefined();
   });
 });

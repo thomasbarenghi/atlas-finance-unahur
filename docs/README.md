@@ -10,7 +10,7 @@
 | [`FRD_Gestor_Financiero_v0.3.md`](specification/0.3/FRD_Gestor_Financiero_v0.3.md) | **Fuente de verdad funcional.** Requerimientos funcionales (`FR-*`), no funcionales (`NFR-*`), reglas de cálculo (`CAL-*`), historias de usuario (`HU-*`) y pantallas (`SC-*`). |
 | [`Plan_de_Pruebas_Gestor_Financiero.md`](specification/0.3/Plan_de_Pruebas_Gestor_Financiero.md) | Estrategia, casos de prueba (`CP-*`), datos de prueba, criterios de entrada/salida y riesgos. |
 
-> **Identificadores estables.** Los IDs no se renumeran entre versiones: la numeración puede presentar huecos y los números ausentes corresponden a requerimientos fuera del alcance de la versión. La **v0.3.1** (con categorías propias, tema local, asistente de solo consulta y multimoneda con cotizaciones de la API) es la vigente; la v0.2 quedó reemplazada y se conserva en `specification/0.2/` como registro histórico.
+> **Identificadores estables.** Los IDs no se renumeran entre versiones: la numeración puede presentar huecos y los números ausentes corresponden a requerimientos fuera del alcance de la versión. La **v0.3.1** (con categorías propias, tema local, asistente de solo consulta, multimoneda con cotizaciones de la API y autenticación web-only stateless) es la vigente; la v0.2 quedó reemplazada y se conserva en `specification/0.2/` como registro histórico.
 
 ## `architecture/` — cómo está construido
 

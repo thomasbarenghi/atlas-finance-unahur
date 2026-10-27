@@ -66,7 +66,7 @@ erDiagram
 
 > La relación de la transferencia consigo misma no es una FK: los dos lados de
 > una transferencia se agrupan por `transfer_group_id` (mismo valor en ambas
-> filas), dentro de una única transacción de base de datos (FR-TRX-005).
+> filas), dentro de una única transacción de base de datos.
 
 ## Tablas
 
@@ -90,14 +90,14 @@ erDiagram
 | `user_id` | uuid | no | FK → `users.id` `ON DELETE CASCADE` (indexado) |
 | `name` | text | no | |
 | `type` | text | no | `cash` \| `bank` \| `wallet` \| `other` |
-| `currency` | text | no | ISO 4217; fija si la cuenta ya tiene movimientos (RN-015) |
+| `currency` | text | no | ISO 4217; fija si la cuenta ya tiene movimientos (FR-CUE-002) |
 | `initial_balance` | numeric(18,4) | no | |
 | `notes` | text | sí | |
 | `created_at` | timestamptz | no | |
 | `updated_at` | timestamptz | no | |
 
 > Saldo actual = `initial_balance` + Σ movimientos de la cuenta (calculado, FR-CUE-004), en la moneda de la cuenta.
-> Eliminar la cuenta elimina en cascada sus movimientos (FR-CUE-005). La moneda no se puede cambiar si ya tiene movimientos (RN-015).
+> Eliminar la cuenta elimina en cascada sus movimientos (FR-CUE-005). La moneda no se puede cambiar si ya tiene movimientos (FR-CUE-002).
 
 ### `categories` — Categoría (sistema + propias)
 
@@ -134,13 +134,13 @@ erDiagram
 
 ## Reglas de integridad y cálculo
 
-- **Propiedad (RN-001 / NFR-SEG-001):** `accounts` y `transactions` cuelgan de
+- **Propiedad (NFR-SEG-001):** `accounts` y `transactions` cuelgan de
   `users.id`; toda lectura/escritura filtra por el `user_id` autenticado.
   `categories` tiene las cinco globales (`user_id NULL`) más las propias de cada
   usuario.
 - **Autenticación:** JWT stateless (access + refresh). No hay tabla de sesiones
   ni revocación server-side.
-- **Transferencias (FR-TRX-004/005, RN-003/004/017):** origen ≠ destino; se
+- **Transferencias (FR-TRX-004/005, CAL-003):** origen ≠ destino; se
   persisten **dos filas** (`type='transfer'`) con el mismo `transfer_group_id`,
   de forma atómica. En multimoneda cada fila guarda el monto en la moneda de su
   cuenta; la cotización usada en la UI no se persiste. Se excluyen de

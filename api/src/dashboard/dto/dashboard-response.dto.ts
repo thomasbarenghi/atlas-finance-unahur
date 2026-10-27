@@ -2,13 +2,13 @@ export interface DashboardBreakdown {
   currency: string;
   balance: number;
   accounts: number;
-  /** Equivalent in the primary currency. */
+  /** Equivalent in the dashboard display currency. */
   converted: number;
 }
 
 export interface DashboardRate {
   currency: string;
-  /** How many units of the primary currency one unit buys. */
+  /** How many units of the display currency one unit buys. */
   rate: number;
   rateDate: string;
 }
@@ -17,7 +17,7 @@ export class DashboardData {
   period: { from: string; to: string };
   /** Currency scope of the period indicators and charts. */
   currency: string;
-  /** Currency in which net worth is reported. */
+  /** User's primary currency. */
   primaryCurrency: string;
   rateDate: string | null;
   availableCurrencies: string[];

@@ -1,4 +1,5 @@
-import { IsEmail, IsString, Length, Matches } from "class-validator";
+import { IsEmail, IsIn, IsString, Length, Matches } from "class-validator";
+import { CURRENCY_CODES } from "../../currencies/currency-catalog";
 
 const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d).+$/;
 
@@ -9,6 +10,9 @@ export class RegisterDto {
 
   @IsEmail()
   email: string;
+
+  @IsIn(CURRENCY_CODES, { message: "Elegí una moneda válida" })
+  primaryCurrency: string;
 
   @IsString()
   @Length(8, 72)

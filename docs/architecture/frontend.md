@@ -54,7 +54,7 @@ La aplicación opera con **multimoneda**: cada cuenta declara su moneda, el usua
 2. **Una sola fuente de verdad de tipos**: contratos de la API modelados en `lib/api/types.ts`.
 3. **Lógica portable**: `lib/` (api, query, format, validation) no importa nada de `next/*`, para mantenerlo independiente del framework de UI.
 4. **Accesibilidad primero**: shadcn + Radix ya aportan foco y teclado; se completa con resúmenes textuales de gráficos y estados no dependientes del color (NFR-UA-002/004/005).
-5. **Estados vacíos accionables**: toda vista sin datos muestra una acción sugerida (FR-DAS-008).
+5. **Estados vacíos accionables**: toda vista sin datos muestra una acción sugerida.
 
 ---
 
@@ -124,7 +124,7 @@ Cada página lista: FRs cubiertos, componentes shadcn, y comportamiento esperado
 ### 4.1 `/login`, `/register` — SC-001 (FR-AUT-001/002)
 
 - **Login:** email + contraseña. El backend fija las cookies `HttpOnly` de access y refresh y responde con el usuario; el cliente no guarda tokens. On success → `router.push("/dashboard")` + `router.refresh()`.
-- **Registro:** nombre, email, contraseña (con confirmación). **Política:** 8–72 caracteres, al menos una letra y un número (debe coincidir con el backend). Tras registrarse, se loguea automáticamente (o queda pendiente de aprobación si el backend lo indica).
+- **Registro:** nombre, email, moneda principal, contraseña y confirmación. **Política:** 8–72 caracteres, al menos una letra y un número (debe coincidir con el backend). El selector de moneda usa el catálogo público `GET /currencies`. Tras registrarse, se loguea automáticamente (o queda pendiente de aprobación si el backend lo indica).
 - **Componentes:** `Card`, `Form`, `Input`, `Button`, `Alert`, `Label`.
 - **Errores:** mensajes genéricos del servidor, nunca detalles sensibles.
 - **Demo:** en la pantalla de login se pueden precargar las credenciales del seed (`demo@atlassfin.app` / `Demo1234!`).
@@ -140,13 +140,13 @@ Vista de aterrizaje **"Tu resumen"**: un **layout fijo** de indicadores y gráfi
 - **Cuentas**: sección con `AccountsList` sobre `useAccounts` (ruta `/accounts/detail`). Las cuentas con saldo negativo muestran "Saldo negativo". Botón `+` (`AccountTypePicker` → `AccountFormDialog`) y las filas navegan al detalle (§4.3).
 - **Filtro de período** (FR-DAS-007): `PeriodSelector` en el header de la página; el período es compartido con Movimientos y Asistente a través de `PeriodProvider`.
 - **Acciones de header:** `PeriodSelector` + CTA `Nuevo movimiento` (desktop); en mobile no hay avatar: el chip de rango sube a la fila del título (a la derecha) y no hay subtítulo de período, porque el chip ya lo indica. La cuenta se gestiona desde la tab **Perfil**. En desktop el subtítulo indica solo el rango (`Octubre 2026 · del 1 al 26`), porque el panel consolida todas las cuentas.
-- **Estados vacíos** (FR-DAS-008): `EmptyState` reutilizable con acción sugerida.
+- **Estados vacíos:** `EmptyState` reutilizable con acción sugerida.
 
 ### 4.3 Cuentas — SC-003 (FR-CUE-001..005)
 
 El **listado de cuentas vive en el inicio** (`/dashboard`, §4.2). Las cuentas se muestran con `AccountsList`, agrupadas por moneda cuando hay más de una, con `ListSkeleton` y `EmptyState`. La **creación** arranca con un **selector de tipo en grilla** (`AccountTypePicker`: Efectivo, Bancaria, Billetera y Otra); al elegir un tipo se abre el `AccountFormDialog` con ese tipo precargado (nombre, tipo, moneda, saldo inicial, observaciones; FR-CUE-001/002).
 
-El **formulario** (`AccountFormDialog`) es un editor visual: hero con ícono del tipo y **nombre editables**, chips de **tipo** (scroll horizontal), **selector de moneda** (dropdown anclado en desktop, bottom sheet en mobile) y campos de saldo inicial y observaciones. La moneda no se puede cambiar si la cuenta ya tiene movimientos (RN-015). No hay tipo tarjeta.
+El **formulario** (`AccountFormDialog`) es un editor visual: hero con ícono del tipo y **nombre editables**, chips de **tipo** (scroll horizontal), **selector de moneda** (dropdown anclado en desktop, bottom sheet en mobile) y campos de saldo inicial y observaciones. La moneda no se puede cambiar si la cuenta ya tiene movimientos (FR-CUE-002). No hay tipo tarjeta.
 
 #### 4.3.1 `/accounts/detail?id=<id>` — Detalle de cuenta
 
@@ -163,7 +163,7 @@ El **formulario** (`AccountFormDialog`) es un editor visual: hero con ícono del
 - **Búsqueda y filtros:** buscador por concepto, nota, categoría o monto, segmentado de tipo (`Todos/Ingresos/Gastos/Transferencias`) y filtros de cuenta, categoría, moneda y período. En mobile el buscador ocupa todo el ancho, no hay botón de filtros y los chips quedan siempre visibles; el chip de fecha muestra el mes activo. Los filtros se aplican en cliente sobre la página cargada (máx. 100 registros) y `Limpiar` los restablece. El filtro de moneda aparece solo cuando hay más de una moneda en uso.
 - **Exportar:** botón `Exportar` que descarga un CSV de los movimientos filtrados (fecha, tipo, descripción, categoría, cuenta, moneda, monto y notas).
 - **CTA de alta**: `Exportar` + `Nuevo movimiento` en el `PageHeader` (desktop) y botón `+` en mobile; botón `Nuevo movimiento` en el estado vacío.
-- **Alta/edición** como editor moderno estilo app (`Dialog` desktop / bottom sheet mobile, FR-TRX-001/002/003): **segmented de tipo** (Gasto/Ingreso/Transferencia), campos con label persistente de cuenta y categoría (categoría obligatoria en ingreso/gasto, del **catálogo del sistema + propias**), **teclado numérico** (`AmountKeypad`) con operaciones `+ − × ÷`, **cálculo en vivo** (sin botón `=`), monto grande con signo por tipo y saldo disponible (oculto en transferencias), fecha + comentario y notas. El monto se evalúa con un evaluador propio (sin `eval`) en `transaction-form-dialog/amount-expression.ts` y se valida `> 0`. Si es transferencia, selector origen/destino que excluye la otra cuenta elegida; cuando las monedas difieren, se muestra la cotización editable (sugerida por la API o la última usada) y el monto que llega a destino. La cotización no se persiste (FR-TRX-004, RN-017).
+- **Alta/edición** como editor moderno estilo app (`Dialog` desktop / bottom sheet mobile, FR-TRX-001/002/003): **segmented de tipo** (Gasto/Ingreso/Transferencia), campos con label persistente de cuenta y categoría (categoría obligatoria en ingreso/gasto, del **catálogo del sistema + propias**), **teclado numérico** (`AmountKeypad`) con operaciones `+ − × ÷`, **cálculo en vivo** (sin botón `=`), monto grande con signo por tipo y saldo disponible (oculto en transferencias), fecha + comentario y notas. El monto se evalúa con un evaluador propio (sin `eval`) en `transaction-form-dialog/amount-expression.ts` y se valida `> 0`. Si es transferencia, selector origen/destino que excluye la otra cuenta elegida; cuando las monedas difieren, se muestra la cotización editable (sugerida por la API o la última usada) y el monto que llega a destino. La cotización no se persiste (FR-TRX-002/004).
 - **Eliminar** con `DeleteTransactionDialog` sobre `ConfirmActionDialog`; en una transferencia elimina ambas patas y el texto de confirmación lo advierte.
 
 ### 4.5 `/categories` — SC-011 (FR-CAT-001..004, FR-TRX-002)
@@ -174,7 +174,7 @@ El **formulario** (`AccountFormDialog`) es un editor visual: hero con ícono del
 - **Eliminar** una categoría propia pide confirmación; los movimientos que la usaban quedan como “Sin categoría”.
 - **Estados vacíos y error:** `EmptyState` con reintento si fallan las consultas.
 
-### 4.6 `/assistant` — SC-009 (FR-IA-002/011/015/016)
+### 4.6 `/assistant` — SC-009 (FR-IA-002/015/016)
 
 Ver §10. Página propia en desktop y mobile: **`PageHeader`** con `Nuevo chat`, columna de chat centrada (máx. 780 px), **`ScrollArea`** para los mensajes, selector de período como único contexto, composer fijo al pie con envío/cancelación. Estado vacío con título y sugerencias (2×2 en desktop, 3 en mobile). **El asistente es de solo consulta**: no propone ni ejecuta escrituras, no guarda historial en el servidor (la conversación vive en memoria del cliente) y no tiene entrada por voz.
 
@@ -317,7 +317,7 @@ npx shadcn@latest add breadcrumb avatar
 - **`NetWorthHero`**: hero de patrimonio neto con variación, mini-stats del período (opcionales vía `showPeriodStats`) y evolución diaria con eje de fechas, escala adaptativa, tooltip y punto final. `TrendBadge` es un subcomponente privado suyo.
 - **`PeriodSelector`**: control compartido por Dashboard, Movimientos, Categorías y Asistente, con cuatro rangos: `Este mes`, `Últimos 30 días`, `6 meses` y `12 meses`. El Dashboard y Categorías tienen además un selector de moneda de lectura; Movimientos mantiene un filtro por moneda.
 - **`MetricInfo`**: icono ⓘ y popover accesible con la fórmula y un ejemplo del período; se usa en las métricas del dashboard, categorías, cuentas y movimientos.
-- **`EmptyState`**: ícono, título, descripción, acción CTA (FR-DAS-008); base de los estados vacíos y de error.
+- **`EmptyState`**: ícono, título, descripción, acción CTA; base de los estados vacíos y de error.
 - **Listas de dominio** (`AccountsList`, `TransactionList`, `CategoryList`): cada una compone `ListSkeleton`, `EmptyState` y `ListPagination`; **no hay tablas** (`DataTable` eliminado).
 - **`ListPagination`**: paginación client-side sobre los movimientos cargados (máx. 100); `ListSkeleton` cubre el estado de carga.
 - **`RowActionsMenu`**: menú de acciones por fila (`Editar`/`Eliminar`…) con trigger y `aria-label` consistentes.
@@ -539,7 +539,7 @@ La analítica es el diferenciador. Directrices:
 
 ## 10. Asistente de IA (distintivo)
 
-Implementación de la UI conversacional (SC-009, FR-IA-002/011/015). El backend es quien interactúa con el proveedor de IA (DeepSeek); el front solo presenta la conversación. **El asistente es de solo consulta**: no crea, edita ni elimina datos (FR-IA-015).
+Implementación de la UI conversacional (SC-009, FR-IA-002/015). El backend es quien interactúa con el proveedor de IA (DeepSeek); el front solo presenta la conversación. **El asistente es de solo consulta**: no crea, edita ni elimina datos (FR-IA-015).
 
 - **Ubicación**: página propia `/assistant` en desktop y mobile, accesible desde la sidebar (desktop) y desde el ítem **`Asistente`** de la barra inferior. No hay FAB ni panel flotante. Componente `assistant-chat`; el estado de la única conversación vive en el hook `use-assistant-conversation` y `Nuevo chat` remonta el chat.
 - **Separación**: la orquestación del chat (envío y streaming) vive en el hook privado `assistant-chat/hooks/use-assistant-conversation`; `AssistantChat` queda como presentación.
@@ -570,10 +570,10 @@ export const streamAssistantMessage = (
 ```
 
 - **Render**: la respuesta se acumula desde los `delta` y se renderiza **Markdown de forma segura** con `components/common/markdown-text` (produce elementos React para negrita/cursiva/código/listas; **nunca** usa `dangerouslySetInnerHTML`, NFR-SEG-006). El front marca la respuesta como informativa. El `ScrollArea` de la conversación usa `min-h-0` para poder scrollear dentro de la página; una respuesta interrumpida se muestra como tal.
-- **Límites**: si llega `done` con `insufficient: true`, mostrar el mensaje sin fallar (FR-IA-011); si llega `error`, mostrar aviso genérico y permitir reintento.
+- **Límites**: si llega `done` con `insufficient: true`, mostrar el mensaje sin fallar; si llega `error`, mostrar aviso genérico y permitir reintento.
 - **Seguridad de prompts**: el front **nunca** concatena datos del usuario con instrucciones de sistema; envía la pregunta, el período y los turnos previos como contexto separado.
 - **Conversación única:** no hay historial persistido. `use-assistant-conversation` mantiene una sola conversación en memoria y envía sus últimos turnos como `history` para permitir seguimientos; `Nuevo chat` la descarta. No hay propuestas ni acciones.
-- **Sin modo mock en la app:** el asistente siempre hace el `POST /assistant/messages` real contra `NEXT_PUBLIC_API_URL` y recibe el stream de DeepSeek. En desarrollo el backend puede resolver el usuario demo; en producción requiere sesión.
+- **Sin modo mock en la app:** el asistente siempre hace el `POST /assistant/messages` real contra `NEXT_PUBLIC_API_URL` y recibe el stream de DeepSeek. Requiere sesión tanto en desarrollo como en producción; no hay fallback a un usuario demo.
 
 > **Eliminados:** acciones de escritura y su confirmación (token de un solo uso, orden por plan), historial de conversaciones persistido (local y en el servidor), entrada por voz (`MediaRecorder` / Web Speech) y el interruptor de IA en Ajustes.
 
@@ -685,7 +685,7 @@ Progresivo y validable al final de cada tanda. Cada tanda deja la app compilando
 
 - Chat con streaming (`fetch` + `ReadableStream`, eventos SSE), cancelar, render Markdown seguro, insuficiencia y continuidad conversacional en memoria (FR-IA-016).
 - Sin historial persistido, sin acciones y sin entrada por voz.
-- **Aceptación**: HU-006 (FR-IA-002/011/015/016).
+- **Aceptación**: HU-006 (FR-IA-002/015/016).
 
 ### Tanda 6 — Pulido y NFRs — ◐ Parcial
 

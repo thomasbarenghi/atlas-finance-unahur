@@ -1,3 +1,4 @@
+import { ErrorCode } from "../common/errors/error-codes";
 import { CalculationsService } from "../shared/calculations/calculations.service";
 import { DashboardOrchestrator } from "./dashboard.orchestrator";
 
@@ -54,7 +55,6 @@ const build = () => {
         ["USD", 1180],
       ]),
       rateDate: "2026-03-31",
-      rateDates: new Map([["USD", "2026-03-31"]]),
     }),
   };
 
@@ -207,5 +207,40 @@ describe("DashboardOrchestrator", () => {
     expect(data.kpis.expenses).toBe(100);
     expect(data.expensesByCategory).toEqual([]);
     expect(data.kpis.incomeDeltaPct).not.toBeNull();
+  });
+
+  it("rejects an inverted period", async () => {
+    const { orchestrator } = build();
+    await expect(
+      orchestrator.getDashboard("u1", {
+        from: "2026-04-01",
+        to: "2026-03-01",
+      }),
+    ).rejects.toMatchObject({
+      response: { code: ErrorCode.VALIDATION_ERROR },
+    });
+  });
+
+  it("rejects a period longer than 366 days", async () => {
+    const { orchestrator } = build();
+    await expect(
+      orchestrator.getDashboard("u1", {
+        from: "2025-01-01",
+        to: "2026-03-31",
+      }),
+    ).rejects.toMatchObject({
+      response: { code: ErrorCode.VALIDATION_ERROR },
+    });
+  });
+
+  it("fails when a transaction references an unknown account", async () => {
+    const { orchestrator, transactionsService } = build();
+    transactionsService.listOwnedTransactions.mockResolvedValue([
+      transaction({ accountId: "missing" }),
+    ]);
+
+    await expect(orchestrator.getDashboard("u1", RANGE)).rejects.toMatchObject({
+      response: { code: ErrorCode.INTERNAL_ERROR },
+    });
   });
 });

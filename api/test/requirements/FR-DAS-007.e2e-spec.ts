@@ -51,4 +51,26 @@ describe("FR-DAS-007 · Período de visualización", () => {
 
     expect(response.body.period.from < response.body.period.to).toBe(true);
   });
+
+  it("rechaza un rango invertido", async () => {
+    const user = await registerUser(ctx.app);
+
+    const response = await request(ctx.server)
+      .get("/api/dashboard?from=2026-04-01&to=2026-03-01")
+      .set(authCookie(user.accessToken))
+      .expect(400);
+
+    expect(response.body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("rechaza un rango mayor a 366 días", async () => {
+    const user = await registerUser(ctx.app);
+
+    const response = await request(ctx.server)
+      .get("/api/dashboard?from=2025-01-01&to=2026-03-31")
+      .set(authCookie(user.accessToken))
+      .expect(400);
+
+    expect(response.body.code).toBe("VALIDATION_ERROR");
+  });
 });

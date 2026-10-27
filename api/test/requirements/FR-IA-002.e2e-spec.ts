@@ -1,3 +1,4 @@
+import request from "supertest";
 import { AiService } from "../../src/shared/ai/ai.service";
 import { registerUser } from "../utils/auth";
 import { aiStub, parseSse, postAssistantMessage } from "../utils/assistant";
@@ -51,5 +52,12 @@ describe("FR-IA-002 · Preguntas en lenguaje natural", () => {
 
     const done = events.find((e) => e.event === "done");
     expect(done?.data.insufficient).toBe(false);
+  });
+
+  it("rechaza una consulta sin sesión", async () => {
+    await request(ctx.server)
+      .post("/api/assistant/messages")
+      .send({ question: "¿En qué gasté?" })
+      .expect(401);
   });
 });

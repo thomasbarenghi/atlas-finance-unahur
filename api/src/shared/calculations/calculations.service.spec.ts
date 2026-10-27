@@ -59,6 +59,57 @@ describe("CalculationsService", () => {
     });
   });
 
+  describe("daily flow index", () => {
+    it("aggregates once and sums any period without rescanning transactions", () => {
+      const daily = service.calculateDailyFlows(
+        [
+          transaction({
+            type: "income",
+            amount: 1000,
+            date: "2026-03-05",
+            currency: "ARS",
+          }),
+          transaction({
+            type: "expense",
+            amount: 400,
+            date: "2026-03-10",
+            currency: "ARS",
+          }),
+          transaction({
+            type: "income",
+            amount: 50,
+            date: "2026-03-10",
+            currency: "ARS",
+          }),
+          transaction({
+            type: "transfer",
+            amount: 5000,
+            date: "2026-03-15",
+            currency: "ARS",
+          }),
+          transaction({
+            type: "income",
+            amount: 999,
+            date: "2026-04-01",
+            currency: "ARS",
+          }),
+        ],
+        "ARS",
+      );
+
+      expect(service.sumFlows(daily, "2026-03-01", "2026-03-31")).toEqual({
+        income: 1050,
+        expenses: 400,
+        savings: 650,
+      });
+      expect(service.sumFlows(daily, "2026-03-10", "2026-03-10")).toEqual({
+        income: 50,
+        expenses: 400,
+        savings: -350,
+      });
+    });
+  });
+
   describe("CAL-001 calculateNetWorth", () => {
     it("sums the net balance of every account", () => {
       const accounts = [
@@ -114,6 +165,32 @@ describe("CalculationsService", () => {
       );
 
       expect(balance).toBe(950);
+    });
+  });
+
+  describe("calculateAccountBalances / netWorthFromBalances", () => {
+    it("computes all balances in one pass and converts them", () => {
+      const accounts = [
+        { id: "a1", initialBalance: 1000, currency: "ARS" },
+        { id: "a2", initialBalance: 10, currency: "USD" },
+      ];
+      const balances = service.calculateAccountBalances(accounts, [
+        transaction({ type: "income", amount: 200, accountId: "a1" }),
+        transaction({ type: "expense", amount: 50, accountId: "a1" }),
+        transaction({ type: "income", amount: 5, accountId: "a2" }),
+        transaction({ type: "income", amount: 999, accountId: "missing" }),
+      ]);
+      const rates = new Map([
+        ["ARS", 1],
+        ["USD", 1180],
+      ]);
+
+      expect(balances.get("a1")).toBe(1150);
+      expect(balances.get("a2")).toBe(15);
+      expect(balances.has("missing")).toBe(false);
+      expect(
+        service.netWorthFromBalances(accounts, balances, rates, "ARS"),
+      ).toBe(1150 + 15 * 1180);
     });
   });
 
@@ -215,6 +292,59 @@ describe("CalculationsService", () => {
       expect(
         service.netWorthInCurrency(accounts, [], rates, "USD"),
       ).toBeCloseTo(12800 / 1180, 6);
+    });
+
+    it("builds the net worth series processing each transaction once", () => {
+      const accounts = [
+        { id: "a1", initialBalance: 1000, currency: "ARS" },
+        { id: "a2", initialBalance: 10, currency: "USD" },
+      ];
+      const transactions = [
+        transaction({
+          type: "income",
+          amount: 200,
+          accountId: "a1",
+          date: "2026-01-10",
+        }),
+        transaction({
+          type: "expense",
+          amount: 50,
+          accountId: "a1",
+          date: "2026-02-15",
+        }),
+        transaction({
+          type: "income",
+          amount: 5,
+          accountId: "a2",
+          date: "2026-03-20",
+        }),
+      ];
+      const rates = new Map([
+        ["ARS", 1],
+        ["USD", 1180],
+      ]);
+      const dates = ["2026-01-31", "2026-02-28", "2026-03-31"];
+
+      const series = service.netWorthSeries(
+        accounts,
+        transactions,
+        rates,
+        "ARS",
+        dates,
+      );
+
+      expect(series.map((point) => point.date)).toEqual(dates);
+      for (const point of series) {
+        expect(point.value).toBe(
+          service.netWorthInCurrency(
+            accounts,
+            transactions,
+            rates,
+            "ARS",
+            point.date,
+          ),
+        );
+      }
     });
   });
 

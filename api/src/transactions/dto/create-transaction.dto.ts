@@ -51,7 +51,7 @@ export class CreateTransactionDto {
   /**
    * Amount that reaches the destination account. Required when the two
    * accounts use different currencies; for same-currency transfers it defaults
-   * to `amount` (RN-017).
+   * to `amount` (FR-TRX-002).
    */
   @IsOptional()
   @IsNumber()

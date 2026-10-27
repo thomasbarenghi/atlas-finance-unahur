@@ -5,7 +5,6 @@ import cookieParser from "cookie-parser";
 import { ApiException } from "./common/errors/api.exception";
 import { ErrorCode } from "./common/errors/error-codes";
 import { GlobalExceptionFilter } from "./common/filters/http-exception.filter";
-import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 import { AppConfig } from "./config/configuration";
 
 /**
@@ -41,7 +40,7 @@ export const validationExceptionFactory = (
 
 /**
  * Applies the same cross-cutting configuration as `main.ts` (prefix, cookies,
- * validation pipe, exception filter, interceptor and CORS). Extracted so the
+ * validation pipe, exception filter and CORS). Extracted so the
  * HTTP e2e tests exercise the exact production behavior instead of a copy.
  */
 export const configureApp = (app: INestApplication): void => {
@@ -58,7 +57,6 @@ export const configureApp = (app: INestApplication): void => {
     }),
   );
   app.useGlobalFilters(new GlobalExceptionFilter());
-  app.useGlobalInterceptors(new LoggingInterceptor());
 
   const cors = config.get("cors", { infer: true });
   app.enableCors({

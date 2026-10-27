@@ -7,11 +7,9 @@ import { AuthModule } from "./auth/auth.module";
 import { CategoriesModule } from "./categories/categories.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { configuration } from "./config/configuration";
-import { validateEnv } from "./config/env.validation";
 import { CurrenciesModule } from "./currencies/currencies.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { DatabaseModule } from "./database/database.module";
-import { HealthModule } from "./health/health.module";
 import { TransactionsModule } from "./transactions/transactions.module";
 import { UsersModule } from "./users/users.module";
 
@@ -21,12 +19,10 @@ import { UsersModule } from "./users/users.module";
       isGlobal: true,
       cache: true,
       load: [configuration],
-      validate: validateEnv,
     }),
     DatabaseModule,
     AuthModule,
     UsersModule,
-    HealthModule,
     AssistantModule,
     AccountsModule,
     CategoriesModule,

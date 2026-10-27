@@ -45,6 +45,7 @@ describe("NFR-SEG-004 · Cookies de sesión y renovación", () => {
         name: "Cookie",
         email: "cookie@test.local",
         password: "Secreta123",
+        primaryCurrency: "ARS",
       })
       .expect(201);
 
@@ -63,6 +64,7 @@ describe("NFR-SEG-004 · Cookies de sesión y renovación", () => {
         name: "Renew",
         email: "renew@test.local",
         password: "Secreta123",
+        primaryCurrency: "ARS",
       })
       .expect(201);
 

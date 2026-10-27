@@ -95,9 +95,13 @@ describe("auth schemas", () => {
       name: "Ana",
       email: "ana@example.com",
       password: "Password1",
+      primaryCurrency: "ARS",
       confirmPassword: "Password1",
     };
     expect(registerSchema.safeParse(base).success).toBe(true);
+    expect(
+      registerSchema.safeParse({ ...base, primaryCurrency: "" }).success,
+    ).toBe(false);
 
     expect(
       registerSchema.safeParse({

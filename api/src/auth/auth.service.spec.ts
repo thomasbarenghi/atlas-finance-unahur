@@ -39,7 +39,6 @@ const build = () => {
   const config = {
     get: jest.fn((key: string) => {
       if (key === "jwt") return { refreshTtlDays: 30 };
-      if (key === "defaultCurrency") return "ARS";
       return undefined;
     }),
   };
@@ -63,6 +62,7 @@ describe("AuthService", () => {
       name: "  Ana  ",
       email: "ANA@test.local",
       password: "Secreta123",
+      primaryCurrency: "USD",
     } as any);
 
     expect(usersRepository.create).toHaveBeenCalledWith(
@@ -70,6 +70,7 @@ describe("AuthService", () => {
         name: "Ana",
         email: "ana@test.local",
         passwordHash: "hashed",
+        primaryCurrency: "USD",
       }),
     );
     expect(result.tokens).toEqual({

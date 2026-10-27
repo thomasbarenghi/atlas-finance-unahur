@@ -258,6 +258,7 @@ describe("auth, user and dashboard endpoints", () => {
       name: "Ana",
       email: "ana@example.com",
       password: "Password1",
+      primaryCurrency: "ARS",
     });
 
     expect(

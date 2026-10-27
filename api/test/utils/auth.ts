@@ -37,12 +37,18 @@ export const refreshCookie = (token: string): Record<string, string> => ({
  */
 export const registerUser = async (
   app: INestApplication,
-  overrides: Partial<{ name: string; email: string; password: string }> = {},
+  overrides: Partial<{
+    name: string;
+    email: string;
+    password: string;
+    primaryCurrency: string;
+  }> = {},
 ): Promise<TestUser> => {
   const payload = {
     name: "Test User",
     email: uniqueEmail(),
     password: "Secreta123",
+    primaryCurrency: "ARS",
     ...overrides,
   };
   const response = await request(httpClient(app))

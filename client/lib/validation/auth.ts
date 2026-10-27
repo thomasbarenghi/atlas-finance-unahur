@@ -24,6 +24,7 @@ export const registerSchema = z
       .max(80, "El nombre no puede superar los 80 caracteres"),
     email: z.string().email("Ingresá un email válido"),
     password,
+    primaryCurrency: z.string().min(1, "Elegí una moneda"),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {

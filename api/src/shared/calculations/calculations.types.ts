@@ -15,7 +15,7 @@ export interface MoneyTransaction {
 export interface BalanceAccount {
   id: string;
   initialBalance: number;
-  /** Currency declared by the account (RN-015). */
+  /** Currency declared by the account (FR-CUE-002). */
   currency?: string;
 }
 
@@ -26,3 +26,4 @@ export interface PeriodFlows {
 }
 
 export type RateMap = Map<string, number>;
+export type BalanceMap = Map<string, number>;

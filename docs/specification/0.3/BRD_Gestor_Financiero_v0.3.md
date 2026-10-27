@@ -14,7 +14,7 @@
 
 - Historial de Cambios
 - Alcance 2.1. Descripción del Proyecto / Objetivos 2.2. Justificación 2.3. Hipótesis 2.4. Restricciones 2.5. Dependencias 2.6. Alcance del Proyecto
-- Requerimientos de Negocio 3.1. Reglas de Negocio 3.2. Casos de Estudio
+- Requerimientos de Negocio 3.1. Reglas de Negocio
 - Requerimientos Funcionales 4.1. Historias de Usuario 4.2. Criterios de Bondad
 - Pantallas de Usuario
 - Glosario
@@ -27,15 +27,15 @@
 | 0.1 | 04/09/2026 | Barenghi, Thomas | Versión inicial del documento. |
 | 0.2 | 02/10/2026 | Barenghi, Thomas | Se actualiza el cálculo de patrimonio neto (RN-002 y glosario) conforme a la nueva definición de CAL-001. No se modifican los requerimientos de negocio. |
 | 0.3 | 16/10/2026 | Barenghi, Thomas | Se ajusta el alcance de la versión y se consolida la documentación en torno a los flujos principales: acceso, cuentas, movimientos, panel y asistente de consulta. Se actualizan las reglas de negocio, los criterios de bondad, las pantallas y el glosario, y se amplían las historias de usuario para cubrir todos los módulos vigentes. |
-| 0.3.1 | 26/10/2026 | Barenghi, Thomas | Se alinea el documento con la implementación vigente: búsqueda, filtros y exportación CSV de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria y semanal del panel; continuidad de la conversación del asistente en memoria del cliente; multimoneda (moneda por cuenta, moneda principal, cotizaciones automáticas de la API consultadas en cada lectura y sin persistencia, transferencias multimoneda y selector de moneda de lectura); y autenticación JWT stateless sin tabla de sesiones y con transporte exclusivo por cookie HttpOnly. |
+| 0.3.1 | 26/10/2026 | Barenghi, Thomas | Se alinea el documento con la implementación vigente: búsqueda y filtros de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria y semanal del panel; continuidad de la conversación del asistente en memoria del cliente; multimoneda (moneda por cuenta, moneda principal, cotizaciones automáticas de la API consultadas en cada lectura y sin persistencia, transferencias multimoneda y selector de moneda de lectura); autenticación JWT stateless sin tabla de sesiones y con transporte exclusivo por cookie HttpOnly; consolidación de reglas y criterios para eliminar duplicidades; y retiro de requisitos de estados vacíos, atomicidad de transferencias, exportación CSV e insuficiencia del asistente. |
 
 ## 2. Alcance
 
 ### 2.1. Descripción del Proyecto / Objetivos
 
-**Desarrollar una aplicación web de gestión financiera personal que permita registrar cuentas y movimientos, organizarlos con categorías, y consultar la evolución del patrimonio y del flujo de fondos desde una vista consolidada, con cálculos trazables y un asistente de inteligencia artificial opcional de solo consulta.**
+**Desarrollar una aplicación web de gestión financiera personal que permita registrar cuentas y movimientos, organizarlos con categorías, y consultar la evolución del patrimonio y del flujo de fondos desde una vista consolidada, con cálculos trazables y un asistente de inteligencia artificial de solo consulta, siempre disponible con sesión válida.**
 
-**Los objetivos específicos son consolidar las cuentas en una vista patrimonial; registrar ingresos, gastos y transferencias con categorías; mostrar gráficos de patrimonio y flujo de fondos; incorporar un asistente de inteligencia artificial opcional y explicativo, de solo consulta; y proteger la privacidad mediante autenticación, autorización por propietario y minimización de datos.**
+**Los objetivos específicos son consolidar las cuentas en una vista patrimonial; registrar ingresos, gastos y transferencias con categorías; mostrar gráficos de patrimonio y flujo de fondos; incorporar un asistente de inteligencia artificial explicativo, de solo consulta y siempre disponible con sesión válida; y proteger la privacidad mediante autenticación, autorización por propietario y minimización de datos.**
 
 ### 2.2. Justificación
 
@@ -53,7 +53,7 @@
 
 **Atributos de calidad exigidos: cada recurso queda restringido a su propietario mediante autorización verificada en el servidor; las contraseñas se almacenan con hash adaptativo y los secretos de los proveedores nunca salen del servidor; las fórmulas financieras están cubiertas por pruebas unitarias y los flujos P0 por pruebas de integración; y la demostración usa datos ficticios y reproducibles. El detalle normativo de cada atributo está en el FRD (NFR-SEG y NFR-CAL).**
 
-**La preferencia de tema (claro, oscuro o automático) es local al navegador y no se sincroniza entre dispositivos. La exportación CSV se genera en el cliente y no se envía a terceros.**
+**La preferencia de tema (claro, oscuro o automático) es local al navegador y no se sincroniza entre dispositivos.**
 
 ### 2.5. Dependencias
 
@@ -61,11 +61,11 @@
 
 ### 2.6. Alcance del Proyecto
 
-**El alcance de la versión inicial incluye registro, inicio y cierre de sesión con perfil; alta, edición y eliminación de cuentas manuales; ingresos, gastos y transferencias con categorías; dashboard con indicadores y gráficos; y un asistente de inteligencia artificial opcional de solo consulta.**
+**El alcance de la versión inicial incluye registro, inicio y cierre de sesión con perfil; alta, edición y eliminación de cuentas manuales; ingresos, gastos y transferencias con categorías; dashboard con indicadores y gráficos; y un asistente de inteligencia artificial de solo consulta, siempre disponible con sesión válida.**
 
 **La aplicación opera con multimoneda** (cada cuenta declara su moneda y el dashboard permite leer los valores en la moneda principal o en otra moneda en uso, con cotizaciones provistas por la API), cinco categorías fijas del sistema y categorías propias que cada usuario puede crear, editar y eliminar.
 
-**La versión incorpora búsqueda, filtros y exportación CSV de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria o semanal del panel según la duración del rango; y continuidad de la conversación del asistente en memoria del cliente, sin persistencia en el servidor.**
+**La versión incorpora búsqueda y filtros de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria o semanal del panel según la duración del rango; y continuidad de la conversación del asistente en memoria del cliente, sin persistencia en el servidor.**
 
 **El período de análisis (Este mes, Últimos 30 días, 6 meses y 12 meses) es compartido por el panel, los movimientos y el asistente.**
 
@@ -79,28 +79,10 @@
 
 | Regla | Descripción |
 |---|---|
-| RN-001 | Todo registro financiero tendrá un propietario único y solo será accesible dentro de su sesión autorizada. |
-| RN-002 | Patrimonio neto = Σ (saldo × cotización) de las cuentas del usuario, expresado en la moneda de lectura. |
-| RN-003 | Una transferencia no se contabiliza como ingreso ni como gasto. |
-| RN-004 | Toda transferencia válida descuenta en la cuenta de origen y acredita en la cuenta de destino dentro de una única operación. |
-| RN-014 | Hay una moneda principal. El patrimonio se informa en la moneda de lectura (default: principal); los flujos se convierten a esa moneda con la cotización de la API. |
-| RN-015 | Cada cuenta tiene una moneda fija; no se puede cambiar si ya tiene movimientos. |
+| RN-014 | Hay una moneda principal. El patrimonio y los flujos se informan en la moneda de lectura (default: principal), convirtiendo cada valor con la cotización de la API. La moneda de lectura es una vista: cambiarla no altera registros. Los indicadores incluyen todas las monedas y el total convertido se muestra con desglose por moneda cuando hay más de una en uso. |
 | RN-016 | Las cotizaciones son globales y las provee la API; no se persisten y el usuario no las crea ni las edita. |
-| RN-017 | Una transferencia entre monedas distintas registra los dos montos. La cotización es opcional y se puede sobrescribir en la operación; no se persiste. |
-| RN-018 | Los indicadores del período incluyen todas las monedas, convirtiendo cada flujo a la moneda de lectura; el patrimonio se informa con desglose por moneda. |
-| RN-019 | La moneda de lectura es una vista, no un dato: cambiarla no altera ningún registro. |
-| RN-020 | El total convertido nunca aparece solo: siempre con su desglose por moneda cuando hay más de una moneda en uso. |
-| RN-012 | La inteligencia artificial será de solo consulta: podrá leer la información del propio usuario con los permisos de su sesión, pero nunca crearla, editarla ni eliminarla. |
-| RN-013 | Los totales entregados al asistente serán calculados previamente por el sistema para el período consultado; el historial de conversación solo aporta continuidad y la respuesta incluirá período y aclaración informativa. |
-| RN-015 | Las cinco categorías del sistema son globales y de solo lectura. Cada categoría propia pertenece a un único usuario y solo él puede crearla, editarla o eliminarla. |
-| RN-016 | Eliminar una categoría propia no elimina los movimientos asociados: quedan sin categoría y se muestran como “Sin categoría”. |
-| RN-017 | La conversación del asistente no se persiste en el servidor. El cliente puede reenviar turnos recientes como contexto, pero las cifras siempre se recalculan para el período consultado. |
 
-### 3.2. Casos de Estudio
-
-| Caso | Condición | Resultado esperado |
-|---|---|---|
-| Caso 1: Consulta al asistente con datos insuficientes | El usuario habilita el asistente y pregunta por la evolución de sus gastos en un período sin movimientos cargados. | El asistente responde que no hay información suficiente e indica el período consultado. |
+> Las reglas de propiedad, transferencias, cuentas, categorías y asistente se detallan en los `FR-*` y `HU-*` correspondientes para evitar duplicación.
 
 ## 4. Requerimientos Funcionales
 
@@ -114,14 +96,14 @@
 | US-005 | Como usuario registrado, quiero ver la evolución de mi patrimonio y de mi flujo de fondos con cálculos trazables, para confiar en los resultados. | Los totales del dashboard coinciden con los movimientos registrados, incluyen todas las monedas convertidas a la moneda de lectura y provienen de fórmulas centralizadas. | Dashboard (FR-DAS-*) · CAL-001, CAL-002 |
 | US-010 | Como usuario registrado, quiero consultar un asistente de inteligencia artificial únicamente con información autorizada, para entender mejor mis finanzas. | El asistente requiere sesión válida, indica período y datos considerados y es de solo consulta: no crea, edita ni elimina información. | Asistente (FR-IA-002) · HU-006, HU-013 |
 | US-011 | Como usuario registrado, quiero que mi información permanezca privada y separada de la de otros usuarios, para proteger mis datos. | El servidor verifica la pertenencia de cada recurso al usuario autenticado antes de leerlo o modificarlo. | NFR-SEG-001 a NFR-SEG-003 · HU-014 |
-| US-013 | Como visitante, quiero registrarme e iniciar sesión, para acceder a mi información financiera. | El registro valida los campos y crea el usuario; al cerrar sesión se limpian las cookies y las pantallas financieras redirigen al acceso. El token emitido expira según su vigencia (JWT stateless). | Autenticación y perfil (FR-AUT-001/002) · HU-007 |
+| US-013 | Como visitante, quiero registrarme e iniciar sesión, para acceder a mi información financiera. | El registro valida los campos, incluida la moneda principal, y crea el usuario; al cerrar sesión se limpian las cookies y las pantallas financieras redirigen al acceso. El token emitido expira según su vigencia (JWT stateless). | Autenticación y perfil (FR-AUT-001/002) · HU-007 |
 | US-014 | Como usuario registrado, quiero crear, editar y eliminar mis cuentas con su moneda y saldo inicial, para mantener actualizado dónde está mi dinero. | La cuenta admite nombre, tipo, moneda y saldo inicial; el saldo actual se calcula desde los movimientos; la moneda no cambia si hay movimientos; la eliminación es en cascada y solo alcanza cuentas propias. | Cuentas (FR-CUE-001 a FR-CUE-005) · HU-008 |
-| US-015 | Como usuario registrado, quiero transferir dinero entre dos cuentas propias, incluso de monedas distintas, para mover fondos sin alterar mis ingresos ni mis gastos. | Origen y destino son distintos y propios; ambos lados se aplican de forma atómica; en multimoneda se registran los dos montos y la cotización usada no se persiste; la transferencia se excluye del flujo de fondos. | Movimientos (FR-TRX-004/005) · CAL-003 · HU-002 |
+| US-015 | Como usuario registrado, quiero transferir dinero entre dos cuentas propias, incluso de monedas distintas, para mover fondos sin alterar mis ingresos ni mis gastos. | Origen y destino son distintos y propios; en multimoneda se registran los dos montos y la cotización usada no se persiste; la transferencia se excluye del flujo de fondos. | Movimientos (FR-TRX-004) · CAL-003 · HU-002 |
 | US-016 | Como usuario registrado, quiero corregir o eliminar un movimiento propio, para arreglar errores de carga. | Solo se editan o eliminan movimientos del usuario autenticado y los totales se actualizan en consecuencia. | Movimientos (FR-TRX-003) · HU-011 |
 | US-017 | Como usuario registrado, quiero ver gráficos de la evolución del patrimonio, de ingresos frente a gastos y de gastos por categoría, para interpretar mis finanzas. | El panel muestra los tres gráficos y coinciden con los datos del período seleccionado; la evolución y las barras se adaptan a la duración del rango (diaria/semanal o mensual). | Dashboard (FR-DAS-002/003/004) · HU-010 |
-| US-018 | Como usuario registrado, quiero elegir el período de análisis y ver una guía cuando falten datos, para no interpretar información incompleta. | El período seleccionado (Este mes, Últimos 30 días, 6 meses, 12 meses) es compartido por panel, movimientos y asistente y afecta a indicadores y gráficos; sin datos se muestra un estado vacío con una acción sugerida. | Dashboard (FR-DAS-007/008) · HU-012 |
-| US-019 | Como usuario registrado, quiero que el asistente solo consulte y avise cuando no haya datos suficientes, para no recibir respuestas inventadas. | El asistente no crea, edita ni elimina información y declara insuficiencia cuando no puede concluir. | Asistente (FR-IA-011/015) · HU-013 |
-| US-020 | Como usuario registrado, quiero buscar, filtrar y exportar mis movimientos, para encontrar información y respaldarla sin recorrer toda la lista. | La búsqueda cubre concepto, nota, categoría y monto; los filtros permiten tipo, cuenta, categoría y período; la exportación CSV respeta los filtros aplicados. | Movimientos (FR-TRX-007/008) · HU-015 |
+| US-018 | Como usuario registrado, quiero elegir el período de análisis, para interpretar mis finanzas en el rango correcto. | El período seleccionado (Este mes, Últimos 30 días, 6 meses, 12 meses) es compartido por panel, movimientos y asistente y afecta a indicadores y gráficos. | Dashboard (FR-DAS-007) · HU-012 |
+| US-019 | Como usuario registrado, quiero que el asistente solo consulte información, para no modificar mis datos por accidente. | El asistente no crea, edita ni elimina información. | Asistente (FR-IA-015) · HU-013 |
+| US-020 | Como usuario registrado, quiero buscar y filtrar mis movimientos, para encontrar información sin recorrer toda la lista. | La búsqueda cubre concepto, nota, categoría y monto; los filtros permiten tipo, cuenta, categoría y período. | Movimientos (FR-TRX-007) · HU-015 |
 | US-021 | Como usuario registrado, quiero gestionar mis propias categorías, para clasificar mis movimientos según mis criterios. | Puedo crear, editar y eliminar categorías propias; las cinco del sistema son de solo lectura; al eliminar una propia sus movimientos quedan sin categoría. | Categorías (FR-CAT-001/002/003) · HU-016 |
 | US-022 | Como usuario registrado, quiero elegir el tema de la interfaz, para adaptarla a mis preferencias. | El tema (claro, oscuro o automático) se persiste localmente y no afecta los datos financieros. | Configuración (FR-CFG-001) · HU-017 |
 | US-023 | Como usuario registrado, quiero continuar una conversación con el asistente, para hacer preguntas de seguimiento sin repetir el contexto. | El asistente recibe los turnos recientes desde el cliente, no los persiste y responde con las cifras del período vigente. | Asistente (FR-IA-016) · HU-018 |
@@ -134,9 +116,7 @@
 | Consistencia de los cálculos | Los cálculos de saldo, patrimonio y flujo de fondos coinciden con los movimientos registrados. |
 | Verificabilidad del asistente | Las respuestas del asistente pueden verificarse contra el dashboard del mismo período y el asistente no modifica los datos. |
 | Continuidad del asistente | El asistente interpreta preguntas de seguimiento con el historial reciente, sin persistirlo y manteniendo las cifras del período consultado. |
-| Portabilidad de datos | El usuario puede exportar sus movimientos a CSV con los filtros aplicados, sin alterar la información registrada. |
-| Usabilidad y respuesta de la interfaz | La interfaz funciona en escritorio y móvil y ofrece estados vacíos, de carga y de error comprensibles. |
-| Evidencia de aceptación | Los requerimientos P0 cuentan con pruebas automatizadas o evidencia reproducible de aceptación. |
+| Usabilidad y respuesta de la interfaz | La interfaz funciona en escritorio y móvil y ofrece estados de carga y de error comprensibles. |
 | Seguridad | No quedan vulnerabilidades críticas conocidas en autenticación, autorización, manejo de secretos o exposición de datos. |
 
 **Para cada período seleccionado, el sistema aplica las siguientes reglas de cálculo:**
@@ -155,9 +135,9 @@
 | SC-001 | Acceso | Registro e inicio de sesión; Card, Form, Input, Button y Alert. |
 | SC-002 | Dashboard | Indicadores, gráficos, período compartido y accesos rápidos; Card, Chart y Skeleton. |
 | SC-003 | Cuentas | Listado, saldo, transferencia desde el detalle y formularios; Data Table, Badge, Dialog y Dropdown Menu. |
-| SC-004 | Movimientos | Listado agrupado por mes, búsqueda, filtros y alta o edición; Data Table, Date Picker, Select, Form, Alert Dialog y exportación CSV. |
+| SC-004 | Movimientos | Listado agrupado por mes, búsqueda, filtros y alta o edición; Data Table, Date Picker, Select, Form y Alert Dialog. |
 | SC-009 | Asistente IA | Conversación con historial en memoria, período y alcance del asistente; Scroll Area, Textarea, Button y Alert. |
-| SC-010 | Configuración | Perfil, preferencia de tema, exportación y sesión; Form, Segmented Control y Alert Dialog. |
+| SC-010 | Configuración | Perfil, preferencia de tema y sesión; Form, Segmented Control y Alert Dialog. |
 | SC-011 | Categorías | Listado con uso del período, alta y edición; Tabs, Badge, Progress, Dialog y Alert Dialog. |
 
 ## 6. Glosario
@@ -174,7 +154,6 @@
 | Flujo de fondos | Resultado de ingresos menos gastos dentro de un período. |
 | Preferencias locales | Configuración de la interfaz (tema) guardada en el navegador del usuario. |
 | Historial de conversación | Turnos recientes que el cliente reenvía al asistente para interpretar preguntas de seguimiento; no se almacenan en el servidor. |
-| CSV | Archivo de texto separado por comas que se usa para exportar movimientos. |
 | P0 / P1 / P2 | Niveles de prioridad esencial, importante y futura. |
 
 ## 7. Minutas de Reunión

@@ -1,8 +1,8 @@
 /**
- * Static catalog of the currencies the app can display (v0.4 multimoneda).
+ * Static catalog of the currencies the app can display.
  * The catalog is the single source of truth for validation on the API and for
- * the selector in the client (`GET /currencies`). Rates are stored separately
- * per user in `user_currencies` (see `CurrenciesService`).
+ * the selector in the client (`GET /currencies`). Quotes are global and fetched
+ * from the provider on each read (see `CurrenciesService`).
  */
 export interface CurrencyCatalogEntry {
   code: string;
@@ -10,6 +10,9 @@ export interface CurrencyCatalogEntry {
   symbol: string;
   decimals: number;
 }
+
+/** Internal base used to normalize quotes and conversions. */
+export const BASE_CURRENCY = "ARS";
 
 export const CURRENCY_CATALOG: CurrencyCatalogEntry[] = [
   { code: "ARS", name: "Peso argentino", symbol: "$", decimals: 2 },
@@ -73,11 +76,6 @@ export const CURRENCY_CODES = CURRENCY_CATALOG.map((entry) => entry.code);
 const CATALOG_BY_CODE = new Map(
   CURRENCY_CATALOG.map((entry) => [entry.code, entry]),
 );
-
-export const isSupportedCurrency = (code: string): boolean =>
-  CATALOG_BY_CODE.has(code.toUpperCase());
-
-export const normalizeCurrency = (code: string): string => code.toUpperCase();
 
 export const getCurrency = (code: string): CurrencyCatalogEntry | undefined =>
   CATALOG_BY_CODE.get(code.toUpperCase());

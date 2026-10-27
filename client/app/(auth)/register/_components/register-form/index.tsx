@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { FormShell } from "@/components/common/form-shell";
 import { FormTextField } from "@/components/common/form-text-field";
+import { CurrencyFormField } from "@/components/common/currency-form-field";
 import { AUTH_SUBMIT } from "@/components/common/ui-classes";
 import { Button } from "@/components/ui/button";
 import { getErrorMessage } from "@/lib/api/errors";
@@ -23,6 +24,7 @@ export const RegisterForm = () => {
       name: "",
       email: "",
       password: "",
+      primaryCurrency: "ARS",
       confirmPassword: "",
     },
   });
@@ -33,6 +35,7 @@ export const RegisterForm = () => {
         name: values.name,
         email: values.email,
         password: values.password,
+        primaryCurrency: values.primaryCurrency,
       });
       toast.success("Cuenta creada");
       router.replace("/dashboard");
@@ -56,6 +59,11 @@ export const RegisterForm = () => {
         type="email"
         autoComplete="email"
         placeholder="tu@email.com"
+      />
+      <CurrencyFormField
+        name="primaryCurrency"
+        label="Moneda principal"
+        hint="Se usa para mostrar tus totales. Podés cambiarla después."
       />
       <FormTextField
         name="password"

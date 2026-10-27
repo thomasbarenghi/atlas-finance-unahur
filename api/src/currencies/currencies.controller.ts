@@ -1,5 +1,6 @@
 import { Controller, Get } from "@nestjs/common";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
+import { Public } from "../common/decorators/public.decorator";
 import { CurrenciesService } from "./currencies.service";
 import type {
   CurrencyCatalogDto,
@@ -10,6 +11,7 @@ import type {
 export class CurrenciesController {
   constructor(private readonly currenciesService: CurrenciesService) {}
 
+  @Public()
   @Get()
   list(): CurrencyCatalogDto[] {
     return this.currenciesService.getCatalog();
