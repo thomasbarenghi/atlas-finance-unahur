@@ -9,10 +9,10 @@ import { getDashboard } from "../utils/scenario";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
- * CAL-010 — Tasa de ahorro = ahorro del período / ingresos del período × 100.
+ * CAL-004 — Tasa de ahorro = ahorro del período / ingresos del período × 100.
  * Su variación se expresa en puntos porcentuales.
  */
-describe("CAL-010 · Variación de la tasa de ahorro", () => {
+describe("CAL-004 · Variación de la tasa de ahorro", () => {
   let ctx: TestContext;
 
   beforeAll(async () => {

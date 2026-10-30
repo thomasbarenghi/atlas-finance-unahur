@@ -26,7 +26,7 @@
 |---|---|---|---|
 | 0.1 | 04/09/2026 | Barenghi, Thomas | Versión inicial del documento. |
 | 0.2 | 02/10/2026 | Barenghi, Thomas | Se actualiza el cálculo de patrimonio neto y el glosario conforme a la nueva definición de CAL-001. No se modifican los requerimientos de negocio. |
-| 0.3 | 16/10/2026 | Barenghi, Thomas | Se consolida el alcance en los flujos de acceso, cuentas, movimientos, panel y asistente. Respecto de la 0.2 se incorporan multimoneda, categorías propias, búsqueda y filtros, exportación CSV, tema local, detalle de cuenta, historial de movimientos, edición de perfil y moneda principal; el asistente queda como de solo consulta, con continuidad en memoria del cliente y autenticación JWT stateless por cookie HttpOnly. Se actualizan reglas de negocio, historias, criterios de bondad, pantallas y glosario. |
+| 0.3 | 16/10/2026 | Barenghi, Thomas | Se consolida el alcance en los flujos de acceso, cuentas, movimientos, panel y asistente, y se alinean las reglas, historias, criterios, pantallas y glosario con la versión vigente. |
 
 ## 2. Alcance
 
@@ -84,6 +84,16 @@
 | RN-002 | Las cotizaciones son globales y las provee la API; no se persisten y el usuario no las crea ni las edita. |
 
 > Las reglas de propiedad, transferencias, cuentas, categorías y asistente se detallan en los `FR-*` y `HU-*` correspondientes para evitar duplicación.
+
+### 3.2. Casos de Estudio
+
+| ID | Caso de estudio | Descripción | Actor |
+|---|---|---|---|
+| CE-01 | Registrar movimientos | Cargar ingresos y gastos con categoría, fecha y descripción para mantener los saldos al día. | Usuario registrado |
+| CE-02 | Transferir entre cuentas | Mover fondos entre cuentas propias, incluso de distinta moneda, sin alterar ingresos ni gastos. | Usuario registrado |
+| CE-03 | Consultar el panel | Revisar patrimonio, ingresos, gastos, ahorro y gráficos del período elegido. | Usuario registrado |
+| CE-04 | Clasificar con categorías | Usar las categorías del sistema y crear categorías propias para organizar los movimientos. | Usuario registrado |
+| CE-05 | Consultar al asistente | Preguntar en lenguaje natural por la evolución o la composición de los gastos. | Usuario registrado |
 
 ## 4. Requerimientos Funcionales
 

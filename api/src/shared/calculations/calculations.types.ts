@@ -15,7 +15,7 @@ export interface MoneyTransaction {
 export interface BalanceAccount {
   id: string;
   initialBalance: number;
-  /** Currency declared by the account (FR-CUE-002). */
+  /** Currency declared by the account (FR-CUE-001). */
   currency?: string;
 }
 

@@ -1,12 +1,13 @@
-import { registerUser } from "../utils/auth";
+import request from "supertest";
+import { authCookie, registerUser } from "../utils/auth";
 import { truncateAll } from "../utils/db";
-import { getDashboard, seedBaseScenario } from "../utils/scenario";
+import { seedBaseScenario } from "../utils/scenario";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
- * FR-DAS-003 — Comparar ingresos y gastos por mes.
+ * FR-DAS-003 — Permitir cambiar el período de visualización del dashboard.
  */
-describe("FR-DAS-003 · Ingresos vs. gastos por mes", () => {
+describe("FR-DAS-003 · Período de visualización", () => {
   let ctx: TestContext;
 
   beforeAll(async () => {
@@ -21,25 +22,55 @@ describe("FR-DAS-003 · Ingresos vs. gastos por mes", () => {
     await ctx.app.close();
   });
 
-  it("devuelve ingresos y gastos por mes del período", async () => {
+  it("respeta el rango enviado en el query", async () => {
     const user = await registerUser(ctx.app);
     await seedBaseScenario(ctx.app, user.accessToken);
 
-    const dashboard = await getDashboard(ctx.app, user.accessToken);
-    const byMonth = new Map(
-      dashboard.incomeExpenseByMonth.map(
-        (m: { month: string; income: number; expenses: number }) => [
-          m.month,
-          m,
-        ],
-      ),
-    );
+    const response = await request(ctx.server)
+      .get("/api/dashboard?from=2026-03-01&to=2026-03-31")
+      .set(authCookie(user.accessToken))
+      .expect(200);
 
-    expect([...byMonth.keys()]).toEqual(["2026-01", "2026-02", "2026-03"]);
-    expect(byMonth.get("2026-03")).toMatchObject({
-      income: 500,
-      expenses: 200,
+    expect(response.body.period).toEqual({
+      from: "2026-03-01",
+      to: "2026-03-31",
     });
-    expect(byMonth.get("2026-01")).toMatchObject({ income: 0, expenses: 0 });
+    expect(response.body.kpis.income).toBe(500);
+    expect(response.body.kpis.expenses).toBe(200);
+    expect(response.body.currency).toBe("ARS");
+  });
+
+  it("usa un período por defecto cuando no se envía rango", async () => {
+    const user = await registerUser(ctx.app);
+    await seedBaseScenario(ctx.app, user.accessToken);
+
+    const response = await request(ctx.server)
+      .get("/api/dashboard")
+      .set(authCookie(user.accessToken))
+      .expect(200);
+
+    expect(response.body.period.from < response.body.period.to).toBe(true);
+  });
+
+  it("rechaza un rango invertido", async () => {
+    const user = await registerUser(ctx.app);
+
+    const response = await request(ctx.server)
+      .get("/api/dashboard?from=2026-04-01&to=2026-03-01")
+      .set(authCookie(user.accessToken))
+      .expect(400);
+
+    expect(response.body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("rechaza un rango mayor a 366 días", async () => {
+    const user = await registerUser(ctx.app);
+
+    const response = await request(ctx.server)
+      .get("/api/dashboard?from=2025-01-01&to=2026-03-31")
+      .set(authCookie(user.accessToken))
+      .expect(400);
+
+    expect(response.body.code).toBe("VALIDATION_ERROR");
   });
 });

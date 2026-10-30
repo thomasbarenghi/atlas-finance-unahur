@@ -5,9 +5,9 @@ import { MISSING_UUID, truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
- * FR-CUE-003 — Editar y eliminar cuentas propias.
+ * FR-CUE-001 — Editar y eliminar cuentas propias.
  */
-describe("FR-CUE-003 · Editar y eliminar cuentas", () => {
+describe("FR-CUE-001 · Editar y eliminar cuentas", () => {
   let ctx: TestContext;
 
   beforeAll(async () => {

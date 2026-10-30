@@ -58,13 +58,13 @@ type DashboardCharts = Pick<
 type DashboardKpis = Pick<DashboardData, "kpis">;
 
 /**
- * Read-model orchestrator for the dashboard (FR-DAS-001..004, FR-DAS-007/008).
+ * Read-model orchestrator for the dashboard (FR-DAS-001/002/003).
  * It coordinates the primary services and holds no database queries.
  *
- * Multimoneda (RN-014, CH-71/CH-77):
+ * Multimoneda (RN-001, CH-71/CH-77):
  * - `currency` is the reading/display currency for the whole dashboard; every
  *   flow and the net worth are converted with the API quote (default: primary).
- *   Changing it never alters records (RN-014).
+ *   Changing it never alters records (RN-001).
  * - `primaryCurrency` is still reported for settings/assistant context.
  * - The transfer rate override is not persisted; each leg stores its own amount.
  */

@@ -33,7 +33,7 @@ describe("MetricInfo", () => {
         "Con $ 2.910.000 de ingresos y $ 433.000 de gastos, da 85,1%.",
       ),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/CAL-010/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/CAL-004/)).not.toBeInTheDocument();
 
     await user.keyboard("{Escape}");
     await waitFor(() =>

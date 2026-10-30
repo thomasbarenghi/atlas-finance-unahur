@@ -12,11 +12,11 @@ import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
- * FR-TRX-002 — Registrar monto positivo, fecha, cuenta, categoría, descripción
+ * FR-TRX-001 — Registrar monto positivo, fecha, cuenta, categoría, descripción
  * y notas opcionales. Las categorías del sistema son fijas; cada usuario puede
  * crear las suyas y asignarlas a sus movimientos.
  */
-describe("FR-TRX-002 · Campos del movimiento", () => {
+describe("FR-TRX-001 · Campos del movimiento", () => {
   let ctx: TestContext;
 
   beforeAll(async () => {

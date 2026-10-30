@@ -6,10 +6,10 @@ import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
- * FR-IA-002 — Aceptar preguntas en lenguaje natural sobre datos financieros
+ * FR-IA-001 — Aceptar preguntas en lenguaje natural sobre datos financieros
  * propios, respondiendo por streaming.
  */
-describe("FR-IA-002 · Preguntas en lenguaje natural", () => {
+describe("FR-IA-001 · Preguntas en lenguaje natural", () => {
   let ctx: TestContext;
 
   beforeAll(async () => {

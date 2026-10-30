@@ -3,7 +3,7 @@ import { authCookie, loginUser, registerUser } from "../utils/auth";
 import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
-describe("FR-CFG-003 · Perfil y credenciales", () => {
+describe("FR-CFG-002 · Perfil y credenciales", () => {
   let ctx: TestContext;
 
   beforeAll(async () => {

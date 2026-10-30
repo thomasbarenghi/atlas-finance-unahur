@@ -5,10 +5,10 @@ import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
- * FR-TRX-004 — En una transferencia, las cuentas de origen y destino deberán ser
+ * FR-TRX-001 — En una transferencia, las cuentas de origen y destino deberán ser
  * diferentes.
  */
-describe("FR-TRX-004 · Transferencia entre cuentas distintas", () => {
+describe("FR-TRX-001 · Transferencia entre cuentas distintas", () => {
   let ctx: TestContext;
 
   beforeAll(async () => {

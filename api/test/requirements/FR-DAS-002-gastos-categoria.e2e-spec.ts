@@ -4,9 +4,9 @@ import { getDashboard, seedBaseScenario } from "../utils/scenario";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
- * FR-DAS-004 — Distribuir los gastos por categoría.
+ * FR-DAS-002 — Distribuir los gastos por categoría.
  */
-describe("FR-DAS-004 · Gastos por categoría", () => {
+describe("FR-DAS-002 · Gastos por categoría", () => {
   let ctx: TestContext;
 
   beforeAll(async () => {

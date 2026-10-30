@@ -19,7 +19,7 @@ const missingTransferAmount = () =>
 /**
  * Composite use cases of the transactions domain that cross into accounts and
  * categories: validating ownership, the category type and the two amounts of a
- * multi-currency transfer (FR-TRX-002/004, NFR-SEG-001). The orchestrator
+ * multi-currency transfer (FR-TRX-001, NFR-SEG-001). The orchestrator
  * defines the order and delegates persistence to `TransactionsService`.
  */
 @Injectable()

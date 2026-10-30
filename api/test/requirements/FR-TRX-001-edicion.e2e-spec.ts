@@ -10,10 +10,10 @@ import { MISSING_UUID, truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
- * FR-TRX-003 — Editar o eliminar únicamente movimientos pertenecientes al
+ * FR-TRX-001 — Editar o eliminar únicamente movimientos pertenecientes al
  * usuario autenticado.
  */
-describe("FR-TRX-003 · Editar y eliminar movimientos", () => {
+describe("FR-TRX-001 · Editar y eliminar movimientos", () => {
   let ctx: TestContext;
 
   beforeAll(async () => {

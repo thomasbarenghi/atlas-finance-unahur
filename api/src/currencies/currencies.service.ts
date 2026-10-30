@@ -28,10 +28,10 @@ export interface UserRateContext {
 }
 
 /**
- * Global currency catalog and API-owned quotes (RN-016). Users never create
+ * Global currency catalog and API-owned quotes (RN-002). Users never create
  * currencies nor set their rate; the settings screen only displays the quote
  * of the currencies their accounts use. A multi-currency transfer can override
- * the rate for that operation, but the override is not persisted (FR-TRX-002).
+ * the rate for that operation, but the override is not persisted (FR-TRX-001).
  *
  * Quotes are not persisted: every read fetches them from the public provider.
  * They are stored in the internal base currency and converted to the user's

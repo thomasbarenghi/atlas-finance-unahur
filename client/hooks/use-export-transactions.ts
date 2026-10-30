@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import type { Transaction } from "@/lib/api/types";
 import { buildTransactionLookups } from "@/app/(app)/_components/transactions/transaction-lookups";
 import { downloadCsv, transactionsToCsv } from "@/lib/csv";
-import { formatCurrency, todayIso } from "@/lib/format";
+import { todayIso } from "@/lib/format";
 import { TRANSACTION_TYPE_LABELS } from "@/lib/labels";
 import { useAccounts } from "@/lib/query/accounts";
 import { useCategories } from "@/lib/query/categories";
@@ -49,7 +49,7 @@ export const useExportTransactions = () => {
             : "Sin categoría",
           account: targetName ? `${accountName} → ${targetName}` : accountName,
           currency,
-          amount: formatCurrency(transaction.amount, currency),
+          amount: String(transaction.amount),
           notes: transaction.notes ?? "",
         };
       });

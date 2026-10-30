@@ -31,7 +31,7 @@ interface CategorySeed {
 }
 
 /**
- * Fixed category catalog defined by the system (FR-TRX-002, v0.3). Categories
+ * Fixed category catalog defined by the system (FR-TRX-001, v0.3). Categories
  * can no longer be created, edited or deleted by users.
  */
 const FIXED_CATEGORIES: CategorySeed[] = [

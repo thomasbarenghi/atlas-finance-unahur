@@ -7,7 +7,7 @@ import { Transaction } from "../../transactions/entities/transaction.entity";
 
 /**
  * Read model shared by the accounts and dashboard domains to derive the
- * current balance of an account from its transactions (FR-CUE-004). It is a
+ * current balance of an account from its transactions (FR-CUE-002). It is a
  * cross-domain provider (allowed in `shared/`) so that neither `AccountsService`
  * nor the dashboard orchestrator needs to import the transactions repository.
  */

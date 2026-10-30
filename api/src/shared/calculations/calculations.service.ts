@@ -11,11 +11,11 @@ const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
 
 /**
  * Single source of truth for the financial formulas of the v0.3 scope
- * (CAL-001..003 y CAL-010, backend.md §8). Dashboard and the AI reuse it so a
+ * (CAL-001..004, backend.md §8). Dashboard and the AI reuse it so a
  * formula never gets duplicated (AGENTS rule 7).
  *
  * Multimoneda (v0.4): flows are always calculated for one currency at a time
- * (RN-014). Net worth is the only cross-currency aggregate; it converts each
+ * (RN-001). Net worth is the only cross-currency aggregate; it converts each
  * account balance with the single quote from Settings (CAL-001).
  */
 export const signedAmount = (

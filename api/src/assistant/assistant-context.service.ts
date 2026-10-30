@@ -31,7 +31,7 @@ interface AssistantContextData {
 }
 
 /**
- * Builds the minimal, pre-calculated context sent to the LLM (FR-IA-002). It
+ * Builds the minimal, pre-calculated context sent to the LLM (FR-IA-001). It
  * reuses the dashboard read model so the figures match the UI, and keeps the
  * formatting separate from data loading. The reported net worth is the current
  * account balance, not a historical valuation at the end of the period.
