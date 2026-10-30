@@ -4,7 +4,7 @@
 |---|---|
 | Versión | 0.3 |
 | Estado | Vigente — versión de referencia para la implementación |
-| Fecha | 16/10/2026 |
+| Fecha | 30/10/2026 |
 | Sponsor Operación | Secretaría Académica UNAHUR |
 | Sponsor Organización | UNAHUR |
 | Autor | Barenghi, Thomas |
@@ -26,7 +26,7 @@
 |---|---|---|---|
 | 0.1 | 04/09/2026 | Barenghi, Thomas | Versión inicial. Especificación funcional del Gestor Financiero Personal. |
 | 0.2 | 02/10/2026 | Barenghi, Thomas | Se agregan 5 requerimientos funcionales, 1 no funcional y 1 regla de cálculo; se modifican requerimientos de dashboard, asistente y cálculo, y se actualiza la regla de negocio de patrimonio neto. |
-| 0.3 | 16/10/2026 | Barenghi, Thomas | Se consolida el alcance en los flujos de acceso, cuentas, movimientos, panel y asistente, y se alinean los requerimientos, reglas, entidades, pantallas y datos de demostración con la versión vigente. |
+| 0.3 | 30/10/2026 | Barenghi, Thomas | Se consolida el alcance en los flujos de acceso, cuentas, movimientos, panel y asistente, y se alinean los requerimientos, reglas, entidades, pantallas y datos de demostración con la versión vigente. |
 
 ## 2. Alcance
 

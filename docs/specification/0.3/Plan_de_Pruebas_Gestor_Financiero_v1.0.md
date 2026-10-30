@@ -5,105 +5,48 @@
 | **Proyecto** | Gestor Financiero Personal |
 | **Documento** | Plan de Pruebas |
 | **Versión** | 1.0 |
-| **Fecha** | Octubre 2026 |
+| **Fecha** | 30/10/2026 |
 | **Sponsor Operación** | Secretaría Académica UNAHUR |
 | **Sponsor Organización** | UNAHUR |
 | **Autor** | Barenghi, Thomas |
 | **Tutor** | Prof. Ciarallo, Cristian |
 | **Release** | Demostración académica 2026 |
 
-> **Nota de alcance.** Este plan está alineado con el **BRD y el FRD v0.3**, versiones vigentes y de referencia para la implementación. Organiza los casos por prioridad, con el núcleo **P0** como evidencia principal de aceptación.
-
-## Historial de cambios
-
-| Versión | Fecha | Autor | Descripción |
-|---|---|---|---|
-| 1.0 | Octubre 2026 | Barenghi, Thomas | Versión inicial del plan de pruebas, alineada con el alcance del BRD/FRD v0.3. |
-
----
-
-## 1. Objetivo del Testing
+## Objetivo del Testing:
 
 Verificar que el **Gestor Financiero Personal** funcione de extremo a extremo en sus flujos esenciales, que los **cálculos financieros sean correctos y trazables**, que cada usuario acceda **únicamente a su propia información** y que el asistente de IA sea de **solo consulta**.
 
-El objetivo operativo es **obtener evidencia suficiente y reproducible para aprobar la aplicación**, con un conjunto acotado de pruebas alineado con el alcance reducido del proyecto.
+El objetivo operativo es **obtener evidencia suficiente y reproducible para aprobar la aplicación**, con un conjunto acotado de pruebas. Se prioriza el nivel **P0** (evidencia de aceptación) y los casos se parametrizan con datos reproducibles. Un caso se considera **aprobado** solo si el resultado observado coincide con el esperado; toda desviación se registra como defecto.
 
-## 2. Alcance del Testing
+## Alcance del Testing:
 
-- **Acceso:** registro, inicio y cierre de sesión; edición de nombre, correo y contraseña desde el perfil.
-- **Cuentas** y saldos, con moneda por cuenta, moneda principal y detalle de cuenta.
+- **Acceso:** registro, inicio y cierre de sesión; perfil (nombre, correo y contraseña).
+- **Cuentas:** saldos, moneda por cuenta, moneda principal y detalle de cuenta.
 - **Movimientos:** ingresos, gastos y transferencias (incluidas las multimoneda), con categorías del sistema y propias; historial paginado y exportación CSV.
-- **Búsqueda y filtros** de movimientos.
-- **Categorías propias:** alta, edición, eliminación y uso por período.
-- **Dashboard** y cálculo de patrimonio neto, con granularidad diaria/semanal o mensual y selector de moneda de lectura.
-- **Reglas de cálculo** (CAL-001, CAL-002, CAL-003 y CAL-004).
-- **Cotizaciones automáticas** de la API, sin edición por parte del usuario.
+- **Búsqueda y filtros** de movimientos; **categorías propias** (alta, edición, eliminación y uso).
+- **Dashboard** y patrimonio neto, con granularidad diaria/semanal o mensual y selector de moneda de lectura.
+- **Reglas de cálculo** (CAL-001, CAL-002, CAL-003 y CAL-010) y **cotizaciones automáticas** de la API.
 - **Asistente de IA**, de solo consulta y con continuidad conversacional en memoria del cliente.
-- **Preferencias locales:** tema de la interfaz.
-- **Seguridad básica:** autorización por propietario, cookies HttpOnly, hash de contraseñas y validación de entradas.
-- **Usabilidad básica:** diseño adaptable, precisión decimal y estados de carga/error.
+- **Preferencias locales** (tema) y **seguridad básica** (autorización por propietario, hash y validación de entradas).
 
-## 3. Estrategia de Pruebas
-
-### 3.1. Niveles de prueba
+## Herramientas para el Testing:
 
 | Nivel | Qué se prueba | Cómo |
 |---|---|---|
 | **Unitario** | Fórmulas financieras (CAL-*) y validaciones | Pruebas automatizadas sobre las funciones de cálculo |
 | **Integración** | API + base de datos, reglas de negocio y autorización | Pruebas automatizadas de endpoints y servicios |
 | **Sistema / E2E** | Flujos completos en la interfaz | Pruebas manuales guiadas y automatización de UI |
-| **Aceptación** | Casos de estudio del BRD y criterios de bondad | Demostración reproducible con datos ficticios |
+| **Aceptación** | Casos de estudio del BRD y criterios de bondad | Demostración reproducible con datos de prueba |
 
-La cobertura de las fórmulas financieras con pruebas unitarias y de los flujos P0 con pruebas de integración responde al requisito **NFR-CAL-001**.
+La cobertura de las fórmulas financieras con pruebas unitarias y de los flujos P0 con pruebas de integración responde al requisito **NFR-CAL-004**.
 
-### 3.2. Tipos de prueba
+**Pruebas individuales:**
 
-- **Funcional** (caja negra), orientada a reglas de negocio y flujos de usuario.
-- **Seguridad y autorización** (aislamiento entre usuarios).
-- **Regresión**, re-ejecutando los casos P0 al cierre de cada iteración.
-- **Usabilidad / responsive.**
+Ejecución de casos puntuales sobre la aplicación desplegada, con verificación de resultados, estados y mensajes de la interfaz: recorrido de flujos completos, verificación de cálculos contra valores de referencia y exploración de bordes. La ejecución estará dirigida por un **agente de inteligencia artificial** que, a partir de este plan y de los casos aprobados, manipula las herramientas de prueba para ejecutar los casos, generar los datos, recolectar la evidencia y reportar los resultados. El equipo revisa y aprueba el plan y los casos antes de ejecutarlos; el agente no decide el alcance ni aprueba pruebas por sí solo.
 
-### 3.3. Enfoque y priorización
+**Pruebas Masivas:**
 
-Se prioriza el nivel **P0** (que es la evidencia de aceptación exigida por el FRD). Los casos se parametrizan con datos de prueba reproducibles. Un caso se considera **aprobado** solo si el resultado observado coincide con el esperado; toda desviación se registra como defecto.
-
-## 4. Herramientas para el Testing
-
-### 4.1. Pruebas individuales (funcionales y exploratorias)
-
-**Descripción.** Ejecución de casos puntuales sobre la aplicación desplegada, con verificación de resultados, estados y mensajes de la interfaz. La ejecución la realiza el agente de IA (ver 4.3) y el equipo revisa la evidencia.
-
-**Funcionalidades principales:**
-- Recorrido de flujos completos como usuario real.
-- Verificación de cálculos contra valores de referencia.
-- Exploración de bordes (campos vacíos, valores extremos, doble envío).
-
-### 4.2. Pruebas automatizadas / masivas
-
-**Descripción.** Scripts que ejecutan las pruebas unitarias de fórmulas y las pruebas de integración sobre la API, más la automatización de UI para los flujos críticos.
-
-**Funcionalidades principales:**
-- Carga automática de un conjunto de datos de prueba (*seed*).
-- Ejecución repetible y comparación de resultados.
-- Detección de regresiones en cada cambio.
-
-### 4.3. Pruebas dirigidas por IA (AI-driven)
-
-**Descripción.** La ejecución de las pruebas estará dirigida por un **agente de inteligencia artificial** que, a partir de este plan y de los casos aprobados, **manipula las herramientas de prueba** (Jest/Supertest, Postman/cURL, Playwright) para ejecutar los casos, generar los datos, recolectar la evidencia y reportar los resultados. El agente ejecuta lo que el equipo define y aprueba; no decide el alcance.
-
-**Funcionalidades principales:**
-- Interpreta los casos de prueba de este plan y los ejecuta con las herramientas disponibles.
-- Genera los datos de prueba y las solicitudes necesarias.
-- Recolecta evidencia por caso (respuestas, capturas, registros).
-- Informa el estado de cada caso (Aprobado / Fallado / Bloqueado) y propone la causa probable.
-
-**Revisión y aprobación humana:**
-- El equipo **revisa y aprueba el plan y los casos antes de ejecutarlos**.
-- El agente **no modifica el alcance ni aprueba pruebas por sí solo**: la aprobación final es del equipo.
-- Las acciones destructivas requieren confirmación explícita.
-- Un caso se marca **Aprobado** solo cuando el equipo valida la evidencia.
-
-### 4.4. Herramientas previstas
+Scripts que ejecutan las pruebas unitarias de fórmulas y las de integración sobre la API, más la automatización de UI para los flujos críticos: carga del *seed*, ejecución repetible y detección de regresiones.
 
 | Propósito | Herramienta |
 |---|---|
@@ -112,13 +55,12 @@ Se prioriza el nivel **P0** (que es la evidencia de aceptación exigida por el F
 | Pruebas de API | Postman / cURL |
 | Pruebas E2E de interfaz (previstas) | Playwright |
 | Pruebas de componentes frontend | Vitest / Testing Library |
-| Registro de casos y defectos | Planilla de registro (ver §7) |
 
-## 5. Casos de Prueba
+## Casos de Prueba:
 
-Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** al FRD/BRD v0.3.
+Cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** al FRD/BRD v0.3.
 
-### 5.1. Resumen por módulo
+### Resumen por módulo
 
 | Módulo | Casos | Prioridad |
 |---|---|---|
@@ -126,154 +68,128 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 | Seguridad y autorización | 3 | P0 |
 | Cuentas | 4 | P0 |
 | Movimientos | 8 | P0/P1 |
-| Categorías | 2 | P0/P1 |
+| Categorías | 2 | P1 |
 | Dashboard y patrimonio | 6 | P0/P1 |
 | Cálculos | 4 | P0 |
 | No funcionales | 2 | P0/P1 |
 | Asistente de IA | 3 | P1 |
 | Configuración y preferencias | 3 | P1 |
 
-### 5.2. Acceso y sesión
+### Acceso y sesión
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-ACC-01 | Registro de usuario | Completar el registro con nombre, email, moneda principal y contraseña; luego probar con datos inválidos, moneda no soportada o email duplicado | Se crea el usuario con la moneda elegida, se informa éxito y se puede iniciar sesión. Los datos inválidos o duplicados se rechazan con mensaje. | P0 | FR-AUT-001 |
-| CP-ACC-02 | Inicio y cierre de sesión | Iniciar sesión; navegar; cerrar sesión; intentar volver a una pantalla protegida | La sesión inicia correctamente y usa cookies HttpOnly con expiración y renovación; al cerrar se limpian las cookies y las pantallas financieras redirigen al acceso. El token ya emitido sigue vigente hasta expirar (JWT stateless). | P0 | FR-AUT-002, NFR-SEG-001, NFR-SEG-004 |
+| CP-ACC-01 | Registro de usuario | Completar el registro con nombre, email, moneda principal y contraseña; probar con datos inválidos, moneda no soportada o email duplicado | Se crea el usuario con la moneda elegida y se puede iniciar sesión; los datos inválidos o duplicados se rechazan con mensaje. | P0 | FR-AUT-001 |
+| CP-ACC-02 | Inicio y cierre de sesión | Iniciar sesión; navegar; cerrar sesión; intentar volver a una pantalla protegida | La sesión inicia; al cerrar se limpian las cookies y las pantallas redirigen al acceso; el token expira por vigencia. | P0 | FR-AUT-001, NFR-SEG-001 |
 
-### 5.3. Seguridad y autorización
-
-| ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
-|---|---|---|---|---|---|
-| CP-SEG-01 | Aislamiento entre usuarios | Con la sesión del Usuario A, intentar leer o modificar un recurso del Usuario B (por URL o API) | El servidor rechaza la operación con 404 (no distingue un recurso ajeno de uno inexistente) y no expone datos ajenos. | P0 | NFR-SEG-001 |
-| CP-SEG-02 | Validación de entradas | Enviar límites, tipos, longitudes y campos inesperados en formularios y API | Las entradas inválidas se rechazan con error controlado y no se persisten datos inconsistentes. | P0 | NFR-SEG-002 |
-| CP-SEG-03 | Almacenamiento de contraseñas y secretos | Inspeccionar la base de datos tras el registro; revisar el frontend y el repositorio | La contraseña se guarda con hash adaptativo (nunca en texto plano) y los secretos no están en el frontend ni en el repositorio. | P0 | NFR-SEG-003 |
-
-### 5.4. Cuentas
+### Seguridad y autorización
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-CUE-01 | Alta y edición de cuenta | Crear una cuenta (nombre, tipo, moneda, saldo inicial) y editarla | La cuenta aparece en el listado con su saldo en su moneda y refleja la edición; solo su propietario la ve. | P0 | FR-CUE-001 |
-| CP-CUE-02 | Cálculo de saldo y eliminación | Registrar movimientos sobre una cuenta, consultar el saldo y eliminar la cuenta | Saldo actual = saldo inicial + movimientos, en la moneda de la cuenta. La eliminación elimina en cascada los movimientos asociados. | P0 | FR-CUE-002/003 |
+| CP-SEG-01 | Aislamiento entre usuarios | Con la sesión del Usuario A, intentar leer o modificar un recurso del Usuario B | El servidor rechaza la operación y no expone datos ajenos. | P0 | NFR-SEG-001 |
+| CP-SEG-02 | Validación de entradas | Enviar límites, tipos, longitudes y campos inesperados | Las entradas inválidas se rechazan con error controlado y no se persisten datos inconsistentes. | P0 | NFR-SEG-002 |
+| CP-SEG-03 | Contraseñas y secretos | Inspeccionar la base tras el registro; revisar el frontend y el repositorio | La contraseña se guarda con hash adaptativo y los secretos no están en el frontend ni en el repositorio. | P0 | NFR-SEG-003, NFR-SEG-007 |
+
+### Cuentas
+
+| ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
+|---|---|---|---|---|---|
+| CP-CUE-01 | Alta y edición de cuenta | Crear una cuenta (nombre, tipo, moneda, saldo inicial) y editarla | La cuenta aparece en el listado con su saldo en su moneda y refleja la edición. | P0 | FR-CUE-001 |
+| CP-CUE-02 | Cálculo de saldo y eliminación | Registrar movimientos, consultar el saldo y eliminar la cuenta | Saldo actual = saldo inicial + movimientos. La eliminación elimina en cascada los movimientos. | P0 | FR-CUE-002/003 |
 | CP-CUE-03 | Moneda fija con movimientos | Crear una cuenta, cargarle un movimiento e intentar cambiar su moneda | El servidor y la UI rechazan el cambio de moneda mientras la cuenta tenga movimientos. | P0 | FR-CUE-001 |
-| CP-CUE-04 | Detalle de cuenta | Abrir el detalle de una cuenta propia; revisar saldo, indicadores y movimientos; editar la cuenta | El detalle muestra los datos de la cuenta, los indicadores de ingresos y gastos sobre los movimientos cargados y sus movimientos; la edición reutiliza el formulario de cuenta. | P0 | FR-CUE-004, HU-017 |
+| CP-CUE-04 | Detalle de cuenta | Abrir el detalle de una cuenta propia; revisar saldo, indicadores y movimientos; editar la cuenta | El detalle muestra los datos de la cuenta, sus indicadores y sus movimientos; la edición reutiliza el formulario. | P0 | FR-CUE-004, HU-017 |
 
-### 5.5. Movimientos
+### Movimientos
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-TRX-01 | Registrar ingreso y gasto | Cargar un ingreso y un gasto con monto, fecha, cuenta, categoría y descripción | Los movimientos aparecen en el listado y actualizan saldo y dashboard. Monto ≤ 0 o campos obligatorios vacíos se rechazan; las categorías del sistema no se editan y las propias sí. | P0 | FR-TRX-001 |
-| CP-TRX-02 | Transferencia válida | Transferir entre dos cuentas propias | Se descuenta origen y se acredita destino; origen distinto de destino; se excluye del flujo de fondos. | P0 | FR-TRX-001, CAL-003 |
+| CP-TRX-01 | Registrar ingreso y gasto | Cargar un ingreso y un gasto con monto, fecha, cuenta, categoría y descripción | Los movimientos actualizan saldo y dashboard; monto ≤ 0 o campos vacíos se rechazan. | P0 | FR-TRX-001 |
+| CP-TRX-02 | Transferencia válida | Transferir entre dos cuentas propias | Se descuenta origen y se acredita destino; se excluye del flujo de fondos. | P0 | FR-TRX-001, CAL-003 |
 | CP-TRX-03 | Edición, eliminación y propiedad | Editar y eliminar un movimiento propio; intentar operar sobre uno ajeno | La operación propia se aplica; sobre un recurso ajeno se rechaza. | P0 | FR-TRX-001 |
-| CP-TRX-04 | Gestión de categorías propias | Crear una categoría, asignarla a un movimiento, editarla y eliminarla; intentar operar sobre una del sistema o de otro usuario | La categoría propia se crea, asigna, edita y elimina; las del sistema y las ajenas se rechazan. | P0 | FR-CAT-001 |
-| CP-TRX-05 | Búsqueda y filtros | Buscar por concepto, nota, categoría y monto; combinar filtros de tipo, cuenta, categoría, moneda y período | La lista muestra solo los movimientos que cumplen todos los filtros. | P1 | FR-TRX-002, HU-012 |
-| CP-TRX-06 | Transferencia multimoneda | Transferir desde una cuenta ARS a una cuenta USD, editar la cotización sugerida y confirmar | Se registran los dos montos coherentes con la cotización; la cotización no se persiste; editar la transferencia conserva la coherencia de ambos montos. | P0 | FR-TRX-001 |
-| CP-TRX-07 | Historial de movimientos | Abrir Movimientos y recorrer el listado paginado; revisar el agrupado mensual y una transferencia | El historial se ordena por fecha descendente, se agrupa por mes y muestra las transferencias en una sola fila sin afectar los flujos. | P0 | FR-TRX-004, HU-018 |
-| CP-TRX-08 | Exportación CSV | Exportar los movimientos; repetir sin movimientos visibles | Se descarga un CSV con los movimientos; sin movimientos no se descarga. | P1 | FR-TRX-003, HU-019 |
+| CP-TRX-04 | Gestión de categorías propias | Crear una categoría, asignarla, editarla y eliminarla; intentar operar sobre una del sistema o ajena | La propia se crea, asigna, edita y elimina; las del sistema y las ajenas se rechazan. | P0 | FR-CAT-001 |
+| CP-TRX-05 | Búsqueda y filtros | Buscar por concepto, nota, categoría y monto; combinar filtros | La lista muestra solo los movimientos que cumplen todos los filtros. | P1 | FR-TRX-002, HU-012 |
+| CP-TRX-06 | Transferencia multimoneda | Transferir entre cuentas de distinta moneda, editar la cotización y confirmar | Se registran los dos montos coherentes; la cotización no se persiste. | P0 | FR-TRX-002/004 |
+| CP-TRX-07 | Historial de movimientos | Recorrer el listado paginado; revisar subtotales y una transferencia | Se ordena por fecha descendente, se agrupa por mes con subtotales y las transferencias ocupan una fila. | P0 | FR-TRX-002, HU-012 |
+| CP-TRX-08 | Exportación CSV | Aplicar filtros y exportar; repetir sin movimientos visibles | Se descarga un CSV UTF-8 con los movimientos filtrados; sin movimientos se informa y no se descarga. | P1 | FR-TRX-002, HU-012 |
 
-### 5.6. Categorías
-
-| ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
-|---|---|---|---|---|---|
-| CP-CAT-01 | Listado y uso | Abrir Categorías; alternar Gastos/Ingresos; cambiar el período y la moneda de visualización | Se listan las cinco categorías del sistema y las propias; se muestra cantidad, monto y porcentaje del período incluido en todas las monedas, convertido a la moneda de visualización, ordenado por uso; las del sistema no muestran acciones. | P0 | FR-CAT-001/002 |
-| CP-CAT-02 | Moneda de visualización | Cambiar el selector de moneda de Categorías entre ARS y USD | Los montos y porcentajes se re-expresan en la moneda elegida, sin excluir movimientos de otras monedas. | P1 | RN-001 |
-
-### 5.7. Dashboard y patrimonio
+### Categorías
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-DAS-01 | Patrimonio neto | Cargar cuentas en ARS y USD y movimientos; consultar el dashboard | Patrimonio neto = Σ (saldo × cotización) de las cuentas actuales, en la moneda de lectura; con más de una moneda incluye el desglose por moneda. | P0 | CAL-001, FR-DAS-001 |
-| CP-DAS-02 | Indicadores del período | Seleccionar un período con ingresos y gastos en distintas monedas | Se muestran ingresos, gastos y ahorro incluyendo todas las monedas convertidas a la moneda de lectura; la tasa de ahorro = ahorro / ingresos × 100. El patrimonio neto mostrado es el actual. | P0 | FR-DAS-001, CAL-002, CAL-004 |
+| CP-CAT-01 | Listado y uso | Abrir Categorías; alternar Gastos/Ingresos; cambiar período y moneda | Se listan las categorías con cantidad, monto y porcentaje del período, convertidos a la moneda elegida. | P1 | FR-CAT-001/002 |
+| CP-CAT-02 | Moneda de visualización | Cambiar el selector de moneda entre ARS y USD | Los montos y porcentajes se re-expresan en la moneda elegida. | P1 | RN-001 |
+
+### Dashboard y patrimonio
+
+| ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
+|---|---|---|---|---|---|
+| CP-DAS-01 | Patrimonio neto | Cargar cuentas en ARS y USD y movimientos; consultar el dashboard | Patrimonio neto = Σ (saldo × cotización) en la moneda de lectura, con desglose por moneda. | P0 | CAL-001, FR-DAS-001 |
+| CP-DAS-02 | Indicadores del período | Seleccionar un período con ingresos y gastos en distintas monedas | Se muestran ingresos, gastos y ahorro convertidos; tasa de ahorro = ahorro / ingresos × 100. | P0 | FR-DAS-001, CAL-002, CAL-010 |
 | CP-DAS-03 | Consistencia de cálculos | Comparar los totales del dashboard con los movimientos cargados | Los totales coinciden con los movimientos registrados. | P0 | Criterio de bondad |
-| CP-DAS-04 | Gráficos y período | Abrir el panel y cambiar el período; revisar los gráficos | Los gráficos de evolución del patrimonio, ingresos frente a gastos y gastos por categoría reflejan el período seleccionado y la moneda de lectura. | P0 | FR-DAS-002/003 |
-| CP-DAS-05 | Granularidad diaria y semanal | Comparar `Este mes`/`Últimos 30 días` con `6 meses`/`12 meses` | En rangos de hasta 31 días el patrimonio se muestra por día y las barras por semana; en rangos mayores, por mes. Los totales coinciden con los movimientos del período. | P0 | FR-DAS-002/003, HU-007 |
-| CP-DAS-06 | Selector de moneda de lectura | Abrir el selector del header, elegir USD y luego “Otra moneda” (EUR); volver a ARS | Todos los valores del dashboard se re-expresan en la moneda elegida sin alterar datos; el desglose por moneda se mantiene; “Otra moneda” permite elegir cualquier moneda del catálogo. | P1 | FR-DAS-003, RN-001 |
+| CP-DAS-04 | Gráficos y período | Abrir el panel y cambiar el período; revisar los gráficos | Los tres gráficos reflejan el período y la moneda de lectura. | P0 | FR-DAS-002/003/004 |
+| CP-DAS-05 | Granularidad diaria y semanal | Comparar rangos cortos con rangos largos | En rangos de hasta 31 días el patrimonio es diario y las barras semanales; en rangos mayores, mensual. | P1 | FR-DAS-002/003 |
+| CP-DAS-06 | Selector de moneda de lectura | Elegir USD y luego otra moneda; volver a ARS | Todos los valores se re-expresan sin alterar datos y el desglose por moneda se mantiene. | P0 | FR-DAS-001, RN-001 |
 
-### 5.8. Cálculos (pruebas unitarias)
+### Cálculos (pruebas unitarias)
 
 | ID | Regla | Entrada de ejemplo | Resultado esperado |
 |---|---|---|---|
-| CP-CAL-001 | CAL-001 Patrimonio neto | Saldos de las cuentas en distintas monedas y cotizaciones de la API | Σ (saldo × cotización) de las cuentas, en la moneda de lectura. |
-| CP-CAL-002 | CAL-002 Flujo de fondos | Ingresos y gastos de un período en distintas monedas | Cada flujo se convierte a la moneda de lectura y se calcula ingresos − gastos. |
-| CP-CAL-003 | CAL-003 Transferencias | Una transferencia entre cuentas, incluso de monedas distintas | Se excluye de ingresos y gastos consolidados; cada pata conserva su monto. |
-| CP-CAL-004 | CAL-004 Tasa de ahorro | Ahorro e ingresos del período convertidos | Ahorro / ingresos × 100; la variación se expresa en puntos porcentuales. |
+| CP-CAL-001 | CAL-001 Patrimonio neto | Saldos en distintas monedas y cotizaciones de la API | Σ (saldo × cotización) en la moneda de lectura. |
+| CP-CAL-002 | CAL-002 Flujo de fondos | Ingresos y gastos de un período | Cada flujo se convierte y se calcula ingresos − gastos. |
+| CP-CAL-003 | CAL-003 Transferencias | Una transferencia, incluso multimoneda | Se excluye de ingresos y gastos; cada pata conserva su monto. |
+| CP-CAL-010 | CAL-010 Tasa de ahorro | Ahorro e ingresos convertidos | Ahorro / ingresos × 100. |
 
-### 5.9. Asistente de IA
-
-| ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
-|---|---|---|---|---|---|
-| CP-IA-01 | Consulta verificable | Preguntar por gastos de un período con datos | El stream expone período, moneda y fuentes en `meta`; el contexto incluye las categorías consideradas y los totales coinciden con el dashboard del mismo período en la moneda principal. | P1 | FR-IA-001, HU-003 |
-| CP-IA-02 | Solo consulta | Pedir al asistente que cree, edite o elimine un dato | El asistente no crea, edita ni elimina datos. | P1 | FR-IA-001 |
-| CP-IA-03 | Continuidad conversacional | Hacer una pregunta, luego una de seguimiento que dependa del contexto; recargar la página y verificar que no hay historial persistido | El asistente interpreta la pregunta de seguimiento con los turnos recientes enviados por el cliente, mantiene las cifras del período vigente y no conserva la conversación en el servidor. | P1 | FR-IA-002, HU-015 |
-
-### 5.10. No funcionales y usabilidad
+### No funcionales y usabilidad
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-NFR-01 | Diseño adaptable | Usar la aplicación en resoluciones de escritorio y móvil | Los flujos principales son usables y legibles en ambas resoluciones. | P1 | Criterio de bondad |
-| CP-NFR-02 | Estados de carga y error | Provocar una carga y un error (por ejemplo, proveedor de IA caído) | Se muestran estados de carga y error comprensibles, sin perder datos. | P0 | Dependencias FRD |
+| CP-NFR-01 | Diseño adaptable | Usar la aplicación en escritorio y móvil | Los flujos principales son usables y legibles en ambas resoluciones. | P1 | Criterio de bondad |
+| CP-NFR-02 | Estados de carga y error | Provocar una carga y un error (por ejemplo, IA caída) | Se muestran estados de carga y error comprensibles, sin perder datos. | P0 | Dependencias FRD |
 
-### 5.11. Configuración y preferencias
+### Asistente de IA
 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
-| CP-CFG-01 | Tema | Cambiar el tema y recargar la aplicación | El tema persiste en el navegador y no modifica los datos financieros; la preferencia no se sincroniza entre dispositivos. | P1 | FR-CFG-001 |
-| CP-CFG-02 | Moneda principal | Con cuentas en más de una moneda, cambiar la moneda principal en Ajustes y volver al dashboard | La preferencia se guarda; el dashboard usa la nueva moneda principal como lectura por defecto; las cotizaciones siguen siendo automáticas y no editables. | P1 | FR-CFG-003, RN-001, RN-002 |
-| CP-CFG-03 | Correo y contraseña | En Ajustes, cambiar el correo por uno nuevo y luego cambiar la contraseña ingresando la actual; probar correo duplicado, contraseña actual incorrecta y contraseña nueva inválida | El correo se normaliza y se guarda si es único; el cambio de contraseña exige la actual y aplica la misma política del registro; los errores se informan sin cerrar la sesión. | P1 | FR-CFG-002, NFR-SEG-003 |
+| CP-IA-01 | Consulta verificable | Preguntar por gastos de un período con datos | Responde con período y categorías; los totales coinciden con el dashboard del mismo período. | P1 | FR-IA-001 |
+| CP-IA-03 | Solo consulta | Pedir al asistente que cree, edite o elimine un dato | El asistente no crea, edita ni elimina datos. | P1 | FR-IA-001 |
+| CP-IA-04 | Continuidad conversacional | Hacer una pregunta y luego una de seguimiento; recargar la página | Interpreta el seguimiento con los turnos recientes del cliente y no conserva la conversación en el servidor. | P1 | FR-IA-002 |
 
-## 6. Datos de Prueba
+### Configuración y preferencias
 
-Se utilizan **usuarios ficticios sin datos personales reales** y un conjunto de datos reproducible (**NFR-CAL-002**):
+| ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
+|---|---|---|---|---|---|
+| CP-CFG-01 | Tema | Cambiar el tema y recargar | El tema persiste en el navegador y no modifica los datos financieros. | P1 | FR-CFG-001 |
+| CP-CFG-02 | Moneda principal | Con cuentas en más de una moneda, cambiar la moneda principal en Ajustes | La preferencia se guarda y el dashboard la usa como lectura por defecto. | P1 | FR-CFG-002, RN-001 |
+| CP-CFG-03 | Correo y contraseña | Cambiar el correo y la contraseña ingresando la actual; probar errores | El correo se guarda si es único; el cambio de contraseña exige la actual; los errores se informan sin cerrar la sesión. | P1 | FR-CFG-003, NFR-SEG-003 |
+
+### Datos de prueba
+
+Se utilizan **usuarios de prueba sin datos personales reales** y un conjunto reproducible (**NFR-CAL-002**):
 
 | Elemento | Detalle |
 |---|---|
-| Usuarios | Tres usuarios ficticios: demo@atlassfin.app (con datos), sin-datos@atlassfin.app (sin movimientos, para estados vacíos) y ana@atlassfin.app (para el aislamiento entre propietarios). |
+| Usuarios | Tres usuarios: demo@atlassfin.app (con datos), sin-datos@atlassfin.app (sin movimientos) y ana@atlassfin.app (aislamiento entre propietarios). |
 | Cuentas | Cuatro cuentas del usuario con datos: tres en ARS y una en USD. |
 | Monedas | ARS como moneda principal y USD; cotizaciones globales de la API. |
-| Movimientos | Tres meses de ingresos, gastos y transferencias, con movimientos en ARS y USD y una transferencia multimoneda (si la cotización de la API está disponible). |
-| Categorías | Cinco categorías fijas del sistema; el seed crea además la categoría propia "Otros" (tipo ingreso) para el usuario demo y las restantes se crean durante la ejecución. |
+| Movimientos | Tres meses de ingresos, gastos y transferencias, con movimientos en ARS y USD y una transferencia multimoneda. |
+| Categorías | Cinco categorías fijas del sistema; las propias se crean durante la ejecución. |
 
-> Los casos de búsqueda, filtros y uso de categorías se ejecutan sobre los movimientos cargados en la vista. El dashboard y los cálculos se validan contra el conjunto completo del período.
+## Plan de Ejecución:
 
-## 7. Plan de Ejecución
-
-1. Configurar el entorno de prueba con una base de datos limpia.
-2. Cargar el conjunto de datos de prueba (*seed*) descripto en §6.
-3. Revisar y aprobar los casos y el alcance antes de ejecutar.
-4. El agente de IA ejecuta los casos **P0** y luego los **P1/P2** habilitados por el alcance (ver 4.3).
-5. Registrar cada resultado en la planilla de seguimiento (ID del caso, resultado, evidencia, defectos).
-6. Revisar la evidencia y dar cada caso por aprobado.
-7. Reportar los defectos con pasos de reproducción y severidad.
-8. Re-ejecutar los casos P0 afectados tras cada corrección (regresión).
+1. Configurar el entorno con una base de datos limpia y cargar el *seed* de datos de prueba.
+2. Revisar y aprobar los casos y el alcance antes de ejecutar.
+3. Ejecutar los casos **P0** y luego los **P1/P2** habilitados.
+4. Registrar cada resultado en la planilla de seguimiento (ID, resultado, evidencia, defectos).
+5. Revisar la evidencia y aprobar cada caso; reportar defectos con pasos de reproducción.
+6. Re-ejecutar los casos P0 afectados tras cada corrección (regresión).
 
 **Máquina de estados del caso:** No ejecutado → En ejecución → Aprobado / Fallado / Bloqueado.
 
-## 8. Criterios de Entrada y Salida
+**Criterios de entrada:** build desplegable y accesible; datos de prueba cargados; casos revisados y aprobados.
 
-### 8.1. Criterios de entrada
+**Criterios de salida (aceptación):** el **100 % de los casos P0 ejecutados y aprobados**; sin defectos bloqueantes ni críticos abiertos; cálculos (CAL-*) verificados; autorización por propietario verificada; evidencia registrada y reproducible.
 
-- Build desplegable y accesible del entorno de prueba.
-- Datos de prueba cargados.
-- Casos de prueba revisados y aprobados.
-
-### 8.2. Criterios de salida (aceptación)
-
-- El **100 % de los casos P0 ejecutados y aprobados**.
-- Sin defectos **bloqueantes ni críticos** abiertos.
-- Cálculos (CAL-*) verificados y coincidentes con los movimientos registrados.
-- Autorización por propietario verificada.
-- Evidencia de ejecución registrada y reproducible.
-
-## 9. Riesgos y Mitigación
-
-| Riesgo | Impacto | Mitigación |
-|---|---|---|
-| Alcance cambiante por la reducción de funcionalidad | Casos desactualizados | Plan modular: quitar secciones sin afectar el resto. |
-| Dependencia del proveedor externo de IA | Casos bloqueados | Usar datos de prueba reproducibles y cubrir el comportamiento ante falla. |
-| Filtros y uso de categorías calculados en cliente | Resultados parciales si el usuario supera los 100 movimientos cargados | Ejecutar con el dataset del seed; documentar el límite y evaluar paginación o filtros server-side en una iteración posterior. |
-| Tiempo limitado | Cobertura incompleta | Priorizar P0 y automatizar las fórmulas. |
-| Inestabilidad de las pruebas de UI | Resultados falsos | Esperas explícitas y reintentos controlados. |
-
-## 10. Pruebas Adicionales (Opcionales)
+## Plan de Pruebas Adicionales (Opcionales):
 
 - **Volumen:** cargar una gran cantidad de movimientos y verificar que el dashboard responda correctamente.
 - **Asistente de IA:** batería de consultas preparadas para comparar gastos y evolución patrimonial.
