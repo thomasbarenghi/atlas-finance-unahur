@@ -140,7 +140,7 @@ erDiagram
   usuario.
 - **Autenticación:** JWT stateless (access + refresh). No hay tabla de sesiones
   ni revocación server-side.
-- **Transferencias (FR-TRX-004/005, CAL-003):** origen ≠ destino; se
+- **Transferencias (FR-TRX-004, CAL-003):** origen ≠ destino; se
   persisten **dos filas** (`type='transfer'`) con el mismo `transfer_group_id`,
   de forma atómica. En multimoneda cada fila guarda el monto en la moneda de su
   cuenta; la cotización usada en la UI no se persiste. Se excluyen de

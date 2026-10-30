@@ -311,8 +311,8 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 
 | Método | Ruta                 | FR          |
 | :----- | :------------------- | :---------- |
-| PATCH  | `/users/me`          | FR-CFG-003  |
-| PATCH  | `/users/me/password` | FR-CFG-003  |
+| PATCH  | `/users/me`          | FR-CFG-003/004 |
+| PATCH  | `/users/me/password` | FR-CFG-003     |
 
 ```jsonc
 // PATCH /users/me — body (todos los campos son opcionales)
@@ -339,7 +339,7 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 | :----- | :-------------- | :---------------------------------------------------------- |
 | GET    | `/accounts`     | listado con saldo actual (FR-CUE-004)                       |
 | POST   | `/accounts`     | FR-CUE-001/002                                              |
-| GET    | `/accounts/:id` | —                                                           |
+| GET    | `/accounts/:id` | detalle de cuenta propia (FR-CUE-007)                       |
 | PATCH  | `/accounts/:id` | FR-CUE-003                                                  |
 | DELETE | `/accounts/:id` | FR-CUE-003; elimina en cascada sus movimientos (FR-CUE-005) |
 
@@ -360,13 +360,13 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 
 | Método | Ruta                          | FR                                                    |
 | :----- | :---------------------------- | :---------------------------------------------------- |
-| GET    | `/transactions?page&pageSize` | listado paginado (FR-TRX-003)                         |
-| POST   | `/transactions`               | FR-TRX-001/002 (transferencia atómica FR-TRX-004/005) |
+| GET    | `/transactions?page&pageSize` | historial paginado (FR-TRX-012)                       |
+| POST   | `/transactions`               | FR-TRX-001/002 (transferencia atómica FR-TRX-004)     |
 | GET    | `/transactions/:id`           | —                                                     |
 | PATCH  | `/transactions/:id`           | FR-TRX-003                                            |
 | DELETE | `/transactions/:id`           | FR-TRX-003                                            |
 
-> **Filtros de la UI:** la búsqueda, el tipo, la cuenta, la categoría, la moneda y el período se aplican en el cliente sobre la página cargada. La API mantiene paginación (`page`, `pageSize`). En transferencias multimoneda el request incluye `transferAmount` (monto que llega a destino); la cotización no se envía ni se persiste.
+> **Filtros y exportación de la UI:** la búsqueda, el tipo, la cuenta, la categoría, la moneda y el período se aplican en el cliente sobre la página cargada. La API mantiene paginación (`page`, `pageSize`). La exportación CSV también es client-side y usa los movimientos visibles o filtrados (FR-TRX-011). En transferencias multimoneda el request incluye `transferAmount` (monto que llega a destino); la cotización no se envía ni se persiste.
 
 ### 7.6 Dashboard
 
@@ -808,7 +808,7 @@ Cada tanda deja la API compilando (`npm run lint && npm run build`) y con entida
 ### Tanda 2 — Cuentas, categorías y movimientos — ✅ Hecho
 
 - CRUD `accounts`, `categories` (sistema + propias), `transactions` con paginación (sin filtros).
-- Transferencias atómicas (FR-TRX-004/005) y exclusión de consolidados (CAL-003).
+- Transferencias atómicas (FR-TRX-004) y exclusión de consolidados (CAL-003).
 - **Aceptación**: HU-001, HU-002, FR-CUE-001..005, FR-TRX-001..005.
 
 ### Tanda 3 — Cálculos y dashboard — ✅ Hecho

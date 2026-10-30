@@ -4,7 +4,7 @@
 |---|---|
 | **Proyecto** | Gestor Financiero Personal |
 | **Documento** | Plan de Pruebas |
-| **Versión** | 1.6 |
+| **Versión** | 1.7 |
 | **Fecha** | Octubre 2026 |
 | **Sponsor Operación** | Secretaría Académica UNAHUR |
 | **Sponsor Organización** | UNAHUR |
@@ -12,7 +12,7 @@
 | **Tutor** | Prof. Ciarallo, Cristian |
 | **Release** | Demostración académica 2026 |
 
-> **Nota de alcance.** Este plan está alineado con el **BRD y el FRD v0.3.1**, que **siguen en desarrollo y aún no están finalizados**; sus requerimientos pueden cambiar. Organiza los casos por prioridad, con el núcleo **P0** como evidencia principal de aceptación.
+> **Nota de alcance.** Este plan está alineado con el **BRD y el FRD v0.3.3**, que **siguen en desarrollo y aún no están finalizados**; sus requerimientos pueden cambiar. Organiza los casos por prioridad, con el núcleo **P0** como evidencia principal de aceptación.
 
 ## Historial de cambios
 
@@ -25,6 +25,7 @@
 | 1.4 | Octubre 2026 | Barenghi, Thomas | Se eliminan reglas y criterios redundantes; se consolida la regla multimoneda en RN-014 y se corrigen los IDs duplicados. |
 | 1.5 | Octubre 2026 | Barenghi, Thomas | Se retiran los casos asociados a FR-DAS-008, FR-TRX-005, FR-TRX-008 y FR-IA-011. |
 | 1.6 | Octubre 2026 | Barenghi, Thomas | Se agrega el caso de edición de correo y cambio de contraseña desde el perfil. |
+| 1.7 | Octubre 2026 | Barenghi, Thomas | Se agregan casos de detalle de cuenta, historial paginado y exportación CSV; se vincula el cambio de moneda principal a FR-CFG-004. |
 
 ---
 
@@ -37,8 +38,8 @@ El objetivo operativo es **obtener evidencia suficiente y reproducible para apro
 ## 2. Alcance del Testing
 
 - **Acceso:** registro, inicio y cierre de sesión; edición de nombre, correo y contraseña desde el perfil.
-- **Cuentas** y saldos, con moneda por cuenta y moneda principal.
-- **Movimientos:** ingresos, gastos y transferencias (incluidas las multimoneda), con categorías del sistema y propias.
+- **Cuentas** y saldos, con moneda por cuenta, moneda principal y detalle de cuenta.
+- **Movimientos:** ingresos, gastos y transferencias (incluidas las multimoneda), con categorías del sistema y propias; historial paginado y exportación CSV.
 - **Búsqueda y filtros** de movimientos.
 - **Categorías propias:** alta, edición, eliminación y uso por período.
 - **Dashboard** y cálculo de patrimonio neto, con granularidad diaria/semanal o mensual y selector de moneda de lectura.
@@ -122,7 +123,7 @@ Se prioriza el nivel **P0** (que es la evidencia de aceptación exigida por el F
 
 ## 5. Casos de Prueba
 
-Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** al FRD/BRD v0.3.1.
+Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** al FRD/BRD v0.3.3.
 
 ### 5.1. Resumen por módulo
 
@@ -161,6 +162,7 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 | CP-CUE-01 | Alta y edición de cuenta | Crear una cuenta (nombre, tipo, moneda, saldo inicial) y editarla | La cuenta aparece en el listado con su saldo en su moneda y refleja la edición; solo su propietario la ve. | P0 | FR-CUE-001/002/003 |
 | CP-CUE-02 | Cálculo de saldo y eliminación | Registrar movimientos sobre una cuenta, consultar el saldo y eliminar la cuenta | Saldo actual = saldo inicial + movimientos, en la moneda de la cuenta. La eliminación elimina en cascada los movimientos asociados. | P0 | FR-CUE-004/005 |
 | CP-CUE-03 | Moneda fija con movimientos | Crear una cuenta, cargarle un movimiento e intentar cambiar su moneda | El servidor y la UI rechazan el cambio de moneda mientras la cuenta tenga movimientos. | P0 | FR-CUE-002 |
+| CP-CUE-04 | Detalle de cuenta | Abrir el detalle de una cuenta propia; revisar saldo, indicadores y movimientos; iniciar y cancelar una transferencia desde el detalle | El detalle muestra los datos de la cuenta y sus movimientos; la transferencia se abre con la cuenta como origen y no se confirma sin completar los datos. | P0 | FR-CUE-007, HU-020 |
 
 ### 5.5. Movimientos
 
@@ -171,7 +173,9 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 | CP-TRX-03 | Edición, eliminación y propiedad | Editar y eliminar un movimiento propio; intentar operar sobre uno ajeno | La operación propia se aplica; sobre un recurso ajeno se rechaza. | P0 | FR-TRX-003 |
 | CP-TRX-04 | Gestión de categorías propias | Crear una categoría, asignarla a un movimiento, editarla y eliminarla; intentar operar sobre una del sistema o de otro usuario | La categoría propia se crea, asigna, edita y elimina; las del sistema y las ajenas se rechazan. | P0 | FR-CAT-002/003 |
 | CP-TRX-05 | Búsqueda y filtros | Buscar por concepto, nota, categoría y monto; combinar filtros de tipo, cuenta, categoría, moneda y período | La lista muestra solo los movimientos que cumplen todos los filtros. | P1 | FR-TRX-007, HU-015 |
-| CP-TRX-06 | Transferencia multimoneda | Transferir desde una cuenta ARS a una cuenta USD, editar la cotización sugerida y confirmar | Se registran los dos montos coherentes con la cotización; la cotización no se persiste; editar la transferencia conserva la coherencia de ambos montos. | P0 | FR-TRX-002/004/005 |
+| CP-TRX-06 | Transferencia multimoneda | Transferir desde una cuenta ARS a una cuenta USD, editar la cotización sugerida y confirmar | Se registran los dos montos coherentes con la cotización; la cotización no se persiste; editar la transferencia conserva la coherencia de ambos montos. | P0 | FR-TRX-002/004 |
+| CP-TRX-07 | Historial de movimientos | Abrir Movimientos y recorrer el listado paginado; revisar subtotales mensuales y una transferencia | El historial se ordena por fecha descendente, se agrupa por mes con subtotales y muestra las transferencias en una sola fila sin afectar los flujos. | P0 | FR-TRX-012, HU-021 |
+| CP-TRX-08 | Exportación CSV | Aplicar filtros y exportar los movimientos; repetir sin movimientos visibles | Se descarga un CSV UTF-8 con los movimientos filtrados y las columnas definidas; sin movimientos se informa y no se descarga. | P1 | FR-TRX-011, HU-022 |
 
 ### 5.6. Categorías
 
@@ -220,7 +224,7 @@ Convención: cada caso indica su **prioridad** (P0/P1/P2) y su **trazabilidad** 
 | ID | Caso | Pasos (resumen) | Resultado esperado | Prioridad | Ref. |
 |---|---|---|---|---|---|
 | CP-CFG-01 | Tema | Cambiar el tema y recargar la aplicación | El tema persiste en el navegador y no modifica los datos financieros; la preferencia no se sincroniza entre dispositivos. | P1 | FR-CFG-001 |
-| CP-CFG-02 | Moneda principal | Con cuentas en más de una moneda, cambiar la moneda principal en Ajustes y volver al dashboard | La preferencia se guarda; el dashboard usa la nueva moneda principal como lectura por defecto; las cotizaciones siguen siendo automáticas y no editables. | P1 | RN-014, RN-016 |
+| CP-CFG-02 | Moneda principal | Con cuentas en más de una moneda, cambiar la moneda principal en Ajustes y volver al dashboard | La preferencia se guarda; el dashboard usa la nueva moneda principal como lectura por defecto; las cotizaciones siguen siendo automáticas y no editables. | P1 | FR-CFG-004, RN-014, RN-016 |
 | CP-CFG-03 | Correo y contraseña | En Ajustes, cambiar el correo por uno nuevo y luego cambiar la contraseña ingresando la actual; probar correo duplicado, contraseña actual incorrecta y contraseña nueva inválida | El correo se normaliza y se guarda si es único; el cambio de contraseña exige la actual y aplica la misma política del registro; los errores se informan sin cerrar la sesión. | P1 | FR-CFG-003, NFR-SEG-003 |
 
 ## 6. Datos de Prueba

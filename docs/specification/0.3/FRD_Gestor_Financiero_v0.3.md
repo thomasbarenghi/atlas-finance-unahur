@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Versión | 0.3.2 |
+| Versión | 0.3.3 |
 | Estado | En desarrollo — versión preliminar, no finalizada |
 | Fecha | 27/10/2026 |
 | Sponsor Operación | Secretaría Académica UNAHUR |
@@ -29,6 +29,7 @@
 | 0.3 | 16/10/2026 | Barenghi, Thomas | Se ajusta el alcance de la versión y se consolida la documentación en torno a los flujos principales: acceso, cuentas, movimientos, panel y asistente de consulta. Se actualizan los requerimientos, las reglas de negocio y de cálculo, las entidades, las pantallas y los datos de demostración, y se amplían las User Stories para cubrir todos los módulos vigentes. El asistente queda definido como de solo consulta. |
 | 0.3.1 | 26/10/2026 | Barenghi, Thomas | Se alinea el documento con la implementación vigente: búsqueda y filtros de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria y semanal del panel; continuidad de la conversación del asistente en memoria del cliente; multimoneda (moneda por cuenta, moneda principal, cotizaciones automáticas de la API consultadas en cada lectura y sin persistencia, transferencias multimoneda y selector de moneda de lectura); autenticación JWT stateless sin tabla de sesiones y con transporte exclusivo por cookie HttpOnly; consolidación de reglas y criterios para eliminar duplicidades; y retiro de requisitos de estados vacíos, atomicidad de transferencias, exportación CSV e insuficiencia del asistente. |
 | 0.3.2 | 27/10/2026 | Barenghi, Thomas | Se agrega la edición del correo electrónico y el cambio de contraseña desde el perfil, con validación de la contraseña actual; no se incorpora recuperación de contraseña. |
+| 0.3.3 | 27/10/2026 | Barenghi, Thomas | Se completan las historias y requerimientos de la app implementada: detalle de cuenta, historial de movimientos, exportación CSV, cambio de moneda principal y contadores del perfil. |
 
 ## 2. Alcance
 
@@ -137,7 +138,7 @@ Quedan fuera de alcance la sincronización automática con bancos o billeteras, 
 | HU-001 — Registrar un movimiento | Como usuario registrado, quiero cargar un ingreso o gasto para mantener actualizados mis saldos. | • Los campos obligatorios se validan antes de guardar.<br>• El monto debe ser mayor que cero.<br>• El movimiento aparece en el listado y actualiza saldo y dashboard.<br>• La API verifica que cuenta y categoría pertenezcan al usuario autenticado. |
 | HU-002 — Transferir entre cuentas | Como usuario registrado, quiero mover dinero entre dos cuentas propias, incluso de monedas distintas, sin alterar mis ingresos o gastos. | • Origen y destino son diferentes y pertenecen al usuario.<br>• Se registran efectos opuestos; en multimoneda se guardan el monto origen y el monto destino.<br>• La cotización usada se puede sobrescribir y no se persiste.<br>• La transferencia se excluye del flujo de fondos consolidado. |
 | HU-006 — Consultar al asistente | Como usuario registrado, quiero preguntar por mis gastos para entender mi comportamiento financiero. | • El asistente requiere sesión válida.<br>• Solo utiliza datos propios y el mínimo contexto necesario.<br>• La respuesta identifica período y categorías considerados.<br>• Los totales coinciden con el dashboard del mismo período.<br>• El asistente es de solo consulta: no crea, edita ni elimina datos.<br>• Puede recibir turnos recientes de la conversación como contexto, sin persistirlos en el servidor. |
-| HU-007 — Registrarme e iniciar sesión | Como visitante, quiero registrarme e iniciar sesión para acceder a mi información financiera. | • El registro valida los campos obligatorios, incluida la moneda principal, y rechaza el correo duplicado.<br>• Desde el perfil puedo actualizar mi correo y mi contraseña; el correo debe ser único y el cambio de contraseña exige la actual.<br>• Al cerrar sesión se limpian las cookies y las pantallas financieras redirigen al acceso; el token emitido expira según su vigencia. |
+| HU-007 — Registrarme e iniciar sesión | Como visitante, quiero registrarme e iniciar sesión para acceder a mi información financiera. | • El registro valida los campos obligatorios, incluida la moneda principal, y rechaza el correo duplicado.<br>• Desde el perfil puedo actualizar mi correo y mi contraseña; el correo debe ser único y el cambio de contraseña exige la actual.<br>• El perfil muestra mi identidad y los contadores de cuentas, movimientos y categorías.<br>• Al cerrar sesión se limpian las cookies y las pantallas financieras redirigen al acceso; el token emitido expira según su vigencia. |
 | HU-008 — Gestionar mis cuentas | Como usuario registrado, quiero crear, editar y eliminar mis cuentas para reflejar dónde está mi dinero. | • Se registran nombre, tipo, moneda y saldo inicial.<br>• El saldo actual se calcula desde el saldo inicial y los movimientos, en la moneda de la cuenta.<br>• La moneda no se cambia si la cuenta tiene movimientos.<br>• La eliminación elimina en cascada los movimientos asociados y solo alcanza cuentas propias. |
 | HU-009 — Ver el resumen del panel | Como usuario registrado, quiero ver mi patrimonio, ingresos, gastos y ahorro del período para entender mi situación de un vistazo. | • El panel muestra los cuatro indicadores del período seleccionado.<br>• Incluye todas las monedas convertidas a la moneda de lectura.<br>• Los totales coinciden con los movimientos registrados. |
 | HU-010 — Ver los gráficos del panel | Como usuario registrado, quiero ver la evolución del patrimonio, la comparación entre ingresos y gastos y la distribución de gastos por categoría. | • El panel muestra los tres gráficos.<br>• Los gráficos coinciden con los datos del período seleccionado.<br>• La evolución del patrimonio es diaria y las barras son semanales para rangos de hasta 31 días; en rangos mayores son mensuales. |
@@ -149,6 +150,10 @@ Quedan fuera de alcance la sincronización automática con bancos o billeteras, 
 | HU-016 — Gestionar categorías propias | Como usuario registrado, quiero clasificar mis movimientos con mis propias categorías. | • Puedo crear, editar y eliminar categorías propias.<br>• Las cinco categorías del sistema y las de otros usuarios no se pueden modificar.<br>• Al eliminar una categoría propia, sus movimientos quedan “Sin categoría”. |
 | HU-017 — Preferencias de la interfaz | Como usuario registrado, quiero elegir el tema de la interfaz. | • El tema puede ser claro, oscuro o automático.<br>• La preferencia se guarda localmente y no modifica datos financieros. |
 | HU-018 — Conversación continua con el asistente | Como usuario registrado, quiero hacer preguntas de seguimiento sin repetir el contexto. | • El cliente envía hasta los últimos 10 mensajes como historial.<br>• El servidor acepta como máximo 12 mensajes y no los persiste.<br>• Las cifras siempre provienen del período vigente y el asistente sigue siendo de solo consulta. |
+| HU-019 — Cambiar mi moneda principal | Como usuario registrado, quiero elegir mi moneda principal para expresar mi patrimonio en la moneda que uso habitualmente. | • La moneda principal se puede cambiar en Ajustes cuando hay más de una moneda en uso.<br>• El cambio se persiste en el perfil.<br>• El dashboard usa la nueva moneda principal como lectura por defecto.<br>• Cambiar la moneda principal no modifica saldos ni movimientos. |
+| HU-020 — Consultar el detalle de una cuenta | Como usuario registrado, quiero ver el detalle de una cuenta para entender su saldo y sus movimientos. | • El detalle muestra nombre, tipo, moneda, saldo inicial, saldo actual e indicadores del período.<br>• Lista los movimientos de la cuenta y permite editarlos o eliminarlos.<br>• Permite iniciar una transferencia con esa cuenta como origen.<br>• Solo se puede consultar una cuenta propia. |
+| HU-021 — Consultar el historial de movimientos | Como usuario registrado, quiero consultar el historial de mis movimientos para revisar mi actividad. | • El listado muestra los movimientos paginados y ordenados por fecha descendente.<br>• Se agrupan por mes y muestran subtotales.<br>• Las transferencias se colapsan en una fila y no afectan los flujos.<br>• Cada movimiento permite abrir su edición. |
+| HU-022 — Exportar movimientos a CSV | Como usuario registrado, quiero exportar mis movimientos a CSV para analizarlos fuera de la aplicación. | • Se exportan los movimientos visibles o filtrados, hasta 100 registros.<br>• El archivo incluye fecha, tipo, descripción, categoría, cuenta, moneda, monto y notas.<br>• El archivo se descarga en UTF-8 con nombre `movimientos-YYYY-MM-DD.csv`.<br>• Si no hay movimientos, se informa y no se descarga. |
 
 **Requerimientos funcionales por módulo**
 
@@ -180,6 +185,7 @@ Los identificadores de requerimiento son estables entre versiones y no se renume
 | FR-CUE-003 | P0 | Editar y eliminar cuentas propias. |
 | FR-CUE-004 | P0 | Calcular el saldo actual a partir del saldo inicial y los movimientos asociados. |
 | FR-CUE-005 | P0 | La eliminación de una cuenta elimina en cascada sus movimientos asociados. |
+| FR-CUE-007 | P0 | Consultar el detalle de una cuenta propia con saldo inicial, saldo actual, indicadores del período y listado de movimientos; permitir iniciar una transferencia desde esa cuenta. |
 
 **Movimientos**
 
@@ -190,6 +196,8 @@ Los identificadores de requerimiento son estables entre versiones y no se renume
 | FR-TRX-003 | P0 | Editar o eliminar únicamente movimientos pertenecientes al usuario autenticado. |
 | FR-TRX-004 | P0 | En una transferencia, las cuentas de origen y destino deberán ser diferentes. La operación puede iniciarse desde el detalle de una cuenta con el origen precargado. |
 | FR-TRX-007 | P1 | Buscar y filtrar movimientos por concepto, nota, categoría, monto, tipo, cuenta y período. Los filtros se aplican en cliente sobre los movimientos cargados en la vista (hasta 100 registros). |
+| FR-TRX-011 | P1 | Exportar a CSV los movimientos visibles o filtrados, hasta 100 registros, con fecha, tipo, descripción, categoría, cuenta, moneda, monto y notas; el archivo se descarga en UTF-8 con nombre `movimientos-YYYY-MM-DD.csv`. |
+| FR-TRX-012 | P0 | Mostrar el historial de movimientos paginado y ordenado por fecha descendente, agrupado por mes con subtotales; las transferencias se colapsan en una sola fila y cada movimiento permite abrir su edición. |
 
 **Categorías**
 
@@ -206,6 +214,7 @@ Los identificadores de requerimiento son estables entre versiones y no se renume
 |---|---|---|
 | FR-CFG-001 | P1 | Permitir elegir el tema de la interfaz (claro, oscuro o automático) y persistirlo localmente. |
 | FR-CFG-003 | P1 | Permitir editar el nombre, el correo electrónico y la contraseña del perfil; el correo debe ser único y el cambio de contraseña requiere la actual. Mostrar la identidad del usuario con contadores de cuentas, movimientos y categorías. |
+| FR-CFG-004 | P1 | Permitir cambiar la moneda principal desde Ajustes cuando hay más de una moneda en uso. El cambio se persiste y el dashboard la usa como lectura por defecto sin modificar los datos financieros. |
 
 **Asistente de inteligencia artificial**
 
@@ -259,10 +268,10 @@ Para cada período seleccionado, el sistema aplica las siguientes reglas de cál
 |---|---|---|
 | SC-001 | Acceso | Registro e inicio de sesión; Card, Form, Input, Button y Alert. |
 | SC-002 | Dashboard | Indicadores, gráficos, selector de moneda de lectura en el header, período compartido y accesos rápidos; Card, Chart y Skeleton. |
-| SC-003 | Cuentas | Listado, saldo, transferencia desde el detalle y formularios; Data Table, Badge, Dialog y Dropdown Menu. |
-| SC-004 | Movimientos | Listado agrupado por mes, búsqueda, filtros y alta o edición; Data Table, Date Picker, Select, Form y Alert Dialog. |
+| SC-003 | Cuentas | Listado, saldo, detalle con movimientos, transferencia desde el detalle y formularios; Data Table, Badge, Dialog y Dropdown Menu. |
+| SC-004 | Movimientos | Listado agrupado por mes, búsqueda, filtros, exportación CSV y alta o edición; Data Table, Date Picker, Select, Form y Alert Dialog. |
 | SC-009 | Asistente IA | Conversación con historial en memoria, período y alcance del asistente; Scroll Area, Textarea, Button y Alert. |
-| SC-010 | Configuración | Perfil, preferencia de tema, moneda principal (cuando hay más de una moneda) y sesión; Form, Segmented Control y Alert Dialog. |
+| SC-010 | Configuración | Perfil, preferencia de tema, moneda principal (cuando hay más de una moneda), exportación CSV y sesión; Form, Segmented Control y Alert Dialog. |
 | SC-011 | Categorías | Listado con uso del período, alta y edición; Tabs, Badge, Progress, Dialog y Alert Dialog. |
 
 ## 6. Glosario

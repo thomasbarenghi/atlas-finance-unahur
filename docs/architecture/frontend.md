@@ -92,7 +92,7 @@ La aplicación opera con **multimoneda**: cada cuenta declara su moneda, el usua
     ├── /categories           # categorías del sistema + propias (SC-011)
     ├── /assistant            # chat con la IA, solo consulta (SC-009)
     ├── /profile              # hub de perfil: tarjeta, secciones y cierre de sesión (SC-010)
-    └── /settings             # ajustes: perfil, correo y contraseña (SC-010)
+    └── /settings             # ajustes: perfil, credenciales, moneda y exportación (SC-010)
 ```
 
 **Reglas de enrutamiento:**
@@ -148,7 +148,7 @@ El **listado de cuentas vive en el inicio** (`/dashboard`, §4.2). Las cuentas s
 
 El **formulario** (`AccountFormDialog`) es un editor visual: hero con ícono del tipo y **nombre editables**, chips de **tipo** (scroll horizontal), **selector de moneda** (dropdown anclado en desktop, bottom sheet en mobile) y campos de saldo inicial y observaciones. La moneda no se puede cambiar si la cuenta ya tiene movimientos (FR-CUE-002). No hay tipo tarjeta.
 
-#### 4.3.1 `/accounts/detail?id=<id>` — Detalle de cuenta
+#### 4.3.1 `/accounts/detail?id=<id>` — Detalle de cuenta (FR-CUE-007)
 
 - **Encabezado** (`PageHeader` sin breadcrumb en desktop; back nativo en mobile): nombre con H1 compacto. En desktop las acciones son `Editar` y `Eliminar`; en mobile `Editar` + menú `⋯` con `Eliminar cuenta`.
 - **Hero**: ícono por tipo, tipo de cuenta (y moneda cuando hay más de una) y saldo actual grande, en una tarjeta compacta con el mismo gradiente del dashboard. Si la cuenta es en moneda extranjera, muestra el equivalente en la moneda principal y la cotización usada.
@@ -157,11 +157,11 @@ El **formulario** (`AccountFormDialog`) es un editor visual: hero con ícono del
 - **Editar** reutiliza `AccountFormDialog`; **eliminar** usa el `ConfirmActionDialog` (bottom sheet en mobile, modal en desktop) con el detalle de la cuenta, la cantidad de movimientos y la advertencia de saldo antes de borrar (FR-CUE-003/005).
 - La ruta usa `?id=` en vez de `/accounts/:id` para ser compatible con el **static export** de Next; el id se lee con `useQueryParam`.
 
-### 4.4 `/transactions` — SC-004 (FR-TRX-001..005, 007, 008)
+### 4.4 `/transactions` — SC-004 (FR-TRX-001..004, 007, 011, 012)
 
-- **Lista de items** (`TransactionList`) agrupada por mes con subtotal neto y ⓘ que explica su fórmula, paginación client-side (NFR-PR-002) y menú por fila (editar/eliminar) desplegado desde el botón de acciones, también en mobile: ícono por tipo, descripción, `fecha · categoría · cuenta` y monto (color por signo); en mobile los montos de fila se muestran sin centavos. Cada fila abre la edición. **Las transferencias se colapsan en una sola fila** (`collapseTransfers` por `transferGroupId`, conservando la pata origen): subtítulo `fecha · Cuenta origen → destino` y monto **neutro** (sin verde/rojo); no afectan ingresos, gastos, ahorro ni patrimonio (CAL-003).
+- **Lista de items** (`TransactionList`) agrupada por mes con subtotal neto y ⓘ que explica su fórmula, paginación client-side (NFR-PR-002) y menú por fila (editar/eliminar) desplegado desde el botón de acciones, también en mobile: ícono por tipo, descripción, `fecha · categoría · cuenta` y monto (color por signo); en mobile los montos de fila se muestran sin centavos. Cada fila abre la edición. **Las transferencias se colapsan en una sola fila** (`collapseTransfers` por `transferGroupId`, conservando la pata origen): subtítulo `fecha · Cuenta origen → destino` y monto **neutro** (sin verde/rojo); no afectan ingresos, gastos, ahorro ni patrimonio (CAL-003). Historial paginado y agrupado por mes (FR-TRX-012).
 - **Búsqueda y filtros:** buscador por concepto, nota, categoría o monto, segmentado de tipo (`Todos/Ingresos/Gastos/Transferencias`) y filtros de cuenta, categoría, moneda y período. En mobile el buscador ocupa todo el ancho, no hay botón de filtros y los chips quedan siempre visibles; el chip de fecha muestra el mes activo. Los filtros se aplican en cliente sobre la página cargada (máx. 100 registros) y `Limpiar` los restablece. El filtro de moneda aparece solo cuando hay más de una moneda en uso.
-- **Exportar:** botón `Exportar` que descarga un CSV de los movimientos filtrados (fecha, tipo, descripción, categoría, cuenta, moneda, monto y notas).
+- **Exportar:** botón `Exportar` que descarga un CSV de los movimientos filtrados (fecha, tipo, descripción, categoría, cuenta, moneda, monto y notas; FR-TRX-011).
 - **CTA de alta**: `Exportar` + `Nuevo movimiento` en el `PageHeader` (desktop) y botón `+` en mobile; botón `Nuevo movimiento` en el estado vacío.
 - **Alta/edición** como editor moderno estilo app (`Dialog` desktop / bottom sheet mobile, FR-TRX-001/002/003): **segmented de tipo** (Gasto/Ingreso/Transferencia), campos con label persistente de cuenta y categoría (categoría obligatoria en ingreso/gasto, del **catálogo del sistema + propias**), **teclado numérico** (`AmountKeypad`) con operaciones `+ − × ÷`, **cálculo en vivo** (sin botón `=`), monto grande con signo por tipo y saldo disponible (oculto en transferencias), fecha + comentario y notas. El monto se evalúa con un evaluador propio (sin `eval`) en `transaction-form-dialog/amount-expression.ts` y se valida `> 0`. Si es transferencia, selector origen/destino que excluye la otra cuenta elegida; cuando las monedas difieren, se muestra la cotización editable (sugerida por la API o la última usada) y el monto que llega a destino. La cotización no se persiste (FR-TRX-002/004).
 - **Eliminar** con `DeleteTransactionDialog` sobre `ConfirmActionDialog`; en una transferencia elimina ambas patas y el texto de confirmación lo advierte.
@@ -178,10 +178,10 @@ El **formulario** (`AccountFormDialog`) es un editor visual: hero con ícono del
 
 Ver §10. Página propia en desktop y mobile: **`PageHeader`** con `Nuevo chat`, columna de chat centrada (máx. 780 px), **`ScrollArea`** para los mensajes, selector de período como único contexto, composer fijo al pie con envío/cancelación. Estado vacío con título y sugerencias (2×2 en desktop, 3 en mobile). **El asistente es de solo consulta**: no propone ni ejecuta escrituras, no guarda historial en el servidor (la conversación vive en memoria del cliente) y no tiene entrada por voz.
 
-### 4.7 `/profile` — SC-010 (perfil) y `/settings` (ajustes; FR-CFG-001/003)
+### 4.7 `/profile` — SC-010 (perfil) y `/settings` (ajustes; FR-CFG-001/003/004)
 
 - **`/profile`** (`ProfileMenu`): tarjeta de perfil (avatar con iniciales, nombre, email), contadores de cuentas/movimientos/categorías, accesos a **Categorías** y **Ajustes**, y **Cerrar sesión**. Es el ítem `Perfil` de la barra inferior.
-- **`/settings`** (`SettingsView`): editar el **nombre** y el **correo** del perfil (`PATCH /users/me`), cambiar la **contraseña** (`PATCH /users/me/password`, con contraseña actual), **Tema** (`Claro/Oscuro/Auto`), **Exportar movimientos (CSV)** y la **moneda principal** (visible cuando hay cuentas en más de una moneda). `Guardar cambios` vive en el header y se habilita al modificar nombre o correo; el cambio de contraseña tiene su propio botón. En mobile se muestran los mismos formularios dentro de Ajustes. No hay recuperación de contraseña ni interruptor de IA ni edición de cotizaciones.
+- **`/settings`** (`SettingsView`): editar el **nombre** y el **correo** del perfil (`PATCH /users/me`), cambiar la **contraseña** (`PATCH /users/me/password`, con contraseña actual), **Tema** (`Claro/Oscuro/Auto`), **Exportar movimientos (CSV)** y la **moneda principal** (`PATCH /users/me`, visible cuando hay cuentas en más de una moneda; FR-CFG-004). `Guardar cambios` vive en el header y se habilita al modificar nombre o correo; el cambio de contraseña tiene su propio botón. En mobile se muestran los mismos formularios dentro de Ajustes. No hay recuperación de contraseña ni interruptor de IA ni edición de cotizaciones.
 - **Sesión:** cerrar sesión (`POST /auth/logout`, FR-AUT-002).
 
 ---

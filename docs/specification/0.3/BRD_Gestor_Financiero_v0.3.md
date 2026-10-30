@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Versión | 0.3.2 |
+| Versión | 0.3.3 |
 | Estado | En desarrollo — versión preliminar, no finalizada |
 | Fecha | 27/10/2026 |
 | Sponsor Operación | Secretaría Académica UNAHUR |
@@ -29,6 +29,7 @@
 | 0.3 | 16/10/2026 | Barenghi, Thomas | Se ajusta el alcance de la versión y se consolida la documentación en torno a los flujos principales: acceso, cuentas, movimientos, panel y asistente de consulta. Se actualizan las reglas de negocio, los criterios de bondad, las pantallas y el glosario, y se amplían las historias de usuario para cubrir todos los módulos vigentes. |
 | 0.3.1 | 26/10/2026 | Barenghi, Thomas | Se alinea el documento con la implementación vigente: búsqueda y filtros de movimientos; gestión de categorías propias; preferencia local de tema; granularidad diaria y semanal del panel; continuidad de la conversación del asistente en memoria del cliente; multimoneda (moneda por cuenta, moneda principal, cotizaciones automáticas de la API consultadas en cada lectura y sin persistencia, transferencias multimoneda y selector de moneda de lectura); autenticación JWT stateless sin tabla de sesiones y con transporte exclusivo por cookie HttpOnly; consolidación de reglas y criterios para eliminar duplicidades; y retiro de requisitos de estados vacíos, atomicidad de transferencias, exportación CSV e insuficiencia del asistente. |
 | 0.3.2 | 27/10/2026 | Barenghi, Thomas | Se agrega la edición del correo electrónico y el cambio de contraseña desde el perfil, con validación de la contraseña actual; no se incorpora recuperación de contraseña. |
+| 0.3.3 | 27/10/2026 | Barenghi, Thomas | Se completan las historias de negocio de detalle de cuenta, historial de movimientos, exportación CSV, cambio de moneda principal y contadores del perfil. |
 
 ## 2. Alcance
 
@@ -108,6 +109,10 @@
 | US-021 | Como usuario registrado, quiero gestionar mis propias categorías, para clasificar mis movimientos según mis criterios. | Puedo crear, editar y eliminar categorías propias; las cinco del sistema son de solo lectura; al eliminar una propia sus movimientos quedan sin categoría. | Categorías (FR-CAT-001/002/003) · HU-016 |
 | US-022 | Como usuario registrado, quiero elegir el tema de la interfaz, para adaptarla a mis preferencias. | El tema (claro, oscuro o automático) se persiste localmente y no afecta los datos financieros. | Configuración (FR-CFG-001) · HU-017 |
 | US-023 | Como usuario registrado, quiero continuar una conversación con el asistente, para hacer preguntas de seguimiento sin repetir el contexto. | El asistente recibe los turnos recientes desde el cliente, no los persiste y responde con las cifras del período vigente. | Asistente (FR-IA-016) · HU-018 |
+| US-024 | Como usuario registrado, quiero elegir mi moneda principal, para expresar mi patrimonio en la moneda que uso habitualmente. | La moneda principal se cambia desde Ajustes, se persiste y el dashboard la usa como lectura por defecto sin alterar los datos financieros. | Configuración (FR-CFG-004) · HU-019 |
+| US-025 | Como usuario registrado, quiero consultar el detalle de una cuenta, para entender su saldo y sus movimientos. | El detalle muestra saldo inicial, saldo actual, indicadores del período y movimientos; permite editar, eliminar y transferir desde la cuenta. | Cuentas (FR-CUE-007) · HU-020 |
+| US-026 | Como usuario registrado, quiero consultar el historial de mis movimientos, para revisar mi actividad. | El historial se muestra paginado y agrupado por mes con subtotales; las transferencias se colapsan y cada movimiento abre su edición. | Movimientos (FR-TRX-012) · HU-021 |
+| US-027 | Como usuario registrado, quiero exportar mis movimientos a CSV, para analizarlos fuera de la aplicación. | Se exportan los movimientos visibles o filtrados, hasta 100, con fecha, tipo, descripción, categoría, cuenta, moneda, monto y notas. | Movimientos (FR-TRX-011) · HU-022 |
 
 ### 4.2. Criterios de Bondad
 
