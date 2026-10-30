@@ -45,11 +45,11 @@ When adding or changing a feature:
 
 ## 3. What MUST be tested
 
-- **Critical (P0) flows (E2E):** register/login/logout, create income/expense, create transfer (atomic, no consolidation impact), manage budget, view dashboard, AI assistant question (HU-001/002/003/006).
+- **Critical (P0) flows (E2E):** register/login/logout, create income/expense, create transfer (atomic, no consolidation impact), manage budget, view dashboard, AI assistant question (HU-001/002/003).
 - **Financial/formatting logic (unit):** `lib/format.ts` (currency, date, percent) and any client-side aggregation/sorting.
 - **Data hooks (unit/integration):** query key construction, filters, mutation invalidation, error/`401` handling, refresh flow.
 - **Forms (component):** required-field validation, `> 0` amount rule, transfer requires different accounts, backend `fieldErrors` mapped to fields.
-- **States (component):** loading (`Skeleton`), empty (`EmptyState` with CTA), error, and success for every data view (FR-DAS-008).
+- **States (component):** loading (`Skeleton`), empty (`EmptyState` with CTA), error, and success for every data view (FR-DAS-002).
 - **Accessibility-relevant behavior:** charts expose an accessible name and a tabular alternative; status is not conveyed by color alone.
 
 Not required: shadcn generated primitives, pure styling, third-party internals, trivial pass-through components.

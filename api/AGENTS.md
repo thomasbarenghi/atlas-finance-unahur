@@ -10,7 +10,7 @@ Atlass Fin backend: a **NestJS monolith** exposing a REST API for the web/native
 
 ## Source of truth (READMEs / docs)
 
-- `../docs/architecture/backend.md` — architecture, data model, auth, **REST contract** (DTOs, enums, errors §7.9–§7.13), calculations, integrations, security, seed, env, batches plan.
+- `../docs/architecture/backend.md` — architecture, data model, auth, **REST contract** (DTOs, enums, errors §7.9–§7.12), calculations, integrations, security, seed, env.
 - `../docs/architecture/frontend.md` — the consumer; useful to keep contracts aligned.
 - `../docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
 
@@ -44,13 +44,13 @@ Run `lint`, `typecheck`, `test`, and `build` before considering a task done. CI 
 
 1. **Controllers are thin.** Only routing, decorators, DTOs. Zero business logic — delegate to services.
 2. **One service method per use case**, imperative name (`createAccount`, `transferBetweenAccounts`).
-3. **Never trust client IDs.** Resolve ownership from the authenticated user (`@CurrentUser()`) on every read/write; a client-supplied ID grants no authorization (NFR-SEG-001/005).
+3. **Never trust client IDs.** Resolve ownership from the authenticated user (`@CurrentUser()`) on every read/write; a client-supplied ID grants no authorization (NFR-SEG-001).
 4. **Never expose entities.** Map to DTOs; DB is `snake_case`, API JSON is `camelCase`; decimals serialize as `number`.
 5. **Validate everything** with `class-validator` DTOs + global `ValidationPipe` (`whitelist`, `forbidNonWhitelisted`).
 6. **Transactions for multi-row writes** (`dataSource.transaction()`), e.g. transfers (two atomic rows, `transfer_group_id`).
-7. **Calculations are centralized** in `calculations.service` (CAL-001/002/003/010). The dashboard and the AI must reuse it — never duplicate a formula.
-8. **Stable error codes** from `backend.md` §7.17; never leak internal details.
-9. **Secrets only in env**; never log passwords, tokens, full prompts, or sensitive financial data (NFR-SEG-007/008).
+7. **Calculations are centralized** in `calculations.service` (CAL-001/002/003/004). The dashboard and the AI must reuse it — never duplicate a formula.
+8. **Stable error codes** from `backend.md` §7.12; never leak internal details.
+9. **Secrets only in env**; never log passwords, tokens, full prompts, or sensitive financial data (NFR-SEG-003).
 10. **Named exports** (NestJS convention); no `export default`.
 11. **No real financial data** in the seed; demo users share `Demo1234!` (`demo@atlassfin.app` full dataset, `sin-datos@atlassfin.app` empty, `ana@atlassfin.app` minimal dataset for isolation). Deterministic and reproducible — see `../docs/architecture/backend.md` §11.
 12. **Orchestrate across domains.** A primary service never calls another service; coordination belongs to an orchestrator (see the `orchestrator-domain-architecture` skill).
@@ -65,8 +65,8 @@ api/
 │   ├── config/          # carga de env
 │   ├── database/        # datasource, maintenance scripts + seeds
 │   ├── common/          # guards, decorators, filters, dto
-│   ├── <feature>/       # auth, users, admin, accounts, transactions,
-│   │                    # categories, dashboard, assistant
+│   ├── <feature>/       # auth, users, accounts, transactions,
+│   │                    # categories, currencies, dashboard, assistant
 │   └── shared/          # calculations, account-balances, ai
 ├── test/                # e2e
 └── .env.example

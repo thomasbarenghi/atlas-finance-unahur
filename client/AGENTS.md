@@ -10,7 +10,7 @@ Atlass Fin web app: a personal-finance client (accounts, transactions with syste
 
 ## Source of truth (READMEs / docs)
 
-- `../docs/architecture/frontend.md` — site map, per-page features, file structure, auth, charts, AI, batches plan.
+- `../docs/architecture/frontend.md` — site map, per-page features, file structure, auth, charts, AI.
 - `../docs/architecture/backend.md` — REST contract (DTOs, enums, errors, streaming) this client consumes.
 - `../docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
 
@@ -44,7 +44,7 @@ Run `format:check`, `lint`, `typecheck`, and `build` before considering a task d
 3. **Named exports and arrow functions only**, except Next.js special files (`page.tsx`, `layout.tsx`, etc.) — see the quality skill.
 4. **No direct `fetch` in components.** Data goes through `lib/query/*`; HTTP through `lib/api/client.ts`.
 5. **`lib/` is portable.** It must not import `next/*` or components, so it stays framework-agnostic.
-6. **Match the backend contract.** JSON is `camelCase`; dates `YYYY-MM-DD`; timestamps ISO 8601 UTC; decimals are `number`. Types in `lib/api/types.ts` mirror `../docs/architecture/backend.md` §7.9–§7.13.
+6. **Match the backend contract.** JSON is `camelCase`; dates `YYYY-MM-DD`; timestamps ISO 8601 UTC; decimals are `number`. Types in `lib/api/types.ts` mirror `../docs/architecture/backend.md` §7.9–§7.12.
 7. **No secrets.** Only `NEXT_PUBLIC_*` public env; never hardcode tokens/keys.
 8. **No real financial data.** Use the backend seed; demo login `demo@atlassfin.app` / `Demo1234!`.
 
@@ -69,6 +69,6 @@ client/
 
 ## Navigation behavior
 
-- Desktop (≥ `md`): fixed sidebar with navigation, accounts summary and the account menu.
+- Desktop (≥ `md`): fixed sidebar with navigation, accounts summary and the user block at the bottom that links to `/profile` (no account dropdown menu).
 - Mobile: bottom app-style bar with 4 equal items (`Inicio`, `Movimientos`, `Asistente`, `Perfil`); `Categories` and `Settings` are reachable from `Profile`.
 - `Ajustes` includes local theme (`Claro/Oscuro/Auto`), CSV export and the **primary currency** selector. The dashboard header has a **reading-currency** selector before the period; it re-expresses the values without altering data.

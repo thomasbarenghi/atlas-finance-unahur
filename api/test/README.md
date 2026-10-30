@@ -44,8 +44,9 @@ test/
 │   ├── scenario.ts              # escenario base de finanzas
 │   └── assistant.ts             # stub de AiService + parser SSE
 └── requirements/
-    ├── FR-AUT-001.e2e-spec.ts   # un archivo por requerimiento
-    └── CAL-010.e2e-spec.ts
+    ├── FR-AUT-001.e2e-spec.ts          # uno o más archivos por requerimiento
+    ├── FR-CUE-001-campos.e2e-spec.ts    # los casos agrupados conservan el ID real
+    └── CAL-004.e2e-spec.ts
 ```
 
 ## Notas
