@@ -32,13 +32,13 @@
 
 ### 2.1 Descripción del Proyecto/Objetivos
 
-Desarrollar una aplicación web de gestión financiera personal que permita registrar cuentas y movimientos, organizarlos con categorías, y consultar la evolución del patrimonio y del flujo de fondos desde una vista consolidada, con cálculos trazables y un asistente de inteligencia artificial de solo consulta, siempre disponible con sesión válida.
+Desarrollar una aplicación web para organizar las finanzas personales. Permitirá registrar cuentas y movimientos, clasificarlos con categorías y ver la evolución del patrimonio y del flujo de fondos en un solo lugar. Los cálculos serán trazables y el asistente de IA será de solo consulta, disponible con sesión iniciada.
 
-Los objetivos específicos son consolidar las cuentas en una vista patrimonial; registrar ingresos, gastos y transferencias con categorías; mostrar gráficos de patrimonio y flujo de fondos; incorporar un asistente de inteligencia artificial explicativo, de solo consulta y siempre disponible con sesión válida; y proteger la privacidad mediante autenticación, autorización por propietario y minimización de datos.
+Los objetivos específicos son consolidar las cuentas en una vista patrimonial; registrar ingresos, gastos y transferencias con categorías; mostrar gráficos de patrimonio y flujo de fondos; ofrecer un asistente de IA explicativo, de solo consulta y disponible con sesión iniciada; y proteger la privacidad con autenticación, autorización por propietario y minimización de datos.
 
 ### 2.2 Justificación
 
-Muchas personas administran su economía mediante hojas de cálculo, aplicaciones aisladas o registros parciales, lo que dificulta comprender el patrimonio total y controlar los gastos. Centralizar esa información en una solución académica permite mostrar una fotografía financiera comprensible, mantener trazabilidad de los cálculos y permitir consultas en lenguaje natural del asistente, sin exceder los permisos del usuario y sin que la interacción modifique sus datos.
+Muchas personas administran su economía con planillas, aplicaciones aisladas o registros parciales, y les cuesta ver su patrimonio total o controlar sus gastos. Centralizar esa información en una solución académica permite mostrar una foto financiera clara, mantener la trazabilidad de los cálculos y hacer consultas en lenguaje natural, sin superar los permisos del usuario y sin modificar sus datos.
 
 ### 2.3 Hipótesis
 
@@ -46,7 +46,7 @@ Centralizar la información financiera en una única aplicación con cálculos t
 
 ### 2.4 Restricciones
 
-La solución será una aplicación web con frontend React, componentes shadcn/ui y API NestJS sobre PostgreSQL, dimensionada para un proyecto universitario demostrable y extensible. El proveedor de IA implementado es DeepSeek (compatible con OpenAI) y se documenta en `docs/architecture/backend.md` §9. No se almacenarán credenciales bancarias ni claves privadas de billeteras. La precisión del asistente depende de la calidad y actualidad de los datos cargados por el usuario.
+La solución será una aplicación web con React, componentes shadcn/ui y una API NestJS sobre PostgreSQL. Está pensada como un proyecto universitario demostrable y extensible. El proveedor de IA es DeepSeek (compatible con OpenAI) y se documenta en `docs/architecture/backend.md` §9. No se guardarán credenciales bancarias ni claves privadas de billeteras. La precisión del asistente depende de los datos que cargue el usuario.
 
 Límite funcional: la aplicación organiza y explica información cargada por el usuario. No se conecta a bancos, no ejecuta pagos ni operaciones de inversión y no brinda asesoramiento financiero.
 
