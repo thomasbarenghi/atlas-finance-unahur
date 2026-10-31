@@ -27,6 +27,14 @@ describe("AssistantChat", () => {
     window.localStorage.clear();
   });
 
+  it("labels the period like the dashboard", () => {
+    renderChat();
+
+    expect(
+      screen.getByRole("combobox", { name: "Período del asistente" }),
+    ).toHaveTextContent("Este mes");
+  });
+
   it("streams an answer for a suggested question", async () => {
     const user = userEvent.setup();
     renderChat();
@@ -100,6 +108,44 @@ describe("AssistantChat", () => {
       { role: "user", content: "primera pregunta" },
       { role: "assistant", content: "ok" },
     ]);
+  });
+
+  it("sends the active reading currency", async () => {
+    const bodies: { currency?: string }[] = [];
+    server.use(
+      http.post("*/assistant/messages", async ({ request }) => {
+        bodies.push((await request.json()) as { currency?: string });
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream<Uint8Array>({
+          start: (controller) => {
+            controller.enqueue(
+              encoder.encode(
+                'event: token\ndata: {"delta":"ok"}\n\nevent: done\ndata: {"insufficient":false}\n\n',
+              ),
+            );
+            controller.close();
+          },
+        });
+        return new HttpResponse(stream, {
+          headers: { "Content-Type": "text/event-stream" },
+        });
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderWithProviders(<AssistantPage />, {
+      user: makeUser(),
+      period: { from: "2000-01-01", to: "2100-01-01" },
+      readingCurrency: "USD",
+    });
+
+    await user.type(
+      screen.getByLabelText("Pregunta para el asistente"),
+      "¿Cuánto gasté?{Enter}",
+    );
+
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0].currency).toBe("USD");
   });
 
   it("submits a typed question with the send button", async () => {

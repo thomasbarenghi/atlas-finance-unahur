@@ -98,6 +98,39 @@ describe("FR-TRX-001 · Editar y eliminar movimientos", () => {
       .expect(404);
   });
 
+  it("rechaza cambiar el tipo de un movimiento", async () => {
+    const user = await registerUser(ctx.app);
+    const account = await createAccount(ctx.app, user.accessToken);
+    const category = await categoryByName(
+      ctx.app,
+      user.accessToken,
+      "Supermercado",
+    );
+    const created = await createTransaction(ctx.app, user.accessToken, {
+      type: "expense",
+      amount: 100,
+      date: isoDate(),
+      description: "No se convierte en transferencia",
+      accountId: account.id,
+      categoryId: category.id,
+    });
+
+    const rejected = await request(ctx.server)
+      .patch(`/api/transactions/${created.id}`)
+      .set(authCookie(user.accessToken))
+      .send({ type: "transfer" })
+      .expect(400);
+    expect(rejected.body.code).toBe("VALIDATION_ERROR");
+
+    const stored = await request(ctx.server)
+      .get(`/api/transactions/${created.id}`)
+      .set(authCookie(user.accessToken))
+      .expect(200);
+    expect(stored.body.type).toBe("expense");
+    expect(stored.body.transferAccountId).toBeNull();
+    expect(stored.body.transferGroupId).toBeNull();
+  });
+
   it("rechaza una edición que deje el gasto sin categoría", async () => {
     const user = await registerUser(ctx.app);
     const account = await createAccount(ctx.app, user.accessToken);

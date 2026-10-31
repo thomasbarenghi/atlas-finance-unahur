@@ -22,6 +22,7 @@ describe("NetWorthHero", () => {
     expect(screen.getByText("Patrimonio neto")).toBeInTheDocument();
     expect(screen.getByText("Ingresos")).toBeInTheDocument();
     expect(screen.getByText("Tasa de ahorro")).toBeInTheDocument();
+    expect(screen.getByText("desde el inicio del período")).toBeInTheDocument();
     expect(screen.queryByText("Ver desglose")).not.toBeInTheDocument();
     expect(screen.getByText("USD")).toBeInTheDocument();
     expect(

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { usePeriod } from "@/hooks/use-period";
+import { useReadingCurrency } from "@/hooks/use-reading-currency";
 import { streamAssistantMessage } from "@/lib/api/assistant-stream";
 import { getErrorMessage } from "@/lib/api/errors";
 import type { AssistantHistoryMessage } from "@/lib/api/types";
@@ -16,6 +17,7 @@ export interface AssistantChatMessage {
 
 export const useAssistantConversation = () => {
   const { range } = usePeriod();
+  const { currency } = useReadingCurrency();
   const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -72,7 +74,7 @@ export const useAssistantConversation = () => {
       }, 30_000);
       try {
         await streamAssistantMessage(
-          { question, period: range, history },
+          { question, period: range, currency, history },
           {
             onToken: (delta) => {
               if (!mountedRef.current) return;
@@ -117,7 +119,7 @@ export const useAssistantConversation = () => {
         requestAnimationFrame(scrollToBottom);
       }
     },
-    [range, updateMessage, scrollToBottom],
+    [range, currency, updateMessage, scrollToBottom],
   );
 
   const submit = useCallback(

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import userEvent from "@testing-library/user-event";
@@ -80,6 +81,24 @@ const renderDialog = (
     />,
   );
 
+const ReopenHarness = () => {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Abrir
+      </button>
+      <TransactionFormDialog
+        open={open}
+        onOpenChange={setOpen}
+        accounts={[ARS_ACCOUNT]}
+        categories={[EXPENSE_CATEGORY, INCOME_CATEGORY]}
+      />
+    </>
+  );
+};
+
 const server = setupTestServer();
 
 const captureTransactionPost = () => {
@@ -134,6 +153,25 @@ describe("TransactionFormDialog", () => {
       payload as unknown as Record<string, unknown>,
     );
     expect(result.errors).toEqual([]);
+  });
+
+  it("resets the form when the dialog is reopened", async () => {
+    const user = userEvent.setup();
+    const getBody = captureTransactionPost();
+    renderWithProviders(<ReopenHarness />);
+
+    await openCategory(user);
+    await typeAmount(user, "5000");
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    await user.click(screen.getByRole("button", { name: "Abrir" }));
+    await openCategory(user);
+    await typeAmount(user, "1500");
+    await user.type(screen.getByPlaceholderText("Opcional"), "Reabierto");
+    await user.click(screen.getByRole("button", { name: "Crear movimiento" }));
+
+    await waitFor(() => expect(getBody()).toBeDefined());
+    expect(getBody()!.amount).toBe(1500);
   });
 
   it("rejects an empty description and a zero amount without calling the API", async () => {

@@ -167,14 +167,14 @@ export const CategoriesView = () => {
           isDesktop ? null : (
             <span className="ml-auto flex items-center gap-2">
               {currencySelect}
-              <PeriodSelector showCalendar display="month" />
+              <PeriodSelector showCalendar />
             </span>
           )
         }
         actions={
           <>
-            {isDesktop ? <PeriodSelector showCalendar display="month" /> : null}
             {isDesktop ? currencySelect : null}
+            {isDesktop ? <PeriodSelector showCalendar /> : null}
             {isDesktop ? tabs : null}
             <ResponsiveActionButton
               label="Nueva categoría"

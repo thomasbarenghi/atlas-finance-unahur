@@ -74,6 +74,23 @@ describe("AccountDetailView", () => {
     expect(screen.getByText(/Movimientos/)).toBeInTheDocument();
   });
 
+  it("labels the account indicators without a period scope", async () => {
+    const user = userEvent.setup();
+    setSearchParams(new URLSearchParams({ id: bankId() }));
+    renderWithProviders(<AccountDetailView />);
+
+    await screen.findAllByText("Banco ARS");
+    await user.click(
+      screen.getByRole("button", { name: "Información sobre Ingresos" }),
+    );
+    expect(screen.getAllByText(/Ingresos de la cuenta/).length).toBeGreaterThan(
+      0,
+    );
+    expect(
+      screen.queryByText(/del período en esta cuenta/),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows a not-found state for an unknown id", async () => {
     setSearchParams(new URLSearchParams({ id: "missing" }));
     renderWithProviders(<AccountDetailView />);

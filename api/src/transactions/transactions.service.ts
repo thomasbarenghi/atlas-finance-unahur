@@ -120,13 +120,21 @@ export class TransactionsService {
   ): Promise<TransactionResponseDto> {
     const transaction = await this.findOwnedTransaction(userId, id);
 
+    if (dto.type !== undefined && dto.type !== transaction.type) {
+      throw new ApiException(
+        ErrorCode.VALIDATION_ERROR,
+        HttpStatus.BAD_REQUEST,
+        "El tipo de movimiento no se puede cambiar",
+        { type: ["El tipo no se modifica una vez creado"] },
+      );
+    }
+
     if (transaction.type === "transfer" && transaction.transferGroupId) {
       return this.updateTransfer(userId, transaction, dto);
     }
 
     if (dto.accountId) transaction.accountId = dto.accountId;
     if (dto.categoryId !== undefined) transaction.categoryId = dto.categoryId;
-    if (dto.type !== undefined) transaction.type = dto.type;
     if (transaction.type !== "transfer" && !transaction.categoryId) {
       throw new ApiException(
         ErrorCode.VALIDATION_ERROR,

@@ -4,6 +4,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "@/hooks/use-auth";
 import { PeriodContext, type PeriodContextValue } from "@/hooks/use-period";
+import {
+  ReadingCurrencyContext,
+  type ReadingCurrencyContextValue,
+} from "@/hooks/use-reading-currency";
 import { ThemeProvider } from "next-themes";
 import type { PeriodRange, User } from "@/lib/api/types";
 import { makeUser } from "./factories";
@@ -44,6 +48,7 @@ export interface RenderWithProvidersOptions extends Omit<
   user?: User | null;
   auth?: Partial<AuthContextValue>;
   period?: PeriodRange;
+  readingCurrency?: string;
   queryClient?: QueryClient;
   /**
    * Renders under `StrictMode` as the root element. React only double-invokes
@@ -60,6 +65,7 @@ export const renderWithProviders = (
     user,
     auth,
     period = defaultPeriod,
+    readingCurrency,
     queryClient = createTestQueryClient(),
     strict = false,
     ...renderOptions
@@ -67,20 +73,26 @@ export const renderWithProviders = (
 
   const authValue = makeAuthValue({ user, ...auth });
   const periodValue = makePeriodValue({ range: period });
+  const readingCurrencyValue: ReadingCurrencyContextValue = {
+    currency: readingCurrency,
+    setCurrency: vi.fn(),
+  };
 
   const providers = (children: ReactNode) => (
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={authValue}>
         <PeriodContext.Provider value={periodValue}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="light"
-            enableSystem
-            storageKey="atlassfin.preferences.theme"
-            disableTransitionOnChange
-          >
-            {children}
-          </ThemeProvider>
+          <ReadingCurrencyContext.Provider value={readingCurrencyValue}>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="light"
+              enableSystem
+              storageKey="atlassfin.preferences.theme"
+              disableTransitionOnChange
+            >
+              {children}
+            </ThemeProvider>
+          </ReadingCurrencyContext.Provider>
         </PeriodContext.Provider>
       </AuthContext.Provider>
     </QueryClientProvider>
@@ -107,25 +119,32 @@ export const renderHookWithProviders = <Result, Props>(
     user,
     auth,
     period = defaultPeriod,
+    readingCurrency,
     queryClient = createTestQueryClient(),
   } = options;
 
   const authValue = makeAuthValue({ user, ...auth });
   const periodValue = makePeriodValue({ range: period });
+  const readingCurrencyValue: ReadingCurrencyContextValue = {
+    currency: readingCurrency,
+    setCurrency: vi.fn(),
+  };
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={authValue}>
         <PeriodContext.Provider value={periodValue}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="light"
-            enableSystem
-            storageKey="atlassfin.preferences.theme"
-            disableTransitionOnChange
-          >
-            {children}
-          </ThemeProvider>
+          <ReadingCurrencyContext.Provider value={readingCurrencyValue}>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="light"
+              enableSystem
+              storageKey="atlassfin.preferences.theme"
+              disableTransitionOnChange
+            >
+              {children}
+            </ThemeProvider>
+          </ReadingCurrencyContext.Provider>
         </PeriodContext.Provider>
       </AuthContext.Provider>
     </QueryClientProvider>

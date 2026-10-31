@@ -19,6 +19,7 @@ export class ExchangeRatesProvider {
     try {
       const { data } = await axios.get<RatesPayload>(RATES_URL, {
         timeout: 6_000,
+        maxRedirects: 0,
       });
       const base = data[BASE_CURRENCY.toLowerCase()] as
         Record<string, number> | undefined;

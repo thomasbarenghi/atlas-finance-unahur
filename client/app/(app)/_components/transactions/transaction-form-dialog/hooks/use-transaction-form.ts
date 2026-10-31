@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
@@ -219,6 +219,30 @@ export const useTransactionForm = ({
   const amountInput = useAmountInput(initialAmount, (nextAmount) =>
     form.setValue("amount", nextAmount, { shouldValidate: false }),
   );
+
+  const resetFormRef = useRef<() => void>(() => undefined);
+
+  useEffect(() => {
+    resetFormRef.current = () => {
+      form.reset({
+        type: defaultType,
+        amount: initialAmount,
+        date: transaction?.date ?? todayIso(),
+        accountId: transaction?.accountId ?? firstAccountId,
+        transferAccountId: transaction?.transferAccountId ?? undefined,
+        categoryId: transaction?.categoryId ?? undefined,
+        description: transaction?.description ?? "",
+        notes: transaction?.notes ?? "",
+      });
+      amountInput.reset(initialAmount);
+      setRateOverride(null);
+    };
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    resetFormRef.current();
+  }, [open, transaction?.id]);
 
   useEffect(() => {
     if (!open) return;

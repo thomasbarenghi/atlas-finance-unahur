@@ -14,7 +14,7 @@
 
 - Historial de Cambios
 - Alcance 2.1. Descripción del Proyecto / Objetivos 2.2. Justificación 2.3. Hipótesis 2.4. Restricciones 2.5. Dependencias 2.6. Alcance del Proyecto
-- Requerimientos de Negocio 3.1. Reglas de Negocio
+- Requerimientos de Negocio 3.1. Reglas de Negocio 3.2. Casos de Estudio
 - Requerimientos Funcionales 4.1. Historias de Usuario 4.2. Criterios de Bondad
 - Pantallas de Usuario
 - Glosario
@@ -70,7 +70,7 @@
 
 **La búsqueda y los filtros operan sobre los movimientos cargados en la vista (hasta 100 registros) y el uso de categorías se calcula sobre esos movimientos; el panel y los cálculos se resuelven en el servidor con el conjunto completo de movimientos del período.**
 
-**Quedan fuera de alcance la sincronización automática con bancos o billeteras, la ejecución de pagos u operaciones reales, la compraventa de activos y la conexión de billeteras digitales, el asesoramiento financiero, legal, impositivo o contable, la liquidación de impuestos y la conciliación bancaria avanzada, las cuentas familiares o multiusuario con permisos compartidos, las aplicaciones móviles nativas, las notificaciones push y las automatizaciones complejas, y una aplicación para iOS. Las capacidades de gestión patrimonial avanzada y de integración con proveedores de mercado quedan para una iteración posterior.**
+**Quedan fuera de alcance la conexión con bancos o billeteras, la ejecución de pagos reales y el asesoramiento financiero, legal o impositivo: la aplicación se limita a organizar y explicar la información que carga el usuario.**
 
 ## 3. Requerimientos de Negocio
 
@@ -141,7 +141,7 @@ Las historias de negocio describen el valor esperado para el usuario. El detalle
 
 | ID | Regla | Resultado esperado |
 |---|---|---|
-| CAL-001 | Patrimonio neto | Σ (saldo × cotización) de las cuentas, en la moneda de lectura. |
+| CAL-001 | Patrimonio neto | Σ (saldo × cotización) de las cuentas del usuario, en la moneda de lectura. |
 | CAL-002 | Flujo de fondos | Σ ingresos − Σ gastos del período, convirtiendo cada flujo a la moneda de lectura. |
 | CAL-003 | Transferencias | Se excluyen de ingresos y gastos consolidados. |
 | CAL-004 | Tasa de ahorro | Ahorro del período / ingresos del período × 100, sobre los flujos convertidos a la moneda de lectura. Su variación se expresa en puntos porcentuales. |

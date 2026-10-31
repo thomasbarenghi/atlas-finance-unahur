@@ -31,8 +31,7 @@ describe("getPeriodLabel", () => {
     expect(getPeriodLabel("6m", october)).toBe("6 meses");
   });
 
-  it("shows the month title or the short 30-day label when requested", () => {
-    expect(getPeriodLabel("month", october, "month")).toBe("Octubre 2026");
+  it("shows the short 30-day label when requested", () => {
     expect(getPeriodLabel("last-30-days", october, "short")).toBe("30 días");
   });
 });

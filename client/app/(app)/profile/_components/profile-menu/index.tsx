@@ -35,7 +35,7 @@ export const ProfileMenu = () => {
 
         <div className="border-line2 grid grid-cols-3 gap-0 border-t pt-2.5">
           <Stat label="Cuentas" value={accounts.length} />
-          <Stat label="Movimientos" value={transactions?.items.length ?? 0} />
+          <Stat label="Movimientos" value={transactions?.total ?? 0} />
           <Stat label="Categorías" value={categories.length} />
         </div>
       </section>

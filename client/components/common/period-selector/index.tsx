@@ -17,7 +17,6 @@ import {
 
 export interface PeriodSelectorProps {
   showCalendar?: boolean;
-  display?: "preset" | "month";
 }
 
 const TRIGGER_CLASS =
@@ -25,14 +24,9 @@ const TRIGGER_CLASS =
 
 export const PeriodSelector = ({
   showCalendar = false,
-  display = "preset",
 }: PeriodSelectorProps) => {
   const { preset, range, setPreset } = usePeriod();
-  const value = getPeriodLabel(
-    preset,
-    range,
-    display === "month" ? "month" : "preset",
-  );
+  const value = getPeriodLabel(preset, range);
 
   return (
     <Select

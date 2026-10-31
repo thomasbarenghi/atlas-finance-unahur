@@ -92,7 +92,7 @@ erDiagram
 | `created_at` | timestamptz | no | |
 | `updated_at` | timestamptz | no | |
 
-> Saldo actual = `initial_balance` + Σ movimientos de la cuenta (calculado, FR-CUE-002), en la moneda de la cuenta.
+> Saldo actual = `initial_balance` + Σ movimientos con signo de la cuenta (calculado, FR-CUE-002), en la moneda de la cuenta: los ingresos suman, los gastos restan y cada pata de transferencia aporta su signo.
 > Eliminar la cuenta elimina en cascada los movimientos en los que participa, incluidas ambas patas de una transferencia (FR-CUE-003). La moneda no se puede cambiar si ya tiene movimientos (FR-CUE-001).
 
 ### `categories` — Categoría (sistema + propias)
@@ -141,6 +141,6 @@ erDiagram
   cuenta; la cotización usada en la UI no se persiste. Se excluyen de
   ingresos/gastos consolidados (CAL-003). Eliminar una de las cuentas
   involucradas elimina ambas patas (FR-CUE-003).
-- **CAL-001 Patrimonio neto:** Σ (saldo × cotización) de las cuentas, en la moneda de lectura.
+- **CAL-001 Patrimonio neto:** Σ (saldo × cotización) de las cuentas del usuario, en la moneda de lectura.
 - **CAL-002 Flujo de fondos:** Σ ingresos − Σ gastos del período, convirtiendo cada flujo a la moneda de lectura.
 - **Moneda:** multimoneda con cotizaciones globales provistas por la API; cada cuenta declara su moneda y el patrimonio se convierte a la moneda de lectura. Las cotizaciones **no se persisten**: se consultan a la API en cada lectura.

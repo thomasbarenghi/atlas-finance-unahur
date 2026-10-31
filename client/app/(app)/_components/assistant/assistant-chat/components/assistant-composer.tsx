@@ -33,7 +33,7 @@ export const AssistantComposer = ({
   onCancel,
 }: AssistantComposerProps) => {
   const { preset, range, setPreset } = usePeriod();
-  const periodLabel = getPeriodLabel(preset, range, "month");
+  const periodLabel = getPeriodLabel(preset, range);
 
   return (
     <div className="mx-auto flex w-full max-w-[780px] flex-col gap-2 pt-2 pb-3">

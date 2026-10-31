@@ -73,7 +73,7 @@ El período de análisis (Este mes, Últimos 30 días, 6 meses y 12 meses) es co
 
 La búsqueda y los filtros operan sobre los movimientos cargados en la vista (hasta 100 registros). El uso de categorías se calcula sobre esos movimientos. El dashboard y los cálculos se resuelven en el servidor con el conjunto completo de movimientos del período.
 
-Quedan fuera de alcance la sincronización automática con bancos o billeteras, la ejecución de pagos u operaciones reales, la compraventa de activos y la conexión de billeteras digitales, el asesoramiento financiero, legal, impositivo o contable, la liquidación de impuestos y la conciliación bancaria avanzada, las cuentas familiares o multiusuario con permisos compartidos, las aplicaciones móviles nativas, las notificaciones push y las automatizaciones complejas, y una aplicación para iOS. Las capacidades de gestión patrimonial avanzada y de integración con proveedores de mercado quedan para una iteración posterior.
+Quedan fuera de alcance la conexión con bancos o billeteras, la ejecución de pagos reales y el asesoramiento financiero, legal o impositivo: la aplicación se limita a organizar y explicar la información que carga el usuario.
 
 **Actores**
 
@@ -128,7 +128,7 @@ Quedan fuera de alcance la sincronización automática con bancos o billeteras, 
 
 ## 4. Requerimientos Funcionales
 
-### 4.1 User Stories
+### 4.1 Historias de Usuario
 
 | Historia | Descripción | Criterios de aceptación |
 |---|---|---|
@@ -139,7 +139,7 @@ Quedan fuera de alcance la sincronización automática con bancos o billeteras, 
 | HU-005 — Gestionar mis cuentas | Como usuario registrado, quiero crear, editar y eliminar mis cuentas para reflejar dónde está mi dinero. | • Se registran nombre, tipo, moneda y saldo inicial.<br>• El saldo actual se calcula desde los movimientos.<br>• La moneda no se cambia si hay movimientos.<br>• Eliminar la cuenta elimina sus movimientos. |
 | HU-006 — Ver el resumen del panel | Como usuario registrado, quiero ver mi patrimonio, ingresos, gastos y ahorro del período para entender mi situación de un vistazo. | • Muestra el patrimonio actual y los flujos del período.<br>• Incluye todas las monedas en la moneda de lectura. |
 | HU-007 — Ver los gráficos del panel | Como usuario registrado, quiero ver la evolución del patrimonio, la comparación entre ingresos y gastos y la distribución de gastos por categoría. | • Muestra los tres gráficos del período.<br>• La granularidad se adapta a la duración del rango. |
-| HU-008 — Corregir un movimiento | Como usuario registrado, quiero editar o eliminar un movimiento propio para arreglar errores de carga. | • Solo se editan o eliminan movimientos del usuario autenticado.<br>• Los saldos, el panel y los cálculos se actualizan en consecuencia. |
+| HU-008 — Corregir un movimiento | Como usuario registrado, quiero editar o eliminar un movimiento propio para arreglar errores de carga. | • Solo se editan o eliminan movimientos del usuario autenticado.<br>• El tipo no se modifica al editar.<br>• Los saldos, el panel y los cálculos se actualizan en consecuencia. |
 | HU-009 — Elegir el período | Como usuario registrado, quiero elegir el período de análisis. | • El período (Este mes, Últimos 30 días, 6 meses, 12 meses) es compartido por panel, movimientos, categorías y asistente.<br>• El período seleccionado afecta a los indicadores y gráficos. |
 | HU-010 — Límites del asistente | Como usuario registrado, quiero que el asistente solo consulte información. | • El asistente no crea, edita ni elimina información. |
 | HU-011 — Proteger mis datos | Como usuario registrado, quiero que mi información quede separada de la de otros usuarios. | • El servidor verifica la pertenencia de cada recurso al usuario autenticado antes de leerlo o modificarlo. |
@@ -150,7 +150,7 @@ Quedan fuera de alcance la sincronización automática con bancos o billeteras, 
 | HU-016 — Cambiar mi moneda principal | Como usuario registrado, quiero elegir mi moneda principal para expresar mi patrimonio en la moneda que uso habitualmente. | • Se cambia en Ajustes y se persiste.<br>• El dashboard la usa como lectura por defecto.<br>• No modifica saldos ni movimientos. |
 | HU-017 — Consultar el detalle de una cuenta | Como usuario registrado, quiero ver el detalle de una cuenta para entender su saldo y sus movimientos. | • Muestra datos, saldos, indicadores y movimientos de la cuenta.<br>• Permite editar y eliminar.<br>• Solo cuentas propias. |
 | HU-018 — Consultar el historial de movimientos | Como usuario registrado, quiero consultar el historial de mis movimientos para revisar mi actividad. | • Historial paginado y agrupado por mes.<br>• Transferencias colapsadas en una fila.<br>• Cada movimiento abre su edición. |
-| HU-019 — Exportar movimientos a CSV | Como usuario registrado, quiero exportar mis movimientos a CSV para analizarlos fuera de la aplicación. | • Se puede descargar un CSV con los movimientos.<br>• Si no hay movimientos, no se descarga. |
+| HU-019 — Exportar movimientos a CSV | Como usuario registrado, quiero exportar mis movimientos a CSV para analizarlos fuera de la aplicación. | • Se puede descargar un CSV con los movimientos cargados en la vista (hasta 100 registros).<br>• Si no hay movimientos, no se descarga. |
 | HU-020 — Consultar el uso de las categorías | Como usuario registrado, quiero ver cuánto peso tiene cada categoría en el período para entender en qué se va mi dinero. | • Muestra cantidad de movimientos, monto y porcentaje por categoría, ordenado por uso.<br>• Los montos se convierten a la moneda de lectura elegida.<br>• El uso se calcula sobre los movimientos cargados en la vista (hasta 100 registros). |
 
 **Requerimientos funcionales por módulo**
@@ -162,7 +162,7 @@ Los identificadores de requerimiento se numeran de forma consecutiva dentro de c
 | ID | Prioridad | Requerimiento |
 |---|---|---|
 | FR-AUT-001 | P0 | El visitante podrá registrarse con nombre, correo electrónico, contraseña y moneda principal. La contraseña debe tener entre 8 y 72 caracteres, con al menos una letra y un número. |
-| FR-AUT-002 | P0 | El usuario podrá iniciar y cerrar sesión. Al cerrar se limpian las cookies y el cliente descarta el estado de sesión; al ser JWT stateless, el token emitido sigue vigente hasta expirar. |
+| FR-AUT-002 | P0 | El usuario podrá iniciar y cerrar sesión. Al cerrar se limpian las cookies y el cliente descarta el estado de sesión. |
 
 **Dashboard**
 
@@ -185,9 +185,9 @@ Los identificadores de requerimiento se numeran de forma consecutiva dentro de c
 
 | ID | Prioridad | Requerimiento |
 |---|---|---|
-| FR-TRX-001 | P0 | Gestionar movimientos de ingreso, gasto y transferencia: crear, editar y eliminar con monto, fecha, cuenta, categoría, descripción y notas; en transferencias, cuentas distintas y montos por pata. |
+| FR-TRX-001 | P0 | Gestionar movimientos de ingreso, gasto y transferencia: crear, editar y eliminar con monto, fecha, cuenta, categoría, descripción y notas; en transferencias, cuentas distintas y montos por pata. El tipo no se modifica al editar. |
 | FR-TRX-002 | P1 | Buscar y filtrar movimientos por concepto, nota, categoría, monto, tipo, cuenta, moneda y período. Los filtros se aplican en cliente sobre los movimientos cargados en la vista (hasta 100 registros). |
-| FR-TRX-003 | P1 | Exportar los movimientos a CSV para analizarlos fuera de la aplicación. |
+| FR-TRX-003 | P1 | Exportar a CSV los movimientos cargados en la vista (hasta 100 registros) para analizarlos fuera de la aplicación. |
 | FR-TRX-004 | P0 | Mostrar el historial de movimientos paginado y ordenado por fecha descendente, agrupado por mes sin subtotales; las transferencias se colapsan en una sola fila y cada movimiento permite abrir su edición. |
 
 **Categorías**
@@ -202,7 +202,7 @@ Los identificadores de requerimiento se numeran de forma consecutiva dentro de c
 | ID | Prioridad | Requerimiento |
 |---|---|---|
 | FR-CFG-001 | P1 | Permitir elegir el tema de la interfaz (claro, oscuro o automático) y persistirlo localmente. |
-| FR-CFG-002 | P1 | Editar nombre, email y contraseña; el email es único y el cambio de contraseña requiere la actual y la misma política del registro. Mostrar identidad y contadores. |
+| FR-CFG-002 | P1 | Editar nombre, email y contraseña; el email es único y el cambio de contraseña requiere la actual y la misma política del registro. Mostrar identidad y contadores del total del usuario. |
 | FR-CFG-003 | P1 | Permitir cambiar la moneda principal desde Ajustes cuando las cuentas usan más de una moneda. El cambio se persiste y el dashboard la usa como lectura por defecto sin modificar los datos financieros. |
 
 **Asistente de inteligencia artificial**
@@ -227,7 +227,7 @@ Para cada período seleccionado, el sistema aplica las siguientes reglas de cál
 
 | ID | Regla | Resultado esperado |
 |---|---|---|
-| CAL-001 | Patrimonio neto | Σ (saldo × cotización) de las cuentas, en la moneda de lectura. |
+| CAL-001 | Patrimonio neto | Σ (saldo × cotización) de las cuentas del usuario, en la moneda de lectura. |
 | CAL-002 | Flujo de fondos | Σ ingresos − Σ gastos del período, convirtiendo cada flujo a la moneda de lectura. |
 | CAL-003 | Transferencias | Se excluyen de ingresos y gastos consolidados. |
 | CAL-004 | Tasa de ahorro | Ahorro del período / ingresos del período × 100, sobre los flujos convertidos a la moneda de lectura. Su variación se expresa en puntos porcentuales. |
@@ -245,7 +245,7 @@ El asistente expresa sus cifras en la **moneda principal** del usuario, que es l
 | NFR-SEG-001 | Autenticar al usuario y verificar en servidor la propiedad de cada recurso; un ID aportado por el cliente no otorga autorización. |
 | NFR-SEG-002 | Validar las entradas y renderizar las salidas de forma segura, sin HTML ejecutable; en el asistente, separar instrucciones y datos y validar la salida del modelo. |
 | NFR-SEG-003 | Proteger credenciales, secretos y registros: hash adaptativo de contraseñas, claves solo en el servidor y logs sin datos sensibles. |
-| NFR-SEG-004 | Mantener la sesión en cookies `HttpOnly` con expiración y renovación, y usar HTTPS con timeout en las llamadas externas. |
+| NFR-SEG-004 | Mantener la sesión en cookies `HttpOnly` con expiración y renovación, y usar HTTPS con timeout y sin seguir redirecciones en las llamadas externas. |
 
 **Compatibilidad, localización y calidad**
 

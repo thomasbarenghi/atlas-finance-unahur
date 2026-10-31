@@ -13,6 +13,7 @@ import { NetWorthHero } from "@/app/(app)/dashboard/_components/net-worth-hero";
 import { useAuth } from "@/hooks/use-auth";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { usePeriod } from "@/hooks/use-period";
+import { useReadingCurrency } from "@/hooks/use-reading-currency";
 import { useDashboard } from "@/lib/query/dashboard";
 import { AccountsSection } from "./components/accounts-section";
 import { HeaderActions } from "./components/header-actions";
@@ -25,9 +26,8 @@ export const DashboardView = () => {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const { user } = useAuth();
   const { preset, range } = usePeriod();
-  const [displayCurrency, setDisplayCurrency] = useState<string | undefined>(
-    undefined,
-  );
+  const { currency: displayCurrency, setCurrency: setDisplayCurrency } =
+    useReadingCurrency();
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
   const dashboardQuery = useDashboard({
     from: range.from,
@@ -60,7 +60,7 @@ export const DashboardView = () => {
           isDesktop ? null : (
             <span className="ml-auto flex items-center gap-2">
               {currencySelector}
-              <PeriodSelector />
+              <PeriodSelector showCalendar />
             </span>
           )
         }

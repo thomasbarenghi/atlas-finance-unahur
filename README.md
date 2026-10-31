@@ -27,7 +27,7 @@ atlas-finance-unahur/
 
 - [`docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md`](docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md) — functional requirements, user stories, calculation rules, NFRs.
 - [`docs/specification/0.3/BRD_Gestor_Financiero_v0.3.md`](docs/specification/0.3/BRD_Gestor_Financiero_v0.3.md) — business requirements, business rules, cases, glossary.
-- [`docs/architecture/frontend.md`](docs/architecture/frontend.md) — site map, per-page behavior, file structure, auth, charts, AI, work plan.
+- [`docs/architecture/frontend.md`](docs/architecture/frontend.md) — site map, per-page behavior, file structure, auth, charts and AI.
 - [`docs/architecture/backend.md`](docs/architecture/backend.md) — architecture, data model, REST contract (DTOs/enums/errors), integrations, security, seed, env.
 
 The documentation index is in [`docs/README.md`](docs/README.md).
@@ -37,8 +37,8 @@ The documentation index is in [`docs/README.md`](docs/README.md).
 This repo is built with AI agents in mind. Each project ships its own `AGENTS.md` and reusable skills.
 
 - [`client/AGENTS.md`](client/AGENTS.md) and [`api/AGENTS.md`](api/AGENTS.md) — start here.
-- `.agents/skills/quality-rules/SKILL.md` — code-quality and architecture standards.
-- `.agents/skills/test-quality/SKILL.md` — testing standards.
+- `client/.agents/skills/quality-rules/SKILL.md` and `api/.agents/skills/quality-rules/SKILL.md` — code-quality and architecture standards.
+- `client/.agents/skills/test-quality/SKILL.md` and `api/.agents/skills/test-quality/SKILL.md` — testing standards.
 - `.agents/skills/push-ready/SKILL.md` — global pre-commit/pre-push readiness checklist.
 
 Skills are written in English; functional documentation is in Spanish.
@@ -81,7 +81,7 @@ All demo users share the password `Demo1234!`:
 
 | Email | Scenario |
 | :--- | :--- |
-| `demo@atlassfin.app` | Full dataset: 3 accounts and 3 months of movements. |
+| `demo@atlassfin.app` | Full dataset: 4 accounts (3 ARS + 1 USD) and 3 months of movements. |
 | `sin-datos@atlassfin.app` | Empty user (no financial data) to exercise empty states. |
 | `ana@atlassfin.app` | Second user with a minimal dataset, for isolation/permissions. |
 

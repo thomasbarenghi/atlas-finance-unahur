@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { TransactionType } from "@/lib/api/types";
 import { evaluateAmountExpression } from "../amount-expression";
 import type { AmountKeypadKey } from "../components/amount-keypad";
@@ -26,6 +26,10 @@ export const useAmountInput = (
     setExpression(next);
     onAmountChange(evaluateAmountExpression(next) ?? 0);
   };
+
+  const reset = useCallback((amount = 0) => {
+    setExpression(amount > 0 ? String(amount) : "");
+  }, []);
 
   const handleKey = (key: AmountKeypadKey) => {
     if (key === "backspace") {
@@ -59,6 +63,7 @@ export const useAmountInput = (
       evaluateAmountExpression(expression.replace(/[+−×÷]+$/, "")) ?? 0,
     hasOperator: /[+−×÷]/.test(expression),
     handleKey,
+    reset,
   };
 };
 

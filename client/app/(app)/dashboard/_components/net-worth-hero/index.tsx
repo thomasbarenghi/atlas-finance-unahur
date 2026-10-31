@@ -74,7 +74,7 @@ export const NetWorthHero = ({
         <div className="flex flex-wrap items-center gap-2.5 md:gap-3.5">
           <TrendBadge deltaPct={deltaPct} />
           <span className="text-muted-foreground text-[10.5px] leading-[14px] md:text-[11.5px] md:leading-[16px]">
-            vs. período anterior
+            desde el inicio del período
           </span>
         </div>
       </div>

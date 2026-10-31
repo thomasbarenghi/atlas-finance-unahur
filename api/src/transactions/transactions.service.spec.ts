@@ -210,6 +210,27 @@ describe("TransactionsService", () => {
     ).rejects.toMatchObject({ response: { code: ErrorCode.VALIDATION_ERROR } });
   });
 
+  it("rejects changing the type of a transaction", async () => {
+    const { service, repository } = build();
+    repository.findOneBy.mockResolvedValue(tx({ type: "expense" }));
+
+    await expect(
+      service.updateTransaction("u1", "t1", { type: "transfer" } as any),
+    ).rejects.toMatchObject({ response: { code: ErrorCode.VALIDATION_ERROR } });
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it("accepts the same type when the client sends it on edit", async () => {
+    const { service, repository } = build();
+    repository.findOneBy.mockResolvedValue(tx({ type: "expense" }));
+
+    await service.updateTransaction("u1", "t1", {
+      type: "expense",
+      amount: 5,
+    } as any);
+    expect(repository.save).toHaveBeenCalled();
+  });
+
   it("updates both legs of a transfer", async () => {
     const { service, repository, dataSource } = build();
     const outbound = tx({

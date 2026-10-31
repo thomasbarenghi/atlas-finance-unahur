@@ -22,7 +22,7 @@ export const HeaderActions = ({ leading }: HeaderActionsProps) => {
   return (
     <div className="flex items-center gap-2.5">
       {leading}
-      <PeriodSelector />
+      <PeriodSelector showCalendar />
       <Button onClick={() => setOpen(true)} className={PRIMARY_ACTION_BUTTON}>
         <Plus className="size-4" aria-hidden />
         Nuevo movimiento

@@ -39,6 +39,7 @@ export const streamAssistantMessage = async (
       body: JSON.stringify({
         question: input.question,
         period: input.period,
+        ...(input.currency ? { currency: input.currency } : {}),
         ...(input.history?.length ? { history: input.history } : {}),
       }),
     });

@@ -33,8 +33,8 @@ export const AccountMetrics = ({ account, summary }: AccountMetricsProps) => {
       <DetailMetric
         label="Ingresos"
         info={{
-          formula: "Σ ingresos del período en esta cuenta",
-          description: `Ingresos del período en esta cuenta: ${formatCurrency(summary.income, account.currency)}. Las transferencias no cuentan como ingreso.`,
+          formula: "Σ ingresos de la cuenta",
+          description: `Ingresos de la cuenta: ${formatCurrency(summary.income, account.currency)}. Las transferencias no cuentan como ingreso.`,
         }}
         value={
           <Amount
@@ -48,8 +48,8 @@ export const AccountMetrics = ({ account, summary }: AccountMetricsProps) => {
       <DetailMetric
         label="Gastos"
         info={{
-          formula: "Σ gastos del período en esta cuenta",
-          description: `Gastos del período en esta cuenta: ${formatCurrency(summary.expense, account.currency)}. Las transferencias no cuentan como gasto.`,
+          formula: "Σ gastos de la cuenta",
+          description: `Gastos de la cuenta: ${formatCurrency(summary.expense, account.currency)}. Las transferencias no cuentan como gasto.`,
         }}
         value={
           <Amount

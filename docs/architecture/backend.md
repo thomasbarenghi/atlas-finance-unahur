@@ -19,7 +19,7 @@
 8. [Reglas de cálculo](#8-reglas-de-cálculo)
 9. [Integraciones externas](#9-integraciones-externas)
 10. [Seguridad](#10-seguridad)
-11. [Datos de demostración (seed)](#11-datos-de-demostración-seed)
+11. [Base de datos y datos de demostración](#11-base-de-datos-y-datos-de-demostración)
 12. [Configuración y variables de entorno](#12-configuración-y-variables-de-entorno)
 
 ---
@@ -212,7 +212,7 @@ Tablas derivadas de las entidades principales del FRD v0.3 (§3.1). Todos los `i
 | notes                   | text NULL     |                                         |
 | created_at / updated_at | timestamptz   |                                         |
 
-> Saldo actual = `initial_balance` + Σ(movimientos) (calculado, FR-CUE-002), siempre en la moneda de la cuenta. La **eliminación** de una cuenta elimina en cascada los movimientos en los que participa, incluidas ambas patas de una transferencia (FR-CUE-003). La moneda **no se puede cambiar** si la cuenta ya tiene movimientos (FR-CUE-001).
+> Saldo actual = `initial_balance` + Σ(movimientos con signo) (calculado, FR-CUE-002), siempre en la moneda de la cuenta: los ingresos suman, los gastos restan y cada pata de transferencia aporta su signo (§5.4). La **eliminación** de una cuenta elimina en cascada los movimientos en los que participa, incluidas ambas patas de una transferencia (FR-CUE-003). La moneda **no se puede cambiar** si la cuenta ya tiene movimientos (FR-CUE-001).
 
 ### 5.3 `categories` — del sistema y propias (FR-CAT-001)
 
@@ -350,15 +350,19 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 | PATCH  | `/transactions/:id`           | FR-TRX-001                                            |
 | DELETE | `/transactions/:id`           | FR-TRX-001                                            |
 
-> **Filtros y exportación de la UI:** la búsqueda, el tipo, la cuenta, la categoría, la moneda y el período se aplican en el cliente sobre la página cargada. La API mantiene paginación (`page`, `pageSize`). La exportación CSV es client-side (FR-TRX-003). En transferencias multimoneda el request incluye `transferAmount` (monto que llega a destino); la cotización no se envía ni se persiste.
+> **Filtros y exportación de la UI:** la búsqueda, el tipo, la cuenta, la categoría, la moneda y el período se aplican en el cliente sobre la página cargada. La API mantiene paginación (`page`, `pageSize`). La exportación CSV es client-side sobre los movimientos cargados en la vista (hasta 100 registros; FR-TRX-003). En transferencias multimoneda el request incluye `transferAmount` (monto que llega a destino); la cotización no se envía ni se persiste.
 >
 > **Categoría:** los ingresos y gastos exigen categoría al crear y al editar; puede quedar `null` solo si se elimina la categoría propia que usaban (la FK es `ON DELETE SET NULL`).
+>
+> **Tipo:** `type` no se modifica al editar. El request puede incluirlo solo con el mismo valor (la UI lo envía deshabilitado); un cambio responde `400 VALIDATION_ERROR`.
+>
+> **Transferencias:** `GET /transactions/:id` devuelve el movimiento; si es una transferencia, devuelve ambas patas del `transfer_group_id`. `PATCH` actualiza ambas patas de forma atómica (monto origen y `transferAmount`) y `DELETE` elimina ambas patas.
 
 ### 7.6 Dashboard
 
-| Método | Ruta                 | FR                                                                      |
-| :----- | :------------------- | :---------------------------------------------------------------------- |
-| GET    | `/dashboard?from&to&currency` | agrega KPIs y series del período; `currency` es la moneda de visualización (default: principal) |
+| Método | Ruta                 | FR                        | Detalle                                                                 |
+| :----- | :------------------- | :------------------------ | :---------------------------------------------------------------------- |
+| GET    | `/dashboard?from&to&currency` | FR-DAS-001/002/003 | Agrega KPIs y series del período; `currency` es la moneda de visualización (default: principal) |
 
 ```ts
 // 200 → DashboardData
@@ -409,13 +413,14 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 }
 ```
 
-- **Período (FR-DAS-003):** `from`/`to` son seleccionables. Sin período, el backend usa los últimos 180 días; el rango debe tener entre 1 y 366 días. El header de Inicio tiene el **selector de moneda de lectura** antes del período, con las monedas disponibles (las de las cuentas, la principal y la moneda de lectura activa) y **“Otra moneda”** para el catálogo completo; por defecto usa la moneda principal y `currency` permite re-expresar todo el dashboard en otra unidad del catálogo. El selector se oculta si solo hay una moneda disponible.
+- **Período (FR-DAS-003):** `from`/`to` son seleccionables. Sin período, el backend usa los últimos 180 días; el rango debe tener entre 1 y 366 días. El cliente envía siempre el período compartido; este default aplica solo a consumidores directos de la API. El header de Inicio tiene el **selector de moneda de lectura** antes del período, con las monedas disponibles (las de las cuentas, la principal y la moneda de lectura activa) y **“Otra moneda”** para el catálogo completo; por defecto usa la moneda principal y `currency` permite re-expresar todo el dashboard en otra unidad del catálogo. El selector (con “Otra moneda”) se muestra cuando hay más de una moneda disponible; si solo hay una, la lectura queda fija en la moneda principal.
 - **Patrimonio neto (CAL-001, §8):** Σ (saldo × cotización) de las **cuentas actuales**, en la moneda de lectura. No es una valoración histórica al cierre del período. La serie histórica evalúa esa suma por día si el rango tiene ≤ 31 días (mes en curso o últimos 30 días) y al cierre de cada mes en el resto de los rangos. `breakdown` expone cada moneda nativa y su equivalente en la moneda de lectura; `rates` expone la cotización usada y su fecha. `netWorthDeltaPct` compara el patrimonio actual contra el primer punto de la serie del período (no contra el período anterior).
-- **Flujos (CAL-002):** cada ingreso/gasto se convierte desde la moneda de su cuenta a la moneda de lectura con la cotización de la API y luego se suma. Las transferencias se excluyen (CAL-003). El header de Inicio tiene el selector de moneda de lectura antes del período; Categorías tiene el mismo selector de visualización (solo con las monedas de las cuentas y la principal).
+- **Flujos (CAL-002):** cada ingreso/gasto se convierte desde la moneda de su cuenta a la moneda de lectura con la cotización de la API y luego se suma. Las transferencias se excluyen (CAL-003). Categorías tiene el mismo selector de visualización antes del período (solo con las monedas de las cuentas y la principal).
 - **Gastos por categoría (FR-DAS-002):** el desglose solo agrupa gastos con categoría. Los gastos sin categoría (por ejemplo, tras eliminar una categoría propia) se incluyen en `kpis.expenses` pero no en `expensesByCategory`.
 - **Moneda de lectura:** la UI de Inicio usa la moneda principal por defecto y el selector del header permite ver todos los valores en otra unidad sin alterar datos (RN-001). El desglose por moneda del hero aparece cuando hay más de una moneda en el desglose (cuentas en varias monedas o una moneda de lectura distinta de la nativa).
 - **Granularidad (FR-DAS-002/003):** para rangos de ≤ 31 días, `incomeExpenseByPeriod` devuelve tramos semanales (`bucket: "week"`); para rangos mayores, tramos mensuales (`bucket: "month"`). `incomeExpenseByMonth` se conserva para el contexto del asistente.
 - **Tasa de ahorro (CAL-004, §8):** `kpis.savingsRateDeltaPp` expresa en **puntos porcentuales** la variación de la tasa de ahorro contra el período anterior, calculada sobre los flujos convertidos.
+
 ### 7.7 Assistant — solo consulta (FR-IA-001)
 
 | Método | Ruta                  | FR                                            |
@@ -423,14 +428,15 @@ Prefijo global `/api`. Respuestas paginadas: `{ items, page, pageSize, total, to
 | POST   | `/assistant/messages` | requiere sesión; responde con stream SSE (FR-IA-001) |
 
 - **Solo consulta:** no crea, edita ni elimina datos (FR-IA-001). Si el usuario pide una acción de escritura, el asistente explica que solo responde consultas.
-- **Sin estado:** el cliente puede enviar los turnos recientes en `history` para dar continuidad a la conversación (memoria acotada del cliente, hasta 12 turnos); el servidor no los persiste.
+- **Sin estado:** el cliente puede enviar los mensajes recientes en `history` para dar continuidad a la conversación (memoria acotada del cliente; el servidor acepta hasta 12 mensajes y el cliente envía los últimos 10); el servidor no los persiste.
 - El estado del asistente no es una preferencia del usuario: con sesión válida siempre está disponible.
+
 ### 7.8 Currencies — catálogo y cotizaciones
 
-| Método | Ruta               | FR/RN                                              |
-| :----- | :----------------- | :------------------------------------------------- |
-| GET    | `/currencies`      | catálogo global de 54 monedas ISO 4217             |
-| GET    | `/currencies/rates` | `primaryCurrency` + cotizaciones de las monedas usadas por las cuentas distintas de la principal |
+| Método | Ruta               | RN          | Detalle                                                                 |
+| :----- | :----------------- | :---------- | :---------------------------------------------------------------------- |
+| GET    | `/currencies`      | RN-002      | Catálogo global de 54 monedas ISO 4217.                                 |
+| GET    | `/currencies/rates` | RN-001/002 | `primaryCurrency` + cotizaciones de las monedas usadas por las cuentas distintas de la principal |
 
 ```jsonc
 // GET /currencies → [{ code, name, symbol, decimals }]
@@ -486,7 +492,7 @@ event: done    data: { "insufficient": false }
 event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 ```
 
-- **Contexto mínimo (FR-IA-001):** el `assistant-context.service` reutiliza el read model del dashboard (ingresos, gastos, ahorro, patrimonio neto, gastos por categoría, evolución mensual y saldos de cuentas) y arma un resumen textual. No re-deriva fórmulas ni consulta repositorios directamente. Si no se envía `period`, usa los últimos 30 días.
+- **Contexto mínimo (FR-IA-001):** el `assistant-context.service` reutiliza el read model del dashboard (ingresos, gastos, ahorro, patrimonio neto, gastos por categoría, evolución mensual y saldos de cuentas) y arma un resumen textual. No re-deriva fórmulas ni consulta repositorios directamente. Si no se envía `period`, usa los últimos 30 días; al igual que en el dashboard, ese default aplica solo a consumidores directos de la API y la UI envía siempre el período compartido.
 - **Moneda del contexto:** el campo opcional `currency` del body permite expresar el contexto en la moneda de lectura activa; si se omite, se usa la moneda principal del usuario. El evento `meta` informa la moneda efectivamente usada en `currency`, de modo que la respuesta sea verificable contra el dashboard leído en esa misma moneda.
 - **Sin estado y sin tools:** no hay historial persistido ni _function calling_. El historial conversacional es opcional (`history`), lo envía el cliente desde su memoria y se usa solo como contexto del período actual (FR-IA-002). El prompt de sistema es fijo, separa instrucciones de datos y declara el alcance de **solo consulta** (FR-IA-001, NFR-SEG-002).
 - **Insuficiencia:** si el modelo no devuelve texto utilizable, se emite un mensaje explicativo y `done: { insufficient: true }`.
@@ -503,9 +509,9 @@ event: error   data: { "code": "AI_UNAVAILABLE", "message": "..." }
 | `NOT_FOUND`           | 404  | recurso inexistente o ajeno; también categoría del sistema al editar/eliminar |
 | `EMAIL_IN_USE`        | 409  | registro o cambio de email con un email existente |
 | `AI_UNAVAILABLE`      | —    | evento `error` del stream del asistente |
-| `EXCHANGE_RATES_UNAVAILABLE` | 502 | falla del proveedor de cotizaciones (el HTTP se devuelve con mensaje genérico) |
+| `EXCHANGE_RATES_UNAVAILABLE` | 502 | falla del proveedor de cotizaciones; el estado 502 se conserva, pero el cuerpo es genérico y no incluye `code` |
 
-> `UNAUTHENTICATED`, `FORBIDDEN` e `INTERNAL_ERROR` están definidos en el catálogo interno pero hoy no se serializan: el guard responde el 401 estándar de Nest y los 5xx se enmascaran con un mensaje genérico.
+> `UNAUTHENTICATED`, `FORBIDDEN`, `INTERNAL_ERROR` y `EXCHANGE_RATES_UNAVAILABLE` están definidos en el catálogo interno pero hoy no se serializan en el cuerpo: el guard responde el 401 estándar de Nest y los 5xx se enmascaran con un mensaje genérico (ver §7.9).
 
 > `GET /currencies` y `GET /currencies/rates` son de solo lectura: catálogo global y cotizaciones de las monedas usadas por las cuentas.
 
@@ -537,20 +543,20 @@ Centralizadas en `calculations.service.ts` para garantizar consistencia entre da
 1. Resuelve el usuario de la sesión autenticada (§7.11).
 2. Calcula **localmente** totales y métricas del período (FR-IA-001) reutilizando el read model del dashboard (`DashboardOrchestrator`, que a su vez usa `calculations.service`), para no duplicar fórmulas.
 3. Construye el **contexto mínimo** (solo datos del usuario autenticado) y envía la pregunta al LLM.
-4. El prompt de sistema es fijo y **separado** de los datos del usuario, que viajan como datos no confiables (NFR-SEG-002). Se valida la salida antes de presentarla.
+4. El prompt de sistema es fijo y **separado** de los datos del usuario, que viajan como datos no confiables (NFR-SEG-002). Se verifica que la salida no esté vacía antes de presentarla; el contenido se sirve como texto y se renderiza de forma segura.
 5. Adjunta metadatos: período, moneda y fuentes consideradas.
 6. Declara "información insuficiente" cuando los datos no permiten conclusión verificable.
 7. **No** modifica datos: el asistente es de **solo consulta** (FR-IA-001). No hay herramientas de escritura ni confirmación de acciones.
 
 **Implementación actual (DeepSeek):**
 
-- `shared/ai/ai.service.ts` (`AiModule`): cliente del proveedor (DeepSeek/OpenAI-compatible) con `axios` `responseType: "stream"`, timeout de `AI_TIMEOUT_MS` y aborto; expone `streamChat(messages)` como `AsyncGenerator<string>`. Mapea fallas a `AI_UNAVAILABLE` (NFR-SEG-004).
+- `shared/ai/ai.service.ts` (`AiModule`): cliente del proveedor (DeepSeek/OpenAI-compatible) con `axios` `responseType: "stream"`, timeout de `AI_TIMEOUT_MS` y aborto; expone `streamChat(messages)` como `AsyncGenerator<{ type: "token"; delta: string }>`. Mapea fallas a `AI_UNAVAILABLE` (NFR-SEG-004).
 - `assistant/assistant-context.service.ts`: arma el contexto mínimo reutilizando `DashboardOrchestrator.getDashboard` (ingresos, gastos, ahorro, gastos por categoría, patrimonio neto, evolución mensual) y `AccountsService` (saldos de cuentas), y produce un resumen textual.
 - `assistant/assistant.service.ts`: recibe el usuario autenticado, construye el prompt y el contexto, y devuelve un generador de eventos (`meta`/`token`/`done`). El prompt de sistema declara explícitamente el alcance de **solo consulta** y que no debe inventar cifras.
 - `assistant/assistant.controller.ts`: `POST /assistant/messages` (SSE); ante falla emite `event: error`.
 - El cliente consume el stream real en `client/lib/api/assistant-stream.ts`.
 
-> La **currency-api de Fawaz Ahmed** (pública, sin API key) se usa en `ExchangeRatesProvider` para obtener las cotizaciones globales en cada lectura; no hay caché persistente ni en memoria. Si el proveedor falla, el endpoint responde `502` con un mensaje genérico.
+> La **currency-api de Fawaz Ahmed** (pública, sin API key) se usa en `ExchangeRatesProvider` para obtener las cotizaciones globales en cada lectura; no hay caché persistente ni en memoria y la petición no sigue redirecciones (`maxRedirects: 0`). Si el proveedor falla, el endpoint responde `502` con un mensaje genérico.
 
 ---
 
@@ -561,7 +567,7 @@ Centralizadas en `calculations.service.ts` para garantizar consistencia entre da
 | NFR-SEG-001 | `JwtAuthGuard` global, `uuid` no predecibles y resolución de propiedad por `user_id` en cada consulta. |
 | NFR-SEG-002 | `ValidationPipe` global con whitelist/forbidNonWhitelisted; salidas JSON/texto y render seguro en el cliente; prompts separados de los datos. |
 | NFR-SEG-003 | `argon2` para contraseñas, secretos solo en env del servidor y logging sin datos sensibles. |
-| NFR-SEG-004 | Cookies HttpOnly/Secure/SameSite con expiración y refresh JWT; llamadas externas por HTTPS con timeout. |
+| NFR-SEG-004 | Cookies HttpOnly/Secure/SameSite con expiración y refresh JWT; llamadas externas por HTTPS con timeout y sin seguir redirecciones. |
 
 
 ---

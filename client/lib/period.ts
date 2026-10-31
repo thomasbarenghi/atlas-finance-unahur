@@ -1,5 +1,5 @@
 import type { PeriodRange } from "@/lib/api/types";
-import { formatMonthTitle, toIsoDate } from "@/lib/format";
+import { toIsoDate } from "@/lib/format";
 
 export type PeriodPreset = "month" | "last-30-days" | "6m" | "12m";
 
@@ -10,16 +10,13 @@ export const PERIOD_PRESETS: { value: PeriodPreset; label: string }[] = [
   { value: "12m", label: "12 meses" },
 ];
 
-type PeriodLabelMode = "preset" | "month" | "short";
+type PeriodLabelMode = "preset" | "short";
 
 export const getPeriodLabel = (
   preset: PeriodPreset,
   range: PeriodRange,
   mode: PeriodLabelMode = "preset",
 ): string => {
-  if (mode !== "preset" && preset === "month") {
-    return formatMonthTitle(range.to);
-  }
   if (mode === "short" && preset === "last-30-days") return "30 días";
   return (
     PERIOD_PRESETS.find((option) => option.value === preset)?.label ?? "Período"
