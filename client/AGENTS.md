@@ -12,7 +12,7 @@ Atlass Fin web app: a personal-finance client (accounts, transactions with syste
 
 - `../docs/architecture/frontend.md` — site map, per-page features, file structure, auth, charts, AI.
 - `../docs/architecture/backend.md` — REST contract (DTOs, enums, errors, streaming) this client consumes.
-- `../docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
+- `../docs/specification/0.4/FRD_Gestor_Financiero_v0.4.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
 
 ## Skills (load before coding)
 

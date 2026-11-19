@@ -3,7 +3,7 @@
 > **Audiencia:** agentes de IA que implementarán el backend.
 > **Stack:** NestJS (monolítico) · TypeScript · PostgreSQL (Supabase como proveedor) · TypeORM · JWT (cookie HttpOnly) · REST.
 > **Frontend:** consume esta API. Ver `frontend.md`.
-> **Referencia funcional:** `../specification/0.3/FRD_Gestor_Financiero_v0.3.md`. Todo requisito citado (FR-*, HU-*, CAL-*, NFR-*) corresponde a ese documento.
+> **Referencia funcional:** `../specification/0.4/FRD_Gestor_Financiero_v0.4.md`. Todo requisito citado (FR-*, HU-*, CAL-*, NFR-*) corresponde a ese documento.
 
 ---
 
@@ -182,7 +182,7 @@ api/
 
 ## 5. Modelo de datos (PostgreSQL)
 
-Tablas derivadas de las entidades principales del FRD v0.3 (§3.1). Todos los `id` son `uuid` v4. Toda tabla con datos de usuario lleva `user_id` (o desciende de una entidad que lo tiene) y un índice.
+Tablas derivadas de las entidades principales del FRD v0.4 (§3.1). Todos los `id` son `uuid` v4. Toda tabla con datos de usuario lleva `user_id` (o desciende de una entidad que lo tiene) y un índice.
 
 > **Convención de columnas:** `snake_case` en la DB; los enums se almacenan como `text` con validación en la capa de aplicación (valores en §7.10); los `numeric` se serializan como `number` en la API (ver §7.9).
 

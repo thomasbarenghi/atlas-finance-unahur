@@ -25,8 +25,8 @@ atlas-finance-unahur/
 
 ## Documentation
 
-- [`docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md`](docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md) — functional requirements, user stories, calculation rules, NFRs.
-- [`docs/specification/0.3/BRD_Gestor_Financiero_v0.3.md`](docs/specification/0.3/BRD_Gestor_Financiero_v0.3.md) — business requirements, business rules, cases, glossary.
+- [`docs/specification/0.4/FRD_Gestor_Financiero_v0.4.md`](docs/specification/0.4/FRD_Gestor_Financiero_v0.4.md) — functional requirements, user stories, calculation rules, NFRs.
+- [`docs/specification/0.4/BRD_Gestor_Financiero_v0.4.md`](docs/specification/0.4/BRD_Gestor_Financiero_v0.4.md) — business requirements, business rules, cases, glossary.
 - [`docs/architecture/frontend.md`](docs/architecture/frontend.md) — site map, per-page behavior, file structure, auth, charts and AI.
 - [`docs/architecture/backend.md`](docs/architecture/backend.md) — architecture, data model, REST contract (DTOs/enums/errors), integrations, security, seed, env.
 
@@ -74,6 +74,15 @@ npm run dev                   # http://localhost:3000
 ```
 
 > Point the client at the API with `NEXT_PUBLIC_API_URL=http://localhost:3001/api` in `.env.local` (create the file; `.env*` is git-ignored).
+
+### Clean
+
+From the repo root, remove every `node_modules` and generated output (`dist`, `.next`, `out`, `coverage`, `.turbo`, `_build`, etc.):
+
+```bash
+npm run clean
+npm run clean -- --dry-run   # list only, delete nothing
+```
 
 ### Demo credentials
 

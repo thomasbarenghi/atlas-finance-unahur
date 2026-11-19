@@ -5,9 +5,9 @@
 
 Los tickets del tablero se organizan **por historia de usuario**, con trazabilidad a los requerimientos del FRD y las historias de negocio del BRD.
 
-- **Fuente funcional:** `specification/0.3/FRD_Gestor_Financiero_v0.3.md` (v0.3).
-- **Fuente de negocio:** `specification/0.3/BRD_Gestor_Financiero_v0.3.md` (v0.3).
-- **Estado:** las 20 historias están implementadas y ubicadas en la lista **Done**. La aprobación de pruebas es independiente: el resultado por caso y los defectos abiertos se registran en `specification/0.3/Test_Cases_Gestor_Financiero_v1.0.md`.
+- **Fuente funcional:** `specification/0.4/FRD_Gestor_Financiero_v0.4.md` (v0.4).
+- **Fuente de negocio:** `specification/0.4/BRD_Gestor_Financiero_v0.4.md` (v0.4).
+- **Estado:** las 20 historias están implementadas y ubicadas en la lista **Done**. La aprobación de pruebas es independiente: los defectos y los resultados de la ejecución del 30/10/2026 se registran en `specification/0.4/Test_Cases_Gestor_Financiero_v1.1.md`; el detalle de cada caso (precondiciones, pasos y resultado esperado) se conserva en `specification/0.3/Test_Cases_Gestor_Financiero_v1.0.md`.
 - **Ticket de QA:** [`[QA] Prueba integral de la app`](https://trello.com/c/wf3tmb5F) en **Done**, con el checklist de los 37 casos y el resultado de la ejecución del 30/10/2026.
 - Cada tarjeta incluye descripción, requerimientos, criterios de aceptación, trazabilidad y estado.
 

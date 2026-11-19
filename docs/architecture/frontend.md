@@ -3,7 +3,7 @@
 > **Audiencia:** agentes de IA que implementarán el frontend.
 > **Stack:** Next.js 16 (App Router) · TypeScript (strict) · Tailwind CSS 4 · shadcn/ui · Outfit (títulos) + Nunito (cuerpo) · Recharts · TanStack Query · React Hook Form + Zod · lucide-react.
 > **Backend:** consume una API REST NestJS (ver `backend.md`). La URL base se inyecta por variable de entorno.
-> **Referencia funcional:** `../specification/0.3/FRD_Gestor_Financiero_v0.3.md`. Todo requisito citado (FR-*, HU-*, CAL-*, NFR-*) corresponde a ese documento.
+> **Referencia funcional:** `../specification/0.4/FRD_Gestor_Financiero_v0.4.md`. Todo requisito citado (FR-*, HU-*, CAL-*, NFR-*) corresponde a ese documento.
 
 ---
 
