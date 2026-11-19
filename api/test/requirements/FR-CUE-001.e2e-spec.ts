@@ -1,12 +1,11 @@
 import request from "supertest";
-import { bearer, registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
 import { createAccount } from "../utils/factories";
 import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
- * FR-CUE-001 — Crear cuentas de efectivo, bancaria manual, billetera, tarjeta u
- * otra.
+ * FR-CUE-001 — Crear cuentas de efectivo, bancaria manual, billetera u otra.
  */
 describe("FR-CUE-001 · Tipos de cuenta", () => {
   let ctx: TestContext;
@@ -23,7 +22,7 @@ describe("FR-CUE-001 · Tipos de cuenta", () => {
     await ctx.app.close();
   });
 
-  it.each(["cash", "bank", "wallet", "card", "other"])(
+  it.each(["cash", "bank", "wallet", "other"])(
     "crea una cuenta de tipo %s",
     async (type) => {
       const user = await registerUser(ctx.app);
@@ -37,8 +36,8 @@ describe("FR-CUE-001 · Tipos de cuenta", () => {
 
     const response = await request(ctx.server)
       .post("/api/accounts")
-      .set(bearer(user.accessToken))
-      .send({ name: "X", type: "crypto", currency: "ARS" })
+      .set(authCookie(user.accessToken))
+      .send({ name: "X", type: "crypto" })
       .expect(400);
 
     expect(response.body.code).toBe("VALIDATION_ERROR");
@@ -52,7 +51,7 @@ describe("FR-CUE-001 · Tipos de cuenta", () => {
 
     const response = await request(ctx.server)
       .get("/api/accounts")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .expect(200);
 
     expect(response.body).toHaveLength(2);

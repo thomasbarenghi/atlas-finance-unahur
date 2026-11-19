@@ -14,5 +14,5 @@
     "vitest.setup.ts",
     "vitest-env.d.ts"
   ],
-  "exclude": ["node_modules", ".next", "out", "android"]
+  "exclude": ["node_modules", ".next", "out"]
 }

@@ -1,24 +1,27 @@
+import request from "supertest";
 import { AiService } from "../../src/shared/ai/ai.service";
 import { registerUser } from "../utils/auth";
-import {
-  aiStub,
-  enableAssistant,
-  postAssistantMessage,
-} from "../utils/assistant";
+import { aiStub, parseSse, postAssistantMessage } from "../utils/assistant";
 import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
- * FR-IA-001 — Permitir habilitar o deshabilitar el asistente de forma explícita.
+ * FR-IA-001 — Aceptar preguntas en lenguaje natural sobre datos financieros
+ * propios, respondiendo por streaming.
  */
-describe("FR-IA-001 · Habilitación del asistente", () => {
+describe("FR-IA-001 · Preguntas en lenguaje natural", () => {
   let ctx: TestContext;
 
   beforeAll(async () => {
     ctx = await createTestApp((builder) =>
-      builder
-        .overrideProvider(AiService)
-        .useValue(aiStub([[{ type: "token", delta: "ok" }]])),
+      builder.overrideProvider(AiService).useValue(
+        aiStub([
+          [
+            { type: "token", delta: "Hola " },
+            { type: "token", delta: "mundo" },
+          ],
+        ]),
+      ),
     );
   });
 
@@ -30,20 +33,31 @@ describe("FR-IA-001 · Habilitación del asistente", () => {
     await ctx.app.close();
   });
 
-  it("rechaza con 403 AI_DISABLED cuando está deshabilitado", async () => {
+  it("emite meta, tokens y done por SSE", async () => {
     const user = await registerUser(ctx.app);
 
-    const response = await postAssistantMessage(ctx.app, user.accessToken, {});
-    expect(response.status).toBe(403);
-    expect(response.body.code).toBe("AI_DISABLED");
+    const response = await postAssistantMessage(ctx.app, user.accessToken, {
+      question: "¿En qué gasté más?",
+    });
+    expect(response.status).toBe(200);
+
+    const events = parseSse(response.text);
+    const types = events.map((e) => e.event);
+    expect(types).toContain("meta");
+    expect(types.filter((t) => t === "token")).toHaveLength(2);
+    expect(types).toContain("done");
+
+    const meta = events.find((e) => e.event === "meta");
+    expect(meta?.data.sources).toEqual(expect.any(Array));
+
+    const done = events.find((e) => e.event === "done");
+    expect(done?.data.insufficient).toBe(false);
   });
 
-  it("responde cuando el usuario lo habilita", async () => {
-    const user = await registerUser(ctx.app);
-    await enableAssistant(ctx.app, user.accessToken);
-
-    const response = await postAssistantMessage(ctx.app, user.accessToken, {});
-    expect(response.status).toBe(200);
-    expect(response.headers["content-type"]).toContain("text/event-stream");
+  it("rechaza una consulta sin sesión", async () => {
+    await request(ctx.server)
+      .post("/api/assistant/messages")
+      .send({ question: "¿En qué gasté?" })
+      .expect(401);
   });
 });

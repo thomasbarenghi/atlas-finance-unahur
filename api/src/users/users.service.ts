@@ -1,10 +1,10 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
+import * as argon2 from "argon2";
 import { Repository } from "typeorm";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
-import { AppConfig } from "../config/configuration";
+import { ChangePasswordDto } from "./dto/change-password.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { toUserResponse, UserResponseDto } from "./dto/user-response.dto";
 import { User } from "./entities/user.entity";
@@ -14,7 +14,6 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-    private readonly config: ConfigService<AppConfig, true>,
   ) {}
 
   async getById(userId: string): Promise<UserResponseDto> {
@@ -23,7 +22,7 @@ export class UsersService {
 
   async findByEmail(email: string): Promise<UserResponseDto | null> {
     const user = await this.usersRepository.findOneBy({
-      email: email.toLowerCase(),
+      email: email.toLowerCase().trim(),
     });
     return user ? toUserResponse(user) : null;
   }
@@ -32,26 +31,40 @@ export class UsersService {
     const user = await this.findOwned(userId);
 
     if (dto.name !== undefined) user.name = dto.name.trim();
-    if (dto.baseCurrency !== undefined) {
-      const currency = dto.baseCurrency.toUpperCase();
-      const supported = this.config.get("supportedCurrencies", { infer: true });
-      if (!supported.includes(currency)) {
+    if (dto.email !== undefined) {
+      const email = dto.email.toLowerCase().trim();
+      const existing = await this.usersRepository.findOneBy({ email });
+      if (existing && existing.id !== user.id) {
         throw new ApiException(
-          ErrorCode.VALIDATION_ERROR,
-          HttpStatus.BAD_REQUEST,
-          "La moneda no está soportada",
-          { baseCurrency: ["Moneda no soportada"] },
+          ErrorCode.EMAIL_IN_USE,
+          HttpStatus.CONFLICT,
+          "Ese email ya está registrado",
+          { email: ["Ese email ya está registrado"] },
         );
       }
-      user.baseCurrency = currency;
+      user.email = email;
     }
-    if (dto.theme !== undefined) user.theme = dto.theme;
-    if (dto.aiEnabled !== undefined) user.aiEnabled = dto.aiEnabled;
-    if (dto.assistantDestructiveEnabled !== undefined) {
-      user.assistantDestructiveEnabled = dto.assistantDestructiveEnabled;
+    if (dto.primaryCurrency !== undefined) {
+      user.primaryCurrency = dto.primaryCurrency;
     }
 
     return toUserResponse(await this.usersRepository.save(user));
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.findOwned(userId);
+    const valid = await argon2.verify(user.passwordHash, dto.currentPassword);
+    if (!valid) {
+      throw new ApiException(
+        ErrorCode.VALIDATION_ERROR,
+        HttpStatus.BAD_REQUEST,
+        "La contraseña actual no es correcta",
+        { currentPassword: ["La contraseña actual no es correcta"] },
+      );
+    }
+
+    user.passwordHash = await argon2.hash(dto.newPassword);
+    await this.usersRepository.save(user);
   }
 
   private async findOwned(userId: string): Promise<User> {

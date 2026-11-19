@@ -8,7 +8,6 @@ export interface PeriodContextValue {
   preset: PeriodPreset;
   range: PeriodRange;
   setPreset: (preset: PeriodPreset) => void;
-  setCustomRange: (range: PeriodRange) => void;
 }
 
 export const PeriodContext = createContext<PeriodContextValue | null>(null);

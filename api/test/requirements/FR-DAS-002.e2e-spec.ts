@@ -21,7 +21,7 @@ describe("FR-DAS-002 · Evolución del patrimonio", () => {
     await ctx.app.close();
   });
 
-  it("devuelve una serie mensual con activos y deudas", async () => {
+  it("devuelve una serie mensual del patrimonio neto", async () => {
     const user = await registerUser(ctx.app);
     await seedBaseScenario(ctx.app, user.accessToken);
 
@@ -34,8 +34,6 @@ describe("FR-DAS-002 · Evolución del patrimonio", () => {
         expect.objectContaining({
           date: expect.any(String),
           value: expect.any(Number),
-          assets: expect.any(Number),
-          debts: expect.any(Number),
         }),
       );
     }
@@ -43,5 +41,27 @@ describe("FR-DAS-002 · Evolución del patrimonio", () => {
       (p: { date: string }) => p.date === "2026-03-31",
     );
     expect(march.value).toBe(1300);
+  });
+
+  it("usa evolución diaria y tramos semanales para un mes en curso", async () => {
+    const user = await registerUser(ctx.app);
+    await seedBaseScenario(ctx.app, user.accessToken);
+
+    const dashboard = await getDashboard(
+      ctx.app,
+      user.accessToken,
+      "from=2026-03-01&to=2026-03-25",
+    );
+
+    expect(dashboard.netWorthSeries).toHaveLength(25);
+    expect(dashboard.netWorthSeries.at(-1)?.date).toBe("2026-03-25");
+    expect(dashboard.incomeExpenseByPeriod).toHaveLength(4);
+    expect(dashboard.incomeExpenseByPeriod[0]).toMatchObject({
+      bucket: "week",
+      start: "2026-03-01",
+      end: "2026-03-07",
+      income: 500,
+    });
+    expect(dashboard.incomeExpenseByMonth).toHaveLength(1);
   });
 });

@@ -5,7 +5,6 @@ export class TransactionResponseDto {
   id: string;
   type: TransactionType;
   amount: number;
-  currency: string;
   date: string;
   description: string;
   notes: string | null;
@@ -23,7 +22,6 @@ export const toTransactionResponse = (
   id: transaction.id,
   type: transaction.type,
   amount: transaction.amount,
-  currency: transaction.currency,
   date: transaction.date,
   description: transaction.description,
   notes: transaction.notes,
@@ -34,11 +32,3 @@ export const toTransactionResponse = (
   createdAt: transaction.createdAt.toISOString(),
   updatedAt: transaction.updatedAt.toISOString(),
 });
-
-export class PaginatedTransactionsDto {
-  items: TransactionResponseDto[];
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-}

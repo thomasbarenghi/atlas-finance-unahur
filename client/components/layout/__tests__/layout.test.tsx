@@ -1,39 +1,33 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Brand } from "@/components/layout/brand";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
-import { Header } from "@/components/layout/header";
 import { AuthGuard } from "@/components/layout/auth-guard";
 import { makeUser } from "@/lib/test/factories";
 import { renderWithProviders } from "@/lib/test/render";
+import { setupTestServer } from "@/lib/test/server";
 
 vi.mock("next/navigation", () => import("@/lib/test/next-navigation"));
-vi.mock("next-themes", () => ({
-  useTheme: () => ({ theme: "system", setTheme: vi.fn() }),
-}));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
+setupTestServer();
+
 import { replace, setPathname } from "@/lib/test/next-navigation";
 
 describe("Brand", () => {
-  it("renders the name and hides it in compact mode", () => {
-    const { unmount } = render(<Brand />);
-    expect(screen.getByText("Atlass Fin")).toBeInTheDocument();
-    unmount();
-
-    render(<Brand compact />);
-    expect(screen.queryByText("Atlass Fin")).toBeNull();
+  it("renders the name", () => {
+    render(<Brand />);
+    expect(screen.getByText("atlass fin")).toBeInTheDocument();
   });
 });
 
 describe("Sidebar", () => {
   it("marks the active section", () => {
     setPathname("/dashboard");
-    render(<Sidebar />);
+    renderWithProviders(<Sidebar />);
     expect(screen.getByRole("link", { name: /Inicio/ })).toHaveAttribute(
       "aria-current",
       "page",
@@ -42,45 +36,40 @@ describe("Sidebar", () => {
       screen.getByRole("link", { name: /Movimientos/ }),
     ).not.toHaveAttribute("aria-current");
   });
+
+  it("links the account block directly to the profile without a menu", () => {
+    setPathname("/dashboard");
+    renderWithProviders(<Sidebar />, {
+      user: makeUser({ name: "Ana", email: "ana@example.com" }),
+    });
+
+    const profileLink = screen.getByRole("link", { name: "Mi perfil" });
+    expect(profileLink).toHaveAttribute("href", "/profile");
+    expect(screen.getByText("Ana")).toBeInTheDocument();
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
 });
 
 describe("MobileTabBar", () => {
-  it("renders the mobile items with a central create link", () => {
-    setPathname("/reports");
+  it("renders Inicio, Asistente, Movimientos and Perfil as equal items", () => {
+    setPathname("/assistant");
     render(<MobileTabBar />);
-    expect(screen.getByRole("link", { name: "Reportes" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Asistente" })).toHaveAttribute(
       "aria-current",
       "page",
+    );
+    expect(screen.getByRole("link", { name: "Inicio" })).toHaveAttribute(
+      "href",
+      "/dashboard",
     );
     expect(screen.getByRole("link", { name: "Movimientos" })).toHaveAttribute(
       "href",
       "/transactions",
     );
-  });
-});
-
-describe("Header / UserMenu", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("shows the account menu and signs out", async () => {
-    const user = userEvent.setup();
-    const signOut = vi.fn().mockResolvedValue(undefined);
-    renderWithProviders(<Header />, {
-      user: makeUser({ name: "Ana", email: "ana@example.com" }),
-      auth: { signOut },
-    });
-
-    await user.click(screen.getByRole("button", { name: "Cuenta" }));
-    expect(await screen.findByText("Ana")).toBeInTheDocument();
-    expect(screen.getByText("ana@example.com")).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: /Perfil/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Perfil" })).toHaveAttribute(
       "href",
       "/profile",
     );
-    await user.click(screen.getByRole("menuitem", { name: /Cerrar sesión/ }));
-    expect(signOut).toHaveBeenCalled();
   });
 });
 

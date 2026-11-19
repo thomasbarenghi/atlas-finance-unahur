@@ -1,6 +1,11 @@
-import { IsEmail, IsString, Length, Matches } from "class-validator";
-
-const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d).+$/;
+import { IsEmail, IsIn, IsString, Length, Matches } from "class-validator";
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MESSAGE,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_PATTERN,
+} from "../../common/validation/password";
+import { CURRENCY_CODES } from "../../currencies/currency-catalog";
 
 export class RegisterDto {
   @IsString()
@@ -10,10 +15,11 @@ export class RegisterDto {
   @IsEmail()
   email: string;
 
+  @IsIn(CURRENCY_CODES, { message: "Elegí una moneda válida" })
+  primaryCurrency: string;
+
   @IsString()
-  @Length(8, 72)
-  @Matches(PASSWORD_PATTERN, {
-    message: "La contraseña debe tener al menos una letra y un número",
-  })
+  @Length(PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH)
+  @Matches(PASSWORD_PATTERN, { message: PASSWORD_MESSAGE })
   password: string;
 }

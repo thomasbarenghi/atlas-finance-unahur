@@ -1,381 +1,246 @@
-import { Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { HttpStatus, Injectable } from "@nestjs/common";
 import { AccountsService } from "../accounts/accounts.service";
-import { Account } from "../accounts/entities/account.entity";
-import { Asset } from "../assets/entities/asset.entity";
-import { Valuation } from "../assets/entities/valuation.entity";
-import { AssetsService } from "../assets/assets.service";
-import { BudgetsOrchestrator } from "../budgets/budgets.orchestrator";
 import { CategoriesService } from "../categories/categories.service";
-import { AppConfig } from "../config/configuration";
-import { DebtsService } from "../debts/debts.service";
-import { FxService } from "../fx/fx.service";
-import { PositionsService } from "../positions/positions.service";
-import { QuotesService } from "../quotes/quotes.service";
+import { ApiException } from "../common/errors/api.exception";
+import { ErrorCode } from "../common/errors/error-codes";
+import { BASE_CURRENCY } from "../currencies/currency-catalog";
+import { CurrenciesService } from "../currencies/currencies.service";
 import { CalculationsService } from "../shared/calculations/calculations.service";
-import { Transaction } from "../transactions/entities/transaction.entity";
+import type { BalanceMap } from "../shared/calculations/calculations.types";
 import { TransactionsService } from "../transactions/transactions.service";
-import { UsersService } from "../users/users.service";
 import { DashboardQueryDto } from "./dto/dashboard-query.dto";
-import { DashboardData } from "./dto/dashboard-response.dto";
+import {
+  DashboardBreakdown,
+  DashboardData,
+  DashboardRate,
+} from "./dto/dashboard-response.dto";
 
 const DAY_MS = 86_400_000;
+const MAX_RANGE_DAYS = 366;
 const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
 
-const signedAmount = (transaction: Transaction): number =>
-  transaction.type === "expense" ? -transaction.amount : transaction.amount;
+type RateContext = Awaited<ReturnType<CurrenciesService["getRateContext"]>>;
+type AccountList = Awaited<ReturnType<AccountsService["listOwnedAccounts"]>>;
+type TransactionList = Awaited<
+  ReturnType<TransactionsService["listOwnedTransactions"]>
+>;
+type CategoryList = Awaited<ReturnType<CategoriesService["listCategories"]>>;
+type DailyFlows = ReturnType<CalculationsService["calculateDailyFlows"]>;
+type DashboardPeriod = DashboardData["period"];
+
+interface DashboardSources {
+  accounts: AccountList;
+  transactions: TransactionList;
+  categories: CategoryList;
+  rateContext: RateContext;
+}
+
+interface DashboardScope {
+  sources: DashboardSources;
+  transactions: TransactionList;
+  dailyFlows: DailyFlows;
+  balances: BalanceMap;
+  period: DashboardPeriod;
+  currency: string;
+}
+
+type DashboardCurrencyData = Pick<
+  DashboardData,
+  "availableCurrencies" | "breakdown" | "rates"
+>;
+type DashboardCharts = Pick<
+  DashboardData,
+  | "netWorthSeries"
+  | "incomeExpenseByPeriod"
+  | "incomeExpenseByMonth"
+  | "expensesByCategory"
+>;
+type DashboardKpis = Pick<DashboardData, "kpis">;
 
 /**
- * Read-model orchestrator for the dashboard (FR-DAS-001..008). It coordinates
- * the primary services of every finance domain and holds no database queries;
- * each domain exposes its own data and this class aggregates it. CAL-001 and
- * CAL-010 are assembled here reusing `calculations.service` (see backend.md §8).
+ * Read-model orchestrator for the dashboard (FR-DAS-001/002/003).
+ * It coordinates the primary services and holds no database queries.
+ *
+ * Multimoneda (RN-001, CH-71/CH-77):
+ * - `currency` is the reading/display currency for the whole dashboard; every
+ *   flow and the net worth are converted with the API quote (default: primary).
+ *   Changing it never alters records (RN-001).
+ * - `primaryCurrency` is still reported for settings/assistant context.
+ * - The transfer rate override is not persisted; each leg stores its own amount.
  */
 @Injectable()
 export class DashboardOrchestrator {
   constructor(
-    private readonly usersService: UsersService,
     private readonly accountsService: AccountsService,
     private readonly transactionsService: TransactionsService,
     private readonly categoriesService: CategoriesService,
-    private readonly assetsService: AssetsService,
-    private readonly debtsService: DebtsService,
-    private readonly positionsService: PositionsService,
-    private readonly quotesService: QuotesService,
-    private readonly budgetsOrchestrator: BudgetsOrchestrator,
     private readonly calculations: CalculationsService,
-    private readonly fxService: FxService,
-    private readonly config: ConfigService<AppConfig, true>,
+    private readonly currencies: CurrenciesService,
   ) {}
 
   async getDashboard(
     userId: string,
     query: DashboardQueryDto,
   ): Promise<DashboardData> {
-    const user = await this.usersService.getById(userId);
-    const today = toIsoDate(new Date());
-    const to = query.to ?? today;
+    const period = this.resolvePeriod(query);
+    const data = await this.loadData(userId);
+    const currency = query.currency ?? data.rateContext.primaryCurrency;
+    const transactions = this.convertTransactions(
+      data.transactions,
+      data.accounts,
+      data.rateContext,
+      currency,
+    );
+    const scope: DashboardScope = {
+      sources: data,
+      transactions,
+      dailyFlows: this.calculations.calculateDailyFlows(transactions, currency),
+      balances: this.calculations.calculateAccountBalances(
+        data.accounts,
+        data.transactions,
+      ),
+      period,
+      currency,
+    };
+    const charts = this.buildCharts(scope);
+
+    return {
+      period,
+      currency,
+      primaryCurrency: data.rateContext.primaryCurrency,
+      rateDate: data.rateContext.rateDate,
+      ...this.buildCurrencyData(scope),
+      ...this.buildKpis(scope, charts.netWorthSeries),
+      ...charts,
+    };
+  }
+
+  private resolvePeriod(query: DashboardQueryDto): DashboardPeriod {
+    const to = query.to ?? toIsoDate(new Date());
     const from =
       query.from ??
       toIsoDate(
         new Date(new Date(`${to}T00:00:00.000Z`).getTime() - 180 * DAY_MS),
       );
-    const currency = (query.currency ?? user.baseCurrency).toUpperCase();
+    const period = { from, to };
+    const days = this.rangeDays(period);
 
-    const [
-      transactions,
-      categories,
-      accounts,
-      assets,
-      valuations,
-      debts,
-      positions,
-      quotes,
-    ] = await Promise.all([
-      this.transactionsService.listOwnedTransactions(userId),
-      this.categoriesService.listCategories(userId),
-      this.accountsService.listOwnedAccounts(userId),
-      this.assetsService.listOwnedAssets(userId),
-      this.assetsService.listValuationsForUser(userId),
-      this.debtsService.listOwnedDebts(userId),
-      this.positionsService.listOwnedPositions(userId),
-      this.quotesService.listLatestQuoteEntities(),
-    ]);
+    if (days < 1 || days > MAX_RANGE_DAYS) {
+      throw new ApiException(
+        ErrorCode.VALIDATION_ERROR,
+        HttpStatus.BAD_REQUEST,
+        `El período debe tener entre 1 y ${MAX_RANGE_DAYS} días`,
+      );
+    }
 
-    const convert = await this.fxService.getConverter();
-    const money = (amount: number, source: string): number =>
-      convert(amount, source, currency);
+    return period;
+  }
 
-    const categoryById = new Map(
-      categories.map((category) => [category.id, category]),
+  private rangeDays(period: DashboardPeriod): number {
+    return (
+      Math.round(
+        (new Date(`${period.to}T00:00:00.000Z`).getTime() -
+          new Date(`${period.from}T00:00:00.000Z`).getTime()) /
+          DAY_MS,
+      ) + 1
     );
-    const categoryName = (id: string | null): string =>
-      (id ? categoryById.get(id)?.name : undefined) ?? "Sin categoría";
-    const categoryColor = (id: string): string =>
-      categoryById.get(id)?.color ?? "#64748b";
+  }
 
-    const flowsBetween = (start: string, end: string) => {
-      let income = 0;
-      let expenses = 0;
-      for (const transaction of transactions) {
-        if (transaction.date < start || transaction.date > end) continue;
-        if (transaction.type === "income") {
-          income += money(transaction.amount, transaction.currency);
-        } else if (transaction.type === "expense") {
-          expenses += money(transaction.amount, transaction.currency);
-        }
-      }
-      return { income, expenses, savings: income - expenses };
-    };
+  private async loadData(userId: string): Promise<DashboardSources> {
+    const [rateContext, transactions, categories, accounts] = await Promise.all(
+      [
+        this.currencies.getRateContext(userId),
+        this.transactionsService.listOwnedTransactions(userId),
+        this.categoriesService.listCategories(userId),
+        this.accountsService.listOwnedAccounts(userId),
+      ],
+    );
+    return { accounts, transactions, categories, rateContext };
+  }
 
-    const current = flowsBetween(from, to);
-    const previous = this.calculations.previousRange(from, to);
-    const previousFlow = flowsBetween(previous.from, previous.to);
+  private convertTransactions(
+    transactions: TransactionList,
+    accounts: AccountList,
+    rateContext: RateContext,
+    displayCurrency: string,
+  ): TransactionList {
+    const currencyByAccount = new Map(
+      accounts.map((account) => [
+        account.id,
+        account.currency ?? BASE_CURRENCY,
+      ]),
+    );
 
-    const months = this.calculations.monthRange(from, to);
+    return transactions.map((transaction) => {
+      const sourceCurrency =
+        transaction.currency ?? currencyByAccount.get(transaction.accountId);
 
-    const incomeExpenseByMonth = months.map((month) => {
-      let income = 0;
-      let expenses = 0;
-      for (const transaction of transactions) {
-        if (transaction.date.slice(0, 7) !== month) continue;
-        if (transaction.type === "income") {
-          income += money(transaction.amount, transaction.currency);
-        } else if (transaction.type === "expense") {
-          expenses += money(transaction.amount, transaction.currency);
-        }
-      }
-      return { month, income, expenses };
-    });
-
-    const categoryTotals = (
-      start: string,
-      end: string,
-    ): Map<string, number> => {
-      const totals = new Map<string, number>();
-      for (const transaction of transactions) {
-        if (
-          transaction.type !== "expense" ||
-          !transaction.categoryId ||
-          transaction.date < start ||
-          transaction.date > end
-        ) {
-          continue;
-        }
-        totals.set(
-          transaction.categoryId,
-          (totals.get(transaction.categoryId) ?? 0) +
-            money(transaction.amount, transaction.currency),
+      if (!sourceCurrency) {
+        throw new ApiException(
+          ErrorCode.INTERNAL_ERROR,
+          HttpStatus.INTERNAL_SERVER_ERROR,
+          "El movimiento no tiene una cuenta asociada",
         );
       }
-      return totals;
-    };
 
-    const currentByCategory = categoryTotals(from, to);
-    const previousByCategory = categoryTotals(previous.from, previous.to);
-    const expensesByCategory = [...currentByCategory.entries()]
-      .map(([categoryId, value]) => ({
-        categoryId,
-        name: categoryName(categoryId),
-        color: categoryColor(categoryId),
-        value,
-      }))
-      .sort((first, second) => second.value - first.value);
-
-    const categoryChanges = expensesByCategory
-      .map((item) => {
-        const previousValue = previousByCategory.get(item.categoryId) ?? 0;
-        return {
-          categoryId: item.categoryId,
-          name: item.name,
-          current: item.value,
-          previous: previousValue,
-          deltaPct: this.calculations.pctDelta(item.value, previousValue),
-        };
-      })
-      .sort(
-        (first, second) =>
-          Math.abs(second.current - second.previous) -
-          Math.abs(first.current - first.previous),
-      );
-
-    const incomeByCategory = new Map<string, number>();
-    for (const transaction of transactions) {
-      if (
-        transaction.type !== "income" ||
-        transaction.date < from ||
-        transaction.date > to
-      ) {
-        continue;
-      }
-      const key = transaction.categoryId ?? "other";
-      incomeByCategory.set(
-        key,
-        (incomeByCategory.get(key) ?? 0) +
-          money(transaction.amount, transaction.currency),
-      );
-    }
-    const incomeSources = [...incomeByCategory.entries()]
-      .map(([categoryId, value]) => ({
-        name:
-          categoryId === "other" ? "Otros ingresos" : categoryName(categoryId),
-        value,
-      }))
-      .sort((first, second) => second.value - first.value);
-
-    const activeAccounts = accounts.filter((account) => !account.archived);
-    const balanceOf = (account: Account, end?: string): number => {
-      let balance = account.initialBalance;
-      for (const transaction of transactions) {
-        if (transaction.accountId !== account.id) continue;
-        if (end && transaction.date > end) continue;
-        balance += signedAmount(transaction);
-      }
-      return money(balance, account.currency);
-    };
-    const accountsValue = activeAccounts.reduce(
-      (total, account) => total + balanceOf(account),
-      0,
-    );
-
-    const activeAssets = assets.filter((asset) => !asset.archived);
-    const valuationsByAsset = new Map<string, Valuation[]>();
-    for (const valuation of valuations) {
-      const list = valuationsByAsset.get(valuation.assetId) ?? [];
-      list.push(valuation);
-      valuationsByAsset.set(valuation.assetId, list);
-    }
-    for (const list of valuationsByAsset.values()) {
-      list.sort((first, second) => first.date.localeCompare(second.date));
-    }
-
-    const assetValueAt = (asset: Asset, end?: string): number => {
-      const list = valuationsByAsset.get(asset.id) ?? [];
-      if (list.length === 0) return 0;
-      if (!end) {
-        const latest = list[list.length - 1];
-        return money(latest.value, latest.currency);
-      }
-      const upTo = list.filter((valuation) => valuation.date <= end);
-      const chosen = upTo.length > 0 ? upTo[upTo.length - 1] : list[0];
-      return money(chosen.value, chosen.currency);
-    };
-
-    const assetsValue = activeAssets.reduce(
-      (total, asset) => total + assetValueAt(asset),
-      0,
-    );
-
-    const assetsValueByMonth = months.map((month) => {
-      const end = this.calculations.monthEnd(month);
       return {
-        month,
-        value: activeAssets.reduce(
-          (total, asset) => total + assetValueAt(asset, end),
-          0,
+        ...transaction,
+        currency: displayCurrency,
+        amount: this.calculations.convertAmount(
+          transaction.amount,
+          sourceCurrency,
+          displayCurrency,
+          rateContext.rates,
         ),
       };
     });
+  }
 
-    const compositionMap = new Map<Asset["type"], number>();
-    for (const asset of activeAssets) {
-      compositionMap.set(
-        asset.type,
-        (compositionMap.get(asset.type) ?? 0) + assetValueAt(asset),
-      );
-    }
-    const assetsComposition = [...compositionMap.entries()].map(
-      ([type, value]) => ({ type, value }),
+  private buildCurrencyData(scope: DashboardScope): DashboardCurrencyData {
+    const { sources, currency } = scope;
+    const availableCurrencies = this.buildAvailableCurrencies(
+      sources.accounts,
+      currency,
+      sources.rateContext.primaryCurrency,
     );
 
-    const staleMs = this.config.get("market", { infer: true }).quoteStaleMs;
-    const now = Date.now();
-    const derivedPositions = positions
-      .filter((position) => !position.archived)
-      .map((position) => {
-        const quote = quotes
-          .filter(
-            (item) =>
-              item.symbol === position.symbol &&
-              item.currency === position.currency,
-          )
-          .sort((a, b) => b.fetchedAt.getTime() - a.fetchedAt.getTime())[0];
-        const valuation = quote
-          ? this.calculations.calculatePositionValue(
-              position.quantity,
-              position.avgCost,
-              quote.price,
-            )
-          : null;
-        return {
-          position,
-          quote,
-          costBasis:
-            valuation?.costBasis ?? position.quantity * position.avgCost,
-          currentValue: valuation?.currentValue ?? null,
-          profitLoss: valuation?.profitLoss ?? null,
-          profitLossPct: valuation?.profitLossPct ?? null,
-          isStale: quote ? now - quote.fetchedAt.getTime() > staleMs : false,
-        };
-      });
+    return {
+      availableCurrencies,
+      breakdown: this.buildBreakdown(
+        sources.accounts,
+        scope.balances,
+        sources.rateContext,
+        currency,
+      ),
+      rates: availableCurrencies.map((value) =>
+        this.buildRate(value, sources.rateContext, currency),
+      ),
+    };
+  }
 
-    const positionsValue = derivedPositions.reduce(
-      (total, item) =>
-        total + money(item.currentValue ?? 0, item.position.currency),
-      0,
+  private buildKpis(
+    scope: DashboardScope,
+    netWorthSeries: DashboardData["netWorthSeries"],
+  ): DashboardKpis {
+    const { sources, dailyFlows, period, currency } = scope;
+    const current = this.calculations.sumFlows(
+      dailyFlows,
+      period.from,
+      period.to,
     );
-    const positionsCost = derivedPositions.reduce(
-      (total, item) => total + money(item.costBasis, item.position.currency),
-      0,
+    const previous = this.calculations.previousRange(period.from, period.to);
+    const previousFlow = this.calculations.sumFlows(
+      dailyFlows,
+      previous.from,
+      previous.to,
     );
-    const positionsProfit = positionsValue - positionsCost;
-
-    const debtsValue = debts
-      .filter((debt) => !debt.archived)
-      .reduce((total, debt) => total + money(debt.balance, debt.currency), 0);
-
-    const netWorth = assetsValue + positionsValue + accountsValue - debtsValue;
-
-    const netWorthSeries = months.map((month) => {
-      const date = this.calculations.monthEnd(month);
-      const physicalAssets =
-        assetsValueByMonth.find((item) => item.month === month)?.value ?? 0;
-      const monthAccounts = activeAccounts.reduce(
-        (total, account) => total + balanceOf(account, date),
-        0,
-      );
-      const totalAssets = physicalAssets + positionsValue + monthAccounts;
-      return {
-        date,
-        value: totalAssets - debtsValue,
-        assets: totalAssets,
-        debts: debtsValue,
-      };
-    });
-
+    const netWorth = this.calculations.netWorthFromBalances(
+      sources.accounts,
+      scope.balances,
+      sources.rateContext.rates,
+      currency,
+    );
     const seriesStart = netWorthSeries[0];
-    const assetsStart = seriesStart?.assets ?? assetsValue;
-    const accountsStart = activeAccounts.reduce(
-      (total, account) => total + balanceOf(account, seriesStart?.date),
-      0,
-    );
-    const physicalStart = assetsStart - positionsValue - accountsStart;
-
-    const physicalByType = new Map(
-      assetsComposition.map((item) => [item.type, item.value]),
-    );
-    const otherAssets = [...physicalByType.entries()]
-      .filter(([type]) => type !== "property" && type !== "vehicle")
-      .reduce((total, [, value]) => total + value, 0);
-    const netWorthComposition = [
-      {
-        kind: "property" as const,
-        label: "Propiedades",
-        value: physicalByType.get("property") ?? 0,
-      },
-      {
-        kind: "vehicle" as const,
-        label: "Vehículos",
-        value: physicalByType.get("vehicle") ?? 0,
-      },
-      { kind: "asset" as const, label: "Otros activos", value: otherAssets },
-      {
-        kind: "investment" as const,
-        label: "Inversiones",
-        value: positionsValue,
-      },
-      { kind: "account" as const, label: "Cuentas", value: accountsValue },
-    ].filter((item) => item.value !== 0);
-
-    const budgetAlerts = (
-      await this.budgetsOrchestrator.listBudgetAlerts(userId, to.slice(0, 7))
-    ).map((budget) => ({
-      budgetId: budget.id,
-      categoryName: budget.category.name,
-      consumedPct: budget.consumedPct,
-      status: budget.status,
-    }));
-
     const savingsRateDeltaPp =
       ((current.income > 0 ? current.savings / current.income : 0) -
         (previousFlow.income > 0
@@ -384,8 +249,6 @@ export class DashboardOrchestrator {
       100;
 
     return {
-      period: { from, to },
-      currency,
       kpis: {
         netWorth,
         netWorthDeltaPct: seriesStart
@@ -407,59 +270,149 @@ export class DashboardOrchestrator {
           previousFlow.savings,
         ),
         savingsRateDeltaPp,
-        assets: assetsValue,
-        assetsDeltaPct: this.calculations.pctDelta(assetsValue, physicalStart),
-        debts: debtsValue,
-        debtsDeltaPct: seriesStart
-          ? this.calculations.pctDelta(debtsValue, seriesStart.debts)
-          : null,
-        accounts: accountsValue,
-        accountsDeltaPct: null,
-        investmentsDeltaPct:
-          positionsCost > 0 ? (positionsProfit / positionsCost) * 100 : null,
       },
+    };
+  }
+
+  private buildCharts(scope: DashboardScope): DashboardCharts {
+    const { sources, transactions, dailyFlows, period, currency } = scope;
+    const flowsFor = (start: string, end: string) =>
+      this.calculations.sumFlows(dailyFlows, start, end);
+
+    const months = this.calculations.monthRange(period.from, period.to);
+    const dailyGranularity = this.rangeDays(period) <= 31;
+
+    const incomeExpenseByMonth = months.map((month) => {
+      const flows = flowsFor(`${month}-01`, this.calculations.monthEnd(month));
+      return { month, income: flows.income, expenses: flows.expenses };
+    });
+
+    const periods = dailyGranularity
+      ? this.calculations
+          .weekRange(period.from, period.to)
+          .map(({ start, end }) => ({ bucket: "week" as const, start, end }))
+      : months.map((month) => ({
+          bucket: "month" as const,
+          start: `${month}-01`,
+          end: this.calculations.monthEnd(month),
+        }));
+
+    const incomeExpenseByPeriod = periods.map(({ bucket, start, end }) => {
+      const flows = flowsFor(start, end);
+      return {
+        bucket,
+        start,
+        end,
+        income: flows.income,
+        expenses: flows.expenses,
+      };
+    });
+
+    const categoryById = new Map(
+      sources.categories.map((category) => [category.id, category]),
+    );
+    const currentByCategory = this.calculations.calculateExpensesByCategory(
+      transactions,
+      period.from,
+      period.to,
+      currency,
+    );
+    const expensesByCategory = [...currentByCategory.entries()]
+      .map(([categoryId, value]) => ({
+        categoryId,
+        name:
+          (categoryId ? categoryById.get(categoryId)?.name : undefined) ??
+          "Sin categoría",
+        color: categoryById.get(categoryId)?.color ?? "#64748b",
+        value,
+      }))
+      .sort((first, second) => second.value - first.value);
+
+    const seriesDates = dailyGranularity
+      ? this.calculations.dayRange(period.from, period.to)
+      : months.map((month) => this.calculations.monthEnd(month));
+
+    const netWorthSeries = this.calculations.netWorthSeries(
+      sources.accounts,
+      sources.transactions,
+      sources.rateContext.rates,
+      currency,
+      seriesDates,
+    );
+
+    return {
       netWorthSeries,
-      assetsValueByMonth,
+      incomeExpenseByPeriod,
       incomeExpenseByMonth,
       expensesByCategory,
-      categoryChanges,
-      assetsComposition,
-      netWorthComposition,
-      cashflow: {
-        income: incomeSources,
-        expenses: expensesByCategory.map(({ name, color, value }) => ({
-          name,
-          color,
-          value,
-        })),
-        savings: Math.max(0, current.savings),
-      },
-      investments: {
-        totalValue: positionsValue,
-        totalCost: positionsCost,
-        profitLoss: positionsProfit,
-        profitLossPct:
-          positionsCost > 0 ? (positionsProfit / positionsCost) * 100 : 0,
-        staleQuotes: derivedPositions.filter((item) => item.isStale).length,
-        positions: derivedPositions
-          .map((item) => ({
-            id: item.position.id,
-            symbol: item.position.symbol,
-            instrument: item.position.instrument,
-            quantity: item.position.quantity,
-            originalCurrency: item.position.currency,
-            originalValue: item.currentValue ?? 0,
-            originalCost: item.costBasis,
-            originalProfitLoss: item.profitLoss,
-            value: money(item.currentValue ?? 0, item.position.currency),
-            profitLossPct: item.profitLossPct,
-            isStale: item.isStale,
-            quoteDate: item.quote?.fetchedAt.toISOString() ?? null,
-            quoteProvider: item.quote?.provider ?? null,
-          }))
-          .sort((first, second) => second.value - first.value),
-      },
-      budgetAlerts,
+    };
+  }
+
+  private buildBreakdown(
+    accounts: AccountList,
+    balances: BalanceMap,
+    rateContext: RateContext,
+    displayCurrency: string,
+  ): DashboardBreakdown[] {
+    const byCurrency = new Map<string, { balance: number; accounts: number }>();
+    for (const account of accounts) {
+      const currency = account.currency ?? BASE_CURRENCY;
+      const bucket = byCurrency.get(currency) ?? { balance: 0, accounts: 0 };
+      bucket.balance += balances.get(account.id) ?? 0;
+      bucket.accounts += 1;
+      byCurrency.set(currency, bucket);
+    }
+
+    return [...byCurrency.entries()]
+      .map(([currency, bucket]) => ({
+        currency,
+        balance: bucket.balance,
+        accounts: bucket.accounts,
+        converted: this.calculations.convertAmount(
+          bucket.balance,
+          currency,
+          displayCurrency,
+          rateContext.rates,
+        ),
+      }))
+      .sort((first, second) => {
+        if (first.currency === displayCurrency) return -1;
+        if (second.currency === displayCurrency) return 1;
+        return second.converted - first.converted;
+      });
+  }
+
+  private buildAvailableCurrencies(
+    accounts: AccountList,
+    displayCurrency: string,
+    primaryCurrency: string,
+  ): string[] {
+    const currencies = new Set([
+      ...accounts.map((account) => account.currency ?? BASE_CURRENCY),
+      primaryCurrency,
+      displayCurrency,
+    ]);
+    return [...currencies].sort((first, second) => {
+      if (first === primaryCurrency) return -1;
+      if (second === primaryCurrency) return 1;
+      return first.localeCompare(second);
+    });
+  }
+
+  private buildRate(
+    currency: string,
+    rateContext: RateContext,
+    displayCurrency: string,
+  ): DashboardRate {
+    return {
+      currency,
+      rate: this.calculations.convertAmount(
+        1,
+        currency,
+        displayCurrency,
+        rateContext.rates,
+      ),
+      rateDate: rateContext.rateDate ?? toIsoDate(new Date()),
     };
   }
 }

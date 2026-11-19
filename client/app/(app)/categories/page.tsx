@@ -1,4 +1,4 @@
-import { CategoriesView } from "@/components/features/categories/categories-view";
+import { CategoriesView } from "@/app/(app)/categories/_components/categories-view";
 
 const CategoriesPage = () => {
   return <CategoriesView />;

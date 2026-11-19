@@ -2,25 +2,28 @@ import { cn } from "@/lib/utils";
 
 export interface BrandProps {
   className?: string;
-  compact?: boolean;
+  wordmarkClassName?: string;
 }
 
-export const Brand = ({ className, compact }: BrandProps) => {
+export const Brand = ({ className, wordmarkClassName }: BrandProps) => {
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <span className="bg-primary text-primary-foreground font-heading flex size-9 items-center justify-center rounded-xl text-lg font-bold">
-        A
-      </span>
-      {!compact ? (
-        <div className="flex flex-col">
-          <span className="font-heading text-base leading-none font-semibold">
-            Atlass Fin
+    <div className={cn("flex h-11 items-center", className)}>
+      <div className="flex flex-col gap-px">
+        <span className="flex items-end gap-[5px]">
+          <span
+            className={cn(
+              "font-heading text-foreground text-[18px] leading-[23px] font-semibold tracking-[-0.7px]",
+              wordmarkClassName,
+            )}
+          >
+            atlass fin
           </span>
-          <span className="text-muted-foreground text-xs">
-            Gestor financiero
-          </span>
-        </div>
-      ) : null}
+          <span className="bg-primary size-1.5 rounded-[2px]" aria-hidden />
+        </span>
+        <span className="text-muted-foreground text-[10.5px] leading-[14px]">
+          Gestor financiero
+        </span>
+      </div>
     </div>
   );
 };

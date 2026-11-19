@@ -26,11 +26,6 @@ export class UpdateTransactionDto {
   amount?: number;
 
   @IsOptional()
-  @IsString()
-  @Length(3, 3)
-  currency?: string;
-
-  @IsOptional()
   @Matches(ISO_DATE, { message: "date debe ser YYYY-MM-DD" })
   @IsDateString({}, { message: "date debe ser una fecha válida" })
   date?: string;
@@ -52,6 +47,11 @@ export class UpdateTransactionDto {
   @IsOptional()
   @IsUUID()
   transferAccountId?: string | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.0001)
+  transferAmount?: number;
 
   @IsOptional()
   @IsUUID()

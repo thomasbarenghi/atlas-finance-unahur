@@ -1,4 +1,4 @@
-import { bearer, registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
 import { truncateAll } from "../utils/db";
 import { createAccount } from "../utils/factories";
 import { getDashboard, seedBaseScenario } from "../utils/scenario";
@@ -36,9 +36,6 @@ describe("FR-DAS-001 · KPIs del período", () => {
       income: 500,
       expenses: 200,
       savings: 300,
-      accounts: 1300,
-      assets: 0,
-      debts: 0,
       netWorth: 1300,
     });
   });
@@ -53,11 +50,10 @@ describe("FR-DAS-001 · KPIs del período", () => {
 
     await request(ctx.server)
       .post("/api/transactions")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({
         type: "transfer",
         amount: 400,
-        currency: "ARS",
         date: "2026-03-20",
         description: "Ahorro",
         accountId: account.id,

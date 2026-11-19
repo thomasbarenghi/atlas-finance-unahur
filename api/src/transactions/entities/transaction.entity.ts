@@ -38,9 +38,6 @@ export class Transaction {
   })
   amount: number;
 
-  @Column({ type: "char", length: 3 })
-  currency: string;
-
   @Column({ type: "date" })
   date: string;
 
@@ -61,7 +58,7 @@ export class Transaction {
   @Column({ name: "transfer_account_id", type: "uuid", nullable: true })
   transferAccountId: string | null;
 
-  @ManyToOne(() => Account, { onDelete: "SET NULL", nullable: true })
+  @ManyToOne(() => Account, { onDelete: "CASCADE", nullable: true })
   @JoinColumn({ name: "transfer_account_id" })
   transferAccount: Account | null;
 

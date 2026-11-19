@@ -1,15 +1,7 @@
-import { ConfigService } from "@nestjs/config";
-import type { AppConfig } from "../../config/configuration";
 import { CalculationsService } from "./calculations.service";
 import type { MoneyTransaction } from "./calculations.types";
 
-const buildService = (budgetWarningThreshold = 0.8): CalculationsService => {
-  const config = {
-    get: jest.fn().mockReturnValue(budgetWarningThreshold),
-  } as unknown as ConfigService<AppConfig, true>;
-
-  return new CalculationsService(config);
-};
+const service = new CalculationsService();
 
 const transaction = (
   overrides: Partial<MoneyTransaction> = {},
@@ -24,9 +16,8 @@ const transaction = (
 });
 
 describe("CalculationsService", () => {
-  describe("calculatePeriodFlows", () => {
+  describe("CAL-002 calculatePeriodFlows", () => {
     it("sums income and expenses and excludes transfers", () => {
-      const service = buildService();
       const flows = service.calculatePeriodFlows(
         [
           transaction({ type: "income", amount: 1000 }),
@@ -42,36 +33,14 @@ describe("CalculationsService", () => {
     });
 
     it("returns zeroes when there are no movements in the period", () => {
-      const service = buildService();
-
       expect(
         service.calculatePeriodFlows([], "2026-03-01", "2026-03-31"),
       ).toEqual({ income: 0, expenses: 0, savings: 0 });
     });
   });
 
-  describe("calculateMonthExpenses", () => {
-    it("only counts expenses from the given month", () => {
-      const service = buildService();
-
-      const total = service.calculateMonthExpenses(
-        [
-          transaction({ amount: 100, date: "2026-03-31" }),
-          transaction({ amount: 50, date: "2026-03-01" }),
-          transaction({ amount: 999, date: "2026-02-28" }),
-          transaction({ type: "income", amount: 5000, date: "2026-03-15" }),
-        ],
-        "2026-03",
-      );
-
-      expect(total).toBe(150);
-    });
-  });
-
   describe("calculateExpensesByCategory", () => {
-    it("groups period expenses by category", () => {
-      const service = buildService();
-
+    it("groups period expenses by category and ignores uncategorized ones", () => {
       const grouped = service.calculateExpensesByCategory(
         [
           transaction({ amount: 100, categoryId: "food" }),
@@ -90,56 +59,65 @@ describe("CalculationsService", () => {
     });
   });
 
-  describe("calculateBudgetConsumption", () => {
-    it("stays available below the warning threshold", () => {
-      const service = buildService();
-
-      const result = service.calculateBudgetConsumption(1000, 500);
-
-      expect(result.status).toBe("available");
-      expect(result.available).toBe(500);
-      expect(result.consumedPct).toBe(50);
-    });
-
-    it("warns at or above the threshold without exceeding", () => {
-      const service = buildService();
-
-      expect(service.calculateBudgetConsumption(1000, 800).status).toBe(
-        "warning",
+  describe("daily flow index", () => {
+    it("aggregates once and sums any period without rescanning transactions", () => {
+      const daily = service.calculateDailyFlows(
+        [
+          transaction({
+            type: "income",
+            amount: 1000,
+            date: "2026-03-05",
+            currency: "ARS",
+          }),
+          transaction({
+            type: "expense",
+            amount: 400,
+            date: "2026-03-10",
+            currency: "ARS",
+          }),
+          transaction({
+            type: "income",
+            amount: 50,
+            date: "2026-03-10",
+            currency: "ARS",
+          }),
+          transaction({
+            type: "transfer",
+            amount: 5000,
+            date: "2026-03-15",
+            currency: "ARS",
+          }),
+          transaction({
+            type: "income",
+            amount: 999,
+            date: "2026-04-01",
+            currency: "ARS",
+          }),
+        ],
+        "ARS",
       );
-      expect(service.calculateBudgetConsumption(1000, 1000).status).toBe(
-        "warning",
-      );
-    });
 
-    it("is exceeded when spending passes the limit", () => {
-      const service = buildService();
-
-      const result = service.calculateBudgetConsumption(1000, 1200);
-
-      expect(result.status).toBe("exceeded");
-      expect(result.available).toBe(-200);
-    });
-
-    it("does not divide by zero for a limit-less budget", () => {
-      const service = buildService();
-
-      expect(service.calculateBudgetConsumption(0, 500)).toEqual({
-        limit: 0,
-        spent: 500,
-        available: -500,
-        consumedPct: 0,
-        status: "available",
+      expect(service.sumFlows(daily, "2026-03-01", "2026-03-31")).toEqual({
+        income: 1050,
+        expenses: 400,
+        savings: 650,
+      });
+      expect(service.sumFlows(daily, "2026-03-10", "2026-03-10")).toEqual({
+        income: 50,
+        expenses: 400,
+        savings: -350,
       });
     });
   });
 
-  describe("calculateCurrentBalance", () => {
-    it("applies income, expenses and both transfer legs", () => {
-      const service = buildService();
-      const account = { id: "a1", initialBalance: 1000, archived: false };
+  describe("CAL-001 calculateNetWorth", () => {
+    it("sums the net balance of every account", () => {
+      const accounts = [
+        { id: "a1", initialBalance: 1000 },
+        { id: "a2", initialBalance: 500 },
+      ];
 
-      const balance = service.calculateCurrentBalance(account, [
+      const netWorth = service.calculateNetWorth(accounts, [
         transaction({ type: "income", amount: 200, accountId: "a1" }),
         transaction({ type: "expense", amount: 50, accountId: "a1" }),
         transaction({
@@ -150,113 +128,261 @@ describe("CalculationsService", () => {
         }),
         transaction({
           type: "transfer",
-          amount: 100,
-          accountId: "a1",
-          transferAccountId: "a2",
+          amount: 300,
+          accountId: "a2",
+          transferAccountId: "a1",
         }),
       ]);
+
+      expect(netWorth).toBe(1650);
+    });
+
+    it("returns zero with no accounts", () => {
+      expect(service.calculateNetWorth([], [transaction()])).toBe(0);
+    });
+  });
+
+  describe("calculateCurrentBalance", () => {
+    it("applies income, expenses and both transfer legs", () => {
+      const balance = service.calculateCurrentBalance(
+        { id: "a1", initialBalance: 1000 },
+        [
+          transaction({ type: "income", amount: 200, accountId: "a1" }),
+          transaction({ type: "expense", amount: 50, accountId: "a1" }),
+          transaction({
+            type: "transfer",
+            amount: -300,
+            accountId: "a1",
+            transferAccountId: "a2",
+          }),
+          transaction({
+            type: "transfer",
+            amount: 100,
+            accountId: "a1",
+            transferAccountId: "a2",
+          }),
+        ],
+      );
 
       expect(balance).toBe(950);
     });
   });
 
-  describe("calculateCashBalance", () => {
-    it("aggregates non-archived accounts and ignores archived ones", () => {
-      const service = buildService();
+  describe("calculateAccountBalances / netWorthFromBalances", () => {
+    it("computes all balances in one pass and converts them", () => {
       const accounts = [
-        { id: "a1", initialBalance: 1000, archived: false },
-        { id: "a2", initialBalance: 500, archived: true },
+        { id: "a1", initialBalance: 1000, currency: "ARS" },
+        { id: "a2", initialBalance: 10, currency: "USD" },
+      ];
+      const balances = service.calculateAccountBalances(accounts, [
+        transaction({ type: "income", amount: 200, accountId: "a1" }),
+        transaction({ type: "expense", amount: 50, accountId: "a1" }),
+        transaction({ type: "income", amount: 5, accountId: "a2" }),
+        transaction({ type: "income", amount: 999, accountId: "missing" }),
+      ]);
+      const rates = new Map([
+        ["ARS", 1],
+        ["USD", 1180],
+      ]);
+
+      expect(balances.get("a1")).toBe(1150);
+      expect(balances.get("a2")).toBe(15);
+      expect(balances.has("missing")).toBe(false);
+      expect(
+        service.netWorthFromBalances(accounts, balances, rates, "ARS"),
+      ).toBe(1150 + 15 * 1180);
+    });
+  });
+
+  describe("balanceAt / netWorthAt", () => {
+    it("only includes movements up to the end date", () => {
+      const movements = [
+        transaction({ type: "income", amount: 200, date: "2026-01-10" }),
+        transaction({ type: "expense", amount: 50, date: "2026-03-10" }),
       ];
 
-      expect(service.calculateCashBalance(accounts, [])).toBe(1000);
+      expect(
+        service.balanceAt({ id: "account-1", initialBalance: 1000 }, movements),
+      ).toBe(1150);
+      expect(
+        service.balanceAt(
+          { id: "account-1", initialBalance: 1000 },
+          movements,
+          "2026-01-31",
+        ),
+      ).toBe(1200);
+    });
+
+    it("sums every account at a date", () => {
+      const accounts = [
+        { id: "a1", initialBalance: 1000 },
+        { id: "a2", initialBalance: 500 },
+      ];
+      const movements = [
+        transaction({ type: "income", amount: 200, accountId: "a1" }),
+        transaction({ type: "expense", amount: 50, accountId: "a1" }),
+        transaction({
+          type: "transfer",
+          amount: -300,
+          accountId: "a1",
+          transferAccountId: "a2",
+          date: "2026-04-01",
+        }),
+        transaction({
+          type: "transfer",
+          amount: 300,
+          accountId: "a2",
+          transferAccountId: "a1",
+          date: "2026-04-01",
+        }),
+      ];
+
+      expect(service.netWorthAt(accounts, movements, "2026-03-31")).toBe(1650);
+      expect(service.netWorthAt(accounts, movements)).toBe(1650);
     });
   });
 
-  describe("getLatestValuationsTotal", () => {
-    it("keeps only the latest valuation per asset", () => {
-      const service = buildService();
-
-      const total = service.getLatestValuationsTotal([
-        { assetId: "asset-1", value: 100, date: "2026-01-01" },
-        { assetId: "asset-1", value: 150, date: "2026-03-01" },
-        { assetId: "asset-2", value: 200, date: "2026-02-01" },
-      ]);
-
-      expect(total).toBe(350);
+  describe("pctDelta", () => {
+    it("computes the variation and returns null on a zero base", () => {
+      expect(service.pctDelta(150, 100)).toBe(50);
+      expect(service.pctDelta(50, 100)).toBe(-50);
+      expect(service.pctDelta(10, 0)).toBeNull();
     });
   });
 
-  describe("calculatePositionsCost", () => {
-    it("multiplies quantity by average cost for active positions", () => {
-      const service = buildService();
-
-      const total = service.calculatePositionsCost([
-        { archived: false, quantity: 2, avgCost: 100 },
-        { archived: false, quantity: 1, avgCost: 50 },
-        { archived: true, quantity: 10, avgCost: 100 },
-      ]);
-
-      expect(total).toBe(250);
-    });
-  });
-
-  describe("calculateNetWorth", () => {
-    it("adds assets, positions and cash minus debts", () => {
-      const service = buildService();
+  describe("multimoneda (CAL-001/002)", () => {
+    it("filters flows by the selected currency and never sums currencies", () => {
+      const transactions = [
+        transaction({ type: "income", amount: 100, currency: "ARS" }),
+        transaction({ type: "income", amount: 10, currency: "USD" }),
+        transaction({ type: "expense", amount: 40, currency: "USD" }),
+      ];
 
       expect(
-        service.calculateNetWorth({
-          assets: 1000,
-          positions: 500,
-          cash: 300,
-          debts: 200,
+        service.calculatePeriodFlows(
+          transactions,
+          "2026-03-01",
+          "2026-03-31",
+          "ARS",
+        ),
+      ).toEqual({ income: 100, expenses: 0, savings: 100 });
+      expect(
+        service.calculatePeriodFlows(
+          transactions,
+          "2026-03-01",
+          "2026-03-31",
+          "USD",
+        ),
+      ).toEqual({ income: 10, expenses: 40, savings: -30 });
+    });
+
+    it("converts net worth with the single quote and supports another unit", () => {
+      const accounts = [
+        { id: "a1", initialBalance: 1000, currency: "ARS" },
+        { id: "a2", initialBalance: 10, currency: "USD" },
+      ];
+      const rates = new Map([
+        ["ARS", 1],
+        ["USD", 1180],
+      ]);
+
+      expect(service.netWorthInCurrency(accounts, [], rates, "ARS")).toBe(
+        12800,
+      );
+      expect(
+        service.netWorthInCurrency(accounts, [], rates, "USD"),
+      ).toBeCloseTo(12800 / 1180, 6);
+    });
+
+    it("builds the net worth series processing each transaction once", () => {
+      const accounts = [
+        { id: "a1", initialBalance: 1000, currency: "ARS" },
+        { id: "a2", initialBalance: 10, currency: "USD" },
+      ];
+      const transactions = [
+        transaction({
+          type: "income",
+          amount: 200,
+          accountId: "a1",
+          date: "2026-01-10",
         }),
-      ).toBe(1600);
+        transaction({
+          type: "expense",
+          amount: 50,
+          accountId: "a1",
+          date: "2026-02-15",
+        }),
+        transaction({
+          type: "income",
+          amount: 5,
+          accountId: "a2",
+          date: "2026-03-20",
+        }),
+      ];
+      const rates = new Map([
+        ["ARS", 1],
+        ["USD", 1180],
+      ]);
+      const dates = ["2026-01-31", "2026-02-28", "2026-03-31"];
+
+      const series = service.netWorthSeries(
+        accounts,
+        transactions,
+        rates,
+        "ARS",
+        dates,
+      );
+
+      expect(series.map((point) => point.date)).toEqual(dates);
+      for (const point of series) {
+        expect(point.value).toBe(
+          service.netWorthInCurrency(
+            accounts,
+            transactions,
+            rates,
+            "ARS",
+            point.date,
+          ),
+        );
+      }
     });
   });
 
-  describe("calculateGoalProgress", () => {
-    const reference = new Date("2026-09-12T00:00:00.000Z");
+  describe("period helpers", () => {
+    it("lists the months in a range", () => {
+      expect(service.monthRange("2026-01-15", "2026-03-02")).toEqual([
+        "2026-01",
+        "2026-02",
+        "2026-03",
+      ]);
+    });
 
-    it("computes the percentage without dividing by zero", () => {
-      const service = buildService();
-
-      expect(service.calculateGoalProgress(1000, 200, null, reference)).toEqual(
-        {
-          progressPct: 20,
-          status: "in_progress",
-        },
-      );
-      expect(service.calculateGoalProgress(0, 500, null, reference)).toEqual({
-        progressPct: 0,
-        status: "in_progress",
+    it("computes the previous range of the same length", () => {
+      expect(service.previousRange("2026-03-01", "2026-03-31")).toEqual({
+        from: "2026-01-29",
+        to: "2026-02-28",
       });
     });
 
-    it("marks a goal as pending when nothing was saved", () => {
-      const service = buildService();
-
-      expect(
-        service.calculateGoalProgress(1000, 0, null, reference).status,
-      ).toBe("pending");
+    it("computes the end of the month", () => {
+      expect(service.monthEnd("2026-02")).toBe("2026-02-28");
+      expect(service.monthEnd("2026-04")).toBe("2026-04-30");
     });
 
-    it("marks a goal as achieved when the target is reached", () => {
-      const service = buildService();
-
-      expect(
-        service.calculateGoalProgress(1000, 1000, "2026-12-01", reference)
-          .status,
-      ).toBe("achieved");
-    });
-
-    it("marks a goal as overdue after its target date", () => {
-      const service = buildService();
-
-      expect(
-        service.calculateGoalProgress(1000, 200, "2026-01-01", reference)
-          .status,
-      ).toBe("overdue");
+    it("lists daily points and 7-day buckets", () => {
+      expect(service.dayRange("2026-03-01", "2026-03-05")).toEqual([
+        "2026-03-01",
+        "2026-03-02",
+        "2026-03-03",
+        "2026-03-04",
+        "2026-03-05",
+      ]);
+      expect(service.weekRange("2026-03-01", "2026-03-25")).toEqual([
+        { start: "2026-03-01", end: "2026-03-07" },
+        { start: "2026-03-08", end: "2026-03-14" },
+        { start: "2026-03-15", end: "2026-03-21" },
+        { start: "2026-03-22", end: "2026-03-25" },
+      ]);
     });
   });
 });

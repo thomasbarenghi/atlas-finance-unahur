@@ -1,7 +1,6 @@
-import request from "supertest";
-import { bearer, registerUser } from "../utils/auth";
+import { registerUser } from "../utils/auth";
 import { truncateAll } from "../utils/db";
-import { seedBaseScenario } from "../utils/scenario";
+import { getDashboard, seedBaseScenario } from "../utils/scenario";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
@@ -27,13 +26,10 @@ describe("CAL-002 · Flujo de fondos", () => {
     const user = await registerUser(ctx.app);
     await seedBaseScenario(ctx.app, user.accessToken);
 
-    const summary = await request(ctx.server)
-      .get("/api/reports/summary?from=2026-01-01&to=2026-03-31")
-      .set(bearer(user.accessToken))
-      .expect(200);
+    const dashboard = await getDashboard(ctx.app, user.accessToken);
 
-    expect(summary.body.income).toBe(500);
-    expect(summary.body.expenses).toBe(200);
-    expect(summary.body.savings).toBe(300);
+    expect(dashboard.kpis.income).toBe(500);
+    expect(dashboard.kpis.expenses).toBe(200);
+    expect(dashboard.kpis.savings).toBe(300);
   });
 });

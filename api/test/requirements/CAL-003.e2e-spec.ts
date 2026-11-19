@@ -35,7 +35,6 @@ describe("CAL-003 · Transferencias fuera del flujo", () => {
     await createTransaction(ctx.app, user.accessToken, {
       type: "transfer",
       amount: 400,
-      currency: "ARS",
       date: "2026-03-20",
       description: "Ahorro",
       accountId: account.id,
@@ -46,5 +45,7 @@ describe("CAL-003 · Transferencias fuera del flujo", () => {
     expect(after.kpis.income).toBe(before.kpis.income);
     expect(after.kpis.expenses).toBe(before.kpis.expenses);
     expect(after.kpis.savings).toBe(before.kpis.savings);
+    // El patrimonio neto sí se conserva (la transferencia no crea ni destruye dinero).
+    expect(after.kpis.netWorth).toBe(before.kpis.netWorth);
   });
 });

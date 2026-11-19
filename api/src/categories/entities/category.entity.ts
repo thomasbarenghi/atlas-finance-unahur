@@ -1,26 +1,18 @@
-import {
-  Column,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-} from "typeorm";
+import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
 import { CategoryType } from "../../common/types/financial-enums";
-import { User } from "../../users/entities/user.entity";
 
+/**
+ * Categories are either system-wide (`user_id` null, read-only) or owned by a
+ * user (`user_id` set, editable by its owner).
+ */
 @Entity("categories")
+@Index(["userId", "type", "name"], { unique: true })
 export class Category {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @Index()
   @Column({ name: "user_id", type: "uuid", nullable: true })
   userId: string | null;
-
-  @ManyToOne(() => User, { onDelete: "SET NULL", nullable: true })
-  @JoinColumn({ name: "user_id" })
-  user: User | null;
 
   @Column({ type: "text" })
   name: string;
@@ -33,7 +25,4 @@ export class Category {
 
   @Column({ type: "text", nullable: true })
   icon: string | null;
-
-  @Column({ type: "boolean", default: false })
-  archived: boolean;
 }

@@ -1,5 +1,10 @@
 import request from "supertest";
-import { loginUser, registerUser } from "../utils/auth";
+import {
+  authCookie,
+  loginUser,
+  refreshCookie,
+  registerUser,
+} from "../utils/auth";
 import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
@@ -58,41 +63,53 @@ describe("FR-AUT-002 · Inicio y cierre de sesión", () => {
     expect(unknownEmail.body.message).toBe(wrongPassword.body.message);
   });
 
-  it("invalida la sesión al cerrar sesión", async () => {
+  it("limpia las cookies al cerrar sesión", async () => {
+    const user = await registerUser(ctx.app);
+
+    const response = await request(ctx.server)
+      .post("/api/auth/logout")
+      .set(authCookie(user.accessToken))
+      .expect(204);
+
+    const cookies = (
+      response.headers["set-cookie"] as unknown as string[]
+    ).join(";");
+    expect(cookies).toContain("access_token=;");
+    expect(cookies).toContain("refresh_token=;");
+  });
+
+  it("mantiene el access token válido hasta expirar (JWT sin estado)", async () => {
     const user = await registerUser(ctx.app);
 
     await request(ctx.server)
       .post("/api/auth/logout")
-      .set({ Authorization: `Bearer ${user.accessToken}` })
+      .set(authCookie(user.accessToken))
       .expect(204);
 
     await request(ctx.server)
       .get("/api/auth/me")
-      .set({ Authorization: `Bearer ${user.accessToken}` })
-      .expect(401);
+      .set(authCookie(user.accessToken))
+      .expect(200);
   });
 
-  it("rota el refresh token e invalida el anterior", async () => {
+  it("renueva el access token con la cookie de refresh", async () => {
     const user = await registerUser(ctx.app);
 
-    const rotated = await request(ctx.server)
+    const refreshed = await request(ctx.server)
       .post("/api/auth/refresh")
-      .send({ refreshToken: user.refreshToken })
-      .expect(200);
+      .set(refreshCookie(user.refreshToken))
+      .expect(204);
 
-    expect(rotated.body.accessToken).toBeDefined();
-    expect(rotated.body.refreshToken).not.toBe(user.refreshToken);
-
-    await request(ctx.server)
-      .post("/api/auth/refresh")
-      .send({ refreshToken: user.refreshToken })
-      .expect(401);
+    const cookies = (
+      refreshed.headers["set-cookie"] as unknown as string[]
+    ).join(";");
+    expect(cookies).toContain("access_token=");
+    expect(cookies).toContain("refresh_token=");
   });
 
-  it("rechaza refresh sin token", async () => {
+  it("rechaza refresh sin cookie", async () => {
     const response = await request(ctx.server)
       .post("/api/auth/refresh")
-      .send({})
       .expect(401);
 
     expect(response.body.code).toBe("SESSION_REVOKED");

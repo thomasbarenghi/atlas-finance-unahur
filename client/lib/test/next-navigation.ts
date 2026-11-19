@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { vi } from "vitest";
 
 export const replace = vi.fn();
@@ -17,12 +18,24 @@ export const useRouter = () => ({
 });
 
 export let searchParams = new URLSearchParams();
+const searchParamsListeners = new Set<() => void>();
 
 export const setSearchParams = (params: URLSearchParams): void => {
   searchParams = params;
+  searchParamsListeners.forEach((listener) => listener());
 };
 
-export const useSearchParams = (): URLSearchParams => searchParams;
+const subscribeSearchParams = (listener: () => void): (() => void) => {
+  searchParamsListeners.add(listener);
+  return () => searchParamsListeners.delete(listener);
+};
+
+export const useSearchParams = (): URLSearchParams =>
+  useSyncExternalStore(
+    subscribeSearchParams,
+    () => searchParams,
+    () => searchParams,
+  );
 
 export let pathname = "/";
 
@@ -43,6 +56,6 @@ export const resetNavigationMocks = (): void => {
   forward.mockReset();
   refresh.mockReset();
   prefetch.mockReset();
-  searchParams = new URLSearchParams();
+  setSearchParams(new URLSearchParams());
   pathname = "/";
 };

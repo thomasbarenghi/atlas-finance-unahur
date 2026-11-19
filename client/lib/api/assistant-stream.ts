@@ -1,28 +1,17 @@
-import { mockApi } from "@/lib/mocks/api";
-import { API_BASE_URL, authHeaders, refreshAuthSession } from "./client";
-import type {
-  AssistantActionError,
-  AssistantActionProposal,
-  AssistantMessageInput,
-  PeriodRange,
-} from "./types";
-
-const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS !== "false";
-const ASSISTANT_LIVE = process.env.NEXT_PUBLIC_ASSISTANT_LIVE === "true";
+import { API_BASE_URL, refreshAuthSession } from "./client";
+import type { AssistantMessageInput, PeriodRange } from "./types";
 
 export interface AssistantStreamMeta {
-  conversationId: string;
   period?: PeriodRange;
   currency?: string;
   sources?: string[];
+  disclaimer?: string;
 }
 
 export interface AssistantStreamHandlers {
   onMeta?: (meta: AssistantStreamMeta) => void;
   onToken?: (delta: string) => void;
-  onProposal?: (proposal: AssistantActionProposal) => void;
-  onActionError?: (error: AssistantActionError) => void;
-  onDone?: (result: { conversationId: string; insufficient: boolean }) => void;
+  onDone?: (result: { insufficient: boolean }) => void;
   onError?: (message: string) => void;
 }
 
@@ -41,42 +30,17 @@ export const streamAssistantMessage = async (
   handlers: AssistantStreamHandlers,
   options?: { signal?: AbortSignal },
 ): Promise<void> => {
-  if (USE_MOCKS && !ASSISTANT_LIVE) {
-    const reply = await mockApi.sendMessage(input);
-    if (options?.signal?.aborted) return;
-    handlers.onMeta?.({
-      conversationId: reply.conversationId,
-      period: input.period,
-      currency: input.currency,
-      sources: reply.contextMeta.sources,
-    });
-    const words = reply.answer.split(" ");
-    for (let index = 0; index < words.length; index += 1) {
-      if (options?.signal?.aborted) return;
-      handlers.onToken?.(
-        `${words[index]}${index < words.length - 1 ? " " : ""}`,
-      );
-      await new Promise((resolve) => setTimeout(resolve, 12));
-    }
-    handlers.onDone?.({
-      conversationId: reply.conversationId,
-      insufficient: reply.insufficient,
-    });
-    return;
-  }
-
   const send = async () => {
-    const auth = await authHeaders();
     return fetch(`${API_BASE_URL}/assistant/messages`, {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json", ...auth },
+      headers: { "Content-Type": "application/json" },
       signal: options?.signal,
       body: JSON.stringify({
         question: input.question,
-        conversationId: input.conversationId ?? null,
         period: input.period,
-        currency: input.currency,
+        ...(input.currency ? { currency: input.currency } : {}),
+        ...(input.history?.length ? { history: input.history } : {}),
       }),
     });
   };
@@ -119,15 +83,8 @@ export const streamAssistantMessage = async (
         handlers.onMeta?.(parsed as unknown as AssistantStreamMeta);
       } else if (event === "token") {
         handlers.onToken?.(String(parsed.delta ?? ""));
-      } else if (event === "action_proposal") {
-        handlers.onProposal?.(parsed as unknown as AssistantActionProposal);
-      } else if (event === "action_error") {
-        handlers.onActionError?.(parsed as unknown as AssistantActionError);
       } else if (event === "done") {
-        handlers.onDone?.({
-          conversationId: String(parsed.conversationId ?? ""),
-          insufficient: Boolean(parsed.insufficient),
-        });
+        handlers.onDone?.({ insufficient: Boolean(parsed.insufficient) });
       } else if (event === "error") {
         handlers.onError?.(
           String(parsed.message ?? "El asistente no está disponible"),

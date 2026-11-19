@@ -1,15 +1,30 @@
+/**
+ * Default/fallback currency. v0.4 is multi-currency: amounts carry their own
+ * currency and the user's primary currency lives in the session. `CURRENCY` is
+ * only a fallback for legacy helpers/tests.
+ */
+export const CURRENCY = "ARS";
+
 const DEFAULT_LOCALE = "es-AR";
+
+export interface CurrencyFormatOptions {
+  showCents?: boolean;
+}
 
 export const formatCurrency = (
   value: number,
   currency: string,
   locale: string = DEFAULT_LOCALE,
-) =>
-  new Intl.NumberFormat(locale, {
+  options: CurrencyFormatOptions = {},
+) => {
+  const showCents = options.showCents ?? true;
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: showCents ? 2 : 0,
+    maximumFractionDigits: showCents ? 2 : 0,
   }).format(value);
+};
 
 export const formatPercent = (value: number, locale: string = DEFAULT_LOCALE) =>
   new Intl.NumberFormat(locale, {
@@ -77,34 +92,37 @@ export const parseMoneyInput = (input: string): number | null => {
   return Number.isFinite(value) ? value : null;
 };
 
-export const formatApproxCurrency = (
-  value: number,
-  currency: string,
-  locale: string = DEFAULT_LOCALE,
-) => `≈ ${formatCurrency(value, currency, locale)}`;
-
-export const formatCompactCurrency = (
-  value: number,
-  currency: string,
-  locale: string = DEFAULT_LOCALE,
-) =>
-  new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value);
-
 export const formatDate = (iso: string, locale: string = DEFAULT_LOCALE) =>
   new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
     new Date(iso.length === 10 ? `${iso}T00:00:00` : iso),
   );
 
-export const formatDateTime = (iso: string, locale: string = DEFAULT_LOCALE) =>
+export const formatDayMonth = (iso: string, locale: string = DEFAULT_LOCALE) =>
   new Intl.DateTimeFormat(locale, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(iso));
+    day: "numeric",
+    month: "short",
+  }).format(new Date(iso.length === 10 ? `${iso}T00:00:00` : iso));
+
+export const formatWeekRange = (
+  start: string,
+  end: string,
+  locale: string = DEFAULT_LOCALE,
+): string => {
+  const startDate = new Date(`${start}T00:00:00`);
+  const endDate = new Date(`${end}T00:00:00`);
+  const day = (date: Date) =>
+    new Intl.DateTimeFormat(locale, { day: "numeric" }).format(date);
+  const month = (date: Date) =>
+    new Intl.DateTimeFormat(locale, { month: "short" }).format(date);
+
+  if (
+    startDate.getMonth() === endDate.getMonth() &&
+    startDate.getFullYear() === endDate.getFullYear()
+  ) {
+    return `${day(startDate)}–${day(endDate)} ${month(endDate)}`;
+  }
+  return `${day(startDate)} ${month(startDate)}–${day(endDate)} ${month(endDate)}`;
+};
 
 export const formatMonth = (iso: string, locale: string = DEFAULT_LOCALE) =>
   new Intl.DateTimeFormat(locale, {
@@ -112,21 +130,19 @@ export const formatMonth = (iso: string, locale: string = DEFAULT_LOCALE) =>
     year: "numeric",
   }).format(new Date(`${iso.slice(0, 7)}-01T00:00:00`));
 
-export const formatTimeAgo = (
-  iso: string,
-  reference: Date = new Date(),
-): string => {
-  const elapsedMs = reference.getTime() - new Date(iso).getTime();
-  const hours = Math.floor(elapsedMs / 3_600_000);
-  if (hours < 1) return "hace menos de 1 h";
-  if (hours < 24) return `hace ${hours} h`;
-  return `hace ${Math.floor(hours / 24)} d`;
-};
+const formatMonthLabel = (iso: string, locale: string = DEFAULT_LOCALE) =>
+  new Intl.DateTimeFormat(locale, {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(`${iso.slice(0, 7)}-01T00:00:00`));
 
-export const formatMonthName = (iso: string, locale: string = DEFAULT_LOCALE) =>
-  new Intl.DateTimeFormat(locale, { month: "long" }).format(
-    new Date(`${iso.slice(0, 7)}-01T00:00:00`),
-  );
+export const formatMonthTitle = (
+  iso: string,
+  locale: string = DEFAULT_LOCALE,
+): string => {
+  const label = formatMonthLabel(iso, locale).replace(" de ", " ");
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
 
 export const toIsoDate = (date: Date): string => {
   const year = date.getFullYear();
@@ -136,10 +152,3 @@ export const toIsoDate = (date: Date): string => {
 };
 
 export const todayIso = (): string => toIsoDate(new Date());
-
-export const firstDayOfMonthIso = (date: Date = new Date()): string =>
-  toIsoDate(new Date(date.getFullYear(), date.getMonth(), 1));
-
-export const monthInputValue = (iso: string): string => iso.slice(0, 7);
-
-export const monthStartFromInput = (value: string): string => `${value}-01`;

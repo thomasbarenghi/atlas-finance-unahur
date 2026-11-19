@@ -7,7 +7,6 @@ export class CategoryResponseDto {
   type: CategoryType;
   color: string;
   icon: string | null;
-  archived: boolean;
   isSystem: boolean;
 }
 
@@ -19,6 +18,5 @@ export const toCategoryResponse = (
   type: category.type,
   color: category.color,
   icon: category.icon,
-  archived: category.archived,
   isSystem: category.userId === null,
 });

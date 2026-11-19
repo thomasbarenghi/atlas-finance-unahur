@@ -1,14 +1,12 @@
 export type AppSectionId =
   | "dashboard"
   | "transactions"
-  | "budgets"
-  | "reports"
   | "categories"
   | "assistant"
   | "profile"
   | "settings";
 
-export interface AppSection {
+interface AppSection {
   href: string;
   label: string;
 }
@@ -16,8 +14,6 @@ export interface AppSection {
 export const SECTIONS = {
   dashboard: { href: "/dashboard", label: "Inicio" },
   transactions: { href: "/transactions", label: "Movimientos" },
-  budgets: { href: "/budgets", label: "Presupuestos" },
-  reports: { href: "/reports", label: "Reportes" },
   categories: { href: "/categories", label: "Categorías" },
   assistant: { href: "/assistant", label: "Asistente" },
   profile: { href: "/profile", label: "Perfil" },
@@ -27,7 +23,19 @@ export const SECTIONS = {
 export const ROOT_ROUTES: string[] = [
   SECTIONS.dashboard.href,
   SECTIONS.transactions.href,
-  SECTIONS.reports.href,
+  SECTIONS.categories.href,
   SECTIONS.assistant.href,
   SECTIONS.profile.href,
+  SECTIONS.settings.href,
 ];
+
+export const isSectionActive = (pathname: string, href: string): boolean => {
+  if (href === SECTIONS.dashboard.href) {
+    return (
+      pathname === SECTIONS.dashboard.href ||
+      pathname.startsWith(`${SECTIONS.dashboard.href}/`) ||
+      pathname.startsWith("/accounts")
+    );
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+};

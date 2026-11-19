@@ -4,8 +4,6 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { join } from "path";
 import { DataSourceOptions } from "typeorm";
 import { AppConfig } from "../config/configuration";
-import { DatabaseMaintenanceService } from "./database-maintenance.service";
-import { DevDatabaseController } from "./dev-database.controller";
 
 @Module({
   imports: [
@@ -23,12 +21,21 @@ import { DevDatabaseController } from "./dev-database.controller";
           // No migrations by design: the schema is derived from the entities and
           // rebuilt from scratch when the model changes (see docs/backend.md §11).
           synchronize: true,
+          // Keep the per-instance pool small so a serverless deployment (Vercel)
+          // never exhausts the Supabase pooler ("max clients reached"). Requests
+          // wait for a free connection instead of failing immediately.
+          extra: {
+            max: database.poolMax,
+            // Keep opened connections alive. The pool creates them on demand;
+            // `min = max` prevents the first idle sweep from closing them.
+            min: database.poolMax,
+            connectionTimeoutMillis: database.connectionTimeoutMs,
+            idleTimeoutMillis: database.idleTimeoutMs,
+            keepAlive: true,
+          },
         };
       },
     }),
   ],
-  controllers: [DevDatabaseController],
-  providers: [DatabaseMaintenanceService],
-  exports: [DatabaseMaintenanceService],
 })
 export class DatabaseModule {}

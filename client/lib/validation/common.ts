@@ -6,12 +6,7 @@ import { z } from "zod";
  */
 export const MAX_MONEY = 99_999_999_999_999.9999;
 
-const ISO_CURRENCY = /^[A-Za-z]{3}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-export const currencySchema = z
-  .string()
-  .regex(ISO_CURRENCY, "Elegí una moneda válida");
 
 export const dateSchema = z
   .string()
@@ -34,12 +29,14 @@ export const moneySchema = z.coerce
 
 export const notesSchema = z.string().max(500, "Máximo 500 caracteres");
 
+export const newPasswordSchema = z
+  .string()
+  .min(8, "La contraseña debe tener al menos 8 caracteres")
+  .max(72, "La contraseña no puede superar los 72 caracteres")
+  .regex(/[A-Za-z]/, "Debe incluir al menos una letra")
+  .regex(/[0-9]/, "Debe incluir al menos un número");
+
 export const uuidSchema = z.string().uuid("Seleccioná una opción válida");
 
 /** A UUID select that can be cleared to an empty string (then mapped to null). */
 export const optionalIdSchema = z.union([uuidSchema, z.literal("")]).optional();
-
-/** An optional ISO date that the date picker clears to an empty string. */
-export const optionalDateSchema = z
-  .union([dateSchema, z.literal("")])
-  .optional();

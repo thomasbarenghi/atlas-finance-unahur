@@ -16,9 +16,12 @@ const toNavItem = (id: AppSectionId): NavItem => ({
 });
 
 export const NAV_ITEMS: NavItem[] = (
-  ["dashboard", "transactions", "budgets", "reports", "settings"] as const
+  ["dashboard", "transactions", "categories", "assistant", "settings"] as const
 ).map(toNavItem);
 
-export const MOBILE_NAV_ITEMS: NavItem[] = (
-  ["dashboard", "assistant", "reports", "profile"] as const
-).map(toNavItem);
+export const MOBILE_NAV_ITEMS: NavItem[] = [
+  toNavItem("dashboard"),
+  toNavItem("transactions"),
+  toNavItem("assistant"),
+  toNavItem("profile"),
+];

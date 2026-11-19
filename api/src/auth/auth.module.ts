@@ -4,18 +4,15 @@ import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { AppConfig } from "../config/configuration";
-import { MailModule } from "../shared/mail/mail.module";
 import { User } from "../users/entities/user.entity";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
-import { Session } from "./entities/session.entity";
 import { JwtStrategy } from "./jwt.strategy";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Session]),
+    TypeOrmModule.forFeature([User]),
     PassportModule,
-    MailModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<AppConfig, true>) => {

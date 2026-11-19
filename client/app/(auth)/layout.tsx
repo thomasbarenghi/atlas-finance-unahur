@@ -1,37 +1,59 @@
 import type { ReactNode } from "react";
-import { ThemeToggle } from "@/components/common/theme-toggle";
+import { Check } from "lucide-react";
+import { Brand } from "@/components/layout/brand";
+
+const BENEFITS = [
+  "Todas tus cuentas en una vista",
+  "Categorías y control del gasto",
+  "Asistente que responde con tus datos",
+];
 
 const AuthLayout = ({ children }: { children: ReactNode }) => {
   return (
-    <div className="bg-background relative flex min-h-dvh flex-col overflow-hidden">
-      <div className="from-primary/20 pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b to-transparent" />
-      <div className="absolute top-4 right-4 z-10">
-        <ThemeToggle />
-      </div>
-
-      <div className="relative z-10 mx-auto flex w-full max-w-sm flex-1 flex-col px-5 py-10">
-        <div className="flex flex-col items-center gap-3 pt-4">
-          <span className="bg-primary text-primary-foreground font-heading flex size-16 items-center justify-center rounded-3xl text-3xl font-bold shadow-lg shadow-primary/20">
-            A
+    <div className="bg-background grid min-h-dvh lg:grid-cols-[600px_1fr]">
+      <aside
+        className="relative hidden flex-col p-12 lg:flex"
+        style={{ backgroundImage: "var(--hero-gradient)" }}
+      >
+        <Brand wordmarkClassName="lg:text-[21px]" />
+        <div className="my-auto flex max-w-[440px] flex-col gap-4">
+          <span className="text-primary text-[10px] font-bold tracking-[0.16em]">
+            FINANZAS PERSONALES
           </span>
-          <div className="flex flex-col items-center">
-            <span className="font-heading text-lg font-semibold">
-              Atlass Fin
-            </span>
-            <span className="text-muted-foreground text-xs">
-              Gestor financiero
-            </span>
-          </div>
+          <h1 className="font-heading text-foreground text-[42px] leading-[1.05] font-semibold tracking-tight">
+            Tus finanzas, en orden.
+          </h1>
+          <p className="text-ink2 max-w-[380px] text-[13.5px] leading-relaxed">
+            Ingresos, gastos y ahorro en un solo lugar. Sin planillas y sin
+            adivinar a fin de mes.
+          </p>
+          <ul className="mt-6 flex flex-col gap-4">
+            {BENEFITS.map((benefit) => (
+              <li
+                key={benefit}
+                className="text-ink2 flex items-center gap-2 text-[11.5px]"
+              >
+                <span className="text-primary flex size-4 items-center justify-center rounded-full border border-primary/20">
+                  <Check className="size-2.5" aria-hidden />
+                </span>
+                {benefit}
+              </li>
+            ))}
+          </ul>
         </div>
+      </aside>
 
-        <div className="flex flex-1 flex-col justify-center py-8">
+      <main className="flex min-h-dvh flex-col px-5 py-8 lg:items-center lg:justify-center">
+        <div className="mb-8 flex items-center justify-center lg:hidden">
+          <Brand />
+        </div>
+        <div className="mx-auto flex w-full max-w-[380px] flex-1 flex-col justify-center lg:flex-none">
           {children}
         </div>
-
-        <p className="text-muted-foreground text-center text-xs">
+        <p className="text-muted-foreground mt-8 text-center text-[10px] lg:hidden">
           Proyecto universitario UNAHUR · Datos de demostración
         </p>
-      </div>
+      </main>
     </div>
   );
 };

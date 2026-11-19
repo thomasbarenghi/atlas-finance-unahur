@@ -1,13 +1,13 @@
 # Atlass Fin — Client
 
-Next.js web app for Atlass Fin, packaged for **Android** with Capacitor. It is a
-**pure REST client** of the NestJS API in [`../api`](../api).
+Next.js web app for Atlass Fin. It is a **pure REST client** of the NestJS API in
+[`../api`](../api) and builds to a static export.
 
 ## Stack
 
 Next.js 16 (App Router) · TypeScript strict · Tailwind CSS 4 · shadcn/ui
-(preset `radix-maia`) · Outfit (headings) + Nunito (body) · Recharts · TanStack
-Query · React Hook Form + Zod · lucide-react · Capacitor 8.
+(preset `radix-maia`) · Outfit (headings) + Nunito (body) · next-themes ·
+Recharts · TanStack Query · React Hook Form + Zod · lucide-react.
 
 ## Scripts
 
@@ -18,21 +18,15 @@ Query · React Hook Form + Zod · lucide-react · Capacitor 8.
 | `npm run lint` / `lint:fix` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run format` / `format:check` | Prettier (check runs on pre-push) |
-| `npm run android:list` | List AVDs / connected `adb` devices |
-| `npm run android:build` | Web build + `cap sync` + debug APK |
-| `npm run android` | Build + pick device + install + launch |
-
-## Android (Capacitor)
-
-Requires **Node 22+**, **JDK 21** (`.sdkmanrc`) and the Android SDK.
-`scripts/android.sh` wires all of it (`npm run android`). The generated project
-lives in `android/`; `webDir` is `out/` and the app id is `com.atlassfin.app`.
+| `npm run test` / `test:watch` | Vitest |
+| `npm run test:coverage` | Vitest with V8 coverage |
 
 ## Fonts & theme
 
 Outfit is the heading font (`--font-heading`) and Nunito the body font
 (`--font-sans`), both via `next/font/google`. Light/dark/system is handled by
-`next-themes` in `providers/theme-provider.tsx`.
+`next-themes` through `ThemeProvider` in `app/layout.tsx`; the preference is
+stored locally and applied before hydration.
 
 ## Conventions
 

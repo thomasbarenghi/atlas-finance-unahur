@@ -1,12 +1,13 @@
 import { INestApplication } from "@nestjs/common";
 import request from "supertest";
 import { httpClient } from "./test-app";
-import { bearer } from "./auth";
+import { authCookie } from "./auth";
 
 /**
  * Typed factories that create domain data through the public API. They are used
  * as arrange-helpers by the requirement specs, so the setup itself exercises the
- * real endpoints.
+ * real endpoints. System categories are seeded; user categories can be created
+ * through `createCategory`.
  */
 
 export const isoDate = (date: Date = new Date()): string =>
@@ -19,7 +20,7 @@ export const createAccount = async (
 ): Promise<Record<string, any>> => {
   const response = await request(httpClient(app))
     .post("/api/accounts")
-    .set(bearer(token))
+    .set(authCookie(token))
     .send({
       name: "Caja",
       type: "cash",
@@ -31,6 +32,28 @@ export const createAccount = async (
   return response.body;
 };
 
+export const listCategories = async (
+  app: INestApplication,
+  token: string,
+): Promise<Record<string, any>[]> => {
+  const response = await request(httpClient(app))
+    .get("/api/categories")
+    .set(authCookie(token))
+    .expect(200);
+  return response.body;
+};
+
+export const categoryByName = async (
+  app: INestApplication,
+  token: string,
+  name: string,
+): Promise<Record<string, any>> => {
+  const categories = await listCategories(app, token);
+  const category = categories.find((item) => item.name === name);
+  if (!category) throw new Error(`Missing test category: ${name}`);
+  return category;
+};
+
 export const createCategory = async (
   app: INestApplication,
   token: string,
@@ -38,11 +61,11 @@ export const createCategory = async (
 ): Promise<Record<string, any>> => {
   const response = await request(httpClient(app))
     .post("/api/categories")
-    .set(bearer(token))
+    .set(authCookie(token))
     .send({
-      name: "Comida",
+      name: "Mascotas",
       type: "expense",
-      color: "#ef4444",
+      color: "#f97316",
       ...overrides,
     })
     .expect(201);
@@ -56,72 +79,7 @@ export const createTransaction = async (
 ): Promise<Record<string, any>> => {
   const response = await request(httpClient(app))
     .post("/api/transactions")
-    .set(bearer(token))
-    .send(body)
-    .expect(201);
-  return response.body;
-};
-
-export const createBudget = async (
-  app: INestApplication,
-  token: string,
-  body: Record<string, unknown>,
-): Promise<Record<string, any>> => {
-  const response = await request(httpClient(app))
-    .post("/api/budgets")
-    .set(bearer(token))
-    .send(body)
-    .expect(201);
-  return response.body;
-};
-
-export const createGoal = async (
-  app: INestApplication,
-  token: string,
-  body: Record<string, unknown>,
-): Promise<Record<string, any>> => {
-  const response = await request(httpClient(app))
-    .post("/api/goals")
-    .set(bearer(token))
-    .send(body)
-    .expect(201);
-  return response.body;
-};
-
-export const createAsset = async (
-  app: INestApplication,
-  token: string,
-  body: Record<string, unknown>,
-): Promise<Record<string, any>> => {
-  const response = await request(httpClient(app))
-    .post("/api/assets")
-    .set(bearer(token))
-    .send(body)
-    .expect(201);
-  return response.body;
-};
-
-export const createDebt = async (
-  app: INestApplication,
-  token: string,
-  body: Record<string, unknown>,
-): Promise<Record<string, any>> => {
-  const response = await request(httpClient(app))
-    .post("/api/debts")
-    .set(bearer(token))
-    .send(body)
-    .expect(201);
-  return response.body;
-};
-
-export const createPosition = async (
-  app: INestApplication,
-  token: string,
-  body: Record<string, unknown>,
-): Promise<Record<string, any>> => {
-  const response = await request(httpClient(app))
-    .post("/api/positions")
-    .set(bearer(token))
+    .set(authCookie(token))
     .send(body)
     .expect(201);
   return response.body;

@@ -1,19 +1,18 @@
-import request from "supertest";
-import { bearer, registerUser } from "../utils/auth";
+import { registerUser } from "../utils/auth";
 import { truncateAll } from "../utils/db";
 import {
+  categoryByName,
   createAccount,
-  createBudget,
-  createCategory,
   createTransaction,
 } from "../utils/factories";
+import { getDashboard } from "../utils/scenario";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
- * CAL-004 — Consumo de presupuesto = gasto del período / límite × 100; si el
- * límite es 0 no se divide.
+ * CAL-004 — Tasa de ahorro = ahorro del período / ingresos del período × 100.
+ * Su variación se expresa en puntos porcentuales.
  */
-describe("CAL-004 · Consumo de presupuesto", () => {
+describe("CAL-004 · Variación de la tasa de ahorro", () => {
   let ctx: TestContext;
 
   beforeAll(async () => {
@@ -28,41 +27,59 @@ describe("CAL-004 · Consumo de presupuesto", () => {
     await ctx.app.close();
   });
 
-  const spentPct = async (limit: number, spent: number): Promise<number> => {
+  it("expresa la variación en puntos porcentuales contra el período anterior", async () => {
     const user = await registerUser(ctx.app);
     const account = await createAccount(ctx.app, user.accessToken);
-    const category = await createCategory(ctx.app, user.accessToken, {
-      name: `C-${Math.random().toString(36).slice(2)}`,
-    });
-    if (spent > 0) {
-      await createTransaction(ctx.app, user.accessToken, {
-        type: "expense",
-        amount: spent,
-        currency: "ARS",
-        date: "2026-03-10",
-        description: "Gasto",
-        accountId: account.id,
-        categoryId: category.id,
-      });
-    }
-    await createBudget(ctx.app, user.accessToken, {
-      categoryId: category.id,
-      period: "2026-03",
-      limit,
-      currency: "ARS",
-    });
-    const response = await request(ctx.server)
-      .get("/api/budgets?period=2026-03")
-      .set(bearer(user.accessToken))
-      .expect(200);
-    return response.body[0].consumedPct;
-  };
+    const income = await categoryByName(ctx.app, user.accessToken, "Sueldo");
+    const expense = await categoryByName(
+      ctx.app,
+      user.accessToken,
+      "Supermercado",
+    );
 
-  it("calcula el porcentaje de consumo", async () => {
-    expect(await spentPct(1000, 300)).toBe(30);
-  });
+    // Período anterior (ene 2026): tasa = 500/1000 = 50%
+    await createTransaction(ctx.app, user.accessToken, {
+      type: "income",
+      amount: 1000,
+      date: "2026-01-10",
+      description: "Ingreso enero",
+      accountId: account.id,
+      categoryId: income.id,
+    });
+    await createTransaction(ctx.app, user.accessToken, {
+      type: "expense",
+      amount: 500,
+      date: "2026-01-15",
+      description: "Gasto enero",
+      accountId: account.id,
+      categoryId: expense.id,
+    });
 
-  it("no divide cuando el límite es cero", async () => {
-    expect(await spentPct(0, 300)).toBe(0);
+    // Período actual (feb 2026): tasa = 250/1000 = 25%
+    await createTransaction(ctx.app, user.accessToken, {
+      type: "income",
+      amount: 1000,
+      date: "2026-02-05",
+      description: "Ingreso febrero",
+      accountId: account.id,
+      categoryId: income.id,
+    });
+    await createTransaction(ctx.app, user.accessToken, {
+      type: "expense",
+      amount: 750,
+      date: "2026-02-10",
+      description: "Gasto febrero",
+      accountId: account.id,
+      categoryId: expense.id,
+    });
+
+    const dashboard = await getDashboard(
+      ctx.app,
+      user.accessToken,
+      "from=2026-02-01&to=2026-02-28",
+    );
+
+    // 25% - 50% = -25 puntos porcentuales.
+    expect(dashboard.kpis.savingsRateDeltaPp).toBeCloseTo(-25, 1);
   });
 });

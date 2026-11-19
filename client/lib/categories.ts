@@ -6,9 +6,6 @@ const collator = new Intl.Collator("es", {
 });
 
 export const sortCategories = (categories: Category[]): Category[] =>
-  [...categories].sort((first, second) => {
-    if (first.isSystem !== second.isSystem) {
-      return first.isSystem ? -1 : 1;
-    }
-    return collator.compare(first.name, second.name);
-  });
+  [...categories].sort((first, second) =>
+    collator.compare(first.name, second.name),
+  );

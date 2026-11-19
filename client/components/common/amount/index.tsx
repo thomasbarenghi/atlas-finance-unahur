@@ -1,15 +1,31 @@
+"use client";
+
+import type { TransactionType } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
-import type { AmountProps } from "./amount.types";
 import { getAmountPresentation } from "./amount.utils";
 
-export const Amount = ({ value, currency, type, className }: AmountProps) => {
+export interface AmountProps {
+  value: number;
+  currency: string;
+  type?: TransactionType;
+  showCents?: boolean;
+  className?: string;
+}
+
+export const Amount = ({
+  value,
+  currency,
+  type,
+  showCents,
+  className,
+}: AmountProps) => {
   const { absolute, sign, tone } = getAmountPresentation(value, type);
 
   return (
     <span className={cn("font-medium tabular-nums", tone, className)}>
       {sign}
-      {formatCurrency(absolute, currency)}
+      {formatCurrency(absolute, currency, undefined, { showCents })}
     </span>
   );
 };

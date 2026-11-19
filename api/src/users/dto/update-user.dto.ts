@@ -1,7 +1,16 @@
-import { IsBoolean, IsIn, IsOptional, IsString, Length } from "class-validator";
-import { Theme } from "../../common/types/financial-enums";
+import { Transform, type TransformFnParams } from "class-transformer";
+import {
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  Length,
+  MaxLength,
+} from "class-validator";
+import { CURRENCY_CODES } from "../../currencies/currency-catalog";
 
-export const THEME_VALUES: Theme[] = ["light", "dark", "system"];
+const normalizeEmail = ({ value }: TransformFnParams): unknown =>
+  typeof value === "string" ? value.trim().toLowerCase() : value;
 
 export class UpdateUserDto {
   @IsOptional()
@@ -10,19 +19,12 @@ export class UpdateUserDto {
   name?: string;
 
   @IsOptional()
-  @IsString()
-  @Length(3, 3)
-  baseCurrency?: string;
+  @Transform(normalizeEmail)
+  @IsEmail()
+  @MaxLength(254)
+  email?: string;
 
   @IsOptional()
-  @IsIn(THEME_VALUES)
-  theme?: Theme;
-
-  @IsOptional()
-  @IsBoolean()
-  aiEnabled?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  assistantDestructiveEnabled?: boolean;
+  @IsIn(CURRENCY_CODES)
+  primaryCurrency?: string;
 }

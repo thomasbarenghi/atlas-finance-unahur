@@ -39,14 +39,14 @@ test/
 ├── utils/                       # harness reutilizable
 │   ├── test-app.ts              # boot de la app para tests
 │   ├── db.ts                    # truncate + datos de referencia + MISSING_UUID
-│   ├── auth.ts                  # registro/login + Bearer
+│   ├── auth.ts                  # registro/login + cookies de acceso
 │   ├── factories.ts             # creación de datos vía API
 │   ├── scenario.ts              # escenario base de finanzas
 │   └── assistant.ts             # stub de AiService + parser SSE
 └── requirements/
-    ├── FR-AUT-001.e2e-spec.ts   # un archivo por requerimiento
-    ├── CAL-010.e2e-spec.ts
-    └── NFR-SEG-010.e2e-spec.ts
+    ├── FR-AUT-001.e2e-spec.ts          # uno o más archivos por requerimiento
+    ├── FR-CUE-001-campos.e2e-spec.ts    # los casos agrupados conservan el ID real
+    └── CAL-004.e2e-spec.ts
 ```
 
 ## Notas
@@ -73,5 +73,5 @@ archivos triviales: `*.module.ts`, `*.entity.ts`, `*.controller.ts`, `dto/**`,
 el contrato se cubren a nivel integración (e2e), no con tests unitarios de
 scaffolding.
 
-Hallazgos de comportamiento sospechoso detectados durante el testing se
-registran en [`TESTING_BUGS.md`](../TESTING_BUGS.md).
+Los hallazgos de comportamiento sospechoso detectados durante el testing se
+registran como issues del repositorio.

@@ -31,7 +31,7 @@ export class Account {
   @Column({ type: "text" })
   type: AccountType;
 
-  @Column({ type: "char", length: 3 })
+  @Column({ type: "text", default: "ARS" })
   currency: string;
 
   @Column({
@@ -42,9 +42,6 @@ export class Account {
     transformer: numericTransformer,
   })
   initialBalance: number;
-
-  @Column({ type: "boolean", default: false })
-  archived: boolean;
 
   @Column({ type: "text", nullable: true })
   notes: string | null;

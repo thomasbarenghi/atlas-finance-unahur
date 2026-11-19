@@ -15,18 +15,10 @@ import { formatDate, toIsoDate } from "@/lib/format";
 export interface DatePickerProps {
   value?: string;
   onChange: (value: string) => void;
-  placeholder?: string;
   className?: string;
-  disabled?: boolean;
 }
 
-export const DatePicker = ({
-  value,
-  onChange,
-  placeholder = "Elegir fecha",
-  className,
-  disabled,
-}: DatePickerProps) => {
+export const DatePicker = ({ value, onChange, className }: DatePickerProps) => {
   const [open, setOpen] = useState(false);
   const selected = value ? new Date(`${value}T00:00:00`) : undefined;
 
@@ -36,7 +28,6 @@ export const DatePicker = ({
         <Button
           type="button"
           variant="outline"
-          disabled={disabled}
           className={cn(
             "w-full justify-start font-normal",
             !value && "text-muted-foreground",
@@ -44,7 +35,7 @@ export const DatePicker = ({
           )}
         >
           <CalendarIcon />
-          {value ? formatDate(value) : placeholder}
+          {value ? formatDate(value) : "Elegir fecha"}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">

@@ -2,30 +2,6 @@
  * Shared unit-test doubles. Lives outside `src/` on purpose so it is not part of
  * the coverage scope; only test files import it.
  */
-import { HttpStatus } from "@nestjs/common";
-import { ApiException } from "../../src/common/errors/api.exception";
-import { ErrorCode } from "../../src/common/errors/error-codes";
-
-export const mockCurrency = (
-  supported: string[] = ["ARS", "USD", "EUR", "BRL", "UYU"],
-): { isSupported: jest.Mock; assertSupported: jest.Mock } => ({
-  isSupported: jest.fn((value: string) =>
-    supported.includes(value.toUpperCase()),
-  ),
-  assertSupported: jest.fn((value: string) => {
-    const normalized = value.toUpperCase();
-    if (!supported.includes(normalized)) {
-      throw new ApiException(
-        ErrorCode.VALIDATION_ERROR,
-        HttpStatus.BAD_REQUEST,
-        "La moneda no está soportada",
-        { currency: ["Moneda no soportada"] },
-      );
-    }
-    return normalized;
-  }),
-});
-
 export type MockRepository = Record<string, any>;
 
 export const mockRepository = (
@@ -52,6 +28,7 @@ export const mockRepository = (
     create: jest.fn((value: any) => value),
     insert: jest.fn().mockResolvedValue({}),
     delete: jest.fn().mockResolvedValue({ affected: 1 }),
+    remove: jest.fn(async (entity: any) => entity),
     update: jest.fn().mockResolvedValue({ affected: 1 }),
     count: jest.fn().mockResolvedValue(0),
     upsert: jest.fn().mockResolvedValue({}),

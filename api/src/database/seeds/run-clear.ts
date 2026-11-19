@@ -8,8 +8,8 @@ const main = async (): Promise<void> => {
   await AppDataSource.initialize();
   try {
     const maintenance = new DatabaseMaintenanceService(AppDataSource);
-    const summary = await maintenance.clear();
-    logger.log(`Cleared ${summary.tables} application tables`);
+    const tables = await maintenance.clear();
+    logger.log(`Cleared ${tables} application tables`);
   } finally {
     await AppDataSource.destroy();
   }

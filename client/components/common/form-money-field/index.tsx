@@ -3,25 +3,24 @@
 import { useFormContext } from "react-hook-form";
 import {
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { MoneyInput } from "@/components/common/money-input";
-import type { FormMoneyFieldProps } from "./form-money-field.types";
+import { FIELD_LABEL } from "@/components/common/ui-classes";
+import { MoneyFieldInput } from "./components/money-field-input";
 
-export type { FormMoneyFieldProps } from "./form-money-field.types";
+export interface FormMoneyFieldProps {
+  name: string;
+  label?: string;
+  currency?: string;
+}
 
 export const FormMoneyField = ({
   name,
   label,
-  description,
-  placeholder,
-  disabled,
-  className,
-  inputClassName,
+  currency,
 }: FormMoneyFieldProps) => {
   const { control } = useFormContext();
 
@@ -30,21 +29,18 @@ export const FormMoneyField = ({
       control={control}
       name={name}
       render={({ field }) => (
-        <FormItem className={className}>
-          {label ? <FormLabel>{label}</FormLabel> : null}
+        <FormItem>
+          {label ? (
+            <FormLabel className={FIELD_LABEL}>{label}</FormLabel>
+          ) : null}
           <FormControl>
-            <MoneyInput
+            <MoneyFieldInput
               value={(field.value ?? null) as number | null}
               onChange={(value) => field.onChange(value)}
               onBlur={field.onBlur}
-              placeholder={placeholder}
-              disabled={disabled}
-              inputClassName={inputClassName}
+              currency={currency}
             />
           </FormControl>
-          {description ? (
-            <FormDescription>{description}</FormDescription>
-          ) : null}
           <FormMessage />
         </FormItem>
       )}

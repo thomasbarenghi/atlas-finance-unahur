@@ -1,5 +1,6 @@
 "use client";
 
+import { Calendar } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -7,45 +8,47 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DatePicker } from "@/components/common/date-picker";
 import { usePeriod } from "@/hooks/use-period";
-import { PERIOD_PRESETS, type PeriodPreset } from "@/lib/period";
+import {
+  getPeriodLabel,
+  PERIOD_PRESETS,
+  type PeriodPreset,
+} from "@/lib/period";
 
-export const PeriodSelector = () => {
-  const { preset, range, setPreset, setCustomRange } = usePeriod();
+export interface PeriodSelectorProps {
+  showCalendar?: boolean;
+}
+
+const TRIGGER_CLASS =
+  "bg-card border-border text-ink2 h-[30px]! w-fit gap-[5px] rounded-full px-3 py-0 text-[11.5px] leading-[16px] font-medium shadow-none md:h-[38px]! md:gap-[7px] md:px-4 md:text-[13px] md:leading-[18px] [&_svg]:size-3 md:[&_svg]:size-3.5";
+
+export const PeriodSelector = ({
+  showCalendar = false,
+}: PeriodSelectorProps) => {
+  const { preset, range, setPreset } = usePeriod();
+  const value = getPeriodLabel(preset, range);
 
   return (
-    <div className="flex items-center gap-2">
-      <Select
-        value={preset}
-        onValueChange={(value) => setPreset(value as PeriodPreset)}
-      >
-        <SelectTrigger size="sm" aria-label="Período">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {PERIOD_PRESETS.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      {preset === "custom" ? (
-        <div className="hidden items-center gap-2 lg:flex">
-          <DatePicker
-            value={range.from}
-            onChange={(from) => setCustomRange({ ...range, from })}
-            className="w-40"
+    <Select
+      value={preset}
+      onValueChange={(next) => setPreset(next as PeriodPreset)}
+    >
+      <SelectTrigger aria-label="Período" className={TRIGGER_CLASS}>
+        {showCalendar ? (
+          <Calendar
+            className="text-muted-foreground size-3 md:size-3.5"
+            aria-hidden
           />
-          <DatePicker
-            value={range.to}
-            onChange={(to) => setCustomRange({ ...range, to })}
-            className="w-40"
-          />
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+        <SelectValue>{value}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {PERIOD_PRESETS.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 };

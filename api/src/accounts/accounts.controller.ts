@@ -1,42 +1,29 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
 } from "@nestjs/common";
-import {
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from "@nestjs/swagger";
-import { ApiErrors } from "../common/decorators/api-errors.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AccountResponseDto } from "./dto/account-response.dto";
 import { CreateAccountDto } from "./dto/create-account.dto";
 import { UpdateAccountDto } from "./dto/update-account.dto";
 import { AccountsService } from "./accounts.service";
 
-@ApiTags("accounts")
-@ApiBearerAuth()
-@ApiErrors(400, 401, 404, 409)
 @Controller("accounts")
 export class AccountsController {
   constructor(private readonly accountsService: AccountsService) {}
 
   @Get()
-  @ApiOperation({ summary: "Lista las cuentas con su saldo actual" })
-  @ApiOkResponse({ type: [AccountResponseDto] })
   list(@CurrentUser("id") userId: string): Promise<AccountResponseDto[]> {
     return this.accountsService.listAccounts(userId);
   }
 
   @Post()
-  @ApiOperation({ summary: "Crea una cuenta" })
-  @ApiOkResponse({ type: AccountResponseDto })
   create(
     @CurrentUser("id") userId: string,
     @Body() dto: CreateAccountDto,
@@ -45,8 +32,6 @@ export class AccountsController {
   }
 
   @Get(":id")
-  @ApiOperation({ summary: "Obtiene una cuenta" })
-  @ApiOkResponse({ type: AccountResponseDto })
   get(
     @CurrentUser("id") userId: string,
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -55,8 +40,6 @@ export class AccountsController {
   }
 
   @Patch(":id")
-  @ApiOperation({ summary: "Edita una cuenta" })
-  @ApiOkResponse({ type: AccountResponseDto })
   update(
     @CurrentUser("id") userId: string,
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -65,23 +48,11 @@ export class AccountsController {
     return this.accountsService.updateAccount(userId, id, dto);
   }
 
-  @Post(":id/archive")
-  @ApiOperation({ summary: "Archiva una cuenta" })
-  @ApiOkResponse({ type: AccountResponseDto })
-  archive(
+  @Delete(":id")
+  remove(
     @CurrentUser("id") userId: string,
     @Param("id", new ParseUUIDPipe()) id: string,
-  ): Promise<AccountResponseDto> {
-    return this.accountsService.archiveAccount(userId, id);
-  }
-
-  @Post(":id/restore")
-  @ApiOperation({ summary: "Restaura una cuenta archivada" })
-  @ApiOkResponse({ type: AccountResponseDto })
-  restore(
-    @CurrentUser("id") userId: string,
-    @Param("id", new ParseUUIDPipe()) id: string,
-  ): Promise<AccountResponseDto> {
-    return this.accountsService.restoreAccount(userId, id);
+  ): Promise<void> {
+    return this.accountsService.deleteAccount(userId, id);
   }
 }

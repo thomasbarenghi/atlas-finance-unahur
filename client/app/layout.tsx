@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Nunito, Outfit } from "next/font/google";
-import { ThemeProvider } from "@/providers/theme-provider";
+import { ThemeProvider } from "next-themes";
 import { AppProviders } from "@/providers/app-providers";
-import { NativeSystemBars } from "@/components/layout/native-system-bars";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -30,11 +29,11 @@ const RootLayout = ({ children }: LayoutProps<"/">) => {
       <body className="flex min-h-full flex-col">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="light"
           enableSystem
+          storageKey="atlassfin.preferences.theme"
           disableTransitionOnChange
         >
-          <NativeSystemBars />
           <AppProviders>{children}</AppProviders>
         </ThemeProvider>
       </body>

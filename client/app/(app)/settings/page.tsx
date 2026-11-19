@@ -1,22 +1,7 @@
-import { PageHeader } from "@/components/common/page-header";
-import { SettingsForm } from "@/components/features/settings/settings-form";
-import { SettingsMenu } from "@/components/features/settings/settings-menu";
+import { SettingsView } from "@/app/(app)/settings/_components/settings-view";
 
 const SettingsPage = () => {
-  return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Ajustes"
-        description="Moneda base, privacidad y sesión."
-      />
-      <div className="md:hidden">
-        <SettingsMenu />
-      </div>
-      <div className="hidden md:block">
-        <SettingsForm />
-      </div>
-    </div>
-  );
+  return <SettingsView />;
 };
 
 export default SettingsPage;

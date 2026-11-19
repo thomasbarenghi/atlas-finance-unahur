@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { useFormContext } from "react-hook-form";
 import {
   FormControl,
@@ -11,17 +12,29 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { FormTextFieldProps } from "./form-text-field.types";
+import { FIELD_INPUT, FIELD_LABEL } from "@/components/common/ui-classes";
+import { cn } from "@/lib/utils";
 
-export type { FormTextFieldProps } from "./form-text-field.types";
+export interface FormTextFieldProps {
+  name: string;
+  label?: string;
+  description?: string;
+  placeholder?: string;
+  type?: ComponentProps<"input">["type"];
+  autoComplete?: string;
+  multiline?: boolean;
+  className?: string;
+}
 
 export const FormTextField = ({
   name,
   label,
   description,
+  placeholder,
+  type,
+  autoComplete,
   multiline,
-  rows,
-  ...inputProps
+  className,
 }: FormTextFieldProps) => {
   const { control } = useFormContext();
 
@@ -30,22 +43,38 @@ export const FormTextField = ({
       control={control}
       name={name}
       render={({ field }) => (
-        <FormItem>
-          {label ? <FormLabel>{label}</FormLabel> : null}
+        <FormItem className="gap-1.5">
+          {label ? (
+            <FormLabel className={FIELD_LABEL}>{label}</FormLabel>
+          ) : null}
           <FormControl>
             {multiline ? (
               <Textarea
-                rows={rows ?? 2}
-                {...inputProps}
+                rows={2}
+                placeholder={placeholder}
+                autoComplete={autoComplete}
                 {...field}
                 value={field.value ?? ""}
+                className={cn(
+                  "border-border bg-card min-h-[72px] rounded-[10px] shadow-none",
+                  className,
+                )}
               />
             ) : (
-              <Input {...inputProps} {...field} value={field.value ?? ""} />
+              <Input
+                type={type}
+                autoComplete={autoComplete}
+                placeholder={placeholder}
+                {...field}
+                value={field.value ?? ""}
+                className={cn(FIELD_INPUT, "h-[42px]", className)}
+              />
             )}
           </FormControl>
           {description ? (
-            <FormDescription>{description}</FormDescription>
+            <FormDescription className="text-[10.5px]">
+              {description}
+            </FormDescription>
           ) : null}
           <FormMessage />
         </FormItem>

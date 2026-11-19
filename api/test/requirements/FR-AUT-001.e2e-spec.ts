@@ -3,8 +3,8 @@ import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
- * FR-AUT-001 — El visitante podrá registrarse con nombre, correo electrónico y
- * contraseña.
+ * FR-AUT-001 — El visitante podrá registrarse con nombre, correo electrónico,
+ * contraseña y moneda principal.
  */
 describe("FR-AUT-001 · Registro de usuario", () => {
   let ctx: TestContext;
@@ -24,20 +24,23 @@ describe("FR-AUT-001 · Registro de usuario", () => {
   it("registra un usuario y devuelve sesión sin exponer la contraseña", async () => {
     const response = await request(ctx.server)
       .post("/api/auth/register")
-      .send({ name: "Ana", email: "ana@test.local", password: "Secreta123" })
+      .send({
+        name: "Ana",
+        email: "ana@test.local",
+        password: "Secreta123",
+        primaryCurrency: "USD",
+      })
       .expect(201);
 
     expect(response.body.user).toMatchObject({
       name: "Ana",
       email: "ana@test.local",
-      baseCurrency: "ARS",
-      aiEnabled: false,
-      assistantDestructiveEnabled: false,
+      primaryCurrency: "USD",
     });
     expect(response.body.user.id).toBeDefined();
     expect(response.body.user.passwordHash).toBeUndefined();
-    expect(typeof response.body.accessToken).toBe("string");
-    expect(typeof response.body.refreshToken).toBe("string");
+    expect(response.body.accessToken).toBeUndefined();
+    expect(response.body.refreshToken).toBeUndefined();
 
     const setCookie = response.headers["set-cookie"] as unknown as string[];
     expect(setCookie.join(";")).toContain("access_token=");
@@ -47,7 +50,12 @@ describe("FR-AUT-001 · Registro de usuario", () => {
   it("persiste la contraseña hasheada (nunca en texto plano)", async () => {
     await request(ctx.server)
       .post("/api/auth/register")
-      .send({ name: "Ana", email: "ana@test.local", password: "Secreta123" })
+      .send({
+        name: "Ana",
+        email: "ana@test.local",
+        password: "Secreta123",
+        primaryCurrency: "ARS",
+      })
       .expect(201);
 
     const rows: Array<{ password_hash: string }> = await ctx.dataSource.query(
@@ -62,12 +70,22 @@ describe("FR-AUT-001 · Registro de usuario", () => {
   it("rechaza un email ya registrado con 409 EMAIL_IN_USE", async () => {
     await request(ctx.server)
       .post("/api/auth/register")
-      .send({ name: "Ana", email: "ana@test.local", password: "Secreta123" })
+      .send({
+        name: "Ana",
+        email: "ana@test.local",
+        password: "Secreta123",
+        primaryCurrency: "ARS",
+      })
       .expect(201);
 
     const response = await request(ctx.server)
       .post("/api/auth/register")
-      .send({ name: "Otra", email: "ana@test.local", password: "Secreta123" })
+      .send({
+        name: "Otra",
+        email: "ana@test.local",
+        password: "Secreta123",
+        primaryCurrency: "ARS",
+      })
       .expect(409);
 
     expect(response.body.code).toBe("EMAIL_IN_USE");
@@ -76,7 +94,12 @@ describe("FR-AUT-001 · Registro de usuario", () => {
   it("rechaza un email inválido con 400 y fieldErrors", async () => {
     const response = await request(ctx.server)
       .post("/api/auth/register")
-      .send({ name: "Ana", email: "no-es-email", password: "Secreta123" })
+      .send({
+        name: "Ana",
+        email: "no-es-email",
+        password: "Secreta123",
+        primaryCurrency: "ARS",
+      })
       .expect(400);
 
     expect(response.body.code).toBe("VALIDATION_ERROR");
@@ -86,11 +109,31 @@ describe("FR-AUT-001 · Registro de usuario", () => {
   it("rechaza una contraseña sin número o demasiado corta", async () => {
     const response = await request(ctx.server)
       .post("/api/auth/register")
-      .send({ name: "Ana", email: "ana@test.local", password: "sololetras" })
+      .send({
+        name: "Ana",
+        email: "ana@test.local",
+        password: "sololetras",
+        primaryCurrency: "ARS",
+      })
       .expect(400);
 
     expect(response.body.code).toBe("VALIDATION_ERROR");
     expect(response.body.fieldErrors.password).toBeDefined();
+  });
+
+  it("rechaza una moneda no soportada", async () => {
+    const response = await request(ctx.server)
+      .post("/api/auth/register")
+      .send({
+        name: "Ana",
+        email: "ana@test.local",
+        password: "Secreta123",
+        primaryCurrency: "XXX",
+      })
+      .expect(400);
+
+    expect(response.body.code).toBe("VALIDATION_ERROR");
+    expect(response.body.fieldErrors.primaryCurrency).toBeDefined();
   });
 
   it("rechaza campos faltantes", async () => {
@@ -107,6 +150,7 @@ describe("FR-AUT-001 · Registro de usuario", () => {
         name: "Ana",
         email: "ana@test.local",
         password: "Secreta123",
+        primaryCurrency: "ARS",
         role: "admin",
       })
       .expect(400);

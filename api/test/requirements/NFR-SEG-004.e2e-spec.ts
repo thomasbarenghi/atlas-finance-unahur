@@ -1,12 +1,12 @@
 import request from "supertest";
-import { registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
 import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
- * NFR-SEG-004 — Cookies HttpOnly/Secure/SameSite y rotación del refresh token.
+ * NFR-SEG-004 — Cookies HttpOnly/Secure/SameSite y renovación del access token.
  */
-describe("NFR-SEG-004 · Cookies de sesión y rotación", () => {
+describe("NFR-SEG-004 · Cookies de sesión y renovación", () => {
   let ctx: TestContext;
 
   beforeAll(async () => {
@@ -38,13 +38,14 @@ describe("NFR-SEG-004 · Cookies de sesión y rotación", () => {
     expect(cookies).toContain("Path=/");
   });
 
-  it("autentica usando solo la cookie (sin header Bearer)", async () => {
+  it("autentica usando solo la cookie", async () => {
     const login = await request(ctx.server)
       .post("/api/auth/register")
       .send({
         name: "Cookie",
         email: "cookie@test.local",
         password: "Secreta123",
+        primaryCurrency: "ARS",
       })
       .expect(201);
 
@@ -56,13 +57,14 @@ describe("NFR-SEG-004 · Cookies de sesión y rotación", () => {
     expect(me.body.email).toBe("cookie@test.local");
   });
 
-  it("rota el refresh token por cookie y rechaza el anterior", async () => {
+  it("renueva el access token usando la cookie de refresh", async () => {
     const login = await request(ctx.server)
       .post("/api/auth/register")
       .send({
-        name: "Rotate",
-        email: "rotate@test.local",
+        name: "Renew",
+        email: "renew@test.local",
         password: "Secreta123",
+        primaryCurrency: "ARS",
       })
       .expect(201);
 
@@ -71,17 +73,24 @@ describe("NFR-SEG-004 · Cookies de sesión y rotación", () => {
     ).find((cookie) => cookie.startsWith("refresh_token="));
     expect(refreshCookie).toBeDefined();
 
-    const rotated = await request(ctx.server)
+    const renewed = await request(ctx.server)
       .post("/api/auth/refresh")
       .set("Cookie", [refreshCookie as string])
-      .expect(200);
-    expect(rotated.body.refreshToken).toBeDefined();
+      .expect(204);
 
-    // El refresh viejo ya no sirve.
-    const previousRefresh = login.body.refreshToken as string;
+    const renewedCookies = (
+      renewed.headers["set-cookie"] as unknown as string[]
+    ).join(";");
+    expect(renewedCookies).toContain("access_token=");
+    expect(renewedCookies).toContain("refresh_token=");
+  });
+
+  it("rechaza un access token usado como refresh token", async () => {
+    const user = await registerUser(ctx.app);
+
     await request(ctx.server)
       .post("/api/auth/refresh")
-      .send({ refreshToken: previousRefresh })
+      .set(authCookie(user.accessToken))
       .expect(401);
   });
 });

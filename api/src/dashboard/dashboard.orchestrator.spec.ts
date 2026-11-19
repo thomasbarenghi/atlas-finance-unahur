@@ -1,17 +1,13 @@
-import { ConfigService } from "@nestjs/config";
-import { AppConfig } from "../config/configuration";
+import { ErrorCode } from "../common/errors/error-codes";
 import { CalculationsService } from "../shared/calculations/calculations.service";
 import { DashboardOrchestrator } from "./dashboard.orchestrator";
 
-const calculations = new CalculationsService({
-  get: jest.fn(() => 0.8),
-} as unknown as ConfigService<AppConfig, true>);
+const calculations = new CalculationsService();
 
 const transaction = (overrides: Record<string, unknown> = {}) => ({
   id: "t1",
   type: "income",
   amount: 500,
-  currency: "ARS",
   date: "2026-03-05",
   categoryId: "c-income",
   accountId: "a1",
@@ -20,15 +16,10 @@ const transaction = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const build = () => {
-  const usersService = {
-    getById: jest.fn().mockResolvedValue({ baseCurrency: "ARS" }),
-  };
   const accountsService = {
     listOwnedAccounts: jest
       .fn()
-      .mockResolvedValue([
-        { id: "a1", initialBalance: 1000, currency: "ARS", archived: false },
-      ]),
+      .mockResolvedValue([{ id: "a1", initialBalance: 1000, currency: "ARS" }]),
   };
   const transactionsService = {
     listOwnedTransactions: jest.fn().mockResolvedValue([
@@ -56,313 +47,200 @@ const build = () => {
       { id: "c-expense", name: "Comida", color: "#ef4444" },
     ]),
   };
-  const assetsService = {
-    listOwnedAssets: jest
-      .fn()
-      .mockResolvedValue([
-        { id: "asset-1", type: "property", currency: "ARS", archived: false },
+  const currenciesService = {
+    getRateContext: jest.fn().mockResolvedValue({
+      primaryCurrency: "ARS",
+      rates: new Map([
+        ["ARS", 1],
+        ["USD", 1180],
       ]),
-    listValuationsForUser: jest.fn().mockResolvedValue([
-      {
-        assetId: "asset-1",
-        value: 90000,
-        currency: "ARS",
-        date: "2026-03-01",
-      },
-    ]),
-  };
-  const debtsService = {
-    listOwnedDebts: jest
-      .fn()
-      .mockResolvedValue([
-        { id: "d1", balance: 5000, currency: "ARS", archived: false },
-      ]),
-  };
-  const positionsService = {
-    listOwnedPositions: jest.fn().mockResolvedValue([
-      {
-        id: "p1",
-        symbol: "BTC",
-        instrument: "Bitcoin",
-        quantity: 2,
-        avgCost: 100,
-        currency: "USD",
-        archived: false,
-      },
-    ]),
-  };
-  const quotesService = {
-    listLatestQuoteEntities: jest.fn().mockResolvedValue([
-      {
-        symbol: "BTC",
-        currency: "USD",
-        price: 150,
-        provider: "binance",
-        fetchedAt: new Date(),
-      },
-    ]),
-  };
-  const budgetsOrchestrator = {
-    listBudgetAlerts: jest.fn().mockResolvedValue([]),
-  };
-  const fxService = {
-    getConverter: jest.fn(async () => (amount: number) => amount),
-  };
-  const config = {
-    get: jest.fn(() => ({ quoteStaleMs: 3_600_000 })),
+      rateDate: "2026-03-31",
+    }),
   };
 
   const orchestrator = new DashboardOrchestrator(
-    usersService as any,
     accountsService as any,
     transactionsService as any,
     categoriesService as any,
-    assetsService as any,
-    debtsService as any,
-    positionsService as any,
-    quotesService as any,
-    budgetsOrchestrator as any,
     calculations,
-    fxService as any,
-    config as any,
+    currenciesService as any,
   );
   return {
     orchestrator,
-    usersService,
     accountsService,
     transactionsService,
     categoriesService,
-    assetsService,
-    debtsService,
-    positionsService,
-    quotesService,
-    budgetsOrchestrator,
+    currenciesService,
   };
 };
 
 const RANGE = { from: "2026-01-01", to: "2026-03-31" };
 
 describe("DashboardOrchestrator", () => {
-  it("aggregates KPIs, series and composition for the period", async () => {
+  it("aggregates KPIs, series and expenses by category for the period", async () => {
     const { orchestrator } = build();
-    const data = await orchestrator.getDashboard("u1", RANGE as any);
+    const data = await orchestrator.getDashboard("u1", RANGE);
 
     expect(data.kpis).toMatchObject({
       income: 500,
       expenses: 200,
       savings: 300,
-      accounts: 1200,
-      assets: 90000,
-      debts: 5000,
-      netWorth: 86500,
+      netWorth: 1200,
     });
-    expect(data.kpis.investmentsDeltaPct).toBeCloseTo(50, 1);
     expect(data.expensesByCategory).toEqual([
       expect.objectContaining({ name: "Comida", value: 200 }),
     ]);
     expect(data.incomeExpenseByMonth).toHaveLength(3);
+    expect(data.incomeExpenseByPeriod).toHaveLength(3);
+    expect(
+      data.incomeExpenseByPeriod.every((item) => item.bucket === "month"),
+    ).toBe(true);
     expect(data.netWorthSeries).toHaveLength(3);
-    expect(data.netWorthComposition).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ kind: "property", value: 90000 }),
-        expect.objectContaining({ kind: "account", value: 1200 }),
-      ]),
-    );
-    expect(data.investments).toMatchObject({
-      totalCost: 200,
-      totalValue: 300,
-      profitLoss: 100,
-      staleQuotes: 0,
-    });
     expect(data.period).toEqual(RANGE);
     expect(data.currency).toBe("ARS");
+    expect(data.primaryCurrency).toBe("ARS");
+    expect(data.breakdown).toEqual([
+      expect.objectContaining({ currency: "ARS", balance: 1200 }),
+    ]);
   });
 
-  it("defaults the period and uses the base currency", async () => {
+  it("uses daily evolution and weekly bars for a month range", async () => {
     const { orchestrator } = build();
-    const data = await orchestrator.getDashboard("u1", {} as any);
+    const data = await orchestrator.getDashboard("u1", {
+      from: "2026-03-01",
+      to: "2026-03-25",
+    });
+
+    expect(data.netWorthSeries).toHaveLength(25);
+    expect(data.netWorthSeries.at(-1)?.date).toBe("2026-03-25");
+    expect(data.incomeExpenseByPeriod).toHaveLength(4);
+    expect(data.incomeExpenseByPeriod[0]).toMatchObject({
+      bucket: "week",
+      start: "2026-03-01",
+      end: "2026-03-07",
+      income: 500,
+    });
+    expect(data.incomeExpenseByMonth).toHaveLength(1);
+  });
+
+  it("defaults the period and derives the net worth from account balances", async () => {
+    const { orchestrator, accountsService } = build();
+    accountsService.listOwnedAccounts.mockResolvedValue([
+      { id: "a1", initialBalance: 1000, currency: "ARS" },
+      { id: "a2", initialBalance: 250, currency: "ARS" },
+    ]);
+
+    const data = await orchestrator.getDashboard("u1", {});
     expect(data.currency).toBe("ARS");
     expect(data.period.to).toBeDefined();
     expect(data.period.from < data.period.to).toBe(true);
+    expect(data.kpis.netWorth).toBe(1450);
   });
 
-  it("derives budget alerts from the budgets orchestrator", async () => {
-    const { orchestrator, budgetsOrchestrator } = build();
-    budgetsOrchestrator.listBudgetAlerts.mockResolvedValue([
-      {
-        id: "b1",
-        category: { name: "Comida" },
-        consumedPct: 90,
-        status: "warning",
-      },
-    ]);
-    const data = await orchestrator.getDashboard("u1", RANGE as any);
-    expect(data.budgetAlerts).toEqual([
-      {
-        budgetId: "b1",
-        categoryName: "Comida",
-        consumedPct: 90,
-        status: "warning",
-      },
-    ]);
-  });
-
-  it("handles positions without a quote and stale quotes", async () => {
-    const { orchestrator, quotesService } = build();
-    quotesService.listLatestQuoteEntities.mockResolvedValue([]);
-    const withoutQuote = await orchestrator.getDashboard("u1", RANGE as any);
-    expect(withoutQuote.investments.totalValue).toBe(0);
-    expect(withoutQuote.investments.positions[0].isStale).toBe(false);
-
-    quotesService.listLatestQuoteEntities.mockResolvedValue([
-      {
-        symbol: "BTC",
-        currency: "USD",
-        price: 150,
-        provider: "binance",
-        fetchedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      },
-    ]);
-    const stale = await orchestrator.getDashboard("u1", RANGE as any);
-    expect(stale.investments.staleQuotes).toBe(1);
-    expect(stale.investments.positions[0].isStale).toBe(true);
-  });
-
-  it("returns zeroed investments with no positions", async () => {
-    const { orchestrator, positionsService, quotesService } = build();
-    positionsService.listOwnedPositions.mockResolvedValue([]);
-    quotesService.listLatestQuoteEntities.mockResolvedValue([]);
-    const data = await orchestrator.getDashboard("u1", RANGE as any);
-    expect(data.investments.totalValue).toBe(0);
-    expect(data.investments.positions).toEqual([]);
-    expect(data.investments.staleQuotes).toBe(0);
-  });
-
-  it("excludes archived records and handles other asset types and uncategorized income", async () => {
-    const {
-      orchestrator,
-      accountsService,
-      transactionsService,
-      assetsService,
-      debtsService,
-      positionsService,
-      categoriesService,
-    } = build();
-
+  it("converts every flow to the display currency and keeps net worth in the primary", async () => {
+    const { orchestrator, accountsService, transactionsService } = build();
     accountsService.listOwnedAccounts.mockResolvedValue([
-      { id: "a1", initialBalance: 1000, currency: "ARS", archived: false },
-      { id: "a2", initialBalance: 9999, currency: "ARS", archived: true },
+      { id: "a1", initialBalance: 1000, currency: "ARS" },
+      { id: "a2", initialBalance: 10, currency: "USD" },
     ]);
+    transactionsService.listOwnedTransactions.mockResolvedValue([
+      transaction({ id: "t1", type: "income", amount: 500, accountId: "a1" }),
+      transaction({
+        id: "t2",
+        type: "income",
+        amount: 20,
+        date: "2026-03-06",
+        accountId: "a2",
+      }),
+    ]);
+
+    const data = await orchestrator.getDashboard("u1", RANGE);
+    expect(data.kpis.netWorth).toBe(1500 + 30 * 1180);
+    expect(data.kpis.income).toBe(500 + 20 * 1180);
+    expect(data.breakdown).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ currency: "USD", balance: 30 }),
+      ]),
+    );
+
+    const dollar = await orchestrator.getDashboard("u1", {
+      ...RANGE,
+      currency: "USD",
+    });
+    expect(dollar.currency).toBe("USD");
+    expect(dollar.kpis.income).toBeCloseTo(500 / 1180 + 20, 6);
+    expect(dollar.kpis.netWorth).toBeCloseTo(1500 / 1180 + 30, 6);
+  });
+
+  it("excludes transfers from the consolidated income and expenses", async () => {
+    const { orchestrator, transactionsService } = build();
+    transactionsService.listOwnedTransactions.mockResolvedValue([
+      transaction({ id: "t1", type: "transfer", amount: 900 }),
+      transaction({ id: "t2", type: "transfer", amount: -900 }),
+    ]);
+
+    const data = await orchestrator.getDashboard("u1", RANGE);
+    expect(data.kpis.income).toBe(0);
+    expect(data.kpis.expenses).toBe(0);
+  });
+
+  it("counts uncategorized expenses and drives deltas from the previous period", async () => {
+    const { orchestrator, transactionsService } = build();
     transactionsService.listOwnedTransactions.mockResolvedValue([
       transaction({
         id: "t1",
-        type: "income",
-        amount: 500,
+        type: "expense",
+        amount: 100,
         date: "2026-03-05",
         categoryId: null,
       }),
       transaction({
         id: "t0",
         type: "income",
-        amount: 300,
+        amount: 40,
         date: "2025-12-05",
         categoryId: "c-income",
       }),
-      transaction({
-        id: "t-1",
-        type: "expense",
-        amount: 100,
-        date: "2025-12-10",
-        categoryId: "c-expense",
-      }),
-    ]);
-    assetsService.listOwnedAssets.mockResolvedValue([
-      { id: "asset-1", type: "cash", currency: "ARS", archived: false },
-      { id: "asset-2", type: "vehicle", currency: "ARS", archived: true },
-    ]);
-    assetsService.listValuationsForUser.mockResolvedValue([
-      { assetId: "asset-1", value: 500, currency: "ARS", date: "2026-03-01" },
-      { assetId: "asset-2", value: 9999, currency: "ARS", date: "2026-03-01" },
-    ]);
-    debtsService.listOwnedDebts.mockResolvedValue([
-      { id: "d1", balance: 100, currency: "ARS", archived: false },
-      { id: "d2", balance: 9999, currency: "ARS", archived: true },
-    ]);
-    positionsService.listOwnedPositions.mockResolvedValue([
-      {
-        id: "p1",
-        symbol: "BTC",
-        instrument: "Bitcoin",
-        quantity: 1,
-        avgCost: 0,
-        currency: "USD",
-        archived: true,
-      },
-    ]);
-    categoriesService.listCategories.mockResolvedValue([
-      { id: "c-income", name: "Sueldo", color: "#22c55e" },
-      { id: "c-expense", name: "Comida", color: "#ef4444" },
     ]);
 
-    const data = await orchestrator.getDashboard("u1", RANGE as any);
-
-    // archived account/asset/debt/position are ignored
-    expect(data.kpis.accounts).toBe(1700);
-    expect(data.kpis.assets).toBe(500);
-    expect(data.kpis.debts).toBe(100);
-    expect(data.investments.positions).toEqual([]);
-    // "cash" asset is grouped as "Otros activos"
-    expect(data.netWorthComposition).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ kind: "asset", value: 500 }),
-      ]),
-    );
-    // uncategorized income is labelled
-    expect(data.cashflow.income).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ name: "Otros ingresos" }),
-      ]),
-    );
-    // previous period drives non-null deltas
+    const data = await orchestrator.getDashboard("u1", RANGE);
+    expect(data.kpis.expenses).toBe(100);
+    expect(data.expensesByCategory).toEqual([]);
     expect(data.kpis.incomeDeltaPct).not.toBeNull();
   });
 
-  it("honours a currency override and null investment delta with zero cost", async () => {
-    const { orchestrator, usersService, positionsService } = build();
-    usersService.getById.mockResolvedValue({ baseCurrency: "USD" });
-    positionsService.listOwnedPositions.mockResolvedValue([
-      {
-        id: "p1",
-        symbol: "BTC",
-        instrument: "Bitcoin",
-        quantity: 1,
-        avgCost: 0,
-        currency: "USD",
-        archived: false,
-      },
-    ]);
-    const data = await orchestrator.getDashboard("u1", {
-      from: "2026-01-01",
-      to: "2026-03-31",
-      currency: "eur",
-    } as any);
-    expect(data.currency).toBe("EUR");
-    expect(data.kpis.investmentsDeltaPct).toBeNull();
+  it("rejects an inverted period", async () => {
+    const { orchestrator } = build();
+    await expect(
+      orchestrator.getDashboard("u1", {
+        from: "2026-04-01",
+        to: "2026-03-01",
+      }),
+    ).rejects.toMatchObject({
+      response: { code: ErrorCode.VALIDATION_ERROR },
+    });
   });
 
-  it("groups vehicle assets as their own composition bucket", async () => {
-    const { orchestrator, assetsService } = build();
-    assetsService.listOwnedAssets.mockResolvedValue([
-      { id: "asset-v", type: "vehicle", currency: "ARS", archived: false },
+  it("rejects a period longer than 366 days", async () => {
+    const { orchestrator } = build();
+    await expect(
+      orchestrator.getDashboard("u1", {
+        from: "2025-01-01",
+        to: "2026-03-31",
+      }),
+    ).rejects.toMatchObject({
+      response: { code: ErrorCode.VALIDATION_ERROR },
+    });
+  });
+
+  it("fails when a transaction references an unknown account", async () => {
+    const { orchestrator, transactionsService } = build();
+    transactionsService.listOwnedTransactions.mockResolvedValue([
+      transaction({ accountId: "missing" }),
     ]);
-    assetsService.listValuationsForUser.mockResolvedValue([
-      { assetId: "asset-v", value: 200, currency: "ARS", date: "2026-03-01" },
-    ]);
-    const data = await orchestrator.getDashboard("u1", RANGE as any);
-    expect(data.netWorthComposition).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ kind: "vehicle", value: 200 }),
-      ]),
-    );
+
+    await expect(orchestrator.getDashboard("u1", RANGE)).rejects.toMatchObject({
+      response: { code: ErrorCode.INTERNAL_ERROR },
+    });
   });
 });

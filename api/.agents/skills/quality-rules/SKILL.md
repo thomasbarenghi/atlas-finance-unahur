@@ -31,7 +31,7 @@ When adding or changing a feature:
 
 1. **SRP** — Every module, service, controller, and function MUST have a single reason to change.
 2. **SoC** — Routing, use cases, persistence, and integrations live in separate layers (see §2).
-3. **DRY** — Centralize shared *knowledge*. Business formulas (CAL-001..009) MUST exist once, in `calculations.service`. Apply the **rule of three**.
+3. **DRY** — Centralize shared *knowledge*. Business formulas (CAL-001..004) MUST exist once, in `calculations.service`. Apply the **rule of three**.
 4. **KISS / YAGNI** — Simplest solution that meets the requirement; no speculative abstractions.
 5. **High cohesion, low coupling** — One module per domain; depend on exported providers, never on internals.
 6. **Fail fast** — Validate at the boundary (DTOs) and throw clear, typed errors.
@@ -123,14 +123,14 @@ async createAccount(userId: string, dto: CreateAccountDto): Promise<AccountRespo
 - `JwtAuthGuard` is global; public routes use `@Public()`.
 - Resolve the user with `@CurrentUser()`; **never** accept a `user_id` from the body/params.
 - Before read/update/delete, verify the resource belongs to the user; otherwise throw `NotFound`/`Forbidden` (do not leak existence).
-- Never trust client-supplied IDs for authorization (NFR-SEG-005).
-- Respect rate limits on login, password reset, quotes, and AI (NFR-SEG-010).
+- Never trust client-supplied IDs for authorization (NFR-SEG-001).
+- Respect rate limits on login, password reset, quotes, and AI.
 - Keep in mind that secrets shipped to the client are not secrets (web bundle / APK are inspectable): do not build a shared-token gate and treat it as authentication.
 
 ## 8. Transactions and multi-row writes
 
 - Use `dataSource.transaction()` for any operation that writes more than one row.
-- Transfers MUST create both rows atomically with a shared `transfer_group_id`; if one side fails, nothing is persisted (FR-TRX-005).
+- Transfers MUST create both rows atomically with a shared `transfer_group_id`; if one side fails, nothing is persisted (FR-TRX-001).
 - Validate domain invariants inside the transaction: source ≠ destination, accounts/categories owned by the user, archived account rejects movements.
 
 ```ts
@@ -160,15 +160,15 @@ export function toAccountResponse(a: Account): AccountResponseDto {
 
 ## 10. Calculations (DRY)
 
-- All formulas live in `calculations.service` (CAL-001..009) and MUST be reused by dashboard, reports, and the assistant.
+- All formulas live in `calculations.service` (CAL-001..004) and MUST be reused by dashboard, reports, and the assistant.
 - Never reimplement a formula in a controller, mapper, or the AI prompt builder.
 - Budget/goal statuses and quote staleness are computed centrally and exposed as fields (`status`, `isStale`).
 
 ## 11. Integrations
 
-- All outbound calls go through dedicated providers (`market`, `ai`, `mail`, `fx`) using `HttpModule` with timeout, host validation, HTTPS, and no redirect following (NFR-SEG-009).
+- All outbound calls go through dedicated providers (`market`, `ai`, `mail`, `fx`) using `HttpModule` with timeout, host validation, HTTPS, and no redirect following (NFR-SEG-004).
 - External failures degrade gracefully: keep the last valid market price (never invent one), and surface `AI_UNAVAILABLE`/`MARKET_UNAVAILABLE`.
-- The AI context is built server-side from minimal, pre-calculated, user-scoped data; system instructions are fixed and separated from user data. Assistant write actions use typed tools that reuse the same primary services/orchestrators, never touch a `userId` supplied by the model, require user confirmation (pending action + one-time token) and gate destructive tools behind the user's `assistantDestructiveEnabled` flag (FR-IA-006/010).
+- The AI context is built server-side from minimal, pre-calculated, user-scoped data; system instructions are fixed and separated from user data. Assistant write actions use typed tools that reuse the same primary services/orchestrators, never touch a `userId` supplied by the model, require user confirmation (pending action + one-time token) and gate destructive tools behind the user's `assistantDestructiveEnabled` flag (FR-IA-001).
 
 ## 12. Errors
 
@@ -180,7 +180,7 @@ export function toAccountResponse(a: Account): AccountResponseDto {
 
 - Configuration via `@nestjs/config` with **validated** env; no hardcoded secrets/URLs.
 - `.env` is never committed; `.env.example` documents keys.
-- Log via Nest `Logger`; MUST NOT log passwords, tokens, full prompts, or sensitive financial data (NFR-SEG-008).
+- Log via Nest `Logger`; MUST NOT log passwords, tokens, full prompts, or sensitive financial data (NFR-SEG-003).
 
 ## 14. Naming and exports
 

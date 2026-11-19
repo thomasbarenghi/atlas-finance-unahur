@@ -3,14 +3,19 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { IsNull, Repository } from "typeorm";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
+import { CategoryType } from "../common/types/financial-enums";
+import { CreateCategoryDto } from "./dto/create-category.dto";
 import {
   CategoryResponseDto,
   toCategoryResponse,
 } from "./dto/category-response.dto";
-import { CreateCategoryDto } from "./dto/create-category.dto";
 import { UpdateCategoryDto } from "./dto/update-category.dto";
 import { Category } from "./entities/category.entity";
 
+/**
+ * Category catalog: the system categories (`user_id` null) are read-only for
+ * everyone; each user can create, edit and delete their own on top of them.
+ */
 @Injectable()
 export class CategoriesService {
   constructor(
@@ -20,7 +25,7 @@ export class CategoriesService {
 
   async listCategories(userId: string): Promise<CategoryResponseDto[]> {
     const categories = await this.categoriesRepository.find({
-      where: [{ userId }, { userId: IsNull() }],
+      where: [{ userId: IsNull() }, { userId }],
       order: { type: "ASC", name: "ASC" },
     });
     return categories.map(toCategoryResponse);
@@ -30,11 +35,14 @@ export class CategoriesService {
     userId: string,
     dto: CreateCategoryDto,
   ): Promise<CategoryResponseDto> {
+    const name = this.normalizeName(dto.name);
+    await this.assertNameAvailable(userId, name, dto.type);
+
     const category = this.categoriesRepository.create({
       userId,
-      name: dto.name.trim(),
+      name,
       type: dto.type,
-      color: dto.color,
+      color: dto.color.toLowerCase(),
       icon: dto.icon?.trim() || null,
     });
     return toCategoryResponse(await this.categoriesRepository.save(category));
@@ -47,63 +55,104 @@ export class CategoriesService {
   ): Promise<CategoryResponseDto> {
     const category = await this.findOwnedCategory(userId, id);
 
-    if (dto.name !== undefined) category.name = dto.name.trim();
-    if (dto.type !== undefined) category.type = dto.type;
-    if (dto.color !== undefined) category.color = dto.color;
+    if (dto.name !== undefined) {
+      const name = this.normalizeName(dto.name);
+      await this.assertNameAvailable(userId, name, category.type, category.id);
+      category.name = name;
+    }
+    if (dto.color !== undefined) category.color = dto.color.toLowerCase();
     if (dto.icon !== undefined) category.icon = dto.icon?.trim() || null;
 
     return toCategoryResponse(await this.categoriesRepository.save(category));
   }
 
-  async archiveCategory(
-    userId: string,
-    id: string,
-  ): Promise<CategoryResponseDto> {
+  async deleteCategory(userId: string, id: string): Promise<void> {
     const category = await this.findOwnedCategory(userId, id);
-    category.archived = true;
-    return toCategoryResponse(await this.categoriesRepository.save(category));
+    // The FK is `ON DELETE SET NULL`: transactions that used it stay valid and
+    // are shown as "Sin categoría".
+    await this.categoriesRepository.delete({ id: category.id, userId });
   }
 
-  async findOwnedCategory(userId: string, id: string): Promise<Category> {
-    const category = await this.categoriesRepository.findOneBy({ id });
-    const owned = category?.userId === userId;
-    if (!category || (!owned && category.userId !== null)) {
-      throw new ApiException(
-        ErrorCode.NOT_FOUND,
-        HttpStatus.NOT_FOUND,
-        "La categoría no existe",
-      );
-    }
-    if (category.userId === null) {
-      throw new ApiException(
-        ErrorCode.FORBIDDEN,
-        HttpStatus.FORBIDDEN,
-        "Las categorías del sistema no se editan",
-      );
-    }
-    return category;
-  }
-
-  async assertCategoryUsable(
+  /** A movement may only reference a system category or one of its own. */
+  async assertCategoryAssignable(
     userId: string,
     id: string,
+    type: CategoryType,
   ): Promise<CategoryResponseDto> {
-    const category = await this.categoriesRepository.findOneBy({ id });
-    if (!category || (category.userId !== userId && category.userId !== null)) {
+    const category = await this.categoriesRepository.findOne({
+      where: [
+        { id, userId: IsNull() },
+        { id, userId },
+      ],
+    });
+    if (!category) throw this.notFound();
+    if (category.type !== type) {
       throw new ApiException(
-        ErrorCode.NOT_FOUND,
-        HttpStatus.NOT_FOUND,
-        "La categoría no existe",
-      );
-    }
-    if (category.archived) {
-      throw new ApiException(
-        ErrorCode.CATEGORY_ARCHIVED,
-        HttpStatus.CONFLICT,
-        "La categoría está archivada",
-        { categoryId: ["La categoría está archivada"] },
+        ErrorCode.VALIDATION_ERROR,
+        HttpStatus.BAD_REQUEST,
+        "La categoría no corresponde al tipo de movimiento",
+        {
+          categoryId: ["Elegí una categoría del mismo tipo que el movimiento"],
+        },
       );
     }
     return toCategoryResponse(category);
+  }
+
+  private async findOwnedCategory(
+    userId: string,
+    id: string,
+  ): Promise<Category> {
+    const category = await this.categoriesRepository.findOneBy({ id, userId });
+    if (!category) throw this.notFound();
+    return category;
+  }
+
+  private async assertNameAvailable(
+    userId: string,
+    name: string,
+    type: CategoryType,
+    excludeId?: string,
+  ): Promise<void> {
+    const categories = await this.categoriesRepository.find({
+      where: [
+        { userId: IsNull(), type },
+        { userId, type },
+      ],
+    });
+    const duplicate = categories.find(
+      (category) =>
+        category.id !== excludeId &&
+        category.name.toLowerCase() === name.toLowerCase(),
+    );
+    if (duplicate) {
+      throw new ApiException(
+        ErrorCode.VALIDATION_ERROR,
+        HttpStatus.BAD_REQUEST,
+        "Ya existe una categoría con ese nombre",
+        { name: ["Ya existe una categoría con ese nombre"] },
+      );
+    }
+  }
+
+  private normalizeName(value: string): string {
+    const name = value.trim();
+    if (!name) {
+      throw new ApiException(
+        ErrorCode.VALIDATION_ERROR,
+        HttpStatus.BAD_REQUEST,
+        "Ingresá un nombre",
+        { name: ["Ingresá un nombre"] },
+      );
+    }
+    return name;
+  }
+
+  private notFound(): ApiException {
+    return new ApiException(
+      ErrorCode.NOT_FOUND,
+      HttpStatus.NOT_FOUND,
+      "La categoría no existe",
+    );
   }
 }

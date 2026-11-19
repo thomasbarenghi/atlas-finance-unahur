@@ -1,20 +1,27 @@
 "use client";
 
-import type { FieldValues } from "react-hook-form";
+import type { ReactNode } from "react";
+import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { Loader2 } from "lucide-react";
+import { DialogShell } from "@/components/common/dialog-shell";
 import { FormShell } from "@/components/common/form-shell";
-import { ResponsiveDialogContent } from "@/components/common/responsive-dialog";
+import { DIALOG_BUTTON, DIALOG_FOOTER } from "@/components/common/ui-classes";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import type { FormDialogProps } from "./form-dialog.types";
+import { DialogFooter } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
-export type { FormDialogProps } from "./form-dialog.types";
+export interface FormDialogProps<T extends FieldValues> {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string;
+  form: UseFormReturn<T>;
+  onSubmit: (values: T) => void | Promise<void>;
+  submitLabel: string;
+  isPending?: boolean;
+  contentClassName?: string;
+  children: ReactNode;
+}
 
 export const FormDialog = <T extends FieldValues>({
   open,
@@ -26,37 +33,37 @@ export const FormDialog = <T extends FieldValues>({
   submitLabel,
   isPending,
   contentClassName,
-  footerStart,
   children,
 }: FormDialogProps<T>) => {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <ResponsiveDialogContent className={contentClassName}>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description ? (
-            <DialogDescription>{description}</DialogDescription>
-          ) : null}
-        </DialogHeader>
-        <FormShell form={form} onSubmit={onSubmit}>
-          {children}
-          <DialogFooter>
-            {footerStart}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isPending}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? <Loader2 className="animate-spin" /> : null}
-              {submitLabel}
-            </Button>
-          </DialogFooter>
-        </FormShell>
-      </ResponsiveDialogContent>
-    </Dialog>
+    <DialogShell
+      open={open}
+      onOpenChange={onOpenChange}
+      title={title}
+      description={description}
+      contentClassName={contentClassName}
+    >
+      <FormShell form={form} onSubmit={onSubmit} className="gap-0">
+        <div className="dialog-body">{children}</div>
+        <DialogFooter className={DIALOG_FOOTER}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+            className={cn(
+              DIALOG_BUTTON,
+              "bg-[#F5F6F8] hover:bg-[#F5F6F8] sm:bg-card",
+            )}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={isPending} className={DIALOG_BUTTON}>
+            {isPending ? <Loader2 className="animate-spin" /> : null}
+            {submitLabel}
+          </Button>
+        </DialogFooter>
+      </FormShell>
+    </DialogShell>
   );
 };

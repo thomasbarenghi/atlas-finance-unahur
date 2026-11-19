@@ -70,12 +70,12 @@ describe("apiFetch", () => {
   it("falls back to a generic error when the body is not JSON", async () => {
     server.use(
       http.get(
-        "http://localhost/api/quotes",
+        "http://localhost/api/accounts",
         () => new HttpResponse("<html>500</html>", { status: 500 }),
       ),
     );
 
-    await expect(get("/quotes")).rejects.toMatchObject({
+    await expect(get("/accounts")).rejects.toMatchObject({
       statusCode: 500,
       code: "INTERNAL_ERROR",
     });
@@ -89,8 +89,9 @@ describe("apiFetch", () => {
         if (attempts === 1) return new HttpResponse(null, { status: 401 });
         return HttpResponse.json([{ id: "a" }]);
       }),
-      http.post("http://localhost/api/auth/refresh", () =>
-        HttpResponse.json({ accessToken: "new", refreshToken: "new-r" }),
+      http.post(
+        "http://localhost/api/auth/refresh",
+        () => new HttpResponse(null, { status: 204 }),
       ),
     );
 

@@ -1,13 +1,6 @@
-export type AccountType = "cash" | "bank" | "wallet" | "card" | "other";
+export type AccountType = "cash" | "bank" | "wallet" | "other";
 export type TransactionType = "income" | "expense" | "transfer";
 export type CategoryType = "income" | "expense";
-export type AssetType =
-  "property" | "vehicle" | "cash" | "investment" | "crypto" | "other";
-export type DebtType = "loan" | "mortgage" | "card" | "other";
-export type BudgetStatus = "available" | "warning" | "exceeded";
-export type GoalStatus = "pending" | "in_progress" | "achieved" | "overdue";
-export type Theme = "light" | "dark" | "system";
-export type ValuationSource = "manual" | "market";
 
 export interface Paginated<T> {
   items: T[];
@@ -33,22 +26,12 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  baseCurrency: string;
-  theme: Theme;
-  aiEnabled: boolean;
-  assistantDestructiveEnabled: boolean;
+  primaryCurrency: string;
   createdAt: string;
 }
 
 export interface AuthResponse {
   user: User;
-  accessToken: string;
-  refreshToken: string;
-}
-
-export interface CurrenciesResponse {
-  default: string;
-  supported: string[];
 }
 
 export interface Account {
@@ -58,23 +41,7 @@ export interface Account {
   currency: string;
   initialBalance: number;
   currentBalance: number;
-  archived: boolean;
   notes: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Goal {
-  id: string;
-  name: string;
-  targetAmount: number;
-  savedAmount: number;
-  currency: string;
-  targetDate: string | null;
-  sourceAccountId: string | null;
-  archived: boolean;
-  progressPct: number;
-  status: GoalStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -85,15 +52,23 @@ export interface Category {
   type: CategoryType;
   color: string;
   icon: string | null;
-  archived: boolean;
   isSystem: boolean;
 }
+
+export interface CreateCategoryInput {
+  name: string;
+  type: CategoryType;
+  color: string;
+}
+
+export type UpdateCategoryInput = Partial<
+  Pick<CreateCategoryInput, "name" | "color">
+>;
 
 export interface Transaction {
   id: string;
   type: TransactionType;
   amount: number;
-  currency: string;
   date: string;
   description: string;
   notes: string | null;
@@ -105,107 +80,31 @@ export interface Transaction {
   updatedAt: string;
 }
 
-export interface Budget {
-  id: string;
-  categoryId: string;
-  category: Pick<Category, "id" | "name" | "color">;
-  period: string;
-  limit: number;
+export interface DashboardBreakdown {
   currency: string;
-  recurring: boolean;
-  spent: number;
-  available: number;
-  consumedPct: number;
-  status: BudgetStatus;
-}
-
-export interface Asset {
-  id: string;
-  name: string;
-  type: AssetType;
-  currency: string;
-  currentValue: number;
-  valuationDate: string;
-  archived: boolean;
-  notes: string | null;
-  debtId: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Valuation {
-  id: string;
-  assetId: string;
-  value: number;
-  currency: string;
-  date: string;
-  source: ValuationSource;
-  createdAt: string;
-}
-
-export interface Debt {
-  id: string;
-  name: string;
-  type: DebtType;
   balance: number;
-  currency: string;
-  date: string;
-  archived: boolean;
-  assetId: string | null;
-  createdAt: string;
-  updatedAt: string;
+  accounts: number;
+  /** Equivalent in the primary currency. */
+  converted: number;
 }
 
-export interface Position {
-  id: string;
-  symbol: string;
-  instrument: string;
-  quantity: number;
-  avgCost: number;
+export interface DashboardRate {
   currency: string;
-  currentPrice: number | null;
-  currentValue: number | null;
-  costBasis: number;
-  profitLoss: number | null;
-  profitLossPct: number | null;
-  quoteDate: string | null;
-  quoteProvider: string | null;
-  isStale: boolean;
-  archived: boolean;
-}
-
-export interface Quote {
-  symbol: string;
-  price: number;
-  currency: string;
-  provider: string;
-  change24h: number | null;
-  fetchedAt: string;
-  isStale: boolean;
-}
-
-export type NetWorthCompositionKind =
-  "property" | "vehicle" | "asset" | "investment" | "cash" | "account";
-
-export interface DashboardInvestmentPosition {
-  id: string;
-  symbol: string;
-  instrument: string;
-  quantity: number;
-  originalCurrency: string;
-  originalValue: number;
-  originalCost: number;
-  originalProfitLoss: number | null;
-  value: number;
-  profitLossPct: number | null;
-  isStale: boolean;
-  quoteDate: string | null;
-  quoteProvider: string | null;
+  /** How many units of the primary currency one unit buys. */
+  rate: number;
+  rateDate: string;
 }
 
 export interface DashboardData {
   period: PeriodRange;
+  /** Currency scope of the period indicators and charts. */
   currency: string;
+  /** Currency in which net worth is reported. */
+  primaryCurrency: string;
+  rateDate: string | null;
+  availableCurrencies: string[];
+  breakdown: DashboardBreakdown[];
+  rates: DashboardRate[];
   kpis: {
     netWorth: number;
     netWorthDeltaPct: number | null;
@@ -216,147 +115,60 @@ export interface DashboardData {
     savings: number;
     savingsDeltaPct: number | null;
     savingsRateDeltaPp: number | null;
-    assets: number;
-    assetsDeltaPct: number | null;
-    debts: number;
-    debtsDeltaPct: number | null;
-    accounts: number;
-    accountsDeltaPct: number | null;
-    investmentsDeltaPct: number | null;
   };
-  netWorthSeries: {
-    date: string;
-    value: number;
-    assets: number;
-    debts: number;
-  }[];
-  assetsValueByMonth: { month: string; value: number }[];
-  incomeExpenseByMonth: {
-    month: string;
+  netWorthSeries: { date: string; value: number }[];
+  incomeExpenseByPeriod: {
+    bucket: "week" | "month";
+    start: string;
+    end: string;
     income: number;
     expenses: number;
   }[];
+  incomeExpenseByMonth: { month: string; income: number; expenses: number }[];
   expensesByCategory: {
     categoryId: string;
     name: string;
     color: string;
     value: number;
   }[];
-  categoryChanges: {
-    categoryId: string;
-    name: string;
-    current: number;
-    previous: number;
-    deltaPct: number | null;
-  }[];
-  assetsComposition: { type: AssetType; value: number }[];
-  netWorthComposition: {
-    kind: NetWorthCompositionKind;
-    label: string;
-    value: number;
-  }[];
-  cashflow: {
-    income: { name: string; value: number }[];
-    expenses: { name: string; color: string; value: number }[];
-    savings: number;
-  };
-  investments: {
-    totalValue: number;
-    totalCost: number;
-    profitLoss: number;
-    profitLossPct: number;
-    staleQuotes: number;
-    positions: DashboardInvestmentPosition[];
-  };
-  budgetAlerts: {
-    budgetId: string;
-    categoryName: string;
-    consumedPct: number;
-    status: BudgetStatus;
-  }[];
 }
 
-export interface Conversation {
-  id: string;
-  question: string;
-  answer: string;
-  contextMeta: {
-    period?: PeriodRange;
-    currency?: string;
-    sources?: string[];
-  };
-  createdAt: string;
-}
-
-export interface AssistantActionEntity {
-  id: string;
-  name: string;
-  type?: string;
-  currency?: string;
-  initialBalance?: number;
-}
-
-export type ActionClass = "read" | "write_safe" | "sensitive" | "destructive";
-
-export interface ActionPreviewField {
-  label: string;
-  value: string;
-}
-
-export interface ActionPreview {
-  title: string;
-  summary: string;
-  fields: ActionPreviewField[];
-  impact?: string;
-}
-
-export interface AssistantActionProposal {
-  actionId: string;
-  token: string;
-  name: string;
-  title: string;
-  classification: ActionClass;
-  destructive: boolean;
-  summary: string;
-  preview: ActionPreview;
-  expiresAt: string;
-  planId: string | null;
-  step: number;
-  pending: boolean;
-}
-
-export interface AssistantActionResult {
-  actionId: string;
-  name: string;
-  title: string;
-  classification: ActionClass;
-  status: "executed" | "failed" | "cancelled";
-  summary: string;
-  entity: AssistantActionEntity | null;
-  code?: string;
-  fieldErrors?: Record<string, string[]>;
-}
-
-export interface AssistantActionError {
-  name: string;
-  title: string;
+export interface CurrencyCatalogItem {
   code: string;
-  message: string;
-  fieldErrors?: Record<string, string[]>;
+  name: string;
+  symbol: string;
+  decimals: number;
+}
+
+export type CurrencyRateSource = "api";
+
+export interface CurrencyRate {
+  currency: string;
+  name: string;
+  symbol: string;
+  /** How many units of the user's primary currency one unit buys. */
+  rate: number;
+  rateDate: string;
+  source: CurrencyRateSource;
+}
+
+export interface CurrencySettings {
+  primaryCurrency: string;
+  rates: CurrencyRate[];
+  updatedAt: string | null;
+}
+
+export interface AssistantHistoryMessage {
+  role: "user" | "assistant";
+  content: string;
 }
 
 export interface AssistantMessageInput {
   question: string;
-  conversationId?: string | null;
   period?: PeriodRange;
   currency?: string;
-}
-
-export interface AssistantReply {
-  conversationId: string;
-  answer: string;
-  insufficient: boolean;
-  contextMeta: Conversation["contextMeta"];
+  /** Turnos previos de la conversación en memoria, para preguntas de seguimiento. */
+  history?: AssistantHistoryMessage[];
 }
 
 /* ── Inputs (mirror the REST request DTOs) ─────────────────────────────── */
@@ -370,23 +182,18 @@ export interface RegisterInput {
   name: string;
   email: string;
   password: string;
-}
-
-export interface ForgotPasswordInput {
-  email: string;
-}
-
-export interface ResetPasswordInput {
-  token: string;
-  password: string;
+  primaryCurrency: string;
 }
 
 export interface UpdateUserInput {
   name?: string;
-  baseCurrency?: string;
-  theme?: Theme;
-  aiEnabled?: boolean;
-  assistantDestructiveEnabled?: boolean;
+  email?: string;
+  primaryCurrency?: string;
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
 }
 
 export interface CreateAccountInput {
@@ -403,105 +210,21 @@ export type UpdateAccountInput = Partial<
   initialBalance?: number;
 };
 
-export interface CreateGoalInput {
-  name: string;
-  targetAmount: number;
-  savedAmount?: number;
-  currency: string;
-  targetDate?: string | null;
-  sourceAccountId?: string | null;
-}
-
-export type UpdateGoalInput = Partial<CreateGoalInput>;
-
-export interface CreateCategoryInput {
-  name: string;
-  type: CategoryType;
-  color: string;
-  icon?: string | null;
-}
-
-export type UpdateCategoryInput = Partial<CreateCategoryInput>;
-
 export interface CreateTransactionInput {
   type: TransactionType;
   amount: number;
-  currency: string;
   date: string;
   description: string;
   notes?: string | null;
   accountId: string;
   transferAccountId?: string | null;
+  transferAmount?: number;
   categoryId?: string | null;
 }
 
 export type UpdateTransactionInput = Partial<CreateTransactionInput>;
 
-export interface TransactionFilters {
-  from?: string;
-  to?: string;
-  type?: TransactionType;
-  accountId?: string;
-  categoryId?: string;
-  search?: string;
+export interface TransactionListQuery {
   page?: number;
   pageSize?: number;
 }
-
-export interface CreateBudgetInput {
-  categoryId: string;
-  period: string;
-  limit: number;
-  currency: string;
-  recurring?: boolean;
-}
-
-export type UpdateBudgetInput = Partial<
-  Pick<CreateBudgetInput, "limit" | "currency" | "recurring">
->;
-
-export interface CopyBudgetsInput {
-  period: string;
-  sourcePeriod?: string;
-}
-
-export interface CreateAssetInput {
-  name: string;
-  type: AssetType;
-  currency: string;
-  initialValue: number;
-  date: string;
-  notes?: string | null;
-}
-
-export type UpdateAssetInput = Partial<
-  Omit<CreateAssetInput, "initialValue" | "date">
->;
-
-export interface CreateValuationInput {
-  value: number;
-  currency: string;
-  date: string;
-  source?: ValuationSource;
-}
-
-export interface CreateDebtInput {
-  name: string;
-  type: DebtType;
-  balance: number;
-  currency: string;
-  date: string;
-  assetId?: string | null;
-}
-
-export type UpdateDebtInput = Partial<CreateDebtInput>;
-
-export interface CreatePositionInput {
-  symbol: string;
-  instrument: string;
-  quantity: number;
-  avgCost: number;
-  currency: string;
-}
-
-export type UpdatePositionInput = Partial<CreatePositionInput>;

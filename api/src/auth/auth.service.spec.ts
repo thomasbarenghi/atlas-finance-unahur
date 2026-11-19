@@ -1,344 +1,200 @@
-import { createHash } from "crypto";
+import * as argon2 from "argon2";
 import { ErrorCode } from "../common/errors/error-codes";
+import { mockRepository } from "../../test/unit/mocks";
+import { User } from "../users/entities/user.entity";
 import { AuthService } from "./auth.service";
 
 jest.mock("argon2", () => ({
-  hash: jest.fn(async () => "$argon2id$hashed"),
+  hash: jest.fn(async () => "hashed"),
   verify: jest.fn(async () => true),
 }));
 
-const argon2 = require("argon2") as {
-  hash: jest.Mock;
-  verify: jest.Mock;
-};
-const buildUser = (overrides: Record<string, unknown> = {}) => ({
-  id: "u1",
-  name: "Ana",
-  email: "ana@test.local",
-  passwordHash: "$argon2id$hashed",
-  baseCurrency: "ARS",
-  theme: "system",
-  aiEnabled: false,
-  assistantDestructiveEnabled: false,
-  resetTokenHash: null,
-  resetTokenExpiresAt: null,
-  createdAt: new Date("2026-01-01T00:00:00.000Z"),
-  ...overrides,
-});
+const mockedArgon2 = argon2 as jest.Mocked<typeof argon2>;
+
+const user = (overrides: Partial<User> = {}): User =>
+  ({
+    id: "u1",
+    name: "Ana",
+    email: "ana@test.local",
+    passwordHash: "hashed",
+    primaryCurrency: "ARS",
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    ...overrides,
+  }) as User;
 
 const build = () => {
-  const usersRepository = {
-    findOneBy: jest.fn(),
-    create: jest.fn((value: any) => ({
-      id: "u1",
-      createdAt: new Date("2026-01-01T00:00:00.000Z"),
-      ...value,
-    })),
-    save: jest.fn(async (value: any) => ({
-      id: value.id ?? "u1",
-      createdAt: value.createdAt ?? new Date("2026-01-01T00:00:00.000Z"),
-      ...value,
-    })),
-  };
-  const sessionsRepository = {
-    create: jest.fn((value: unknown) => value),
-    save: jest.fn(async (value: unknown) => value),
-    findOneBy: jest.fn(),
-    update: jest.fn().mockResolvedValue({ affected: 1 }),
-  };
+  const usersRepository = mockRepository();
+  usersRepository.create.mockImplementation((value: any) => ({
+    ...user(),
+    ...value,
+  }));
+  usersRepository.save.mockImplementation(async (value: any) => value);
+
   const jwtService = {
-    sign: jest.fn(() => "access-token"),
-    signAsync: jest.fn(async () => "reset-token"),
+    sign: jest.fn((payload: { type?: string }) =>
+      payload.type === "refresh" ? "refresh-token" : "access-token",
+    ),
     verifyAsync: jest.fn(),
   };
   const config = {
     get: jest.fn((key: string) => {
-      if (key === "jwt") return { accessTtl: 900, refreshTtlDays: 30 };
-      if (key === "resetTokenTtl") return 3600;
+      if (key === "jwt") return { refreshTtlDays: 30 };
       return undefined;
     }),
   };
-  const mailService = { sendPasswordReset: jest.fn(async () => undefined) };
 
   const service = new AuthService(
     usersRepository as any,
-    sessionsRepository as any,
     jwtService as any,
     config as any,
-    mailService as any,
   );
-  return {
-    service,
-    usersRepository,
-    sessionsRepository,
-    jwtService,
-    mailService,
-  };
+  return { service, usersRepository, jwtService };
 };
 
-const sha256 = (value: string): string =>
-  createHash("sha256").update(value).digest("hex");
-
 describe("AuthService", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    argon2.hash.mockResolvedValue("$argon2id$hashed");
-    argon2.verify.mockResolvedValue(true);
-  });
+  beforeEach(() => jest.clearAllMocks());
 
-  describe("register", () => {
-    it("creates the user, a session and returns tokens", async () => {
-      const { service, usersRepository, sessionsRepository } = build();
-      usersRepository.findOneBy.mockResolvedValue(null);
+  it("registers a user, hashing the password and issuing tokens", async () => {
+    const { service, usersRepository, jwtService } = build();
+    usersRepository.findOneBy.mockResolvedValue(null);
 
-      const result = await service.register({
-        name: "  Ana  ",
-        email: "ANA@test.local",
-        password: "Secreta123",
-      } as any);
+    const result = await service.register({
+      name: "  Ana  ",
+      email: "ANA@test.local",
+      password: "Secreta123",
+      primaryCurrency: "USD",
+    } as any);
 
-      expect(usersRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ email: "ana@test.local", name: "Ana" }),
-      );
-      expect(sessionsRepository.save).toHaveBeenCalled();
-      expect(result.accessToken).toBe("access-token");
-      expect(result.refreshToken).toContain(".");
-      expect(result.user).not.toHaveProperty("passwordHash");
-    });
-
-    it("rejects a duplicated email", async () => {
-      const { service, usersRepository } = build();
-      usersRepository.findOneBy.mockResolvedValue(buildUser());
-
-      await expect(
-        service.register({
-          name: "A",
-          email: "ana@test.local",
-          password: "Secreta123",
-        } as any),
-      ).rejects.toMatchObject({ response: { code: ErrorCode.EMAIL_IN_USE } });
-    });
-  });
-
-  describe("login", () => {
-    it("returns tokens for valid credentials", async () => {
-      const { service, usersRepository } = build();
-      usersRepository.findOneBy.mockResolvedValue(buildUser());
-
-      const result = await service.login({
+    expect(usersRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Ana",
         email: "ana@test.local",
-        password: "Secreta123",
-      } as any);
-      expect(result.accessToken).toBeDefined();
+        passwordHash: "hashed",
+        primaryCurrency: "USD",
+      }),
+    );
+    expect(result.tokens).toEqual({
+      accessToken: "access-token",
+      refreshToken: "refresh-token",
     });
-
-    it("rejects unknown users and wrong passwords generically", async () => {
-      const { service, usersRepository } = build();
-      usersRepository.findOneBy.mockResolvedValue(null);
-      await expect(
-        service.login({ email: "x@test.local", password: "p" } as any),
-      ).rejects.toMatchObject({
-        response: { code: ErrorCode.INVALID_CREDENTIALS },
-      });
-
-      usersRepository.findOneBy.mockResolvedValue(buildUser());
-      argon2.verify.mockResolvedValue(false);
-      await expect(
-        service.login({ email: "ana@test.local", password: "bad" } as any),
-      ).rejects.toMatchObject({
-        response: { code: ErrorCode.INVALID_CREDENTIALS },
-      });
-    });
-  });
-
-  describe("refresh", () => {
-    const activeSession = (overrides: Record<string, unknown> = {}) => ({
-      id: "s1",
-      userId: "u1",
-      refreshTokenHash: "$argon2id$hashed",
-      expiresAt: new Date(Date.now() + 1000_000),
-      revokedAt: null,
-      ...overrides,
-    });
-
-    it("rotates a valid refresh token", async () => {
-      const { service, sessionsRepository, usersRepository } = build();
-      sessionsRepository.findOneBy.mockResolvedValue(activeSession());
-      usersRepository.findOneBy.mockResolvedValue(buildUser());
-
-      const result = await service.refresh("s1.secret");
-      expect(result.accessToken).toBe("access-token");
-      expect(sessionsRepository.save).toHaveBeenCalled();
-    });
-
-    it("rejects missing/malformed/unknown/revoked/expired tokens", async () => {
-      const { service, sessionsRepository } = build();
-      await expect(service.refresh(undefined)).rejects.toMatchObject({
-        response: { code: ErrorCode.SESSION_REVOKED },
-      });
-      await expect(service.refresh("malformed")).rejects.toMatchObject({
-        response: { code: ErrorCode.SESSION_REVOKED },
-      });
-
-      sessionsRepository.findOneBy.mockResolvedValue(null);
-      await expect(service.refresh("s1.secret")).rejects.toMatchObject({
-        response: { code: ErrorCode.SESSION_REVOKED },
-      });
-
-      sessionsRepository.findOneBy.mockResolvedValue(
-        activeSession({ revokedAt: new Date() }),
-      );
-      await expect(service.refresh("s1.secret")).rejects.toMatchObject({
-        response: { code: ErrorCode.SESSION_REVOKED },
-      });
-
-      sessionsRepository.findOneBy.mockResolvedValue(
-        activeSession({ expiresAt: new Date(Date.now() - 1000) }),
-      );
-      await expect(service.refresh("s1.secret")).rejects.toMatchObject({
-        response: { code: ErrorCode.SESSION_REVOKED },
-      });
-    });
-
-    it("rejects when the token hash does not match", async () => {
-      const { service, sessionsRepository } = build();
-      sessionsRepository.findOneBy.mockResolvedValue(activeSession());
-      argon2.verify.mockResolvedValue(false);
-      await expect(service.refresh("s1.secret")).rejects.toMatchObject({
-        response: { code: ErrorCode.SESSION_REVOKED },
-      });
-    });
-
-    it("rejects when the user was deleted", async () => {
-      const { service, sessionsRepository, usersRepository } = build();
-      sessionsRepository.findOneBy.mockResolvedValue(activeSession());
-      usersRepository.findOneBy.mockResolvedValue(null);
-      await expect(service.refresh("s1.secret")).rejects.toMatchObject({
-        response: { code: ErrorCode.SESSION_REVOKED },
-      });
-    });
-  });
-
-  it("revokes the session on logout", async () => {
-    const { service, sessionsRepository } = build();
-    await service.logout("u1", "s1");
-    expect(sessionsRepository.update).toHaveBeenCalledWith(
-      { id: "s1", userId: "u1" },
-      { revokedAt: expect.any(Date) },
+    expect(jwtService.sign).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "access" }),
+    );
+    expect(jwtService.sign).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "refresh" }),
+      { expiresIn: 30 * 86_400 },
     );
   });
 
-  it("returns the profile or throws when missing", async () => {
+  it("rejects a duplicate email", async () => {
     const { service, usersRepository } = build();
-    usersRepository.findOneBy.mockResolvedValue(buildUser());
-    await expect(service.getMe("u1")).resolves.toMatchObject({
-      email: "ana@test.local",
-    });
+    usersRepository.findOneBy.mockResolvedValue(user());
 
-    usersRepository.findOneBy.mockResolvedValue(null);
-    await expect(service.getMe("u1")).rejects.toMatchObject({
-      response: { code: ErrorCode.NOT_FOUND },
+    await expect(
+      service.register({
+        name: "Ana",
+        email: "ana@test.local",
+        password: "Secreta123",
+      } as any),
+    ).rejects.toMatchObject({ response: { code: ErrorCode.EMAIL_IN_USE } });
+  });
+
+  it("logs in with valid credentials", async () => {
+    const { service, usersRepository } = build();
+    usersRepository.findOneBy.mockResolvedValue(user());
+
+    await expect(
+      service.login({ email: "ANA@test.local", password: "Secreta123" } as any),
+    ).resolves.toMatchObject({
+      tokens: {
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+      },
     });
   });
 
-  describe("password recovery", () => {
-    it("does nothing for unknown emails", async () => {
-      const { service, usersRepository, mailService } = build();
-      usersRepository.findOneBy.mockResolvedValue(null);
-      await service.forgotPassword({ email: "nobody@test.local" } as any);
-      expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
+  it("rejects invalid credentials", async () => {
+    const { service, usersRepository } = build();
+    usersRepository.findOneBy.mockResolvedValue(user());
+    mockedArgon2.verify.mockResolvedValueOnce(false);
+
+    await expect(
+      service.login({ email: "ana@test.local", password: "bad" } as any),
+    ).rejects.toMatchObject({
+      response: { code: ErrorCode.INVALID_CREDENTIALS },
+    });
+  });
+
+  it("renews both tokens from a valid stateless refresh token", async () => {
+    const { service, usersRepository, jwtService } = build();
+    jwtService.verifyAsync.mockResolvedValue({
+      sub: "u1",
+      email: "ana@test.local",
+      type: "refresh",
+    });
+    usersRepository.findOneBy.mockResolvedValue(user());
+
+    await expect(service.refresh("refresh-token")).resolves.toEqual({
+      accessToken: "access-token",
+      refreshToken: "refresh-token",
+    });
+    expect(jwtService.verifyAsync).toHaveBeenCalledWith("refresh-token");
+    expect(mockedArgon2.verify).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid or missing refresh token", async () => {
+    const { service, jwtService } = build();
+
+    await expect(service.refresh(undefined)).rejects.toMatchObject({
+      response: { code: ErrorCode.SESSION_REVOKED },
     });
 
-    it("stores a hashed token and sends the email", async () => {
-      const { service, usersRepository, mailService } = build();
-      usersRepository.findOneBy.mockResolvedValue(buildUser());
+    jwtService.verifyAsync.mockRejectedValue(new Error("invalid token"));
+    await expect(service.refresh("invalid")).rejects.toMatchObject({
+      response: { code: ErrorCode.SESSION_REVOKED },
+    });
+  });
 
-      await service.forgotPassword({ email: "ana@test.local" } as any);
-
-      expect(usersRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          resetTokenHash: sha256("reset-token"),
-          resetTokenExpiresAt: expect.any(Date),
-        }),
-      );
-      expect(mailService.sendPasswordReset).toHaveBeenCalledWith(
-        "ana@test.local",
-        "reset-token",
-      );
+  it("rejects an access token used as a refresh token", async () => {
+    const { service, jwtService } = build();
+    jwtService.verifyAsync.mockResolvedValue({
+      sub: "u1",
+      email: "ana@test.local",
+      type: "access",
     });
 
-    it("resets the password, clearing the token and revoking sessions", async () => {
-      const { service, usersRepository, sessionsRepository, jwtService } =
-        build();
-      jwtService.verifyAsync.mockResolvedValue({ sub: "u1", purpose: "reset" });
-      usersRepository.findOneBy.mockResolvedValue(
-        buildUser({
-          resetTokenHash: sha256("valid-token"),
-          resetTokenExpiresAt: new Date(Date.now() + 1000),
-        }),
-      );
-
-      await service.resetPassword({
-        token: "valid-token",
-        password: "Nueva1234",
-      } as any);
-
-      expect(usersRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          resetTokenHash: null,
-          resetTokenExpiresAt: null,
-        }),
-      );
-      expect(sessionsRepository.update).toHaveBeenCalledWith(
-        { userId: "u1" },
-        { revokedAt: expect.any(Date) },
-      );
+    await expect(service.refresh("access-token")).rejects.toMatchObject({
+      response: { code: ErrorCode.SESSION_REVOKED },
     });
+  });
 
-    it("rejects invalid, mismatched, expired and wrong-purpose tokens", async () => {
-      const { service, usersRepository, jwtService } = build();
-      jwtService.verifyAsync.mockRejectedValue(new Error("bad"));
-      await expect(
-        service.resetPassword({ token: "x", password: "Nueva1234" } as any),
-      ).rejects.toMatchObject({
-        response: { code: ErrorCode.VALIDATION_ERROR },
-      });
+  it("rejects a refresh token whose user no longer exists", async () => {
+    const { service, usersRepository, jwtService } = build();
+    jwtService.verifyAsync.mockResolvedValue({
+      sub: "u1",
+      email: "ana@test.local",
+      type: "refresh",
+    });
+    usersRepository.findOneBy.mockResolvedValue(null);
 
-      jwtService.verifyAsync.mockResolvedValue({ sub: "u1", purpose: "other" });
-      await expect(
-        service.resetPassword({ token: "x", password: "Nueva1234" } as any),
-      ).rejects.toMatchObject({
-        response: { code: ErrorCode.VALIDATION_ERROR },
-      });
+    await expect(service.refresh("refresh-token")).rejects.toMatchObject({
+      response: { code: ErrorCode.SESSION_REVOKED },
+    });
+  });
 
-      jwtService.verifyAsync.mockResolvedValue({ sub: "u1", purpose: "reset" });
-      usersRepository.findOneBy.mockResolvedValue(null);
-      await expect(
-        service.resetPassword({ token: "x", password: "Nueva1234" } as any),
-      ).rejects.toMatchObject({
-        response: { code: ErrorCode.VALIDATION_ERROR },
-      });
+  it("returns the current user profile", async () => {
+    const { service, usersRepository } = build();
+    usersRepository.findOneBy.mockResolvedValue(user());
+    await expect(service.getMe("u1")).resolves.toMatchObject({
+      email: "ana@test.local",
+    });
+  });
 
-      usersRepository.findOneBy.mockResolvedValue(
-        buildUser({ resetTokenHash: "other", resetTokenExpiresAt: new Date() }),
-      );
-      await expect(
-        service.resetPassword({ token: "x", password: "Nueva1234" } as any),
-      ).rejects.toMatchObject({
-        response: { code: ErrorCode.VALIDATION_ERROR },
-      });
-
-      usersRepository.findOneBy.mockResolvedValue(
-        buildUser({
-          resetTokenHash: sha256("x"),
-          resetTokenExpiresAt: new Date(Date.now() - 1000),
-        }),
-      );
-      await expect(
-        service.resetPassword({ token: "x", password: "Nueva1234" } as any),
-      ).rejects.toMatchObject({
-        response: { code: ErrorCode.VALIDATION_ERROR },
-      });
+  it("throws NOT_FOUND when the profile is gone", async () => {
+    const { service, usersRepository } = build();
+    usersRepository.findOneBy.mockResolvedValue(null);
+    await expect(service.getMe("u1")).rejects.toMatchObject({
+      response: { code: ErrorCode.NOT_FOUND },
     });
   });
 });

@@ -1,8 +1,4 @@
-import type {
-  BudgetStatus,
-  GoalStatus,
-  TransactionType,
-} from "../../common/types/financial-enums";
+import type { TransactionType } from "../../common/types/financial-enums";
 
 export interface MoneyTransaction {
   /** Signed for transfers; income/expense store a positive amount. */
@@ -12,24 +8,15 @@ export interface MoneyTransaction {
   accountId: string;
   transferAccountId: string | null;
   categoryId: string | null;
+  /** Currency of the account that owns the movement (derived, not stored). */
+  currency?: string;
 }
 
 export interface BalanceAccount {
   id: string;
   initialBalance: number;
-  archived: boolean;
-}
-
-export interface ValuationPoint {
-  assetId: string;
-  value: number;
-  date: string;
-}
-
-export interface PositionCost {
-  archived: boolean;
-  quantity: number;
-  avgCost: number;
+  /** Currency declared by the account (FR-CUE-001). */
+  currency?: string;
 }
 
 export interface PeriodFlows {
@@ -38,22 +25,5 @@ export interface PeriodFlows {
   savings: number;
 }
 
-export interface BudgetConsumption {
-  limit: number;
-  spent: number;
-  available: number;
-  consumedPct: number;
-  status: BudgetStatus;
-}
-
-export interface NetWorthParts {
-  assets: number;
-  positions: number;
-  cash: number;
-  debts: number;
-}
-
-export interface GoalProgress {
-  progressPct: number;
-  status: GoalStatus;
-}
+export type RateMap = Map<string, number>;
+export type BalanceMap = Map<string, number>;

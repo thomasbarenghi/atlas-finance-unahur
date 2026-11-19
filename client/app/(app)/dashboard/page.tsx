@@ -1,7 +1,7 @@
-import { HomeView } from "@/components/features/home/home-view";
+import { DashboardView } from "@/app/(app)/dashboard/_components/dashboard-view";
 
 const DashboardPage = () => {
-  return <HomeView />;
+  return <DashboardView />;
 };
 
 export default DashboardPage;

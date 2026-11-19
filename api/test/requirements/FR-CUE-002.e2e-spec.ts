@@ -1,13 +1,19 @@
 import request from "supertest";
-import { bearer, registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
+import {
+  categoryByName,
+  createAccount,
+  createTransaction,
+  isoDate,
+} from "../utils/factories";
 import { truncateAll } from "../utils/db";
 import { createTestApp, TestContext } from "../utils/test-app";
 
 /**
- * FR-CUE-002 — Registrar nombre, tipo, moneda, saldo inicial y observaciones
- * opcionales.
+ * FR-CUE-002 — Calcular el saldo actual a partir del saldo inicial y los
+ * movimientos asociados.
  */
-describe("FR-CUE-002 · Campos de la cuenta", () => {
+describe("FR-CUE-002 · Saldo actual", () => {
   let ctx: TestContext;
 
   beforeAll(async () => {
@@ -22,91 +28,80 @@ describe("FR-CUE-002 · Campos de la cuenta", () => {
     await ctx.app.close();
   });
 
-  it("registra todos los campos y devuelve el contrato esperado", async () => {
+  it("calcula saldo inicial + ingresos − gastos", async () => {
     const user = await registerUser(ctx.app);
-
-    const response = await request(ctx.server)
-      .post("/api/accounts")
-      .set(bearer(user.accessToken))
-      .send({
-        name: "Caja",
-        type: "cash",
-        currency: "ARS",
-        initialBalance: 50000,
-        notes: "Efectivo de casa",
-      })
-      .expect(201);
-
-    expect(response.body).toMatchObject({
-      name: "Caja",
-      type: "cash",
-      currency: "ARS",
-      initialBalance: 50000,
-      currentBalance: 50000,
-      archived: false,
-      notes: "Efectivo de casa",
+    const account = await createAccount(ctx.app, user.accessToken, {
+      initialBalance: 1000,
     });
-    expect(typeof response.body.createdAt).toBe("string");
+    const income = await categoryByName(ctx.app, user.accessToken, "Sueldo");
+    const expense = await categoryByName(
+      ctx.app,
+      user.accessToken,
+      "Supermercado",
+    );
+
+    await createTransaction(ctx.app, user.accessToken, {
+      type: "income",
+      amount: 500,
+      date: isoDate(),
+      description: "Sueldo",
+      accountId: account.id,
+      categoryId: income.id,
+    });
+    await createTransaction(ctx.app, user.accessToken, {
+      type: "expense",
+      amount: 200,
+      date: isoDate(),
+      description: "Supermercado",
+      accountId: account.id,
+      categoryId: expense.id,
+    });
+
+    const detail = await request(ctx.server)
+      .get(`/api/accounts/${account.id}`)
+      .set(authCookie(user.accessToken))
+      .expect(200);
+    expect(detail.body.currentBalance).toBe(1300);
+
+    const list = await request(ctx.server)
+      .get("/api/accounts")
+      .set(authCookie(user.accessToken))
+      .expect(200);
+    expect(list.body[0].currentBalance).toBe(1300);
   });
 
-  it("usa saldo inicial 0 y notas nulas por defecto", async () => {
+  it("refleja el efecto opuesto de una transferencia en cada cuenta", async () => {
     const user = await registerUser(ctx.app);
+    const origin = await createAccount(ctx.app, user.accessToken, {
+      name: "Origen",
+      initialBalance: 1000,
+    });
+    const destination = await createAccount(ctx.app, user.accessToken, {
+      name: "Destino",
+      initialBalance: 0,
+    });
 
-    const response = await request(ctx.server)
-      .post("/api/accounts")
-      .set(bearer(user.accessToken))
-      .send({ name: "Caja", type: "cash", currency: "ARS" })
-      .expect(201);
+    await createTransaction(ctx.app, user.accessToken, {
+      type: "transfer",
+      amount: 300,
+      date: isoDate(),
+      description: "Ahorro",
+      accountId: origin.id,
+      transferAccountId: destination.id,
+    });
 
-    expect(response.body.initialBalance).toBe(0);
-    expect(response.body.notes).toBeNull();
-  });
+    const accounts = await request(ctx.server)
+      .get("/api/accounts")
+      .set(authCookie(user.accessToken))
+      .expect(200);
 
-  it("rechaza una moneda con longitud distinta de 3", async () => {
-    const user = await registerUser(ctx.app);
-
-    await request(ctx.server)
-      .post("/api/accounts")
-      .set(bearer(user.accessToken))
-      .send({ name: "Caja", type: "cash", currency: "ARSX" })
-      .expect(400);
-  });
-
-  it("rechaza una moneda no soportada (BUG-1)", async () => {
-    const user = await registerUser(ctx.app);
-
-    const response = await request(ctx.server)
-      .post("/api/accounts")
-      .set(bearer(user.accessToken))
-      .send({ name: "Caja", type: "cash", currency: "GBP" })
-      .expect(400);
-
-    expect(response.body.code).toBe("VALIDATION_ERROR");
-    expect(response.body.fieldErrors.currency).toBeDefined();
-  });
-
-  it("rechaza un nombre vacío", async () => {
-    const user = await registerUser(ctx.app);
-
-    await request(ctx.server)
-      .post("/api/accounts")
-      .set(bearer(user.accessToken))
-      .send({ name: "", type: "cash", currency: "ARS" })
-      .expect(400);
-  });
-
-  it("rechaza un saldo inicial que no es número", async () => {
-    const user = await registerUser(ctx.app);
-
-    await request(ctx.server)
-      .post("/api/accounts")
-      .set(bearer(user.accessToken))
-      .send({
-        name: "Caja",
-        type: "cash",
-        currency: "ARS",
-        initialBalance: "mil",
-      })
-      .expect(400);
+    const byName = new Map(
+      accounts.body.map((a: { name: string; currentBalance: number }) => [
+        a.name,
+        a.currentBalance,
+      ]),
+    );
+    expect(byName.get("Origen")).toBe(700);
+    expect(byName.get("Destino")).toBe(300);
   });
 });

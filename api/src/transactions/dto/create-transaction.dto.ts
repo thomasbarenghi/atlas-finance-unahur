@@ -28,10 +28,6 @@ export class CreateTransactionDto {
   @Min(0.0001)
   amount: number;
 
-  @IsString()
-  @Length(3, 3)
-  currency: string;
-
   @Matches(ISO_DATE, { message: "date debe ser YYYY-MM-DD" })
   @IsDateString({}, { message: "date debe ser una fecha válida" })
   date: string;
@@ -51,6 +47,16 @@ export class CreateTransactionDto {
   @IsOptional()
   @IsUUID()
   transferAccountId?: string | null;
+
+  /**
+   * Amount that reaches the destination account. Required when the two
+   * accounts use different currencies; for same-currency transfers it defaults
+   * to `amount` (FR-TRX-001).
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(0.0001)
+  transferAmount?: number;
 
   @IsOptional()
   @IsUUID()

@@ -3,7 +3,7 @@ name: test-quality
 description: >-
   Testing standards for the Atlass Fin API. Covers the test pyramid, tooling
   (Jest + Supertest + @nestjs/testing), test database strategy, what must be
-  tested (calculations CAL-001..009, auth, ownership, transactional transfers,
+  tested (calculations CAL-001..004, auth, ownership, transactional transfers,
   budgets, quotes, assistant security, error codes), provider mocking,
   determinism, fixtures, and anti-patterns. Use when writing, reviewing, or
   refactoring any test in api/, or when adding a feature that needs tests.
@@ -46,7 +46,7 @@ When adding or changing a feature:
 
 ## 3. What MUST be tested
 
-- **Calculations (CAL-001..009), unit:** net worth, cash flow excludes transfers, budget consumption (limit = 0 edge), position value/profit-loss, goal progress, currency conversion + traceability. This is mandatory (NFR-CAL-004).
+- **Calculations (CAL-001..004), unit:** net worth, cash flow excludes transfers, budget consumption (limit = 0 edge), position value/profit-loss, goal progress, currency conversion + traceability. This is mandatory (NFR-CAL-001).
 - **Auth:** register (duplicate email, password policy), login (invalid credentials → generic error), refresh rotation, logout revokes session, password reset one-time/expiry, `@Public()` vs guarded routes.
 - **Ownership (security-critical):** a user cannot read/update/delete another user's account, transaction, budget, asset, debt, position, goal, or conversation → `FORBIDDEN`/`NOT_FOUND` (NFR-SEG-001).
 - **Transactions:** transfer creates two atomic rows with a shared `transfer_group_id`; source = destination is rejected; failure rolls back both; transfers are excluded from income/expense consolidation (CAL-003).
@@ -127,7 +127,7 @@ beforeEach(async () => {
 
 ## 8. E2E rules
 
-- Boot the full Nest app once per suite; authenticate via `POST /auth/login` to get a token/cookie for protected calls.
+- Boot the full Nest app once per suite; authenticate via `POST /auth/login` and send the `access_token` cookie on protected calls (web-only auth).
 - Assert status codes **and** the exact response contract (`code`, field names, types).
 - Each test arranges its own data, acts, asserts, and cleans up; no order dependence.
 - Cover the security paths (cross-user access) and the transaction rollback at least once.
@@ -135,10 +135,10 @@ beforeEach(async () => {
 
 ```ts
 it("hides another user's account (404, no existence leak)", async () => {
-  const { token } = await loginAsUserB(app);
+  const { accessToken } = await loginAsUserB(app);
   await request(app.getHttpServer())
     .get(`/accounts/${accountOfUserA}`)
-    .set("Authorization", `Bearer ${token}`)
+    .set(authCookie(accessToken))
     .expect(404);
 });
 ```
@@ -157,7 +157,7 @@ it("hides another user's account (404, no existence leak)", async () => {
 ## 10. Definition of Done (testing)
 
 - [ ] New/changed behavior has tests at the right pyramid level.
-- [ ] Calculation rules (CAL-001..009) covered by unit tests.
+- [ ] Calculation rules (CAL-001..004) covered by unit tests.
 - [ ] Ownership/cross-user access covered.
 - [ ] Transfer atomicity/rollback covered.
 - [ ] P0 e2e flows covered where applicable.
