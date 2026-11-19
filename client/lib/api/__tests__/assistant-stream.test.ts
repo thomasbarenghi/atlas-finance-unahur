@@ -10,7 +10,6 @@ import {
 
 vi.hoisted(() => {
   process.env.NEXT_PUBLIC_API_URL = "http://localhost/api";
-  process.env.NEXT_PUBLIC_USE_MOCKS = "false";
 });
 
 import { streamAssistantMessage } from "@/lib/api/assistant-stream";
@@ -47,9 +46,7 @@ const done = (insufficient = false) =>
   `event: done\ndata: ${JSON.stringify({ insufficient })}\n\n`;
 
 describe("streamAssistantMessage (real SSE path)", () => {
-  beforeEach(() => {
-    process.env.NEXT_PUBLIC_USE_MOCKS = "false";
-  });
+  beforeEach(() => {});
 
   it("parses meta/token/done events in order", async () => {
     const fetchMock = vi
@@ -120,6 +117,27 @@ describe("streamAssistantMessage (real SSE path)", () => {
     });
   });
 
+  it("forwards the conversation history when present", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(sseResponse([meta(), done()]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const history = [
+      { role: "user" as const, content: "¿Cuál fue mi mayor gasto?" },
+      { role: "assistant" as const, content: "Supermercado." },
+    ];
+    await streamAssistantMessage(
+      {
+        question: "¿Y lo del auto?",
+        period: { from: "2026-01-01", to: "2026-01-31" },
+        history,
+      },
+      {},
+    );
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string).history).toEqual(history);
+  });
+
   it("surfaces a non-OK response message", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ message: "Asistente deshabilitado" }), {
@@ -146,38 +164,5 @@ describe("streamAssistantMessage (real SSE path)", () => {
     );
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(init.signal).toBe(controller.signal);
-  });
-});
-
-describe("streamAssistantMessage (mock path)", () => {
-  it("streams the mock answer word by word", async () => {
-    vi.resetModules();
-    vi.stubEnv("NEXT_PUBLIC_USE_MOCKS", "true");
-    vi.stubEnv("NEXT_PUBLIC_ASSISTANT_LIVE", "false");
-    const { streamAssistantMessage: mockedStream } =
-      await import("@/lib/api/assistant-stream");
-    const { sessionStore } = await import("@/lib/api/session");
-    const { mockState } = await import("@/lib/mocks/store");
-    sessionStore.setUserId(mockState.users[0].user.id);
-
-    const tokens: string[] = [];
-    let insufficient: boolean | undefined;
-    await mockedStream(
-      {
-        question: "¿cuánto gasté?",
-        period: { from: "2000-01-01", to: "2100-01-01" },
-      },
-      {
-        onToken: (delta) => tokens.push(delta),
-        onDone: (result) => {
-          insufficient = result.insufficient;
-        },
-      },
-    );
-
-    expect(tokens.length).toBeGreaterThan(0);
-    expect(tokens.join("").length).toBeGreaterThan(0);
-    expect(insufficient).toBe(false);
-    sessionStore.clear();
   });
 });

@@ -2,7 +2,7 @@
 
 A personal finance manager with rich analytics and an integrated AI assistant. University project for **UNAHUR**.
 
-Atlass Fin helps you organize and understand the money you enter yourself: accounts, income/expense transactions, atomic transfers, and a fixed catalog of categories. Its two distinguishing features are **analytics/charts** and a **conversational AI agent** that answers questions about your own data. The app uses a single system currency.
+Atlass Fin helps you organize and understand the money you enter yourself: accounts, income/expense transactions, atomic transfers, and categories (system plus your own). It supports multiple currencies: each account declares its currency, quotes come from the API, and the dashboard can be read in any currency in use. Its two distinguishing features are **analytics/charts** and a **conversational AI agent** that answers questions about your own data.
 
 > **Scope note.** The app organizes and explains user-entered information. It does **not** connect to banks, execute payments or investments, and does **not** provide financial advice.
 
@@ -20,25 +20,25 @@ atlas-finance-unahur/
 
 | Layer | Technologies |
 | :--- | :--- |
-| Client | Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · shadcn/ui · Outfit + Nunito · Recharts · TanStack Query · React Hook Form + Zod · lucide-react |
-| API | NestJS (modular monolith) · TypeScript · PostgreSQL (Supabase) · TypeORM · JWT (HttpOnly cookie + Bearer) · class-validator · argon2 |
+| Client | Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · shadcn/ui · Outfit + Nunito · next-themes · Recharts · TanStack Query · React Hook Form + Zod · lucide-react |
+| API | NestJS (modular monolith) · TypeScript · PostgreSQL (Supabase) · TypeORM · JWT (HttpOnly cookie) · class-validator · argon2 |
 
 ## Documentation
 
-- [`docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md`](docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md) — functional requirements, user stories, calculation rules, NFRs.
-- [`docs/specification/0.3/BRD_Gestor_Financiero_v0.3.md`](docs/specification/0.3/BRD_Gestor_Financiero_v0.3.md) — business requirements, business rules, cases, glossary.
-- [`docs/architecture/frontend.md`](docs/architecture/frontend.md) — site map, per-page behavior, file structure, auth, charts, AI, work plan.
+- [`docs/specification/0.4/FRD_Gestor_Financiero_v0.4.md`](docs/specification/0.4/FRD_Gestor_Financiero_v0.4.md) — functional requirements, user stories, calculation rules, NFRs.
+- [`docs/specification/0.4/BRD_Gestor_Financiero_v0.4.md`](docs/specification/0.4/BRD_Gestor_Financiero_v0.4.md) — business requirements, business rules, cases, glossary.
+- [`docs/architecture/frontend.md`](docs/architecture/frontend.md) — site map, per-page behavior, file structure, auth, charts and AI.
 - [`docs/architecture/backend.md`](docs/architecture/backend.md) — architecture, data model, REST contract (DTOs/enums/errors), integrations, security, seed, env.
 
-The full index — including the archived audits — is in [`docs/README.md`](docs/README.md).
+The documentation index is in [`docs/README.md`](docs/README.md).
 
 ## Agent guidance
 
 This repo is built with AI agents in mind. Each project ships its own `AGENTS.md` and reusable skills.
 
 - [`client/AGENTS.md`](client/AGENTS.md) and [`api/AGENTS.md`](api/AGENTS.md) — start here.
-- `.agents/skills/quality-rules/SKILL.md` — code-quality and architecture standards.
-- `.agents/skills/test-quality/SKILL.md` — testing standards.
+- `client/.agents/skills/quality-rules/SKILL.md` and `api/.agents/skills/quality-rules/SKILL.md` — code-quality and architecture standards.
+- `client/.agents/skills/test-quality/SKILL.md` and `api/.agents/skills/test-quality/SKILL.md` — testing standards.
 - `.agents/skills/push-ready/SKILL.md` — global pre-commit/pre-push readiness checklist.
 
 Skills are written in English; functional documentation is in Spanish.
@@ -73,7 +73,16 @@ npm install
 npm run dev                   # http://localhost:3000
 ```
 
-> When API integration lands, point the client at it with `NEXT_PUBLIC_API_URL=http://localhost:3001/api` in `.env.local` (create the file; `.env*` is git-ignored).
+> Point the client at the API with `NEXT_PUBLIC_API_URL=http://localhost:3001/api` in `.env.local` (create the file; `.env*` is git-ignored).
+
+### Clean
+
+From the repo root, remove every `node_modules` and generated output (`dist`, `.next`, `out`, `coverage`, `.turbo`, `_build`, etc.):
+
+```bash
+npm run clean
+npm run clean -- --dry-run   # list only, delete nothing
+```
 
 ### Demo credentials
 
@@ -81,7 +90,7 @@ All demo users share the password `Demo1234!`:
 
 | Email | Scenario |
 | :--- | :--- |
-| `demo@atlassfin.app` | Full dataset: 3 accounts and 3 months of movements. |
+| `demo@atlassfin.app` | Full dataset: 4 accounts (3 ARS + 1 USD) and 3 months of movements. |
 | `sin-datos@atlassfin.app` | Empty user (no financial data) to exercise empty states. |
 | `ana@atlassfin.app` | Second user with a minimal dataset, for isolation/permissions. |
 
@@ -90,12 +99,12 @@ every time. See [`docs/architecture/backend.md`](docs/architecture/backend.md) �
 
 ## Features
 
-- **Auth & profile:** register, login/logout, and profile name editing. Single system currency (no currency picker or theme).
-- **Dashboard:** net-worth, income, expenses and savings KPIs; net-worth evolution; income vs. expenses; expenses by category; selectable period.
+- **Auth & profile:** register, login/logout, and profile name editing. Multi-currency accounts with API-provided quotes, a primary currency, and a dashboard reading-currency selector. Local light/dark/system theme.
+- **Dashboard:** net-worth, income, expenses and savings KPIs; daily/weekly or monthly net-worth evolution and income-vs-expenses charts; expenses by category; selectable period (`This month`, `Last 30 days`, `6 months`, `12 months`).
 - **Accounts:** cash, bank, wallet or other; current balance from initial balance + movements; direct deletion.
-- **Transactions:** income, expense, and atomic transfers; paginated list with a fixed category catalog (and no filters/search in this version).
-- **Categories:** fixed, read-only system catalog (salary, freelance, groceries, transport, services).
-- **AI assistant (distinctive):** **read-only** conversational answers built only from the user's own, pre-calculated, minimal context. It never creates, edits or deletes data, does not connect to banks, move money, or give financial advice.
+- **Transactions:** income, expense, and atomic transfers; paginated list with search, filters (type, account, category, period), and CSV export.
+- **Categories:** five read-only system categories plus user-created categories with edit/delete and period usage.
+- **AI assistant (distinctive):** **read-only** conversational answers built only from the user's own, pre-calculated, minimal context. Recent turns stay in client memory for follow-ups; the server does not persist the conversation. It never creates, edits or deletes data, does not connect to banks, move money, or give financial advice.
 
 ## Testing
 

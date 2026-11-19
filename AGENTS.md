@@ -31,8 +31,8 @@ atlas-finance-unahur/
 ## Source of truth
 
 - `README.md` — overview, stack, quick start, demo credentials.
-- `docs/specification/0.3/FRD_Gestor_Financiero_v0.3.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
-- `docs/specification/0.3/BRD_Gestor_Financiero_v0.3.md` — business requirements (RN-*, cases, glossary).
+- `docs/specification/0.4/FRD_Gestor_Financiero_v0.4.md` — functional requirements (FR-*, HU-*, CAL-*, NFR-*).
+- `docs/specification/0.4/BRD_Gestor_Financiero_v0.4.md` — business requirements (RN-*, cases, glossary).
 - `docs/architecture/frontend.md` — client site map, structure, auth, charts, AI.
 - `docs/architecture/backend.md` — API architecture, data model, REST contract, integrations, security.
 

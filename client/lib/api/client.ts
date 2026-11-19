@@ -27,8 +27,6 @@ export interface ApiFetchOptions {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
   signal?: AbortSignal;
-  stream?: boolean;
-  headers?: Record<string, string>;
 }
 
 const NO_REFRESH_PATHS = ["/auth/login", "/auth/register"];
@@ -62,17 +60,12 @@ const request = async (
   path: string,
   options: ApiFetchOptions,
 ): Promise<Response> => {
-  const { method = "GET", body, signal, headers } = options;
-  const isFormData =
-    typeof FormData !== "undefined" && body instanceof FormData;
+  const { method = "GET", body, signal } = options;
   return fetch(`${API_BASE_URL}${path}`, {
     method,
     credentials: "include",
-    headers: isFormData
-      ? { ...headers }
-      : { "Content-Type": "application/json", ...headers },
-    body:
-      body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
+    headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
     signal,
   });
 };

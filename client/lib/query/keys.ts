@@ -3,6 +3,7 @@ import type { TransactionListQuery } from "@/lib/api/types";
 export interface DashboardQuery {
   from: string;
   to: string;
+  currency?: string;
 }
 
 export const queryKeys = {
@@ -11,6 +12,8 @@ export const queryKeys = {
   },
   accounts: ["accounts"] as const,
   categories: ["categories"] as const,
+  currencies: ["currencies"] as const,
+  currencyRates: ["currencies", "rates"] as const,
   transactionsBase: ["transactions"] as const,
   transactions: (query: TransactionListQuery) =>
     ["transactions", query] as const,

@@ -29,22 +29,19 @@ describe("useSignOut", () => {
 
   it("ends the session, notifies and redirects to login", async () => {
     const signOut = vi.fn().mockResolvedValue(undefined);
-    const { result } = renderHook(
-      () => useSignOut({ successMessage: "Chau" }),
-      {
-        wrapper: createWrapper({
-          user: null,
-          isLoading: false,
-          isSigningOut: false,
-          signOut,
-        }),
-      },
-    );
+    const { result } = renderHook(() => useSignOut(), {
+      wrapper: createWrapper({
+        user: null,
+        isLoading: false,
+        isSigningOut: false,
+        signOut,
+      }),
+    });
 
     await result.current.signOut();
 
     expect(signOut).toHaveBeenCalled();
-    expect(toast.success).toHaveBeenCalledWith("Chau");
+    expect(toast.success).toHaveBeenCalledWith("Sesión cerrada");
     expect(replace).toHaveBeenCalledWith("/login");
   });
 

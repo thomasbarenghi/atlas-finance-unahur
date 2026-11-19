@@ -89,8 +89,9 @@ describe("apiFetch", () => {
         if (attempts === 1) return new HttpResponse(null, { status: 401 });
         return HttpResponse.json([{ id: "a" }]);
       }),
-      http.post("http://localhost/api/auth/refresh", () =>
-        HttpResponse.json({ accessToken: "new", refreshToken: "new-r" }),
+      http.post(
+        "http://localhost/api/auth/refresh",
+        () => new HttpResponse(null, { status: 204 }),
       ),
     );
 

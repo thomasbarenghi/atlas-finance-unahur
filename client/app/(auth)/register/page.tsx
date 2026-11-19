@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { AuthHeading } from "@/components/features/auth/auth-heading";
-import { RegisterForm } from "@/components/features/auth/register-form";
+import { AuthHeading } from "@/app/(auth)/_components/auth-heading";
+import { RegisterForm } from "@/app/(auth)/register/_components/register-form";
 
 const RegisterPage = () => {
   return (
@@ -10,9 +10,9 @@ const RegisterPage = () => {
         description="Empezá a organizar tus finanzas personales."
       />
       <RegisterForm />
-      <p className="text-muted-foreground text-center text-sm">
+      <p className="text-muted-foreground text-center text-[11px]">
         ¿Ya tenés cuenta?{" "}
-        <Link href="/login" className="text-primary hover:underline">
+        <Link href="/login" className="text-primary font-bold">
           Iniciá sesión
         </Link>
       </p>

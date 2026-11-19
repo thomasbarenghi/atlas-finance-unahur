@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   useAccounts,
   useCreateAccount,
@@ -12,12 +12,12 @@ import {
   useTransactions,
 } from "@/lib/query/transactions";
 import { useLogin, useLogout, useRegister } from "@/lib/query/auth";
-import { useUpdateMe } from "@/lib/query/users";
+import { useChangePassword, useUpdateMe } from "@/lib/query/users";
 import { useCategories } from "@/lib/query/categories";
 import { useDashboard } from "@/lib/query/dashboard";
 import { queryKeys } from "@/lib/query/keys";
-import { resetMockSession, seedMockSession } from "@/lib/test/mock-session";
-import { mockState } from "@/lib/mocks/store";
+import { testState } from "@/lib/test/api-state";
+import { setupTestServer } from "@/lib/test/server";
 
 const createWrapper = (queryClient: QueryClient) => {
   const Wrapper = ({ children }: PropsWithChildren) => (
@@ -34,21 +34,15 @@ const newClient = (): QueryClient =>
     },
   });
 
+setupTestServer();
+
 describe("data query hooks", () => {
-  beforeEach(() => {
-    seedMockSession();
-  });
-
-  afterEach(() => {
-    resetMockSession();
-  });
-
   it("loads accounts from the API", async () => {
     const { result } = renderHook(() => useAccounts(), {
       wrapper: createWrapper(newClient()),
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data?.length).toBe(mockState.accounts.length);
+    expect(result.current.data?.length).toBe(testState.accounts.length);
   });
 
   it("creates an account and invalidates account, transaction and dashboard views", async () => {
@@ -62,6 +56,7 @@ describe("data query hooks", () => {
       await result.current.mutateAsync({
         name: "Nueva",
         type: "cash",
+        currency: "ARS",
         initialBalance: 100,
         notes: null,
       });
@@ -80,11 +75,11 @@ describe("data query hooks", () => {
     const { result } = renderHook(() => useDeleteAccount(), {
       wrapper: createWrapper(newClient()),
     });
-    const target = mockState.accounts[0];
+    const target = testState.accounts[0];
     await act(async () => {
       await result.current.mutateAsync(target.id);
     });
-    expect(mockState.accounts.find((a) => a.id === target.id)).toBeUndefined();
+    expect(testState.accounts.find((a) => a.id === target.id)).toBeUndefined();
   });
 
   it("lists transactions and keys the query by the pagination params", async () => {
@@ -107,7 +102,7 @@ describe("data query hooks", () => {
     const { result } = renderHook(() => useCreateTransaction(), {
       wrapper: createWrapper(queryClient),
     });
-    const account = mockState.accounts[0];
+    const account = testState.accounts[0];
 
     await act(async () => {
       await result.current.mutateAsync({
@@ -178,6 +173,7 @@ describe("data query hooks", () => {
         name: "Ana",
         email: "ana@example.com",
         password: "Password1",
+        primaryCurrency: "ARS",
       });
     });
     expect(queryClient.getQueryData(queryKeys.auth.me)).toMatchObject({
@@ -196,6 +192,25 @@ describe("data query hooks", () => {
     expect(queryClient.getQueryData(queryKeys.auth.me)).toMatchObject({
       name: "Nuevo Nombre",
     });
+  });
+
+  it("changes the password", async () => {
+    const { result } = renderHook(() => useChangePassword(), {
+      wrapper: createWrapper(newClient()),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        currentPassword: "Demo1234!",
+        newPassword: "Nueva1234!",
+      });
+    });
+
+    expect(
+      testState.users.find(
+        (record) => record.user.id === testState.sessionUserId,
+      )?.password,
+    ).toBe("Nueva1234!");
   });
 
   it("loads categories", async () => {

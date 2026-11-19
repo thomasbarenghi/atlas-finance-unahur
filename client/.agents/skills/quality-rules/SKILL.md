@@ -18,7 +18,7 @@ If this skill conflicts with an example elsewhere, this skill wins and the examp
 When implementing or refactoring a feature:
 
 1. **Plan the layers first.** Identify the page (composition), the feature components, the data hooks, and any pure logic. Decide generics vs. specifics before coding.
-2. **Build bottom-up:** types (`lib/api/types.ts`) → data hooks (`lib/query`) → generic components (`components/common`) → feature components (`components/features`) → page composition.
+2. **Build bottom-up:** types (`lib/api/types.ts`) → data hooks (`lib/query`) → generic components (`components/common`) → route-private components (`app/<ruta>/_components`) → page composition.
 3. **Extract logic** into hooks/utils as you go; keep `index.tsx` as render.
 4. **Reuse generics first.** Before writing a table, amount, badge, empty state, or dialog, check `components/common`.
 5. **Self-review** against §8 (Definition of Done), then run `lint`, `typecheck`, `build`.
@@ -46,8 +46,7 @@ Every owned component MUST live in a **folder named after the component**, with 
 ```
 components/
 └── amount/
-    ├── index.tsx            # Amount component (named export)
-    ├── amount.types.ts      # AmountProps and related types
+    ├── index.tsx            # Amount component + AmountProps (named exports)
     ├── amount.utils.ts      # pure functions (formatting, math)
     ├── amount.test.tsx      # component tests
     ├── hooks/
@@ -59,36 +58,45 @@ components/
 Rules:
 
 - `index.tsx` MUST be limited to **composition and render**. No business logic, calculations, or data access.
-- `*.types.ts` holds props/types. Props MUST be named `<Component>Props` and exported.
+- Props MUST be named `<Component>Props` and exported. Declare them in `index.tsx` when they belong to a single component; use `*.types.ts` only when the types are shared by several files or are non-trivial (generics, unions, several interfaces).
 - `*.utils.ts` holds **pure**, deterministic, independently testable functions.
 - `hooks/` holds hooks **private** to the component. Promote to global `hooks/` or `lib/query` when reused.
 - `components/` holds **private** subcomponents. Promote to its own top-level folder when reused.
 - Files inside a component folder MUST NOT be imported from outside except `index.tsx`. Forbidden: `@/components/amount/amount.utils`.
+- Do NOT promote to `components/common/` until the component has **≥ 2 real consumers**. A single-use piece stays in the feature that uses it (private `components/` subfolder) or inline. YAGNI applies to generics too.
 
 ### 2.2 Group by feature
 
-Group domain components by feature, not by file type:
+Group domain components by **route**, not by file type:
 
 ```
+app/
+├── (auth)/
+│   ├── _components/             # shared by the (auth) section
+│   ├── login/_components/       # login-form
+│   └── register/_components/    # register-form
+└── (app)/
+    ├── _components/             # shared across (app) routes, grouped by domain
+    │   ├── accounts/
+    │   ├── transactions/
+    │   └── assistant/
+    ├── dashboard/_components/   # dashboard-view, widgets, charts
+    ├── transactions/_components/
+    ├── categories/_components/
+    └── ...
 components/
-├── ui/                      # shadcn primitives (generated, see §Exceptions)
-├── common/                  # reusable domain-agnostic generics
-│   ├── amount/
-│   ├── data-table/
-│   ├── empty-state/
-│   ├── kpi-card/
-│   └── status-badge/
-└── features/
-    ├── accounts/
-    │   ├── accounts-table/
-    │   ├── account-form/
-    │   └── archive-account-dialog/
-    ├── transactions/
-    ├── dashboard/
-    └── assistant/
+├── ui/                          # shadcn primitives (generated, see §Exceptions)
+├── common/                      # reusable domain-agnostic generics (≥ 2 consumers)
+└── layout/                      # app shell (sidebar, nav, user menu, auth guard)
 ```
 
-The **dependency direction** is `ui` → `common` → `features`. Features MAY use common; common MUST NOT import features.
+Rules:
+
+- A component used by **one route** lives in `app/<route>/_components/`.
+- A component shared by **several routes of the same group** lives in `app/(group)/_components/<domain>/`.
+- `_components` folders are Next.js private folders (they do not create routes). Do not import them from outside their route/group.
+- There is **no `components/features/` layer**.
+- The dependency direction is `ui` → `common` → route `_components` → `page.tsx`. Route components MAY use common; common and layout MUST NOT import route components.
 
 ### 2.3 More rules
 
@@ -105,27 +113,35 @@ The **dependency direction** is `ui` → `common` → `features`. Features MAY u
 - A specific component MUST add only domain concerns (data mapping, copy, actions) and delegate the rest.
 
 ```tsx
-// components/features/accounts/accounts-table/index.tsx
-import { DataTable } from "@/components/common/data-table";
+// app/(app)/_components/accounts/accounts-list/index.tsx
 import { Amount } from "@/components/common/amount";
-import type { AccountsTableProps } from "./accounts-table.types";
+import { CURRENCY } from "@/lib/format";
+import type { Account } from "@/lib/api/types";
 
-export const AccountsTable = ({ accounts, onArchive }: AccountsTableProps) => {
-  return (
-    <DataTable
-      data={accounts}
-      columns={[
-        { key: "name", header: "Name" },
-        { key: "balance", header: "Balance", cell: (a) => <Amount value={a.currentBalance} currency={a.currency} /> },
-      ]}
-    />
-  );
+export interface AccountsListProps {
+  accounts: Account[];
+  onSelect: (id: string) => void;
 }
+
+export const AccountsList = ({ accounts, onSelect }: AccountsListProps) => {
+  return (
+    <ul>
+      {accounts.map((account) => (
+        <li key={account.id}>
+          <button type="button" onClick={() => onSelect(account.id)}>
+            {account.name}
+            <Amount value={account.currentBalance} currency={CURRENCY} />
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+};
 ```
 
-Anti-pattern: `AccountsTable` implementing its own table, currency formatting, and pagination, duplicating `DataTable`/`Amount`.
+Anti-pattern: `AccountsList` implementing its own table, currency formatting, and pagination, duplicating `Amount`, `ListSkeleton` or `ListPagination`.
 
-Promotion criterion: used by ≥ 2 features **and** its API mentions no domain concept. If two features need something similar but diverge, do **not** force an abstraction (YAGNI).
+Promotion criterion: used by ≥ 2 routes **and** its API mentions no domain concept. If two routes need something similar but diverge, do **not** force an abstraction (YAGNI).
 
 ## 4. Hook rules
 
@@ -134,7 +150,7 @@ Promotion criterion: used by ≥ 2 features **and** its API mentions no domain c
 - One hook = one responsibility. If it mixes fetching + transformation + UI state, split it.
 - **Data hooks** (TanStack Query) live in `lib/query/<domain>.ts`. **UI hooks** private to a component live in `components/<...>/hooks/`. Shared hooks live in `hooks/`.
 - Follow React rules: never call hooks conditionally or outside components/hooks.
-- Hooks MUST NOT import `next/*`; keeps `lib/` portable to Capacitor.
+- Hooks MUST NOT import `next/*`; keeps `lib/` portable to any React runtime.
 
 ```ts
 // components/common/amount/hooks/use-amount-color.ts
@@ -173,7 +189,7 @@ export const TransactionAmount = ({ tx }: TransactionAmountProps) => {
 Allowed dependency direction (one way only):
 
 ```
-app/ (routes) → components/ (presentation) → hooks/ + lib/query (state/data) → lib/api (HTTP) → REST API
+app/ (pages + route `_components`) → components/common + layout (presentation) → hooks/ + lib/query (state/data) → lib/api (HTTP) → REST API
 ```
 
 - NEVER reverse it: `lib/` MUST NOT import `components/` or `app/`; `lib/api` MUST NOT know React.
@@ -226,7 +242,7 @@ A task is done when:
 
 - [ ] SRP/SoC respected; logic lives in hooks/services, not in render/controller.
 - [ ] No avoidable duplication (DRY on the 3rd repetition).
-- [ ] Components live in their folder with `index.tsx`, `*.types.ts`, `*.utils.ts`/`hooks/` as needed.
+- [ ] Components live in their owning folder (`components/common`, `components/layout`, or a route `_components`); `*.types.ts`, `*.utils.ts`/`hooks/` only when needed.
 - [ ] Named exports (no `export default`, except §Exceptions).
 - [ ] Arrow functions everywhere (except generated `components/ui/**`).
 - [ ] Generics are reused; specifics compose them.
@@ -238,7 +254,7 @@ A task is done when:
 ## Exceptions
 
 - **Next.js requires `export default`** in special App Router files — the only exception:
-  `app/**/page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, `global-error.tsx`, `not-found.tsx`, `template.tsx`, `default.tsx`, and `route.ts` (Route Handlers). This project does not use Route Handlers (static export/Capacitor).
-- **Config files** (`next.config.ts`, `tailwind.config.ts`, `capacitor.config.ts`) follow their tool's required format.
+  `app/**/page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, `global-error.tsx`, `not-found.tsx`, `template.tsx`, `default.tsx`, and `route.ts` (Route Handlers). This project does not use Route Handlers (static export).
+- **Config files** (`next.config.ts`, `tailwind.config.ts`) follow their tool's required format.
 - **`components/ui/`** keeps shadcn's convention (generated `function` declarations, one file per component, named exports); the arrow-function rule and the folder-with-`index.tsx` rule do NOT apply here (Prettier still formats these files). The folder-with-`index.tsx` rule applies to owned components (`common/`, `features/`).
 - **Generated code** (shadcn CLI, OpenAPI-derived types) is not hand-edited and is exempt; regenerate it. The shadcn registry ships a bare `cn` import; `tsconfig.json` aliases `cn` → `@/lib/utils` so generated files stay untouched (define `cn` with `clsx` + `tailwind-merge`).

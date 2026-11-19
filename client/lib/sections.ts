@@ -6,7 +6,7 @@ export type AppSectionId =
   | "profile"
   | "settings";
 
-export interface AppSection {
+interface AppSection {
   href: string;
   label: string;
 }
@@ -23,6 +23,19 @@ export const SECTIONS = {
 export const ROOT_ROUTES: string[] = [
   SECTIONS.dashboard.href,
   SECTIONS.transactions.href,
+  SECTIONS.categories.href,
   SECTIONS.assistant.href,
   SECTIONS.profile.href,
+  SECTIONS.settings.href,
 ];
+
+export const isSectionActive = (pathname: string, href: string): boolean => {
+  if (href === SECTIONS.dashboard.href) {
+    return (
+      pathname === SECTIONS.dashboard.href ||
+      pathname.startsWith(`${SECTIONS.dashboard.href}/`) ||
+      pathname.startsWith("/accounts")
+    );
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+};

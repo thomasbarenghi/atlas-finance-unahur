@@ -1,13 +1,13 @@
 import { INestApplication } from "@nestjs/common";
 import request from "supertest";
 import { httpClient } from "./test-app";
-import { bearer } from "./auth";
+import { authCookie } from "./auth";
 
 /**
  * Typed factories that create domain data through the public API. They are used
  * as arrange-helpers by the requirement specs, so the setup itself exercises the
- * real endpoints. Categories are a fixed system catalog, so they are read
- * (never created).
+ * real endpoints. System categories are seeded; user categories can be created
+ * through `createCategory`.
  */
 
 export const isoDate = (date: Date = new Date()): string =>
@@ -20,10 +20,11 @@ export const createAccount = async (
 ): Promise<Record<string, any>> => {
   const response = await request(httpClient(app))
     .post("/api/accounts")
-    .set(bearer(token))
+    .set(authCookie(token))
     .send({
       name: "Caja",
       type: "cash",
+      currency: "ARS",
       initialBalance: 1000,
       ...overrides,
     })
@@ -37,7 +38,7 @@ export const listCategories = async (
 ): Promise<Record<string, any>[]> => {
   const response = await request(httpClient(app))
     .get("/api/categories")
-    .set(bearer(token))
+    .set(authCookie(token))
     .expect(200);
   return response.body;
 };
@@ -53,6 +54,24 @@ export const categoryByName = async (
   return category;
 };
 
+export const createCategory = async (
+  app: INestApplication,
+  token: string,
+  overrides: Record<string, unknown> = {},
+): Promise<Record<string, any>> => {
+  const response = await request(httpClient(app))
+    .post("/api/categories")
+    .set(authCookie(token))
+    .send({
+      name: "Mascotas",
+      type: "expense",
+      color: "#f97316",
+      ...overrides,
+    })
+    .expect(201);
+  return response.body;
+};
+
 export const createTransaction = async (
   app: INestApplication,
   token: string,
@@ -60,7 +79,7 @@ export const createTransaction = async (
 ): Promise<Record<string, any>> => {
   const response = await request(httpClient(app))
     .post("/api/transactions")
-    .set(bearer(token))
+    .set(authCookie(token))
     .send(body)
     .expect(201);
   return response.body;

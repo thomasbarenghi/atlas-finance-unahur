@@ -1,4 +1,4 @@
-import { TransactionsView } from "@/components/features/transactions/transactions-view";
+import { TransactionsView } from "@/app/(app)/transactions/_components/transactions-view";
 
 const TransactionsPage = () => {
   return <TransactionsView />;

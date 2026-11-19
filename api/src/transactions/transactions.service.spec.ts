@@ -146,12 +146,34 @@ describe("TransactionsService", () => {
       }),
     );
 
-    expect(save).toHaveBeenCalledTimes(2);
-    const [outbound, inbound] = save.mock.calls.map((c) => c[0]);
+    expect(save).toHaveBeenCalledTimes(1);
+    const [outbound, inbound] = save.mock.calls[0][0];
     expect(outbound.amount).toBe(-100);
     expect(inbound.amount).toBe(100);
     expect(outbound.transferGroupId).toBe(inbound.transferGroupId);
     expect(result.transferGroupId).toBeTruthy();
+  });
+
+  it("stores a different destination amount for a multi-currency transfer", async () => {
+    const { service, dataSource } = build();
+    const save = jest.fn(async (entity: any) => entity);
+    dataSource.transaction.mockImplementation(async (cb: any) => cb({ save }));
+
+    await service.createTransaction(
+      "u1",
+      baseDto({
+        type: "transfer",
+        amount: 1180,
+        transferAmount: 1,
+        accountId: "a1",
+        transferAccountId: "a2",
+        categoryId: null,
+      }),
+    );
+
+    const [outbound, inbound] = save.mock.calls[0][0];
+    expect(outbound.amount).toBe(-1180);
+    expect(inbound.amount).toBe(1);
   });
 
   it("rejects a transfer without destination or to the same account", async () => {
@@ -186,6 +208,27 @@ describe("TransactionsService", () => {
     await expect(
       service.updateTransaction("u1", "t1", { amount: 5 } as any),
     ).rejects.toMatchObject({ response: { code: ErrorCode.VALIDATION_ERROR } });
+  });
+
+  it("rejects changing the type of a transaction", async () => {
+    const { service, repository } = build();
+    repository.findOneBy.mockResolvedValue(tx({ type: "expense" }));
+
+    await expect(
+      service.updateTransaction("u1", "t1", { type: "transfer" } as any),
+    ).rejects.toMatchObject({ response: { code: ErrorCode.VALIDATION_ERROR } });
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it("accepts the same type when the client sends it on edit", async () => {
+    const { service, repository } = build();
+    repository.findOneBy.mockResolvedValue(tx({ type: "expense" }));
+
+    await service.updateTransaction("u1", "t1", {
+      type: "expense",
+      amount: 5,
+    } as any);
+    expect(repository.save).toHaveBeenCalled();
   });
 
   it("updates both legs of a transfer", async () => {

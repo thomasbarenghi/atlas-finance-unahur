@@ -15,13 +15,11 @@ describe("useConfirmAction", () => {
 
   it("runs the action on confirm, shows success and clears the target", async () => {
     const run = vi.fn().mockResolvedValue(undefined);
-    const onSuccess = vi.fn();
     const { result } = renderHook(() =>
       useConfirmAction<string>({
         run,
-        successMessage: (target) => `Hecho: ${target}`,
+        successMessage: "Hecho",
         errorMessage: "Falló",
-        onSuccess,
       }),
     );
 
@@ -34,10 +32,7 @@ describe("useConfirmAction", () => {
     act(() => result.current.confirm());
 
     await waitFor(() => expect(run).toHaveBeenCalledWith("item-1"));
-    await waitFor(() =>
-      expect(toast.success).toHaveBeenCalledWith("Hecho: item-1"),
-    );
-    expect(onSuccess).toHaveBeenCalledWith("item-1");
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Hecho"));
     await waitFor(() => expect(result.current.target).toBeNull());
     expect(result.current.isPending).toBe(false);
   });

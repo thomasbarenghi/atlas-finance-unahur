@@ -8,6 +8,7 @@ export const accountSchema = z.object({
     .min(1, "Ingresá un nombre")
     .max(80, "El nombre es demasiado largo"),
   type: z.enum(["cash", "bank", "wallet", "other"]),
+  currency: z.string().length(3, "Elegí una moneda"),
   initialBalance: moneySchema,
   notes: notesSchema.optional(),
 });

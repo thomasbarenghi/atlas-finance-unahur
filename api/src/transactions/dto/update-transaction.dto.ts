@@ -49,6 +49,11 @@ export class UpdateTransactionDto {
   transferAccountId?: string | null;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0.0001)
+  transferAmount?: number;
+
+  @IsOptional()
   @IsUUID()
   categoryId?: string | null;
 }

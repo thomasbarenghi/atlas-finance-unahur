@@ -8,11 +8,19 @@ import { TransactionResponseDto } from "./dto/transaction-response.dto";
 import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 import { TransactionsService } from "./transactions.service";
 
+const missingTransferAmount = () =>
+  new ApiException(
+    ErrorCode.VALIDATION_ERROR,
+    HttpStatus.BAD_REQUEST,
+    "Indicá el monto que llega a la cuenta destino",
+    { transferAmount: ["Ingresá el monto en la moneda de destino"] },
+  );
+
 /**
  * Composite use cases of the transactions domain that cross into accounts and
- * categories: validating that the referenced account(s) belong to the user and
- * that the category exists (FR-TRX-004, NFR-SEG-001). The orchestrator defines
- * the order and delegates persistence to `TransactionsService`.
+ * categories: validating ownership, the category type and the two amounts of a
+ * multi-currency transfer (FR-TRX-001, NFR-SEG-001). The orchestrator
+ * defines the order and delegates persistence to `TransactionsService`.
  */
 @Injectable()
 export class TransactionsOrchestrator {
@@ -26,7 +34,11 @@ export class TransactionsOrchestrator {
     userId: string,
     dto: CreateTransactionDto,
   ): Promise<TransactionResponseDto> {
-    await this.accountsService.assertAccountOwned(userId, dto.accountId);
+    let transferAmount = dto.transferAmount;
+    const origin = await this.accountsService.assertAccountOwned(
+      userId,
+      dto.accountId,
+    );
 
     if (dto.type === "transfer") {
       if (!dto.transferAccountId) {
@@ -37,23 +49,27 @@ export class TransactionsOrchestrator {
           { transferAccountId: ["Seleccioná la cuenta de destino"] },
         );
       }
-      if (dto.transferAccountId === dto.accountId) {
-        throw new ApiException(
-          ErrorCode.VALIDATION_ERROR,
-          HttpStatus.BAD_REQUEST,
-          "Las cuentas deben ser distintas",
-          { transferAccountId: ["Debe ser distinta de la cuenta origen"] },
-        );
-      }
-      await this.accountsService.assertAccountOwned(
+      const destination = await this.accountsService.assertAccountOwned(
         userId,
         dto.transferAccountId,
       );
+      if (origin.currency === destination.currency) {
+        transferAmount = Math.abs(dto.amount);
+      } else if (transferAmount === undefined) {
+        throw missingTransferAmount();
+      }
     } else if (dto.categoryId) {
-      await this.categoriesService.assertCategoryExists(dto.categoryId);
+      await this.categoriesService.assertCategoryAssignable(
+        userId,
+        dto.categoryId,
+        dto.type === "income" ? "income" : "expense",
+      );
     }
 
-    return this.transactionsService.createTransaction(userId, dto);
+    return this.transactionsService.createTransaction(userId, {
+      ...dto,
+      transferAmount,
+    });
   }
 
   async updateTransaction(
@@ -61,12 +77,21 @@ export class TransactionsOrchestrator {
     id: string,
     dto: UpdateTransactionDto,
   ): Promise<TransactionResponseDto> {
+    let transferAmount = dto.transferAmount;
     const existing = await this.transactionsService.getTransaction(userId, id);
 
     if (existing.type === "transfer") {
-      const origin = dto.accountId ?? existing.accountId;
-      const destination = dto.transferAccountId ?? existing.transferAccountId;
-      if (!destination || origin === destination) {
+      const group = await this.transactionsService.getTransferGroup(userId, id);
+      if (!group) {
+        throw new ApiException(
+          ErrorCode.NOT_FOUND,
+          HttpStatus.NOT_FOUND,
+          "El movimiento no existe",
+        );
+      }
+      const originId = dto.accountId ?? group.outbound.accountId;
+      const destinationId = dto.transferAccountId ?? group.inbound.accountId;
+      if (!destinationId) {
         throw new ApiException(
           ErrorCode.VALIDATION_ERROR,
           HttpStatus.BAD_REQUEST,
@@ -74,18 +99,52 @@ export class TransactionsOrchestrator {
           { transferAccountId: ["Debe ser distinta de la cuenta origen"] },
         );
       }
-      await Promise.all([
-        this.accountsService.assertAccountOwned(userId, origin),
-        this.accountsService.assertAccountOwned(userId, destination),
+      const [origin, destination] = await Promise.all([
+        this.accountsService.assertAccountOwned(userId, originId),
+        this.accountsService.assertAccountOwned(userId, destinationId),
       ]);
+
+      if (origin.currency === destination.currency) {
+        transferAmount =
+          dto.amount !== undefined
+            ? Math.abs(dto.amount)
+            : Math.abs(group.inbound.amount);
+      } else {
+        const amountChanged =
+          dto.amount !== undefined &&
+          Math.abs(dto.amount) !== Math.abs(group.outbound.amount);
+        const accountsChanged =
+          dto.accountId !== undefined || dto.transferAccountId !== undefined;
+        if (
+          (amountChanged || accountsChanged) &&
+          transferAmount === undefined
+        ) {
+          throw missingTransferAmount();
+        }
+      }
     } else if (dto.accountId) {
       await this.accountsService.assertAccountOwned(userId, dto.accountId);
     }
 
-    if (existing.type !== "transfer" && dto.categoryId) {
-      await this.categoriesService.assertCategoryExists(dto.categoryId);
+    const nextType = dto.type ?? existing.type;
+    if (nextType !== "transfer") {
+      const nextCategoryId =
+        dto.categoryId !== undefined ? dto.categoryId : existing.categoryId;
+      if (
+        nextCategoryId &&
+        (dto.categoryId !== undefined || dto.type !== undefined)
+      ) {
+        await this.categoriesService.assertCategoryAssignable(
+          userId,
+          nextCategoryId,
+          nextType,
+        );
+      }
     }
 
-    return this.transactionsService.updateTransaction(userId, id, dto);
+    return this.transactionsService.updateTransaction(userId, id, {
+      ...dto,
+      transferAmount,
+    });
   }
 }

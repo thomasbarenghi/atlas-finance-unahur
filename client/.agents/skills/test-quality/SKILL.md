@@ -45,11 +45,11 @@ When adding or changing a feature:
 
 ## 3. What MUST be tested
 
-- **Critical (P0) flows (E2E):** register/login/logout, create income/expense, create transfer (atomic, no consolidation impact), manage budget, view dashboard, AI assistant question (HU-001/002/003/006).
+- **Critical (P0) flows (E2E):** register/login/logout, create income/expense, create transfer (atomic, no consolidation impact), manage budget, view dashboard, AI assistant question (HU-001/002/003).
 - **Financial/formatting logic (unit):** `lib/format.ts` (currency, date, percent) and any client-side aggregation/sorting.
 - **Data hooks (unit/integration):** query key construction, filters, mutation invalidation, error/`401` handling, refresh flow.
 - **Forms (component):** required-field validation, `> 0` amount rule, transfer requires different accounts, backend `fieldErrors` mapped to fields.
-- **States (component):** loading (`Skeleton`), empty (`EmptyState` with CTA), error, and success for every data view (FR-DAS-008).
+- **States (component):** loading (`Skeleton`), empty (`EmptyState` with CTA), error, and success for every data view (FR-DAS-002).
 - **Accessibility-relevant behavior:** charts expose an accessible name and a tabular alternative; status is not conveyed by color alone.
 
 Not required: shadcn generated primitives, pure styling, third-party internals, trivial pass-through components.
@@ -83,7 +83,7 @@ Test scripts (example):
   - `amount.utils.test.ts` next to `amount.utils.ts`.
   - `amount.test.tsx` next to the component `index.tsx` (name the test after the component).
   - `use-amount-color.test.ts` next to the hook.
-- Integration tests live in `components/features/<feature>/*.test.tsx` or a `__tests__/` folder inside the feature.
+- Integration tests live next to the route/feature they cover: `app/<route>/_components/__tests__/` or `app/(group)/_components/<domain>/__tests__/`.
 - E2E tests live in `client/e2e/`.
 - `describe` names the unit; `it`/`test` names the behavior in plain language, ideally "does X when Y".
 
@@ -121,7 +121,7 @@ export const renderWithProviders = (ui: ReactElement) => {
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
 
-// components/features/accounts/accounts-table/index.test.tsx
+// app/(app)/_components/accounts/accounts-list/__tests__/accounts-list.test.tsx
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "@/lib/test/render";
@@ -203,7 +203,7 @@ it("parses assistant SSE events in order", async () => {
 - Use `getByRole`/accessible selectors and Playwright auto-waiting; avoid hard sleeps.
 - Each test MUST be self-contained: arrange its own data (seed/reset or API setup), act, assert.
 - Run headless and in CI; capture trace/screenshot on failure.
-- Cover the Capacitor-relevant flows at least once on a mobile viewport (bottom navigation, safe areas).
+- Cover the mobile web flows at least once on a mobile viewport (bottom navigation, safe areas).
 
 ## 12. Anti-patterns (MUST avoid)
 

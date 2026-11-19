@@ -1,0 +1,157 @@
+import request from "supertest";
+import { authCookie, registerUser } from "../utils/auth";
+import {
+  categoryByName,
+  createAccount,
+  createTransaction,
+  isoDate,
+} from "../utils/factories";
+import { MISSING_UUID, truncateAll } from "../utils/db";
+import { createTestApp, TestContext } from "../utils/test-app";
+
+/**
+ * FR-TRX-001 — Editar o eliminar únicamente movimientos pertenecientes al
+ * usuario autenticado.
+ */
+describe("FR-TRX-001 · Editar y eliminar movimientos", () => {
+  let ctx: TestContext;
+
+  beforeAll(async () => {
+    ctx = await createTestApp();
+  });
+
+  beforeEach(async () => {
+    await truncateAll(ctx.dataSource);
+  });
+
+  afterAll(async () => {
+    await ctx.app.close();
+  });
+
+  it("edita un movimiento propio", async () => {
+    const user = await registerUser(ctx.app);
+    const account = await createAccount(ctx.app, user.accessToken);
+    const category = await categoryByName(
+      ctx.app,
+      user.accessToken,
+      "Supermercado",
+    );
+    const created = await createTransaction(ctx.app, user.accessToken, {
+      type: "expense",
+      amount: 100,
+      date: isoDate(),
+      description: "Original",
+      accountId: account.id,
+      categoryId: category.id,
+    });
+
+    const updated = await request(ctx.server)
+      .patch(`/api/transactions/${created.id}`)
+      .set(authCookie(user.accessToken))
+      .send({ amount: 250, description: "Editado" })
+      .expect(200);
+
+    expect(updated.body.amount).toBe(250);
+    expect(updated.body.description).toBe("Editado");
+  });
+
+  it("elimina un movimiento propio", async () => {
+    const user = await registerUser(ctx.app);
+    const account = await createAccount(ctx.app, user.accessToken);
+    const category = await categoryByName(
+      ctx.app,
+      user.accessToken,
+      "Supermercado",
+    );
+    const created = await createTransaction(ctx.app, user.accessToken, {
+      type: "expense",
+      amount: 100,
+      date: isoDate(),
+      description: "Borrar",
+      accountId: account.id,
+      categoryId: category.id,
+    });
+
+    await request(ctx.server)
+      .delete(`/api/transactions/${created.id}`)
+      .set(authCookie(user.accessToken))
+      .expect(200);
+
+    await request(ctx.server)
+      .get(`/api/transactions/${created.id}`)
+      .set(authCookie(user.accessToken))
+      .expect(404);
+  });
+
+  it("responde 404 al editar o eliminar un movimiento inexistente", async () => {
+    const user = await registerUser(ctx.app);
+    const missing = MISSING_UUID;
+
+    await request(ctx.server)
+      .patch(`/api/transactions/${missing}`)
+      .set(authCookie(user.accessToken))
+      .send({ amount: 1 })
+      .expect(404);
+    await request(ctx.server)
+      .delete(`/api/transactions/${missing}`)
+      .set(authCookie(user.accessToken))
+      .expect(404);
+  });
+
+  it("rechaza cambiar el tipo de un movimiento", async () => {
+    const user = await registerUser(ctx.app);
+    const account = await createAccount(ctx.app, user.accessToken);
+    const category = await categoryByName(
+      ctx.app,
+      user.accessToken,
+      "Supermercado",
+    );
+    const created = await createTransaction(ctx.app, user.accessToken, {
+      type: "expense",
+      amount: 100,
+      date: isoDate(),
+      description: "No se convierte en transferencia",
+      accountId: account.id,
+      categoryId: category.id,
+    });
+
+    const rejected = await request(ctx.server)
+      .patch(`/api/transactions/${created.id}`)
+      .set(authCookie(user.accessToken))
+      .send({ type: "transfer" })
+      .expect(400);
+    expect(rejected.body.code).toBe("VALIDATION_ERROR");
+
+    const stored = await request(ctx.server)
+      .get(`/api/transactions/${created.id}`)
+      .set(authCookie(user.accessToken))
+      .expect(200);
+    expect(stored.body.type).toBe("expense");
+    expect(stored.body.transferAccountId).toBeNull();
+    expect(stored.body.transferGroupId).toBeNull();
+  });
+
+  it("rechaza una edición que deje el gasto sin categoría", async () => {
+    const user = await registerUser(ctx.app);
+    const account = await createAccount(ctx.app, user.accessToken);
+    const category = await categoryByName(
+      ctx.app,
+      user.accessToken,
+      "Supermercado",
+    );
+    const created = await createTransaction(ctx.app, user.accessToken, {
+      type: "expense",
+      amount: 100,
+      date: isoDate(),
+      description: "X",
+      accountId: account.id,
+      categoryId: category.id,
+    });
+
+    await request(ctx.server)
+      .patch(`/api/transactions/${created.id}`)
+      .set(authCookie(user.accessToken))
+      .send({ categoryId: null })
+      .expect(400);
+  });
+});

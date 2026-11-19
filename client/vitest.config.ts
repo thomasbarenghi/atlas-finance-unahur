@@ -36,13 +36,18 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
-      include: ["lib/**", "hooks/**", "components/**", "providers/**"],
+      include: [
+        "app/**",
+        "lib/**",
+        "hooks/**",
+        "components/**",
+        "providers/**",
+      ],
       // `components/ui/**` is generated shadcn code (the project test-quality
       // skill explicitly does not require testing generated primitives);
-      // mocks/test helpers are not app code and `*.types.ts` has no runtime.
+      // test helpers are not app code and `*.types.ts` has no runtime.
       exclude: [
         "**/*.test.*",
-        "lib/mocks/**",
         "lib/test/**",
         "**/*.types.ts",
         "components/ui/**",

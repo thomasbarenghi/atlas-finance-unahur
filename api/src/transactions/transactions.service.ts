@@ -5,6 +5,7 @@ import { DataSource, Repository } from "typeorm";
 import { Paginated, PaginationDto } from "../common/dto/pagination.dto";
 import { ApiException } from "../common/errors/api.exception";
 import { ErrorCode } from "../common/errors/error-codes";
+import type { MoneyTransaction } from "../shared/calculations/calculations.types";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
 import {
   toTransactionResponse,
@@ -44,8 +45,23 @@ export class TransactionsService {
     };
   }
 
-  async listOwnedTransactions(userId: string): Promise<Transaction[]> {
-    return this.transactionsRepository.find({ where: { userId } });
+  /**
+   * Slim projection used by the dashboard read model. Only the columns needed
+   * for the calculations travel over the wire; `description`, `notes` and
+   * timestamps are excluded (the dashboard never renders them).
+   */
+  async listOwnedTransactions(userId: string): Promise<MoneyTransaction[]> {
+    return this.transactionsRepository.find({
+      where: { userId },
+      select: [
+        "accountId",
+        "transferAccountId",
+        "categoryId",
+        "type",
+        "amount",
+        "date",
+      ],
+    });
   }
 
   async getTransaction(
@@ -53,6 +69,14 @@ export class TransactionsService {
     id: string,
   ): Promise<TransactionResponseDto> {
     return toTransactionResponse(await this.findOwnedTransaction(userId, id));
+  }
+
+  async getTransferGroup(
+    userId: string,
+    id: string,
+  ): Promise<{ outbound: Transaction; inbound: Transaction } | null> {
+    const transaction = await this.findOwnedTransaction(userId, id);
+    return this.loadTransferGroup(userId, transaction.transferGroupId);
   }
 
   async createTransaction(
@@ -96,13 +120,21 @@ export class TransactionsService {
   ): Promise<TransactionResponseDto> {
     const transaction = await this.findOwnedTransaction(userId, id);
 
+    if (dto.type !== undefined && dto.type !== transaction.type) {
+      throw new ApiException(
+        ErrorCode.VALIDATION_ERROR,
+        HttpStatus.BAD_REQUEST,
+        "El tipo de movimiento no se puede cambiar",
+        { type: ["El tipo no se modifica una vez creado"] },
+      );
+    }
+
     if (transaction.type === "transfer" && transaction.transferGroupId) {
       return this.updateTransfer(userId, transaction, dto);
     }
 
     if (dto.accountId) transaction.accountId = dto.accountId;
     if (dto.categoryId !== undefined) transaction.categoryId = dto.categoryId;
-    if (dto.type !== undefined) transaction.type = dto.type;
     if (transaction.type !== "transfer" && !transaction.categoryId) {
       throw new ApiException(
         ErrorCode.VALIDATION_ERROR,
@@ -157,6 +189,7 @@ export class TransactionsService {
 
     const transferGroupId = randomUUID();
     const amount = Math.abs(dto.amount);
+    const transferAmount = Math.abs(dto.transferAmount ?? dto.amount);
     const outbound = this.transactionsRepository.create({
       userId,
       type: "transfer",
@@ -172,15 +205,14 @@ export class TransactionsService {
     const inbound = this.transactionsRepository.create({
       ...outbound,
       id: undefined,
-      amount,
+      amount: transferAmount,
       accountId: dto.transferAccountId,
       transferAccountId: dto.accountId,
     });
 
-    await this.dataSource.transaction(async (manager) => {
-      await manager.save(outbound);
-      await manager.save(inbound);
-    });
+    await this.dataSource.transaction((manager) =>
+      manager.save([outbound, inbound]),
+    );
 
     return toTransactionResponse(outbound);
   }
@@ -190,19 +222,18 @@ export class TransactionsService {
     transaction: Transaction,
     dto: UpdateTransactionDto,
   ): Promise<TransactionResponseDto> {
-    const group = await this.transactionsRepository.find({
-      where: { userId, transferGroupId: transaction.transferGroupId ?? "" },
-    });
-    if (group.length < 2) {
+    const group = await this.loadTransferGroup(
+      userId,
+      transaction.transferGroupId,
+    );
+    if (!group) {
       throw new ApiException(
         ErrorCode.NOT_FOUND,
         HttpStatus.NOT_FOUND,
         "El movimiento no existe",
       );
     }
-
-    const outbound = group.find((item) => item.amount < 0) ?? group[0];
-    const inbound = group.find((item) => item.id !== outbound.id) ?? group[1];
+    const { outbound, inbound } = group;
 
     const origin = dto.accountId ?? outbound.accountId;
     const destination = dto.transferAccountId ?? inbound.accountId;
@@ -219,13 +250,17 @@ export class TransactionsService {
       dto.amount !== undefined
         ? Math.abs(dto.amount)
         : Math.abs(outbound.amount);
+    const transferAmount =
+      dto.transferAmount !== undefined
+        ? Math.abs(dto.transferAmount)
+        : Math.abs(inbound.amount);
 
     outbound.accountId = origin;
     outbound.transferAccountId = destination;
     outbound.amount = -amount;
     inbound.accountId = destination;
     inbound.transferAccountId = origin;
-    inbound.amount = amount;
+    inbound.amount = transferAmount;
 
     for (const leg of [outbound, inbound]) {
       if (dto.date !== undefined) leg.date = dto.date;
@@ -234,12 +269,25 @@ export class TransactionsService {
       if (dto.notes !== undefined) leg.notes = dto.notes?.trim() || null;
     }
 
-    await this.dataSource.transaction(async (manager) => {
-      await manager.save(outbound);
-      await manager.save(inbound);
-    });
+    await this.dataSource.transaction((manager) =>
+      manager.save([outbound, inbound]),
+    );
 
     return toTransactionResponse(outbound);
+  }
+
+  private async loadTransferGroup(
+    userId: string,
+    transferGroupId: string | null,
+  ): Promise<{ outbound: Transaction; inbound: Transaction } | null> {
+    if (!transferGroupId) return null;
+    const group = await this.transactionsRepository.find({
+      where: { userId, transferGroupId },
+    });
+    if (group.length < 2) return null;
+    const outbound = group.find((item) => item.amount < 0) ?? group[0];
+    const inbound = group.find((item) => item.id !== outbound.id) ?? group[1];
+    return { outbound, inbound };
   }
 
   private async findOwnedTransaction(

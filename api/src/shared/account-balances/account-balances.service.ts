@@ -2,14 +2,12 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Account } from "../../accounts/entities/account.entity";
+import { signedAmount } from "../calculations/calculations.service";
 import { Transaction } from "../../transactions/entities/transaction.entity";
-
-const signedAmount = (transaction: Transaction): number =>
-  transaction.type === "expense" ? -transaction.amount : transaction.amount;
 
 /**
  * Read model shared by the accounts and dashboard domains to derive the
- * current balance of an account from its transactions (FR-CUE-004). It is a
+ * current balance of an account from its transactions (FR-CUE-002). It is a
  * cross-domain provider (allowed in `shared/`) so that neither `AccountsService`
  * nor the dashboard orchestrator needs to import the transactions repository.
  */
@@ -29,6 +27,12 @@ export class AccountBalancesService {
       (total, transaction) => total + signedAmount(transaction),
       account.initialBalance,
     );
+  }
+
+  async hasTransactions(accountId: string, userId: string): Promise<boolean> {
+    return this.transactionsRepository.exists({
+      where: { accountId, userId },
+    });
   }
 
   async signedTotalsByAccount(userId: string): Promise<Map<string, number>> {

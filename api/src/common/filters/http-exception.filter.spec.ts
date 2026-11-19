@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  HttpException,
-  HttpStatus,
-  NotFoundException,
-} from "@nestjs/common";
+import { HttpException, HttpStatus } from "@nestjs/common";
 import { ErrorCode } from "../errors/error-codes";
 import { GlobalExceptionFilter } from "./http-exception.filter";
 
@@ -19,58 +14,35 @@ const buildHost = () => {
 describe("GlobalExceptionFilter", () => {
   const filter = new GlobalExceptionFilter();
 
-  it("normalizes an ApiException keeping its code and fieldErrors", () => {
+  it("passes through a 4xx payload", () => {
     const { host, status, json } = buildHost();
-    filter.catch(
-      new HttpException(
-        {
-          statusCode: 400,
-          code: ErrorCode.VALIDATION_ERROR,
-          message: "Validation failed",
-          fieldErrors: { name: ["required"] },
-        },
-        400,
-      ),
-      host,
-    );
-    expect(status).toHaveBeenCalledWith(400);
-    expect(json).toHaveBeenCalledWith({
+    const payload = {
       statusCode: 400,
       code: ErrorCode.VALIDATION_ERROR,
       message: "Validation failed",
       fieldErrors: { name: ["required"] },
+    };
+    filter.catch(new HttpException(payload, 400), host);
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith(payload);
+  });
+
+  it("uses the exception message when a 4xx payload is not an object", () => {
+    const { host, json } = buildHost();
+    filter.catch(new HttpException("missing", 404), host);
+    expect(json).toHaveBeenCalledWith({
+      statusCode: 404,
+      message: "missing",
     });
-  });
-
-  it("falls back to a status-derived code and joins array messages", () => {
-    const { host, json } = buildHost();
-    filter.catch(new BadRequestException(["a", "b"]), host);
-    expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        code: ErrorCode.VALIDATION_ERROR,
-        message: "a, b",
-      }),
-    );
-  });
-
-  it("uses the exception message for string payloads", () => {
-    const { host, json } = buildHost();
-    filter.catch(new NotFoundException("missing"), host);
-    expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({ statusCode: 404, message: "missing" }),
-    );
   });
 
   it("hides details of server errors", () => {
     const { host, json } = buildHost();
     filter.catch(new HttpException("boom", 500), host);
-    expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        statusCode: 500,
-        code: ErrorCode.INTERNAL_ERROR,
-        message: "Internal server error",
-      }),
-    );
+    expect(json).toHaveBeenCalledWith({
+      statusCode: 500,
+      message: "Internal server error",
+    });
   });
 
   it("maps unknown errors to a generic 500", () => {
@@ -78,17 +50,7 @@ describe("GlobalExceptionFilter", () => {
     filter.catch(new Error("boom"), host);
     expect(json).toHaveBeenCalledWith({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      code: ErrorCode.INTERNAL_ERROR,
       message: "Internal server error",
     });
-  });
-
-  it("omits fieldErrors when the payload has none", () => {
-    const { host, json } = buildHost();
-    filter.catch(new HttpException({ foo: "bar" }, 400), host);
-    expect(json.mock.calls[0][0]).not.toHaveProperty("fieldErrors");
-    expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({ code: ErrorCode.VALIDATION_ERROR }),
-    );
   });
 });

@@ -26,19 +26,19 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  primaryCurrency: string;
   createdAt: string;
 }
 
 export interface AuthResponse {
   user: User;
-  accessToken: string;
-  refreshToken: string;
 }
 
 export interface Account {
   id: string;
   name: string;
   type: AccountType;
+  currency: string;
   initialBalance: number;
   currentBalance: number;
   notes: string | null;
@@ -52,7 +52,18 @@ export interface Category {
   type: CategoryType;
   color: string;
   icon: string | null;
+  isSystem: boolean;
 }
+
+export interface CreateCategoryInput {
+  name: string;
+  type: CategoryType;
+  color: string;
+}
+
+export type UpdateCategoryInput = Partial<
+  Pick<CreateCategoryInput, "name" | "color">
+>;
 
 export interface Transaction {
   id: string;
@@ -69,9 +80,31 @@ export interface Transaction {
   updatedAt: string;
 }
 
+export interface DashboardBreakdown {
+  currency: string;
+  balance: number;
+  accounts: number;
+  /** Equivalent in the primary currency. */
+  converted: number;
+}
+
+export interface DashboardRate {
+  currency: string;
+  /** How many units of the primary currency one unit buys. */
+  rate: number;
+  rateDate: string;
+}
+
 export interface DashboardData {
   period: PeriodRange;
+  /** Currency scope of the period indicators and charts. */
   currency: string;
+  /** Currency in which net worth is reported. */
+  primaryCurrency: string;
+  rateDate: string | null;
+  availableCurrencies: string[];
+  breakdown: DashboardBreakdown[];
+  rates: DashboardRate[];
   kpis: {
     netWorth: number;
     netWorthDeltaPct: number | null;
@@ -84,6 +117,13 @@ export interface DashboardData {
     savingsRateDeltaPp: number | null;
   };
   netWorthSeries: { date: string; value: number }[];
+  incomeExpenseByPeriod: {
+    bucket: "week" | "month";
+    start: string;
+    end: string;
+    income: number;
+    expenses: number;
+  }[];
   incomeExpenseByMonth: { month: string; income: number; expenses: number }[];
   expensesByCategory: {
     categoryId: string;
@@ -93,9 +133,42 @@ export interface DashboardData {
   }[];
 }
 
+export interface CurrencyCatalogItem {
+  code: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+}
+
+export type CurrencyRateSource = "api";
+
+export interface CurrencyRate {
+  currency: string;
+  name: string;
+  symbol: string;
+  /** How many units of the user's primary currency one unit buys. */
+  rate: number;
+  rateDate: string;
+  source: CurrencyRateSource;
+}
+
+export interface CurrencySettings {
+  primaryCurrency: string;
+  rates: CurrencyRate[];
+  updatedAt: string | null;
+}
+
+export interface AssistantHistoryMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface AssistantMessageInput {
   question: string;
   period?: PeriodRange;
+  currency?: string;
+  /** Turnos previos de la conversación en memoria, para preguntas de seguimiento. */
+  history?: AssistantHistoryMessage[];
 }
 
 /* ── Inputs (mirror the REST request DTOs) ─────────────────────────────── */
@@ -109,15 +182,24 @@ export interface RegisterInput {
   name: string;
   email: string;
   password: string;
+  primaryCurrency: string;
 }
 
 export interface UpdateUserInput {
   name?: string;
+  email?: string;
+  primaryCurrency?: string;
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
 }
 
 export interface CreateAccountInput {
   name: string;
   type: AccountType;
+  currency: string;
   initialBalance?: number;
   notes?: string | null;
 }
@@ -136,6 +218,7 @@ export interface CreateTransactionInput {
   notes?: string | null;
   accountId: string;
   transferAccountId?: string | null;
+  transferAmount?: number;
   categoryId?: string | null;
 }
 

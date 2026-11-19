@@ -12,6 +12,7 @@ export const makeUser = (overrides: Partial<User> = {}): User => ({
   id: "11111111-1111-4111-8111-111111111111",
   name: "Demo",
   email: "demo@atlassfin.app",
+  primaryCurrency: "ARS",
   createdAt,
   ...overrides,
 });
@@ -20,6 +21,7 @@ export const makeAccount = (overrides: Partial<Account> = {}): Account => ({
   id: "22222222-2222-4222-8222-222222222222",
   name: "Caja ARS",
   type: "cash",
+  currency: "ARS",
   initialBalance: 50_000,
   currentBalance: 50_000,
   notes: null,
@@ -34,6 +36,7 @@ export const makeCategory = (overrides: Partial<Category> = {}): Category => ({
   type: "expense",
   color: "#ef4444",
   icon: null,
+  isSystem: true,
   ...overrides,
 });
 
@@ -60,6 +63,17 @@ export const makeDashboardData = (
 ): DashboardData => ({
   period: { from: "2026-01-01", to: "2026-01-31" },
   currency: "ARS",
+  primaryCurrency: "ARS",
+  rateDate: "2026-01-31",
+  availableCurrencies: ["ARS", "USD"],
+  breakdown: [
+    { currency: "ARS", balance: 120_000, accounts: 3, converted: 120_000 },
+    { currency: "USD", balance: 100, accounts: 1, converted: 118_000 },
+  ],
+  rates: [
+    { currency: "ARS", rate: 1, rateDate: "2026-01-31" },
+    { currency: "USD", rate: 1180, rateDate: "2026-01-31" },
+  ],
   kpis: {
     netWorth: 120_000,
     netWorthDeltaPct: 4.2,
@@ -74,6 +88,15 @@ export const makeDashboardData = (
   netWorthSeries: [
     { date: "2026-01-01", value: 100_000 },
     { date: "2026-01-31", value: 120_000 },
+  ],
+  incomeExpenseByPeriod: [
+    {
+      bucket: "month",
+      start: "2026-01-01",
+      end: "2026-01-31",
+      income: 200_000,
+      expenses: 80_000,
+    },
   ],
   incomeExpenseByMonth: [
     { month: "2026-01", income: 200_000, expenses: 80_000 },

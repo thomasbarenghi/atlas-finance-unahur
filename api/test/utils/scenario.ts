@@ -1,7 +1,7 @@
 import { INestApplication } from "@nestjs/common";
 import request from "supertest";
 import { httpClient } from "./test-app";
-import { bearer } from "./auth";
+import { authCookie } from "./auth";
 import { categoryByName, createAccount, createTransaction } from "./factories";
 
 export interface BaseScenario {
@@ -54,7 +54,7 @@ export const getDashboard = async (
 ): Promise<Record<string, any>> => {
   const response = await request(httpClient(app))
     .get(`/api/dashboard?${query}`)
-    .set(bearer(token))
+    .set(authCookie(token))
     .expect(200);
   return response.body;
 };

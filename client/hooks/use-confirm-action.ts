@@ -6,9 +6,8 @@ import { getErrorMessage } from "@/lib/api/errors";
 
 export interface ConfirmActionOptions<T> {
   run: (target: T) => Promise<unknown>;
-  successMessage: string | ((target: T) => string);
+  successMessage: string;
   errorMessage: string;
-  onSuccess?: (target: T) => void;
 }
 
 export interface ConfirmAction<T> {
@@ -24,7 +23,6 @@ export const useConfirmAction = <T>({
   run,
   successMessage,
   errorMessage,
-  onSuccess,
 }: ConfirmActionOptions<T>): ConfirmAction<T> => {
   const [target, setTarget] = useState<T | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -38,12 +36,7 @@ export const useConfirmAction = <T>({
     void (async () => {
       try {
         await run(target);
-        toast.success(
-          typeof successMessage === "function"
-            ? successMessage(target)
-            : successMessage,
-        );
-        onSuccess?.(target);
+        toast.success(successMessage);
       } catch (error) {
         toast.error(getErrorMessage(error, errorMessage));
       } finally {
@@ -51,7 +44,7 @@ export const useConfirmAction = <T>({
         setTarget(null);
       }
     })();
-  }, [target, run, successMessage, errorMessage, onSuccess]);
+  }, [target, run, successMessage, errorMessage]);
 
   return {
     target,

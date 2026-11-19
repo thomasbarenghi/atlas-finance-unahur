@@ -6,7 +6,7 @@ import { DataSource } from "typeorm";
  */
 export const MISSING_UUID = "00000000-0000-4000-8000-000000000000";
 
-/** Fixed category catalog shared by every test (FR-TRX-002, v0.3). */
+/** Fixed category catalog shared by every test (FR-TRX-001, v0.3). */
 export const FIXED_CATEGORIES = [
   { name: "Sueldo", type: "income", color: "#22c55e", icon: "wallet" },
   { name: "Freelance", type: "income", color: "#16a34a", icon: "briefcase" },

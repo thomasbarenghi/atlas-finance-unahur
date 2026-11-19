@@ -22,7 +22,4 @@ process.env.JWT_REFRESH_TTL_DAYS = "30";
 process.env.COOKIE_SECURE = "false";
 process.env.COOKIE_SAME_SITE = "lax";
 
-process.env.DEFAULT_CURRENCY = "ARS";
-
 delete process.env.AI_API_KEY;
-process.env.AI_DEV_USER_EMAIL = "demo@atlassfin.app";

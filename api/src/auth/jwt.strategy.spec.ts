@@ -5,49 +5,31 @@ const build = () => {
   const config = {
     get: jest.fn(() => ({ accessSecret: "secret" })),
   };
-  const sessionsRepository = { findOneBy: jest.fn() };
-  const strategy = new JwtStrategy(config as any, sessionsRepository as any);
-  return { strategy, sessionsRepository };
+  return new JwtStrategy(config as any);
 };
 
 describe("JwtStrategy", () => {
-  it("returns the authenticated user for an active session", async () => {
-    const { strategy, sessionsRepository } = build();
-    sessionsRepository.findOneBy.mockResolvedValue({
-      id: "s1",
-      revokedAt: null,
-      expiresAt: new Date(Date.now() + 1000_000),
-    });
+  it("returns the authenticated user for an access token", () => {
+    const strategy = build();
 
-    await expect(
-      strategy.validate({ sub: "u1", email: "a@test.local", sid: "s1" }),
-    ).resolves.toEqual({ id: "u1", email: "a@test.local", sessionId: "s1" });
+    expect(
+      strategy.validate({
+        sub: "u1",
+        email: "a@test.local",
+        type: "access",
+      }),
+    ).toEqual({ id: "u1", email: "a@test.local" });
   });
 
-  it("rejects missing, revoked or expired sessions", async () => {
-    const { strategy, sessionsRepository } = build();
+  it("rejects a refresh token used as an access token", () => {
+    const strategy = build();
 
-    sessionsRepository.findOneBy.mockResolvedValue(null);
-    await expect(
-      strategy.validate({ sub: "u1", email: "a@test.local", sid: "s1" }),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
-
-    sessionsRepository.findOneBy.mockResolvedValue({
-      id: "s1",
-      revokedAt: new Date(),
-      expiresAt: new Date(Date.now() + 1000_000),
-    });
-    await expect(
-      strategy.validate({ sub: "u1", email: "a@test.local", sid: "s1" }),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
-
-    sessionsRepository.findOneBy.mockResolvedValue({
-      id: "s1",
-      revokedAt: null,
-      expiresAt: new Date(Date.now() - 1000),
-    });
-    await expect(
-      strategy.validate({ sub: "u1", email: "a@test.local", sid: "s1" }),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(() =>
+      strategy.validate({
+        sub: "u1",
+        email: "a@test.local",
+        type: "refresh",
+      }),
+    ).toThrow(UnauthorizedException);
   });
 });

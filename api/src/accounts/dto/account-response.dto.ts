@@ -4,6 +4,7 @@ export class AccountResponseDto {
   id: string;
   name: string;
   type: AccountType;
+  currency: string;
   initialBalance: number;
   currentBalance: number;
   notes: string | null;

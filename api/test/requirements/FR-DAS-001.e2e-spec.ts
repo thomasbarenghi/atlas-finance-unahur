@@ -1,4 +1,4 @@
-import { bearer, registerUser } from "../utils/auth";
+import { authCookie, registerUser } from "../utils/auth";
 import { truncateAll } from "../utils/db";
 import { createAccount } from "../utils/factories";
 import { getDashboard, seedBaseScenario } from "../utils/scenario";
@@ -50,7 +50,7 @@ describe("FR-DAS-001 · KPIs del período", () => {
 
     await request(ctx.server)
       .post("/api/transactions")
-      .set(bearer(user.accessToken))
+      .set(authCookie(user.accessToken))
       .send({
         type: "transfer",
         amount: 400,

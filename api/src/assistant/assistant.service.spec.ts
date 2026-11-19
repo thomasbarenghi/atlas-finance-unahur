@@ -1,4 +1,3 @@
-import { ErrorCode } from "../common/errors/error-codes";
 import { AssistantService } from "./assistant.service";
 
 const asyncTokens = (tokens: string[]) =>
@@ -7,9 +6,6 @@ const asyncTokens = (tokens: string[]) =>
   })();
 
 const build = () => {
-  const usersService = {
-    findByEmail: jest.fn().mockResolvedValue({ id: "dev-user" }),
-  };
   const contextService = {
     build: jest.fn().mockResolvedValue({
       period: { from: "2026-03-01", to: "2026-03-31" },
@@ -21,41 +17,12 @@ const build = () => {
   const aiService = {
     streamChat: jest.fn().mockReturnValue(asyncTokens(["Hola ", "mundo"])),
   };
-  const config = {
-    get: jest.fn((key: string) =>
-      key === "nodeEnv" ? "development" : { devUserEmail: "demo@test.app" },
-    ),
-  };
 
-  const service = new AssistantService(
-    usersService as any,
-    contextService as any,
-    aiService as any,
-    config as any,
-  );
-  return { service, usersService, contextService, aiService };
+  const service = new AssistantService(contextService as any, aiService as any);
+  return { service, contextService, aiService };
 };
 
 describe("AssistantService", () => {
-  it("resolves the authenticated user when present", async () => {
-    const { service } = build();
-    await expect(service.resolveUserId("u1")).resolves.toBe("u1");
-  });
-
-  it("falls back to the dev user outside production", async () => {
-    const { service } = build();
-    await expect(service.resolveUserId()).resolves.toBe("dev-user");
-  });
-
-  it("rejects an unauthenticated call in production", async () => {
-    const { service } = build();
-    const config = (service as any).config;
-    config.get.mockReturnValue("production");
-    await expect(service.resolveUserId()).rejects.toMatchObject({
-      response: { code: ErrorCode.UNAUTHENTICATED },
-    });
-  });
-
   it("streams meta, tokens and done", async () => {
     const { service, contextService } = build();
     const events = [];
@@ -73,6 +40,41 @@ describe("AssistantService", () => {
     expect(events).toEqual(
       expect.arrayContaining([{ type: "token", data: { delta: "Hola " } }]),
     );
+    expect(events.at(-1)).toEqual({
+      type: "done",
+      data: { insufficient: false },
+    });
+  });
+
+  it("forwards the conversation history before the current question", async () => {
+    const { service, aiService } = build();
+    const events = [];
+    for await (const event of service.answer("u1", {
+      question: "¿Y lo del auto?",
+      history: [
+        {
+          role: "user",
+          content: "¿Es inteligente comprar un auto por 2.750.000?",
+        },
+        { role: "assistant", content: "Equivale al 97% de tu patrimonio." },
+      ],
+    } as any)) {
+      events.push(event);
+    }
+
+    const messages = aiService.streamChat.mock.calls[0][0] as {
+      role: string;
+      content: string;
+    }[];
+    expect(messages.map((message) => message.role)).toEqual([
+      "system",
+      "user",
+      "assistant",
+      "user",
+    ]);
+    expect(messages[1].content).toContain("comprar un auto");
+    expect(messages[2].content).toContain("97%");
+    expect(messages[3].content).toContain("Pregunta: ¿Y lo del auto?");
     expect(events.at(-1)).toEqual({
       type: "done",
       data: { insufficient: false },

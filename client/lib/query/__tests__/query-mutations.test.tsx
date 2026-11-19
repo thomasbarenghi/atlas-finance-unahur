@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   useCreateAccount,
   useDeleteAccount,
@@ -13,8 +13,8 @@ import {
 } from "@/lib/query/transactions";
 import { useMe } from "@/lib/query/auth";
 import { queryKeys } from "@/lib/query/keys";
-import { resetMockSession, seedMockSession } from "@/lib/test/mock-session";
-import { mockState } from "@/lib/mocks/store";
+import { testState } from "@/lib/test/api-state";
+import { setupTestServer } from "@/lib/test/server";
 
 const newClient = (): QueryClient =>
   new QueryClient({
@@ -31,10 +31,9 @@ const wrapperFor = (queryClient: QueryClient) => {
   return Wrapper;
 };
 
-describe("query mutations", () => {
-  beforeEach(() => seedMockSession());
-  afterEach(() => resetMockSession());
+setupTestServer();
 
+describe("query mutations", () => {
   it("covers account create/update/delete mutations", async () => {
     const queryClient = newClient();
     const invalidate = vi.spyOn(queryClient, "invalidateQueries");
@@ -45,11 +44,12 @@ describe("query mutations", () => {
       await create.result.current.mutateAsync({
         name: "Nueva",
         type: "wallet",
+        currency: "ARS",
         initialBalance: 0,
       });
     });
 
-    const account = mockState.accounts[0];
+    const account = testState.accounts[0];
     const update = renderHook(() => useUpdateAccount(), { wrapper });
     await act(async () => {
       await update.result.current.mutateAsync({
@@ -76,7 +76,7 @@ describe("query mutations", () => {
     const queryClient = newClient();
     const invalidate = vi.spyOn(queryClient, "invalidateQueries");
     const wrapper = wrapperFor(queryClient);
-    const transaction = mockState.transactions[0];
+    const transaction = testState.transactions[0];
 
     const update = renderHook(() => useUpdateTransaction(), { wrapper });
     await act(async () => {

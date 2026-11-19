@@ -12,7 +12,6 @@ import { setupServer } from "msw/node";
 
 vi.hoisted(() => {
   process.env.NEXT_PUBLIC_API_URL = "http://localhost/api";
-  process.env.NEXT_PUBLIC_USE_MOCKS = "false";
 });
 
 import {
@@ -51,6 +50,7 @@ describe("account endpoints", () => {
     await accountEndpoints.create({
       name: "Caja",
       type: "cash",
+      currency: "ARS",
       initialBalance: 1000,
       notes: null,
     });
@@ -172,10 +172,67 @@ describe("transaction endpoints", () => {
 });
 
 describe("category endpoints", () => {
-  it("lists the fixed category catalog", async () => {
+  it("lists the available categories", async () => {
     server.use(http.get(`${BASE}/categories`, () => okJson([makeCategory()])));
     const categories = await categoryEndpoints.list();
     expect(categories).toHaveLength(1);
+  });
+
+  it("POSTs a valid CreateCategoryDto payload", async () => {
+    let body: unknown;
+    server.use(
+      http.post(`${BASE}/categories`, async ({ request }) => {
+        body = await request.json();
+        return okJson(makeCategory({ isSystem: false }));
+      }),
+    );
+
+    await categoryEndpoints.create({
+      name: "Mascotas",
+      type: "expense",
+      color: "#f97316",
+    });
+
+    const result = await validateApiPayload(
+      apiRequestDtos.CreateCategoryDto,
+      body as never,
+    );
+    expect(result.errors).toEqual([]);
+    expect(result.valid).toBe(true);
+  });
+
+  it("PATCHes a valid UpdateCategoryDto payload", async () => {
+    let body: unknown;
+    server.use(
+      http.patch(`${BASE}/categories/:id`, async ({ request }) => {
+        body = await request.json();
+        return okJson(makeCategory({ isSystem: false }));
+      }),
+    );
+
+    await categoryEndpoints.update("cat-1", {
+      name: "Mascotas y pets",
+      color: "#ef4444",
+    });
+
+    const result = await validateApiPayload(
+      apiRequestDtos.UpdateCategoryDto,
+      body as never,
+    );
+    expect(result.valid).toBe(true);
+  });
+
+  it("deletes a category with DELETE", async () => {
+    let method: string | undefined;
+    server.use(
+      http.delete(`${BASE}/categories/:id`, ({ request }) => {
+        method = request.method;
+        return okJson({});
+      }),
+    );
+
+    await categoryEndpoints.remove("cat-1");
+    expect(method).toBe("DELETE");
   });
 });
 
@@ -185,11 +242,11 @@ describe("auth, user and dashboard endpoints", () => {
     server.use(
       http.post(`${BASE}/auth/login`, async ({ request }) => {
         bodies.login = await request.json();
-        return okJson({ user: {}, accessToken: "a", refreshToken: "r" });
+        return okJson({ user: {} });
       }),
       http.post(`${BASE}/auth/register`, async ({ request }) => {
         bodies.register = await request.json();
-        return okJson({ user: {}, accessToken: "a", refreshToken: "r" });
+        return okJson({ user: {} });
       }),
     );
 
@@ -201,6 +258,7 @@ describe("auth, user and dashboard endpoints", () => {
       name: "Ana",
       email: "ana@example.com",
       password: "Password1",
+      primaryCurrency: "ARS",
     });
 
     expect(
@@ -225,12 +283,39 @@ describe("auth, user and dashboard endpoints", () => {
         return okJson({});
       }),
     );
-    await userEndpoints.updateMe({ name: "Demo" });
+    await userEndpoints.updateMe({
+      name: "Demo",
+      email: "demo@example.com",
+    });
     expect(
       (await validateApiPayload(apiRequestDtos.UpdateUserDto, body as never))
         .valid,
     ).toBe(true);
-    expect(body).toEqual({ name: "Demo" });
+    expect(body).toEqual({ name: "Demo", email: "demo@example.com" });
+  });
+
+  it("changes the password with a valid ChangePasswordDto", async () => {
+    let body: unknown;
+    server.use(
+      http.patch(`${BASE}/users/me/password`, async ({ request }) => {
+        body = await request.json();
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    await userEndpoints.changePassword({
+      currentPassword: "Demo1234!",
+      newPassword: "Nueva1234!",
+    });
+
+    expect(
+      (
+        await validateApiPayload(
+          apiRequestDtos.ChangePasswordDto,
+          body as never,
+        )
+      ).valid,
+    ).toBe(true);
   });
 
   it("serializes dashboard params and validates them", async () => {

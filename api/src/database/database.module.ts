@@ -4,8 +4,6 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { join } from "path";
 import { DataSourceOptions } from "typeorm";
 import { AppConfig } from "../config/configuration";
-import { DatabaseMaintenanceService } from "./database-maintenance.service";
-import { DevDatabaseController } from "./dev-database.controller";
 
 @Module({
   imports: [
@@ -28,15 +26,16 @@ import { DevDatabaseController } from "./dev-database.controller";
           // wait for a free connection instead of failing immediately.
           extra: {
             max: database.poolMax,
+            // Keep opened connections alive. The pool creates them on demand;
+            // `min = max` prevents the first idle sweep from closing them.
+            min: database.poolMax,
             connectionTimeoutMillis: database.connectionTimeoutMs,
-            idleTimeoutMillis: 10_000,
+            idleTimeoutMillis: database.idleTimeoutMs,
+            keepAlive: true,
           },
         };
       },
     }),
   ],
-  controllers: [DevDatabaseController],
-  providers: [DatabaseMaintenanceService],
-  exports: [DatabaseMaintenanceService],
 })
 export class DatabaseModule {}
